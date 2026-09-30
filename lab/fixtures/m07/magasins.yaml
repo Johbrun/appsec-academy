@@ -1,0 +1,22 @@
+# Les magasins où la donnée d'un compte se propage — données embarquées.
+#
+# Le droit à l'effacement ne porte pas sur « la ligne utilisateur » : il porte
+# sur toutes les copies. Cartographier où la donnée part vient donc AVANT de
+# promettre de l'effacer — et c'est l'étape qu'on saute, parce qu'elle oblige à
+# regarder ce que le produit a accumulé depuis trois ans.
+#
+# Chaque nom correspond à un champ réel de `interface State`, dans
+# `server/store.ts` : la vérification le recoupe. Si un magasin disparaît du
+# modèle, la vérification le dit plutôt que de passer au vert par accident.
+
+magasins:
+  - nom: users
+    contient: Le compte lui-même — identité, identifiants, rattachement.
+  - nom: invoices
+    contient: Les factures émises, dont les notes libres qui citent souvent des personnes.
+  - nom: mails
+    contient: La boîte d'envoi — tout ce qui est parti garde l'adresse et le corps du message.
+  - nom: audit
+    contient: Le journal d'audit, qui garde l'acteur de chaque action.
+  - nom: sends
+    contient: Les traces de remise des envois, conservées pour le suivi.

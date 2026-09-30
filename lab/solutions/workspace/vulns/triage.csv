@@ -1,0 +1,21 @@
+rang,cve,composant,cvss_base,kev,epss,justification
+1,CVE-2026-50188,vm2,9.8,oui,0.96771,"Exploitation observée : au catalogue KEV, probabilité 0.96771."
+2,CVE-2026-21801,express,9.8,oui,0.9421,"Exploitation observée : au catalogue KEV, probabilité 0.94210."
+3,CVE-2026-30791,axios,8.6,oui,0.88004,"Exploitation observée : au catalogue KEV, probabilité 0.88004."
+4,CVE-2025-48795,tar-fs,8.8,oui,0.7231,"Exploitation observée : au catalogue KEV, probabilité 0.72310."
+5,CVE-2025-30066,tj-actions-changed-files,8.6,oui,0.5512,"Exploitation observée : au catalogue KEV, probabilité 0.55120."
+6,CVE-2026-48002,braces,7.5,oui,0.4122,"Exploitation observée : au catalogue KEV, probabilité 0.41220."
+7,CVE-2026-10233,ws,7.5,non,0.3109,"Pas au catalogue, mais probabilité d'exploitation élevée (0.31090)."
+8,CVE-2026-40155,jsonwebtoken,9.8,non,0.14503,"Pas au catalogue, mais probabilité d'exploitation élevée (0.14503)."
+9,CVE-2026-37622,follow-redirects,8.6,non,0.0634,Probabilité d'exploitation modérée (0.06340) : traitement au cycle courant.
+10,CVE-2026-18877,minimist,9.8,non,0.02245,Probabilité d'exploitation modérée (0.02245) : traitement au cycle courant.
+11,CVE-2026-24511,undici,8.1,non,0.01188,Probabilité d'exploitation modérée (0.01188) : traitement au cycle courant.
+12,CVE-2026-11902,node-fetch,8.8,non,0.00871,Score de base 8.8 mais probabilité très faible (0.00871) : rang 12.
+13,CVE-2026-15873,ip,8.1,non,0.00764,Score de base 8.1 mais probabilité très faible (0.00764) : rang 13.
+14,CVE-2026-29334,xml2js,9.1,non,0.00532,Score de base 9.1 mais probabilité très faible (0.00532) : rang 14.
+15,CVE-2026-19064,postcss,8.2,non,0.0045,Score de base 8.2 mais probabilité très faible (0.00450) : rang 15.
+16,CVE-2026-13044,lodash,9.1,non,0.00412,Score de base 9.1 mais probabilité très faible (0.00412) : rang 16.
+17,CVE-2026-44190,tough-cookie,7.5,non,0.00301,Score de base 7.5 mais probabilité très faible (0.00301) : rang 17.
+18,CVE-2026-33420,glob-parent,7.5,non,0.00217,Score de base 7.5 mais probabilité très faible (0.00217) : rang 18.
+19,CVE-2026-22014,semver,7.5,non,0.00123,Score de base 7.5 mais probabilité très faible (0.00123) : rang 19.
+20,CVE-2026-27718,qs,7.5,non,0.00099,Score de base 7.5 mais probabilité très faible (0.00099) : rang 20.

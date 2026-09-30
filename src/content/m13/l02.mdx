@@ -1,0 +1,242 @@
+export const questions = [
+  {
+    q: "Quelle leçon tire-t-on de GotoFail (Apple, 2014) ?",
+    options: [
+      "Qu'un contrôle doit être testé sur le cas où il doit refuser",
+      "Qu'une couverture de code à 100 % aurait rendu la ligne morte visible",
+      "Qu'un style de code imposant des accolades aurait évité la duplication du goto",
+      "Qu'une revue à deux relecteurs aurait repéré la ligne dupliquée dans le diff",
+    ],
+    answer: 0,
+    explain: "Les accolades obligatoires et la revue à quatre yeux auraient pu attraper cette ligne-là ; la couverture aurait peut-être signalé le code devenu mort. Trois bons contrôles, mais chacun dépend de la forme précise du bug. Ce qui l'aurait attrapé quelle que soit sa forme, c'est un seul test présentant une signature invalide — et aucun n'en présentait.",
+  },
+  {
+    q: "Qu'est-ce qu'un bon test de régression de sécurité ?",
+    options: [
+      "Un test qui vérifie que l'appel vulnérable a bien été remplacé dans le code corrigé",
+      "Un test qui rejoue la requête d'exploitation et attend une réponse 200",
+      "Un test qui couvre toutes les branches de la fonction corrigée",
+      "Un test qui reproduit la vulnérabilité, échoue avant le correctif et passe après",
+    ],
+    answer: 3,
+    explain: "Le piège le plus courant est d'attendre un 200 : on vérifie alors que la requête fonctionne, pas qu'elle est refusée. Tester la présence du correctif dans le code enferme le test dans une implémentation qu'un refactoring changera. Le critère opérationnel tient en un aller-retour : échouer sur le code d'avant, passer sur celui d'après.",
+  },
+  {
+    q: "Le schéma d'un avoir accepte un montant entier entre 1 et 1 000 000,00 € (en centimes). Quel jeu de tests de validation est le plus pertinent ?",
+    options: [
+      "Un montant valide et un montant invalide, pour couvrir les deux branches",
+      "Les bornes et leurs voisins, un négatif, un décimal, une chaîne, un champ en trop",
+      "Mille montants aléatoires tirés dans l'intervalle autorisé",
+      "Les valeurs métier représentatives : 10 €, 100 €, 1 000 €, et le plafond contractuel",
+    ],
+    answer: 1,
+    explain: "Les valeurs métier et les tirages aléatoires dans l'intervalle testent le chemin nominal : ils passeront tous, y compris si la borne haute est mal écrite. Un couple valide/invalide couvre les branches, pas les limites. On teste ce que la validation doit refuser, exactement aux bornes, et les types qu'un attaquant enverra — zod est testé par ses auteurs, ton schéma ne l'est pas.",
+  },
+  {
+    q: "L'outil de mutation testing retire le filtre tenantId d'une requête de la DAL, et tous les tests passent encore. Qu'est-ce que cela t'apprend ?",
+    options: [
+      "Que la couverture de ce fichier est insuffisante et doit être remontée",
+      "Que le filtre est redondant avec le contrôle d'autorisation placé en amont",
+      "Qu'aucun test ne vérifie l'isolation entre tenants sur ce chemin",
+      "Que le mutant est équivalent et doit être exclu de la configuration",
+    ],
+    answer: 2,
+    explain: "Le réflexe est de viser la couverture : les lignes peuvent pourtant être couvertes à 100 %, parce que des tests les exécutent sans rien asserter sur le tenant. Déclarer le mutant équivalent, ou le filtre redondant, conclut trop vite — et c'est ainsi que le contrôle finit par disparaître pour de bon. Un mutant qui survit est un contrôle qu'on peut supprimer sans qu'aucun test ne le remarque : exactement GotoFail.",
+  },
+];
+
+<YouKnow>
+Les développeurs testent que leur code marche. Le réflexe à installer : tester qu'il **refuse** ce qu'il doit refuser.
+</YouKnow>
+
+## GotoFail
+
+En 2014, le code TLS d'Apple contenait deux `goto fail;` consécutifs (CVE-2014-1266). Le second, exécuté sans condition, sautait la vérification de la signature, en laissant une variable de retour qui signalait le succès. Les connexions légitimes fonctionnaient parfaitement ; seules les signatures **invalides** étaient acceptées à tort. Kohnfelder (K12) en tire la leçon centrale : les tests fonctionnels ne voient que le chemin heureux. Un seul test présentant une signature invalide aurait détecté le bug.
+
+Il va plus loin. Un test de sécurité vérifie qu'une défaillance précise **ne se produit pas** : l'accès est refusé, l'entrée est rejetée, l'opération échoue. Pour du code critique, chaque condition qui applique un contrôle mérite son test. Et ces tests s'écrivent **en même temps** que les tests unitaires ordinaires, pas en réaction à une vulnérabilité : c'est ce qui les distingue d'un pentest, qui cherche des failles existantes, alors que les tests protègent contre celles qu'on introduira demain.
+
+## Tester le refus
+
+Pour chaque contrôle, au moins un test vérifie qu'il **refuse** :
+
+<Code file="apps/api/test/invoices.authz.test.ts">
+
+```ts
+import request from 'supertest';
+import { app } from '../src/app';
+import { login } from './helpers';
+
+describe('GET /invoices/:id', () => {
+  it('refuse une facture d’un autre tenant', async () => {
+    const alice = await login('alice@acme.example');          // tenant Acme
+    const res = await request(app)
+      .get('/invoices/inv_globex_001')                         // facture de Globex
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(404);                              // ni 200, ni 403 qui confirmerait l'existence
+  });
+
+  it('refuse un lecteur qui émet un avoir', async () => {
+    const reader = await login('reader@acme.example');
+    const res = await request(app).post('/invoices/inv_acme_001/credit-notes').set('Cookie', reader.cookie).send({ amount: 10 });
+    expect(res.status).toBe(403);
+  });
+});
+```
+
+</Code>
+
+La table de décision de M12 (leçon 5) se traduit directement en tests paramétrés. Si la politique existe dans le code, les tests la parcourent entièrement, et une permission ajoutée sans test apparaît aussitôt :
+
+<Code file="apps/api/test/policy.matrix.test.ts" hl="4,8">
+
+```ts
+import { POLICY, type Permission } from '../src/authz/policy';
+const ROLES = ['reader', 'accountant', 'tenant_admin'] as const;
+
+const cases = (Object.keys(POLICY) as Permission[]).flatMap((perm) =>
+  ROLES.map((role) => ({ perm, role, allowed: (POLICY[perm] as readonly string[]).includes(role) })));
+
+it.each(cases)('$role → $perm : autorisé = $allowed', async ({ perm, role, allowed }) => {
+  const user = await login(`${role}@acme.example`);
+  const res = await callEndpointFor(perm, user);               // une requête représentative par permission
+  expect(allowed ? res.status < 400 : res.status === 403).toBe(true);
+});
+```
+
+</Code>
+
+Deux conditions rendent ces tests bon marché. D'abord, des **données de test à deux tenants** dès le départ : la base de test de Novafact contient toujours Acme et Globex, avec un utilisateur par rôle dans chacun. Un test inter-tenant ne demande alors aucune préparation, et personne n'a d'excuse pour ne pas l'écrire. Ensuite, le bon **niveau** : l'autorisation se teste au niveau de l'API (supertest, en millisecondes, sans navigateur), pas en bout de chaîne. Les tests Playwright restent réservés à ce qui n'existe que dans le navigateur.
+
+<Callout kind="warn">
+Un test de refus peut passer pour une mauvaise raison. Le test attend 403 ; il obtient 403 parce que le jeton CSRF manquait, ou 401 parce que le helper de connexion a échoué silencieusement, et le contrôle d'autorisation n'a jamais été atteint. Le jour où le contrôle disparaît, le test reste vert. Vérifie aussi **la raison** du refus (un code d'erreur applicatif dans le corps, comme `forbidden_permission` ou `invoice_not_found`), et ajoute pour chaque test de refus le test jumeau qui vérifie que le même appel, fait par un utilisateur autorisé, réussit.
+</Callout>
+
+## Tester les limites de la validation
+
+Kohnfelder insiste sur les **bornes** : une validation « entre 10 et 20 caractères » se teste à 9, 10, 20 et 21, pas seulement à 15. Pour les API JavaScript, ajoute les **types inattendus**, parce qu'un attaquant n'enverra pas forcément une chaîne là où tu attends une chaîne :
+
+<Code file="apps/api/test/credit-note.schema.test.ts">
+
+```ts
+import { CreditNoteInput } from '../src/schemas/credit-note';   // z.object({ amount: z.number().int().positive().max(100_000_000) }).strict()
+
+it.each([
+  [{ amount: 1 }, true],
+  [{ amount: 100_000_000 }, true],                  // la borne haute est acceptée
+  [{ amount: 0 }, false],
+  [{ amount: -1 }, false],
+  [{ amount: 100_000_001 }, false],                // la borne haute plus un est refusée
+  [{ amount: 1.5 }, false],
+  [{ amount: '10' }, false],                       // pas de conversion implicite
+  [{ amount: { $gt: 0 } }, false],                 // un opérateur Mongo n'est pas un nombre
+  [{ amount: 1, tenantId: 'globex' }, false],      // un champ en trop est refusé (.strict())
+])('%j → valide = %s', (input, ok) => {
+  expect(CreditNoteInput.safeParse(input).success).toBe(ok);
+});
+```
+
+</Code>
+
+Le même raisonnement vaut pour les jetons. Avec `jose`, quatre tests couvrent les refus essentiels de la vérification d'un JWT :
+
+<Code file="apps/api/test/auth.jwt.test.ts">
+
+```ts
+const verify = (t: string, key = publicKey) =>
+  jwtVerify(t, key, { algorithms: ['ES256'], issuer: ISS, audience: AUD });
+
+it('refuse un jeton expiré', async () => {
+  const t = await base().setProtectedHeader({ alg: 'ES256' }).setExpirationTime(nowSec() - 60).sign(privateKey);
+  await expect(verify(t)).rejects.toMatchObject({ code: 'ERR_JWT_EXPIRED' });
+});
+it('refuse une autre audience', async () => { /* … ERR_JWT_CLAIM_VALIDATION_FAILED */ });
+it('refuse un algorithme non prévu (HS256)', async () => { /* … ERR_JOSE_ALG_NOT_ALLOWED */ });
+it('refuse une signature d’une autre clé', async () => { /* … ERR_JWS_SIGNATURE_VERIFICATION_FAILED */ });
+```
+
+</Code>
+
+## Tester dans le navigateur
+
+Pour les contrôles côté client (échappement, CSP, Trusted Types), un test Playwright vérifie qu'une charge ne s'exécute pas :
+
+<Code file="apps/web/e2e/note-xss.spec.ts">
+
+```ts
+test('la note de facture ne peut pas exécuter de script', async ({ page }) => {
+  let executed = false;
+  await page.exposeFunction('pwned', () => { executed = true; });
+  await createInvoice({ note: '<img src=x onerror="window.pwned()">' });
+  await page.goto('/invoices/latest');
+  await expect(page.getByText('Note')).toBeVisible();
+  expect(executed).toBe(false);
+});
+```
+
+</Code>
+
+## Les tests de régression
+
+Chaque vulnérabilité corrigée reçoit un test qui la reproduit. L'exercice classique : CVE-2025-29927, où un en-tête interne permettait de sauter le middleware Next.js.
+
+<Code file="apps/admin/e2e/middleware-bypass.spec.ts">
+
+```ts
+test('le middleware ne peut pas être sauté par un en-tête interne', async ({ request }) => {
+  const res = await request.get('/admin/tenants', {
+    headers: { 'x-middleware-subrequest': 'middleware:middleware:middleware:middleware:middleware' },
+    maxRedirects: 0,
+  });
+  expect([302, 401, 403]).toContain(res.status()); // jamais 200 sans session
+});
+```
+
+</Code>
+
+Ce test échoue sur une version vulnérable et passe après la mise à jour. Il reste dans la CI : si une régression ou un contournement réapparaît, il le signale.
+
+Pour un finding de pentest, inverse l'ordre habituel, comme en TDD : écris d'abord le test qui reproduit le finding et **vérifie qu'il échoue**, puis corrige jusqu'à ce qu'il passe. Un test de régression qu'on n'a jamais vu échouer ne prouve pas qu'il détecte le bug.
+
+## Tester les tests
+
+Comment savoir si tes tests de refus sont suffisants ? Le **mutation testing** répond directement à la question GotoFail. Un outil comme StrykerJS modifie le code (supprime une condition, inverse une comparaison, remplace un bloc par rien) et relance les tests. Si les tests passent encore, le « mutant a survécu » : ce morceau de code peut disparaître sans que personne le remarque.
+
+```bash
+npx stryker run --mutate "apps/api/src/authz/**/*.ts","apps/api/src/dal/**/*.ts","apps/api/src/schemas/**/*.ts"
+```
+
+Lancé sur tout le dépôt, c'est long et bavard. Restreint aux contrôles de sécurité (autorisation, DAL, validation), c'est l'un des meilleurs indicateurs de la qualité des tests de sécurité, bien plus parlant que la couverture de lignes.
+
+<Callout kind="debate">
+**Faut-il un objectif de couverture ?** Pour : un seuil (80 %) empêche les zones sans aucun test. Contre : la couverture mesure les lignes exécutées, pas les refus vérifiés. Le code de GotoFail était sans doute couvert par les tests du chemin heureux. Chez Novafact, pas de seuil global ; en revanche, les modules `authz/`, `dal/` et `schemas/` ont un score de mutation minimal suivi en CI, et toute nouvelle route arrive avec au moins un test de refus.
+</Callout>
+
+## Rattraper une base sans tests
+
+Kohnfelder conseille de ne pas viser la couverture totale d'un coup :
+
+<Steps items={[
+  { title: "Les contrôles critiques d'abord", text: "Authentification, autorisation inter-tenant, validation des montants : une poignée de tests de refus protège l'essentiel." },
+  { title: "Un test à chaque bug corrigé", text: "Chaque finding de pentest, de bug bounty ou de revue arrive avec son test de régression." },
+  { title: "Des tests de refus pour chaque nouvelle route", text: "La revue (M12) les demande ; la PR sans test de refus sur une route sensible ne passe pas." },
+  { title: "Des tests de caractérisation sur le code ancien", text: "Avant de refactorer un module sans tests, figer son comportement actuel, y compris ce qu'il refuse, pour détecter tout changement." },
+]} />
+
+En quelques mois, les zones sensibles sont couvertes, sans avoir arrêté le développement pour un grand chantier de tests.
+
+<Recap items={[
+  "GotoFail : les tests du chemin heureux ne voient pas un contrôle qui ne refuse plus.",
+  "Pour chaque contrôle, au moins un test qui vérifie le refus ; la table de décision devient une matrice de tests.",
+  "La validation se teste aux bornes et avec des types inattendus ; les jetons, avec leurs cas d'expiration, d'audience, d'algorithme et de clé.",
+  "Chaque vulnérabilité corrigée reçoit un test de régression qu'on a vu échouer avant le correctif.",
+  "Le mutation testing, ciblé sur les contrôles, dit si les tests de refus détecteraient la disparition d'un contrôle.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 12, Security Testing" },
+  { title: "ImperialViolet : Apple's SSL/TLS bug (GotoFail)", url: "https://www.imperialviolet.org/2014/02/22/applebug.html" },
+  { title: "supertest", url: "https://github.com/ladjs/supertest" },
+  { title: "Playwright : API testing", url: "https://playwright.dev/docs/api-testing" },
+  { title: "jose : jwtVerify", url: "https://github.com/panva/jose/blob/main/docs/jwt/verify/functions/jwtVerify.md" },
+  { title: "StrykerJS : getting started", url: "https://stryker-mutator.io/docs/stryker-js/getting-started/" },
+]} />

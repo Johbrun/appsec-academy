@@ -1,0 +1,25 @@
+# Livrable de référence du challenge « sla-policy ».
+#
+# Les délais sont adossés à la décision SSVC, comme la directive de référence
+# depuis juin 2026 : trois, quatorze ou soixante jours. « defer » ne pose pas
+# d'échéance — on réévalue au prochain cycle, on ne promet rien qu'on ne tiendra.
+#
+# Le plafond KEV s'applique en plus : une vulnérabilité activement exploitée
+# n'attend jamais le délai d'une critique ordinaire.
+
+version: 1
+unite: jours
+
+delais:
+  immediate: 3
+  out-of-cycle: 14
+  scheduled: 60
+  defer: null
+
+plafond_kev: 14
+
+note: >-
+  Délai applicable = min(delais[ssvc], plafond_kev si la vulnérabilité est au
+  catalogue). Âge = (date de correction ou aujourd'hui) − date de constat, en
+  jours calendaires. Hors délai quand le délai applicable existe et que l'âge le
+  dépasse strictement.

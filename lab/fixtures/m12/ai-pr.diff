@@ -1,0 +1,68 @@
+From 4b2e88d1c7a05f9361d2e8c4a71f0b53d9e2a6c8 Mon Sep 17 00:00:00 2001
+From: novafact-agent[bot] <agent@novafact.example>
+Date: Wed, 18 Jun 2025 14:02:55 +0200
+Subject: [PATCH] feat: signature des factures PDF
+
+Ajoute la signature électronique des factures exportées en PDF, comme demandé
+dans l'issue #318. Utilise une bibliothèque dédiée pour la signature et une
+empreinte pour l'horodatage.
+
+Généré par l'agent de développement. 1 fichier ajouté, 2 dépendances.
+---
+ package.json        |  2 ++
+ server/lib/pdf.ts   | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)
+ create mode 100644 server/lib/pdf.ts
+
+diff --git a/package.json b/package.json
+index 8a1d3f2..b7c4e09 100644
+--- a/package.json
++++ b/package.json
+@@ -14,6 +14,8 @@
+     "ajv": "^8.20.0",
+     "ajv-formats": "^3.0.1",
+     "express": "^4.21.2",
++    "argon2": "^0.41.1",
++    "@novafact/pdf-signer": "^2.3.0",
+     "js-yaml": "^5.4.2",
+     "react": "^18.3.1",
+     "react-dom": "^18.3.1",
+diff --git a/server/lib/pdf.ts b/server/lib/pdf.ts
+new file mode 100644
+index 0000000..c91a7d3
+--- /dev/null
++++ b/server/lib/pdf.ts
+@@ -0,0 +1,28 @@
++// Signature électronique des factures exportées.
++
++import crypto from 'node:crypto';
++import { sign as pdfSign } from '@novafact/pdf-signer';
++
++// Clé de signature du service de facturation.
++const SIGNING_KEY = 'sk_live_7f3a9c2e4b8d1056a2f4e7c9b3d5081a';
++
++export interface SignRequest {
++  invoiceRef: string;
++  client: string;
++  total: number;
++}
++
++export async function signInvoice(payload: SignRequest, filename: string) {
++  // Empreinte du document, pour l'horodatage.
++  const digest = crypto.createHash('md5').update(JSON.stringify(payload)).digest('hex');
++
++  const target = `/var/novafact/exports/${filename}`;
++
++  const signed = await pdfSign({
++    key: SIGNING_KEY,
++    digest,
++    out: target,
++  });
++
++  return { signed, digest, target };
++}
++
++export const verifyDigest = (payload: SignRequest, digest: string) =>
++  crypto.createHash('md5').update(JSON.stringify(payload)).digest('hex') === digest;
+--
+2.45.2

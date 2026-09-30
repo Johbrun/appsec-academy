@@ -1,0 +1,205 @@
+export const questions = [
+  {
+    q: "Quelle est la différence entre cache poisoning et cache deception ?",
+    options: [
+      "Le poisoning vise le cache du CDN, la deception celui du navigateur",
+      "Le poisoning exploite une entrée hors clé, la deception une entrée dans la clé",
+      "Le poisoning demande une action de la victime, la deception non",
+      "Le poisoning sert une réponse contaminée à tous ; la deception expose une page privée",
+    ],
+    answer: 3,
+    explain: "L'opposition « hors clé / dans la clé » est la plus fine, et elle n'est juste qu'à moitié : le poisoning vient bien d'une entrée hors clé, mais la deception ne vient pas d'une entrée dans la clé — elle naît de ce que le cache et l'origine ne lisent pas l'URL de la même façon. C'est d'ailleurs la deception qui exige une action de la victime, puisque c'est sa visite qui remplit le cache. Le sens de l'attaque les sépare.",
+  },
+  {
+    q: "Quel contrôle protège le mieux les réponses authentifiées de l'API Novafact contre la cache deception ?",
+    options: [
+      "Un TTL maximal court, de quelques secondes, sur les chemins dynamiques",
+      "private, no-store par défaut, et cache limité aux chemins statiques explicites",
+      "Une clé de cache qui inclut le cookie de session, pour isoler les utilisateurs",
+      "Un Vary: Cookie sur les réponses privées, pour forcer la variation du cache",
+    ],
+    answer: 1,
+    explain: "Le Vary: Cookie est le réflexe qui trompe le plus : côté CDN, c'est la politique de cache qui définit la clé, et un en-tête que l'origine ne reçoit même pas ne peut rien y changer. Mettre le cookie de session dans la clé isole bien les utilisateurs, mais transforme le cache en stock de pages privées et ne couvre que les routes auxquelles on a pensé. Un TTL court raccourcit la fenêtre sans la fermer.",
+  },
+  {
+    q: "L'API envoie bien Cache-Control: private, no-store, mais le comportement CloudFront qui la sert utilise la politique gérée CachingOptimized. Que se passe-t-il ?",
+    options: [
+      "CloudFront respecte no-store : l'en-tête de l'origine prime toujours",
+      "CloudFront ne met pas en cache, la politique excluant les cookies de la clé",
+      "Son TTL minimal d'une seconde s'applique malgré no-store",
+      "La réponse est mise en cache 24 h, le TTL par défaut de la politique",
+    ],
+    answer: 2,
+    explain: "Les 24 heures sont le distracteur le plus instructif : c'est bien le TTL par défaut de CachingOptimized, mais il ne s'applique que lorsque l'origine n'envoie aucun Cache-Control. Ici elle en envoie un, et c'est le TTL minimal qui prend le dessus. L'exclusion des cookies de la clé aggrave le problème plutôt qu'elle ne le règle, puisque la réponse sera servie au visiteur suivant. La documentation AWS est explicite : dès que le TTL minimal dépasse 0, il s'applique malgré no-cache, no-store et private.",
+  },
+  {
+    q: "La page d'accueil publique, mise en cache, construit ses URL absolues à partir de X-Forwarded-Host. Cet en-tête n'est pas dans la clé du cache. Quel est le risque ?",
+    options: [
+      "Un empoisonnement : une requête forgée pollue la page servie à tous",
+      "Une cache deception : la page servie contiendrait les données du premier visiteur",
+      "Aucun risque : la page est publique et ne contient aucune donnée de session",
+      "Une désynchronisation : l'en-tête supplémentaire décale la délimitation",
+    ],
+    answer: 0,
+    explain: "« La page est publique, donc il n'y a rien à voler » est l'argument qui laisse ces bugs ouverts des années : ce qui fuit n'est pas une donnée, c'est le contrôle de la page — les URL absolues pointent alors vers un domaine choisi par l'attaquant, donc les scripts qu'exécutent tous les visiteurs. La deception irait dans l'autre sens, en stockant une page privée. C'est le cas type de l'entrée hors clé, et il se corrige deux fois : ne pas lire cet en-tête, et ne pas le transmettre à l'origine.",
+  },
+];
+
+<YouKnow>
+Tu connais les entrées hors clé (unkeyed inputs), le parameter cloaking, et les attaques de cache deception basées sur les divergences de délimiteurs. On regarde ici qui décide de ce qui est mis en cache, comment ces décideurs se contredisent, et comment l'encadrer.
+</YouKnow>
+
+## Deux attaques, un même défaut
+
+Un cache associe une réponse à une **clé** (en général l'hôte, le chemin et certains paramètres). Les problèmes naissent quand la clé et la réponse ne décrivent pas la même chose.
+
+- **Cache poisoning** : la réponse dépend d'une entrée qui **n'est pas dans la clé** (un en-tête comme `X-Forwarded-Host`, un paramètre ignoré par le cache mais lu par l'application). L'attaquant fait stocker une réponse modifiée, servie ensuite à tous les visiteurs.
+- **Cache deception** : le cache et l'origine **n'interprètent pas l'URL de la même façon** (délimiteurs, normalisation, extensions). Une URL qui ressemble à une ressource statique pour le cache renvoie une page privée côté origine. La victime la visite, sa page est mise en cache, l'attaquant la récupère. La recherche *Gotta cache 'em all* (Martin Doyhenard, PortSwigger, 2024) a systématisé ces divergences.
+
+<Callout kind="case">
+La cache deception a été popularisée par Omer Gil en 2017 avec PayPal : des pages de compte restaient accessibles sous une URL suivie d'un faux nom de fichier statique, et plus de quarante extensions déclenchaient la mise en cache. L'origine ignorait le suffixe et servait la page privée ; le cache, voyant une extension statique, la stockait. Sept ans plus tard, *Gotta cache 'em all* montre que le problème a surtout changé de forme : on ne joue plus seulement sur l'extension, mais sur les délimiteurs et la normalisation.
+</Callout>
+
+## Comment les deux lectures divergent
+
+La deception exploite une question simple : **quel est le chemin de cette URL ?** Chaque composant y répond avec ses propres règles.
+
+| Divergence | Côté origine | Côté cache |
+| --- | --- | --- |
+| Délimiteurs propres au framework | Le `;` des variables matricielles de Spring, le `.` de format de Rails : la fin de l'URL est ignorée | Le chemin complet, qui se termine par une extension statique |
+| Décodage | Certains caractères encodés sont décodés avant le routage | La forme encodée sert à la clé, ou l'inverse |
+| Segments point | Le chemin est normalisé (`..` résolu) avant le routage | La règle « répertoire statique » s'applique au chemin brut |
+| Routes génériques | Une route attrape-tout (`/account/*`, catch-all Next.js) répond à n'importe quel suffixe | Le suffixe ressemble à un fichier |
+
+Express ne traite pas `;` comme un délimiteur, mais l'écosystème JS a ses propres pièges : les routes génériques, et des composants (CDN, Node, proxys) qui ne décodent pas les mêmes caractères. La défense ne consiste pas à connaître toutes les divergences, mais à faire en sorte qu'**aucune n'ait d'effet** : si la réponse privée se déclare non cachable et que le cache obéit, la divergence ne mène nulle part.
+
+## Qui décide de ce qui est mis en cache ?
+
+Trois décideurs coexistent, et c'est leur désaccord qui crée la faille :
+
+1. **L'origine**, par ses en-têtes (`Cache-Control`, `Expires`).
+2. **Les règles du cache** : politique de cache CloudFront, TTL minimal, par défaut et maximal, règles par extension ou par répertoire.
+3. **Le cache du framework** : Next.js a son propre cache de rendu, avec ses propres clés.
+
+Doyhenard le résume dans sa section défense : il faut vérifier que **les règles du cache n'ont pas priorité sur l'en-tête de l'origine**. Sur CloudFront, c'est précisément le rôle du TTL minimal :
+
+| Réglage CloudFront | Effet sur une réponse `private, no-store` |
+| --- | --- |
+| TTL minimal à 0 | CloudFront respecte l'en-tête et ne met pas en cache |
+| TTL minimal supérieur à 0 | CloudFront met en cache au moins pendant le TTL minimal, **malgré** `no-store` et `private` |
+| Politique gérée `CachingOptimized` | TTL minimal de 1 s, TTL par défaut de 24 h, ni cookies ni query strings dans la clé |
+| Politique gérée `CachingDisabled` | Aucun cache |
+
+<Callout kind="warn">
+Le piège le plus courant n'est pas un réglage exotique : c'est `CachingOptimized` appliqué au comportement par défaut « pour aller plus vite ». Une route dynamique qui oublie son `Cache-Control` est alors mise en cache 24 heures, avec une clé qui ignore les cookies, donc servie au prochain visiteur, quel qu'il soit. Et même une route correcte, qui envoie `no-store`, reste en cache une seconde.
+</Callout>
+
+## Le cas Next.js
+
+Rachid Allam (zhero) a publié une série sur le cache interne de Next.js : **CVE-2024-46982** (empoisonnement du cache du Pages Router, jusqu'au XSS stocké), **CVE-2025-49826** (une réponse vide mise en cache pour des pages statiques, donc un déni de service) et *Next.js, cache, and chains: the stale elixir*, classée 7ᵉ du Top 10 des techniques web de 2025. La leçon : même sans CDN, un framework peut avoir **son propre cache**, avec ses propres clés.
+
+## Les contrôles
+
+<Steps items={[
+  { title: "La réponse se déclare", text: "Toute réponse dynamique envoie Cache-Control: private, no-store par défaut. C'est l'origine qui décide, pas l'heuristique du cache." },
+  { title: "Le cache ne devine pas", text: "Le cache CloudFront n'est activé que sur des chemins statiques explicites (/assets/*, /_next/static/*), jamais selon l'extension de l'URL ; le comportement par défaut utilise CachingDisabled." },
+  { title: "Clé et réponse cohérentes", text: "Si la réponse dépend d'un en-tête ou d'un paramètre, il entre dans la clé (cache policy), ou l'origine ne le lit pas. Les en-têtes transmis à l'origine sont listés explicitement (origin request policy)." },
+  { title: "Normalisation unique", text: "Le chemin est normalisé une fois, à la bordure, et l'origine refuse les chemins non canoniques plutôt que de les réinterpréter." },
+  { title: "Pas de route attrape-tout sur du privé", text: "Une page privée répond sur un chemin exact ; tout suffixe inattendu donne un 404, qui n'est pas mis en cache." },
+  { title: "Frameworks à jour", text: "Suivre les avis de sécurité de Next.js, dont le cache est une surface à part entière." },
+]} />
+
+Côté application, on inverse la logique habituelle : **rien n'est cachable par défaut**, et une route publique doit l'annoncer explicitement.
+
+<Code file="apps/api/src/middleware/cache.ts">
+
+```ts
+// Valeur sûre par défaut : aucune réponse de l'API n'est stockée, authentifiée ou non.
+export const noStoreByDefault: RequestHandler = (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  next();
+};
+
+// Opt-in explicite, relu en revue : uniquement pour des données identiques pour tous.
+export const publicCache = (seconds: number): RequestHandler => (_req, res, next) => {
+  res.set('Cache-Control', `public, max-age=${seconds}`);
+  next();
+};
+
+app.use(noStoreByDefault);
+app.get('/public/currencies', publicCache(300), listCurrencies);
+```
+
+</Code>
+
+Côté infrastructure, le comportement par défaut n'est jamais caché, et seuls les chemins statiques, servis depuis S3, utilisent une politique de cache :
+
+<Code file="infra/cloudfront.tf">
+
+```hcl
+data "aws_cloudfront_cache_policy" "disabled" { name = "Managed-CachingDisabled" }
+data "aws_cloudfront_cache_policy" "optimized" { name = "Managed-CachingOptimized" }
+
+resource "aws_cloudfront_distribution" "app" {
+  # ... origines, certificats, alias
+
+  default_cache_behavior {
+    target_origin_id         = "api-alb"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.api_minimal.id
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "/assets/*"
+    target_origin_id       = "static-s3"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+  }
+}
+```
+
+</Code>
+
+La politique `api_minimal` liste les quelques en-têtes et cookies dont l'API a besoin. Ne compte pas sur `Vary` pour réparer une clé incomplète : c'est la politique de cache qui définit la clé côté CDN, et un en-tête que l'origine ne reçoit pas ne peut pas l'influencer.
+
+## Tester et détecter
+
+<Steps items={[
+  { title: "Test de parcours authentifié", text: "En préproduction, un script rejoue deux fois chaque page privée avec une session de test et vérifie que X-Cache ne vaut jamais Hit from cloudfront, et que Cache-Control contient no-store." },
+  { title: "Test de suffixes", text: "Pour chaque route privée, ajouter un suffixe à l'allure statique (nom de fichier .css ou .js) doit donner 404 à l'origine, pas la page." },
+  { title: "Test de politique", text: "Une règle maison (Checkov ou conftest, sur le plan Terraform) refuse tout comportement CloudFront dont le TTL minimal est supérieur à 0 hors des chemins statiques." },
+  { title: "Détection en production", text: "Les journaux CloudFront indiquent le résultat de chaque requête (champ x-edge-result-type). Une réponse Hit sur un chemin /api/ ou /account/ ne devrait jamais exister : c'est une alerte, pas une statistique." },
+]} />
+
+<Callout kind="tip">
+Le test de parcours authentifié est un excellent ajout au DAST (M13) : il ne cherche pas de faille précise, il vérifie un invariant (« aucune page privée ne sort du cache »), qui reste vrai quelle que soit la technique de deception inventée demain.
+</Callout>
+
+<Recap items={[
+  "Poisoning : une réponse contaminée est servie à tous ; deception : une page privée est mise en cache.",
+  "Le défaut commun : la clé du cache et la réponse ne décrivent pas la même chose, parce que cache et origine lisent l'URL différemment.",
+  "Trois décideurs (origine, règles du CDN, cache du framework) ; les règles du CDN ne doivent pas primer sur l'en-tête de l'origine.",
+  "Sur CloudFront, un TTL minimal supérieur à 0 met en cache malgré no-store ; CachingOptimized a un TTL minimal de 1 s et 24 h par défaut.",
+  "Rien n'est cachable par défaut côté API ; le cache CDN est limité aux chemins statiques explicites.",
+  "Un test de parcours authentifié et une alerte sur les Hit des chemins privés vérifient l'invariant en continu.",
+]} />
+
+<Lab id="ps-cache-poisoning" />
+<Lab id="ps-cache-deception" />
+
+<Sources items={[
+  { title: "Web Security Academy : Web cache deception", url: "https://portswigger.net/web-security/web-cache-deception" },
+  { title: "Web Security Academy : Web cache poisoning", url: "https://portswigger.net/web-security/web-cache-poisoning" },
+  { title: "PortSwigger Research : Gotta cache 'em all", url: "https://portswigger.net/research/gotta-cache-em-all" },
+  { title: "Omer Gil : Web Cache Deception Attack (2017)", url: "https://omergil.blogspot.com/2017/02/web-cache-deception-attack.html" },
+  { title: "zhero : Next.js and cache poisoning, a quest for the black hole", url: "https://zhero-web-sec.github.io/research-and-things/nextjs-and-cache-poisoning-a-quest-for-the-black-hole" },
+  { title: "zhero : Next.js, cache, and chains, the stale elixir", url: "https://zhero-web-sec.github.io/research-and-things/nextjs-cache-and-chains-the-stale-elixir" },
+  { title: "AWS : politiques de cache CloudFront", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/controlling-the-cache-key.html" },
+  { title: "AWS : durée de mise en cache (TTL minimal et Cache-Control)", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html" },
+  { title: "AWS : politiques de cache gérées", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html" },
+]} />

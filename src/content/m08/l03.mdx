@@ -1,0 +1,200 @@
+export const questions = [
+  {
+    q: "L'assistant IA de Novafact appelle l'API interne avec son propre compte de service, très privilégié, pour exécuter les demandes des utilisateurs. Quel anti-pattern ?",
+    options: [
+      "Backflow of Trust : un composant peu fiable pilote un composant de confiance",
+      "Confused Deputy : un composant privilégié agit pour un appelant qui ne l'est pas",
+      "Third-Party Hooks : un tiers dispose d'un accès direct au cœur du système",
+      "Unpatchable Components : un composant qu'on ne peut plus corriger",
+    ],
+    answer: 1,
+    explain: "L'assistant agit avec ses droits pour le compte d'un utilisateur qui ne les a pas : c'est l'adjoint confus. La confusion fréquente est avec le backflow of trust, qui décrit l'inverse — un composant de faible confiance qui en pilote un de haute confiance. Ici l'assistant est de confiance ; ce qui manque, c'est le contexte de l'appelant, qui doit voyager avec la requête et être exigé au moment d'accéder à la ressource.",
+  },
+  {
+    q: "Le runner CI de pull requests, qui exécute du code non relu, possède des identifiants de déploiement en production. Quel anti-pattern ?",
+    options: [
+      "Confused Deputy : le runner agit au-delà des droits de l'auteur de la PR",
+      "Third-Party Hooks : GitHub dispose d'un accès direct à la production",
+      "Backflow of Trust : du code non relu pilote un composant de haute confiance",
+      "Unpatchable Components : le runner exécute une image qu'on ne maîtrise pas",
+    ],
+    answer: 2,
+    explain: "Ce qui compte n'est pas la confiance qu'on accorde au runner, mais celle qu'il mérite : il exécute du code que personne n'a relu. C'est une élévation de privilège structurelle. L'adjoint confus est proche et souvent proposé, mais il suppose un composant honnête trompé sur l'identité du demandeur ; ici il n'y a aucune tromperie, on a simplement donné les clés de la production à du code arbitraire. Sur GitHub Actions, c'est le piège de pull_request_target.",
+  },
+  {
+    q: "Le service d'export appelle une fonction utilitaire loadInvoices(ids), partagée avec les tâches d'administration et qui ne reçoit que des identifiants. Pourquoi est-ce un terrain favorable au confused deputy ?",
+    options: [
+      "Parce que les identifiants passés sont prévisibles, donc faciles à énumérer",
+      "Parce que le contexte de l'appelant est perdu : la fonction ne sait pas qui demande",
+      "Parce qu'une fonction partagée entre tenants viole Least Common Mechanism",
+      "Parce que la fonction n'impose aucune limite au nombre d'identifiants acceptés",
+    ],
+    answer: 1,
+    explain: "Kohnfelder situe l'origine la plus fréquente des adjoints confus dans le code commun à des appelants de confiance différente : le contexte (qui demande, pour quel tenant) s'est perdu en route. Rendre les identifiants imprévisibles est utile ailleurs mais ne corrige rien ici — la fonction obéirait tout aussi bien à un UUID récupéré dans un lien partagé. La correction : faire voyager le contexte jusqu'à la fonction, et l'y exiger.",
+  },
+  {
+    q: "La page de paiement de Novafact charge un script depuis un CDN tiers. Le domaine du CDN change de propriétaire. Quelle combinaison de contrôles répond à l'anti-pattern ?",
+    options: [
+      "Mettre en place une CSP en mode report-only sur la page de paiement",
+      "Épingler la version du script dans l'URL du CDN, en /v3.2.1/pay.js",
+      "Héberger soi-même une copie figée, avec SRI et une CSP qui exclut l'origine tierce",
+      "Inscrire le CDN au registre des fournisseurs et le réévaluer chaque année",
+    ],
+    answer: 2,
+    explain: "C'est un third-party hook : un tiers peut changer le code exécuté dans ta page. Épingler la version est le réflexe le plus fréquent et il ne protège pas — le nouveau propriétaire sert ce qu'il veut sous n'importe quelle URL, c'est exactement l'histoire de polyfill.io en 2024. Seules l'intégrité vérifiée (SRI) ou l'hébergement local retirent ce pouvoir au tiers ; une CSP en report-only, elle, n'a jamais rien bloqué.",
+  },
+];
+
+<YouKnow>
+Ces quatre anti-patterns, tu les as exploités sous d'autres noms : SSRF avec les droits du serveur, compromission d'un fournisseur, composants abandonnés. Kohnfelder leur donne un vocabulaire de conception.
+</YouKnow>
+
+## Des anti-patterns, pas des vulnérabilités
+
+Kohnfelder précise que ces anti-patterns ne sont pas des failles en soi : ce sont des **structures** qui en produisent. Un confused deputy bien défendu peut tenir des années ; mais tant que la structure existe, chaque évolution du code risque de rouvrir la porte. En revue de conception, les nommer permet de discuter de la structure plutôt que du bug du jour.
+
+## Confused Deputy
+
+Un **adjoint confus** est un composant privilégié qu'un appelant moins privilégié amène à agir en son nom, **au-delà de ses propres droits**. Kohnfelder le présente comme « la mère de tous les anti-patterns », avec l'histoire d'un adjoint du shérif qui arrête la mauvaise personne parce que le suspect a fourni une fausse adresse : l'adjoint n'est ni malhonnête ni incompétent, il a utilisé son autorité sur la foi d'une information que l'autre contrôlait.
+
+| Contexte | Adjoint confus |
+| --- | --- |
+| Web | Une SSRF : le serveur émet la requête avec son accès au réseau interne ; un CSRF : le navigateur envoie la requête avec les cookies de la victime |
+| API | Un endpoint qui charge un objet par son identifiant avec les droits du service, sans vérifier le tenant du demandeur |
+| AWS | Un service qui agit sur une ressource de ton compte pour le compte d'un autre client (d'où l'`ExternalId` et les conditions `aws:SourceArn`, M15) |
+| IA | Un agent qui exécute les outils avec ses propres droits pour le compte de l'utilisateur ou d'un contenu injecté (M19) |
+
+### D'où vient la confusion
+
+Kohnfelder situe l'origine la plus fréquente dans le **code commun** à des appelants de confiance différente. Un composant intermédiaire sait qu'il est appelé par un utilisateur peu privilégié ; il délègue à un utilitaire qui, lui, n'a aucune notion de l'appelant et fait tout ce qu'on lui demande. Le contexte de la requête (qui, pour quel tenant, avec quels droits) s'est perdu en route.
+
+Deuxième source : les **effets de bord**. Le demandeur n'a pas accès aux journaux, mais s'il peut faire écrire au service une chaîne qui corrompt ou falsifie une entrée de log, il utilise le privilège du service sur un actif auquel il n'a pas droit.
+
+La correction tient en une règle : **le contexte voyage avec la requête jusqu'au bout**, et le code qui touche une ressource l'exige.
+
+<Diff file="apps/api/src/invoices/invoices.repository.ts" hlBefore="1,2" hlAfter="1,3">
+
+```ts
+export const loadInvoices = (ids: string[]) =>
+  prisma.invoice.findMany({ where: { id: { in: ids } } }); // appelé par l'export ET par les tâches d'admin
+```
+
+```ts
+export const loadInvoices = (ctx: RequestContext, ids: string[]) =>
+  prisma.invoice.findMany({
+    where: { id: { in: ids }, tenantId: ctx.tenantId }, // le tenant vient du contexte authentifié
+  });
+// les tâches d'administration ont leur propre fonction, avec un contexte « système » explicite et audité
+```
+
+</Diff>
+
+Passer un contexte en paramètre partout est parfois lourd. Node propose `AsyncLocalStorage` (module `node:async_hooks`) pour attacher un contexte à toute une chaîne d'appels asynchrones ; c'est pratique pour la journalisation, mais pour l'autorisation, un paramètre explicite reste préférable : il rend l'oubli visible au typage et en revue.
+
+<Callout kind="novafact">
+Le même principe s'applique à AWS. Quand un service AWS écrit dans un bucket de Novafact pour le compte d'une ressource (CloudTrail, par exemple), la politique du bucket restreint l'accès à **cette** ressource avec la condition `aws:SourceArn`, pour qu'une ressource d'un autre compte ne puisse pas utiliser le même service comme adjoint.
+</Callout>
+
+<Code file="infra/s3/audit-bucket-policy.json" hl="9">
+
+```json
+{
+  "Sid": "CloudTrailWrite",
+  "Effect": "Allow",
+  "Principal": { "Service": "cloudtrail.amazonaws.com" },
+  "Action": "s3:PutObject",
+  "Resource": "arn:aws:s3:::novafact-audit-logs/AWSLogs/111122223333/*",
+  "Condition": {
+    "StringEquals": {
+      "aws:SourceArn": "arn:aws:cloudtrail:eu-west-3:111122223333:trail/novafact-org-trail",
+      "s3:x-amz-acl": "bucket-owner-full-control"
+    }
+  }
+}
+```
+
+</Code>
+
+## Backflow of Trust
+
+Un **reflux de confiance** se produit quand un composant de **faible** confiance contrôle un composant de **haute** confiance. Kohnfelder donne l'exemple de l'administrateur qui gère la production depuis son ordinateur personnel : la personne est digne de confiance, sa machine ne l'est pas. Ce qui compte n'est pas la confiance qu'on accorde, mais celle que le composant **mérite**. C'est une élévation de privilèges structurelle, qui attend son heure.
+
+Chez Novafact, deux formes typiques :
+
+- un **runner CI** qui exécute le code des pull requests (non relu) et a accès aux identifiants de production. Sur GitHub Actions, c'est le piège du déclencheur `pull_request_target`, qui s'exécute avec les secrets du dépôt : combiné à un checkout du code de la PR, il fait exécuter du code non relu avec des droits élevés (M14) ;
+- un **poste de développeur** sans protection particulière qui détient des clés AWS à longue durée de vie.
+
+La correction consiste à faire dépendre l'accès à la production d'une identité que seul un contexte de confiance peut obtenir. Avec la fédération OIDC entre GitHub et AWS, le rôle de déploiement n'accepte que les jobs de l'environnement `production` du bon dépôt, qu'on protège par une approbation obligatoire :
+
+<Code file="infra/iam/deploy-role-trust.json" hl="9,10">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+        "token.actions.githubusercontent.com:sub": "repo:novafact/api:environment:production"
+      }
+    }
+  }]
+}
+```
+
+</Code>
+
+Un workflow de pull request ne peut pas obtenir ce rôle : son `sub` ne correspond pas. Le threat modeling (M11) fait apparaître ces situations en examinant, frontière par frontière, **qui pilote qui**.
+
+## Third-Party Hooks
+
+Une variante du précédent : un **tiers** dispose d'un accès direct au cœur du système, hors du contrôle de ceux qui l'exploitent. Kohnfelder cite le fournisseur d'un composant de prévision par IA qui exige un tunnel à travers le pare-feu pour le maintenir : s'il est malhonnête ou compromis, il exfiltre sans que personne ne le voie. Côté web, c'est exactement le script tiers de la page de paiement (M4), le serveur MCP d'un éditeur branché sur l'assistant (M19), ou la GitHub App avec des droits en écriture sur tous les dépôts (M14).
+
+<Callout kind="case">
+**polyfill.io (2024)**. Plus de 100 000 sites chargeaient un script depuis `cdn.polyfill.io`. En février 2024, le domaine et le compte GitHub du projet sont rachetés par une société nommée Funnull ; en juin, Sansec signale que le CDN sert du code qui redirige certains visiteurs mobiles vers des sites frauduleux, en évitant les administrateurs et les outils d'analyse. Le registrar suspend le domaine le 27 juin. Aucun des sites touchés n'avait été compromis : ils avaient simplement donné à un tiers le pouvoir de changer leur code.
+</Callout>
+
+Un hook limité peut être acceptable : Kohnfelder admet un mécanisme de mise à jour qui ne fait que télécharger et installer des versions signées. Un accès général ne l'est pas. Pour les scripts du navigateur, la réponse structurelle est connue : héberger soi-même une version figée, vérifier son intégrité avec **Subresource Integrity**, et une **CSP** qui n'autorise pas l'origine tierce. PCI DSS 4.0 impose d'ailleurs, sur les pages de paiement, l'inventaire et la justification de chaque script (exigence 6.4.3).
+
+## Unpatchable Components
+
+Tout composant populaire aura un jour une vulnérabilité connue. Un composant qu'on **ne peut pas corriger** devient donc une dette permanente. Kohnfelder en liste plusieurs formes : matériel non mis à jour, logiciel abandonné par son éditeur, binaire sans source, code compilé avec un outil obsolète, code écrit dans un langage que plus personne ne maîtrise. Pour Novafact :
+
+- un paquet npm **abandonné** (plus de release, mainteneur injoignable) ;
+- une version de Node en **fin de vie** : Node 18 depuis le 30 avril 2025, Node 20 depuis le 30 avril 2026 ;
+- du code **vendorisé** (copié dans le dépôt) sans suivi de l'original ;
+- un service qu'une seule personne sait déployer, ou une image Docker que plus personne ne sait reconstruire.
+
+<Callout kind="case">
+**event-stream (2018)**. Le mainteneur d'un paquet très utilisé, qui ne s'en occupait plus, en a cédé la publication à un inconnu qui s'était proposé pour l'aider. Celui-ci a ajouté une dépendance, `flatmap-stream`, contenant du code chiffré qui ne s'activait que dans l'application de portefeuille Bitcoin Copay. Un paquet abandonné n'est pas seulement impossible à corriger : il est aussi disponible pour qui veut le reprendre.
+</Callout>
+
+Contrôles concrets :
+
+<Steps items={[
+  { title: "Un critère de choix", text: "Avant d'adopter un composant : peut-on le mettre à jour en quelques heures ? Qui le maintient, à quel rythme, avec quelle politique de sécurité ?" },
+  { title: "Une mesure continue", text: "OpenSSF Scorecard (contrôle « Maintained »), dates de fin de vie des runtimes et des images de base suivies comme des échéances." },
+  { title: "Des mises à jour régulières", text: "Renovate ou Dependabot, avec des montées de version petites et fréquentes plutôt qu'un grand saut annuel impossible à tester (M13)." },
+  { title: "Un plan de sortie", text: "Pour chaque dépendance critique abandonnée : forker et maintenir, remplacer, ou isoler derrière une interface qui facilite le remplacement." },
+]} />
+
+<Recap items={[
+  "Confused Deputy : un composant privilégié agit au-delà des droits de son demandeur ; faire voyager le contexte jusqu'au code qui touche la ressource.",
+  "Backflow of Trust : un composant peu fiable pilote un composant très fiable ; l'accès à la production dépend d'une identité que seul un contexte de confiance obtient.",
+  "Third-Party Hooks : un tiers peut changer ton code ou accéder au cœur du système ; figer, vérifier, limiter.",
+  "Unpatchable Components : ce qu'on ne peut pas corriger devient une dette permanente, et un paquet abandonné peut être repris par n'importe qui.",
+  "Ces anti-patterns sont des structures : on les corrige en conception, pas bug par bug.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 4, Anti-Patterns" },
+  { title: "AWS : le problème du confused deputy", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html" },
+  { title: "GitHub Security Lab : Preventing pwn requests", url: "https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/" },
+  { title: "GitHub Docs : OIDC dans AWS", url: "https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services" },
+  { title: "Sansec : Polyfill supply chain attack hits 100K+ sites", url: "https://sansec.io/research/polyfill-supply-chain-attack" },
+  { title: "Node.js : calendrier des versions", url: "https://github.com/nodejs/release#release-schedule" },
+  { title: "OpenSSF Scorecard", url: "https://scorecard.dev/" },
+]} />

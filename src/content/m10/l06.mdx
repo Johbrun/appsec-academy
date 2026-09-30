@@ -1,0 +1,229 @@
+export const questions = [
+  {
+    q: "Comment garantir qu'une facture émise ne change plus de montant ?",
+    options: [
+      "Retirer le bouton « Modifier » de l'interface dès que la facture est émise",
+      "Une machine à états côté serveur, dont la base refuse les transitions interdites",
+      "Vérifier à l'affichage que le montant correspond à celui du PDF archivé",
+      "Journaliser chaque modification pour pouvoir reconstituer l'historique",
+    ],
+    answer: 1,
+    explain: "L'invariant tient côté serveur, idéalement jusque dans la base (contrainte ou trigger) : la transition « émise vers modifiée » n'existe pas, seul un avoir corrige. Comparer au PDF archivé ou journaliser les modifications détecte après coup, ce qui est utile mais ne rend rien impossible — et une facture déjà envoyée au client a déjà produit son effet. Masquer le bouton ne protège que de l'utilisateur honnête.",
+  },
+  {
+    q: "À quoi sert une clé d'idempotence dans une API de paiement ?",
+    options: [
+      "À permettre au client de retrouver le résultat d'une requête précédente",
+      "À ordonner les requêtes concurrentes d'un même client sur le serveur",
+      "À garantir qu'une même opération rejouée ne produit qu'un seul effet",
+      "À identifier le client à l'origine de l'appel dans les journaux du serveur",
+    ],
+    answer: 2,
+    explain: "Le serveur enregistre la clé sous contrainte d'unicité avec l'effet métier : une seconde requête portant la même clé ne rejoue rien et renvoie le résultat de la première. Y voir un moyen de retrouver un résultat décrit la conséquence et en fait le but, ce qui conduit à implémenter un cache de réponses sans garantir l'unicité de l'effet : deux requêtes simultanées passeraient alors toutes les deux.",
+  },
+  {
+    q: "Le webhook du prestataire de paiement livre parfois invoice.paid avant invoice.created, et parfois deux fois le même événement. Quelle conception tient ?",
+    options: [
+      "Trier les événements sur leur horodatage created avant de les traiter",
+      "Mettre les événements dans une file FIFO pour rétablir l'ordre d'émission du prestataire",
+      "Accuser réception après traitement, pour forcer le prestataire à réessayer",
+      "Dédupliquer par identifiant d'événement, ignorer l'ordre, relire l'objet si besoin",
+    ],
+    answer: 3,
+    explain: "Stripe documente que l'ordre n'est pas garanti et que les doublons existent ; son horodatage est à la seconde, donc deux événements peuvent le partager, et il ne dit rien de l'ordre de traitement voulu. Une file FIFO ne rétablit pas un ordre que l'émetteur n'a jamais garanti : elle préserve l'ordre d'arrivée, qui est déjà faux. La déduplication par identifiant et la relecture de l'objet auprès du prestataire rendent le traitement déterministe quel que soit l'ordre.",
+  },
+  {
+    q: "Le code crée un avoir après avoir lu la somme des avoirs existants et vérifié qu'elle reste sous le montant de la facture. Pourquoi deux requêtes simultanées peuvent-elles dépasser le montant ?",
+    options: [
+      "Parce que Prisma n'ouvre pas de transaction par défaut sur une écriture simple",
+      "Parce que les deux requêtes lisent la même somme avant que l'une n'écrive",
+      "Parce que le niveau d'isolation Read Committed autorise les lectures non répétables",
+      "Parce que les montants décimaux perdent de la précision au fil des additions",
+    ],
+    answer: 1,
+    explain: "C'est la race condition de M3 appliquée à un invariant de relation : les deux transactions lisent l'ancienne somme, chacune conclut qu'il reste de la place, et toutes deux écrivent. Le niveau d'isolation est la piste la plus tentante, et elle est incomplète : passer en Serializable ferait bien échouer l'une des deux, au prix de réessais à gérer partout, alors qu'un SELECT … FOR UPDATE sur la facture, dans la transaction, sérialise exactement ce qu'il faut. La vérification et l'écriture doivent être atomiques.",
+  },
+];
+
+<YouKnow>
+Les failles de logique métier sont souvent tes findings les plus rentables : prix négatifs, étapes sautées, remboursements en double. Côté conception, elles se préviennent par des invariants écrits et imposés.
+</YouKnow>
+
+## Écrire les invariants
+
+Un **invariant métier** est une propriété qui doit **toujours** être vraie, quels que soient l'ordre des requêtes, le client utilisé ou la concurrence. Pour Novafact :
+
+| Invariant | Violation typique |
+| --- | --- |
+| Un montant de ligne est positif, et un total égale la somme des lignes plus la TVA | Quantité négative, total envoyé par le client (M2, leçon 3) |
+| Une facture émise ne change plus ; seul un avoir la corrige | Modification après envoi |
+| Le total des avoirs d'une facture ne dépasse pas son montant | Plusieurs avoirs en parallèle (M3, leçon 1) |
+| Un paiement n'est encaissé qu'une fois | Double soumission, webhook livré deux fois |
+| Un remboursement suit un paiement réel | Remboursement d'une facture impayée |
+
+Ces invariants s'écrivent **dans le design doc** (M8) et deviennent des exigences et des tests (M7). Les classer aide à choisir où les garantir : un invariant de **valeur** (montant positif) se vérifie sur une ligne ; un invariant d'**état** (émise, donc figée) sur une transition ; un invariant de **relation** (somme des avoirs) implique plusieurs lignes et donc la concurrence ; un invariant d'**unicité** (un seul encaissement) se confie à un index unique.
+
+### L'arithmétique d'abord
+
+Beaucoup de violations commencent par un nombre. En JavaScript, `0.1 + 0.2` ne vaut pas `0.3`, et un montant stocké en flottant finit par produire un centime d'écart que le rapprochement signalera chaque nuit. Chez Novafact, les montants sont des **entiers en centimes**, la TVA est calculée côté serveur avec une règle d'arrondi écrite (par ligne, puis somme), et le client n'envoie jamais un total :
+
+<Code file="apps/api/src/billing/schemas.ts" hl="4,5">
+
+```ts
+import { z } from 'zod';
+
+export const invoiceLine = z.object({
+  quantity: z.number().int().min(1).max(100_000),
+  unitPriceCents: z.number().int().min(0).max(100_000_000), // 1 M€ par ligne au plus
+  vatRateBps: z.union([z.literal(0), z.literal(210), z.literal(550), z.literal(1000), z.literal(2000)]), // points de base
+  label: z.string().trim().min(1).max(200),
+}).strict(); // un champ « totalCents » envoyé par le client est rejeté, pas ignoré en silence
+```
+
+</Code>
+
+Les bornes supérieures ne sont pas décoratives : elles empêchent qu'un produit `quantity × unitPriceCents` dépasse `Number.MAX_SAFE_INTEGER` et devienne imprécis.
+
+## Une machine à états côté serveur
+
+Une facture passe par des états : brouillon, émise, payée, créditée. Les **transitions** autorisées sont explicites, et le serveur refuse toutes les autres :
+
+<Code file="apps/api/src/billing/invoiceState.ts">
+
+```ts
+const TRANSITIONS = {
+  draft: ['issued', 'deleted'],
+  issued: ['paid', 'credited'],
+  paid: ['credited'],
+  credited: [],
+  deleted: [],
+} as const;
+
+type State = keyof typeof TRANSITIONS;
+
+export function assertTransition(from: State, to: State) {
+  if (!(TRANSITIONS[from] as readonly State[]).includes(to)) {
+    throw new BusinessRuleError(`Transition interdite : ${from} vers ${to}`);
+  }
+}
+```
+
+</Code>
+
+Vérifier la transition en mémoire ne suffit pas : entre la lecture de l'état et l'écriture, une autre requête peut avoir changé la facture. La transition elle-même se fait par une **mise à jour conditionnelle**, qui porte l'état attendu dans sa clause `WHERE` :
+
+<Diff file="apps/api/src/billing/markPaid.ts" hlBefore="1,3" hlAfter="1,2,3,4">
+
+```ts
+const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id, tenantId } });
+assertTransition(invoice.status, 'paid');
+await prisma.invoice.update({ where: { id }, data: { status: 'paid', paidAt: new Date() } });
+```
+
+```ts
+const { count } = await prisma.invoice.updateMany({
+  where: { id, tenantId, status: 'issued' }, // l'état attendu fait partie de l'écriture
+  data: { status: 'paid', paidAt: new Date() },
+});
+if (count === 0) throw new BusinessRuleError('Facture introuvable ou déjà traitée');
+```
+
+</Diff>
+
+La version de droite est atomique : si deux requêtes arrivent en même temps, une seule trouve la facture à l'état `issued`, l'autre obtient `count === 0`. C'est le même motif que les coupons de M3.
+
+## Descendre l'invariant dans la base
+
+Le code applicatif n'est pas le seul chemin vers les données : scripts de migration, back-office, correctifs manuels en production. Les invariants les plus critiques se doublent donc d'une contrainte en base. Prisma ne déclare pas les contraintes `CHECK` dans son schéma ; elles s'ajoutent dans le SQL de la migration :
+
+<Code file="prisma/migrations/20260915_invariants/migration.sql">
+
+```sql
+ALTER TABLE "InvoiceLine" ADD CONSTRAINT line_amount_positive
+  CHECK ("quantity" > 0 AND "unitPriceCents" >= 0);
+
+-- Un paiement du prestataire n'est enregistré qu'une fois.
+CREATE UNIQUE INDEX payment_provider_id_unique ON "Payment" ("provider", "providerPaymentId");
+
+-- Une facture émise ne change plus de montant.
+CREATE FUNCTION forbid_issued_amount_change() RETURNS trigger AS $$
+BEGIN
+  IF OLD."status" <> 'draft' AND NEW."totalCents" IS DISTINCT FROM OLD."totalCents" THEN
+    RAISE EXCEPTION 'invoice % is not a draft: amount is frozen', OLD."id";
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER invoice_amount_frozen BEFORE UPDATE ON "Invoice"
+  FOR EACH ROW EXECUTE FUNCTION forbid_issued_amount_change();
+```
+
+</Code>
+
+Pour l'invariant de relation (la somme des avoirs), Novafact crée l'avoir dans une transaction qui **verrouille la ligne de la facture** (`SELECT ... FOR UPDATE` via `$queryRaw`) avant de lire la somme existante : deux créations simultanées s'exécutent alors l'une après l'autre, et la seconde voit la première.
+
+<Callout kind="debate">
+**Tout mettre en base ?** Certains praticiens veulent chaque règle métier en contrainte ou en trigger, parce que la base est le dernier rempart. D'autres objectent que la logique se disperse entre deux langages, se teste mal et surprend les développeurs. Le compromis courant : l'application porte les règles et leurs messages d'erreur, la base porte un petit nombre de garde-fous non négociables (positivité, unicité, gel des montants émis), dont la violation signale un bug, pas une erreur utilisateur.
+</Callout>
+
+## Remboursements : l'invariant qui arrête la fraude
+
+Le remboursement est l'opération que les fraudeurs cherchent, parce qu'elle fait sortir de l'argent. Trois invariants la bornent chez Novafact. Le cumul des remboursements d'un paiement ne dépasse jamais le montant encaissé, vérifié sous verrou comme les avoirs. Un remboursement part **uniquement vers le moyen de paiement d'origine**, jamais vers un IBAN saisi au moment de la demande : c'est ce qui empêche de transformer une carte volée en virement propre, le schéma classique du *cashing out* (OAT-012). Enfin, un remboursement au-delà d'un seuil, ou demandé par un compte récemment modifié (changement d'e-mail ou d'IBAN, leçon 2), passe par une validation humaine.
+
+Ces règles sont moins des contrôles de sécurité que des **décisions produit** : elles limitent parfois un client honnête qui voudrait être remboursé autrement. C'est exactement le genre d'arbitrage qui doit être écrit, assumé et relu, plutôt que découvert lors d'un incident.
+
+## Les étapes, pas seulement les états
+
+Beaucoup de findings de logique viennent d'un parcours dont le serveur ne vérifie pas l'ordre : envoyer une facture qui n'a pas été émise, émettre une facture sans les mentions légales obligatoires, valider un paiement sans passer par l'étape de confirmation. La machine à états répond au même problème à l'échelle d'un parcours : chaque étape vérifie côté serveur que la précédente a eu lieu, sur l'objet persistant, et jamais d'après un paramètre envoyé par le client (`step=3`, `confirmed=true`).
+
+## L'idempotence
+
+Double clic, réseau instable, rejeu volontaire : une opération à effet (paiement, remboursement, envoi) doit pouvoir être reçue deux fois sans produire deux effets. Le client envoie une **clé d'idempotence** unique par opération ; le serveur l'enregistre avec une contrainte d'unicité et renvoie le résultat déjà calculé si elle revient.
+
+Les détails comptent, et l'API de Stripe est une bonne référence : clés jusqu'à 255 caractères, conservées au moins 24 heures, résultat enregistré même en cas d'erreur 500, et **comparaison des paramètres** : réutiliser une clé avec une requête différente renvoie une erreur. Chez Novafact, la table d'idempotence stocke la clé préfixée par le tenant (deux clients ne se marchent pas dessus), une empreinte du corps de la requête, le statut et la réponse. Une clé identique avec une empreinte différente donne une `422` ; une clé en cours de traitement donne une `409` que le client peut rejouer. Quand Novafact appelle lui-même le prestataire, il lui transmet la même clé.
+
+L'autre sens compte autant : les **webhooks** entrants. Stripe documente qu'un même événement peut être livré plusieurs fois et que l'ordre de livraison n'est pas garanti. Le traitement enregistre donc l'identifiant de chaque événement sous contrainte d'unicité avant d'agir, ne suppose aucun ordre, et relit l'objet auprès du prestataire si l'état local est incomplet. La signature se vérifie sur le **corps brut** de la requête, avant tout parsing JSON.
+
+## Tester sous concurrence
+
+Un invariant de relation ne se prouve pas avec un test séquentiel. Novafact garde un test qui envoie vingt demandes d'avoir simultanées :
+
+<Code file="apps/api/test/creditNotes.concurrency.test.ts">
+
+```ts
+import { it, expect } from 'vitest';
+import request from 'supertest';
+
+it("la somme des avoirs ne dépasse jamais le montant de la facture", async () => {
+  const invoice = await fixtures.issuedInvoice({ totalCents: 10_000 });
+  const attempts = Array.from({ length: 20 }, () =>
+    request(app).post(`/invoices/${invoice.id}/credit-notes`).set(auth).send({ amountCents: 1_000 }),
+  );
+  const results = await Promise.all(attempts);
+  expect(results.filter((r) => r.status === 201)).toHaveLength(10);
+  expect(await sumCreditNotes(invoice.id)).toBe(10_000);
+});
+```
+
+</Code>
+
+## Le rapprochement
+
+Les invariants se vérifient aussi **après coup** : un rapprochement quotidien entre les paiements reçus du prestataire, les factures marquées payées et les avoirs émis révèle les écarts, qu'ils viennent d'un bug ou d'une fraude. Trois écarts suffisent à couvrir l'essentiel : un paiement reçu sans facture payée correspondante, une facture payée sans paiement, un total d'avoirs supérieur au montant facturé. Chaque écart crée un cas avec un propriétaire. C'est un contrôle détectif simple et très efficace, et c'est souvent lui qui révèle la race condition que personne n'avait vue.
+
+<Recap items={[
+  "Les invariants métier (valeur, état, relation, unicité) s'écrivent dans le design doc et deviennent des exigences et des tests.",
+  "Montants en centimes entiers, calculés côté serveur, avec des bornes ; le client n'envoie jamais un total.",
+  "Une machine à états refuse les transitions interdites ; la transition est une mise à jour conditionnelle atomique.",
+  "Les garde-fous critiques descendent en base : CHECK, index unique, trigger, verrou de ligne pour les relations.",
+  "Opérations idempotentes (clé, empreinte, réponse stockée), webhooks dédupliqués sans hypothèse d'ordre, rapprochement quotidien.",
+]} />
+
+<Lab id="ps-logic" />
+
+<Sources items={[
+  { title: "Web Security Academy : Business logic vulnerabilities", url: "https://portswigger.net/web-security/logic-flaws" },
+  { title: "OWASP Cheat Sheet : Transaction Authorization", url: "https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html" },
+  { title: "Stripe : requêtes idempotentes", url: "https://docs.stripe.com/api/idempotent_requests" },
+  { title: "Stripe : webhooks (doublons, ordre, signature)", url: "https://docs.stripe.com/webhooks" },
+]} />

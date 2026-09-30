@@ -1,0 +1,16 @@
+# CORRIGÉ : dans CODEOWNERS, c'est la DERNIÈRE règle qui correspond qui
+# l'emporte. Les règles précises vont donc en bas.
+#
+# Et on ne met pas tout le dépôt sur le dos de la sécurité : une équipe qui
+# doit relire chaque PR ne relit plus rien sérieusement. Seuls les chemins
+# où un défaut coûte cher sont routés vers elle.
+
+*               @novafact/dev
+src/            @novafact/dev
+docs/           @novafact/produit
+
+# Le pipeline est du code de production.
+/.github/workflows/     @novafact/security @novafact/dev
+/.github/CODEOWNERS     @novafact/security
+.npmrc                  @novafact/security
+package-lock.json       @novafact/security @novafact/dev

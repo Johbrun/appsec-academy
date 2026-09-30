@@ -1,0 +1,44 @@
+# Inventaire de journalisation — corrigé de référence.
+#
+# Le harnais compare cet inventaire à ce que la suite de bout en bout fait
+# réellement émettre, et échoue dans les deux sens : un événement non
+# documenté comme un événement documenté mais jamais émis. C'est l'exigence de
+# journalisation d'ASVS, rendue vérifiable.
+#
+# `fields` ne se recopie pas d'un gabarit : c'est ce qui est présent dans
+# **toutes** les instances de l'événement. Quatre événements font exception —
+# le verrouillage n'a pas de requête HTTP, la session expirée et le dépassement
+# de débit n'ont pas d'utilisateur (ils précèdent l'identification), et la
+# validation d'entrée n'en a pas toujours un.
+#
+# `retention` et `destination` relèvent de la politique de l'entreprise : ils
+# sont documentés ici mais ne sont pas notés.
+events:
+  - { event: authn_login_success, category: authentication, retention: 90d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: authn_login_fail, category: authentication, retention: 90d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: authn_login_lock, category: authentication, retention: 365d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip] }
+  - { event: authn_password_change, category: authentication, retention: 365d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: session_created, category: session, retention: 90d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: session_expired, category: session, retention: 30d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: authz_fail, category: authorization, retention: 365d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: authz_admin, category: authorization, retention: 365d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: sensitive_read, category: web, retention: 365d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: sensitive_create, category: web, retention: 365d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: user_created, category: iam, retention: 365d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: input_validation_fail, category: web, retention: 30d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: excess_rate_limit_exceeded, category: web, retention: 30d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, source.ip, url.path, http.request.method, http.response.status_code] }
+  - { event: privilege_permissions_changed, category: iam, retention: 365d, destination: siem,
+      fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path, http.request.method, http.response.status_code] }

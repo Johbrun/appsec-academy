@@ -1,0 +1,64 @@
+# Obligations réglementaires applicables à Novafact — données embarquées.
+#
+# Quatre textes cités en réunion, et ce qu'ils imposent concrètement à une
+# plateforme de facturation SaaS qui embarque une page de paiement. Les
+# formulations sont raccourcies et traduites : ce fichier sert à construire une
+# matrice, pas à faire du droit.
+#
+# Le point de l'exercice : une exigence sans contrôle technique est une case
+# cochée ; un contrôle sans preuve dans le dépôt est une intention.
+
+obligations:
+  - id: PCI-6.4.3
+    texte: Tous les scripts de la page de paiement sont inventoriés, autorisés, et leur intégrité est assurée.
+    texte_reglementaire: PCI DSS 4.0.1, exigence 6.4.3
+  - id: PCI-11.6.1
+    texte: Toute modification non autorisée des en-têtes et du contenu de la page de paiement est détectée et alertée.
+    texte_reglementaire: PCI DSS 4.0.1, exigence 11.6.1
+  - id: PCI-8.3.6
+    texte: Les comptes d'accès aux systèmes dans le périmètre utilisent une authentification forte.
+    texte_reglementaire: PCI DSS 4.0.1, exigence 8.3.6
+
+  - id: RGPD-5.1.e
+    texte: Les données personnelles ne sont conservées que le temps nécessaire à la finalité poursuivie.
+    texte_reglementaire: Règlement (UE) 2016/679, article 5.1.e
+  - id: RGPD-17
+    texte: La personne concernée obtient l'effacement de ses données, dans tous les traitements et toutes les copies.
+    texte_reglementaire: Règlement (UE) 2016/679, article 17
+  - id: RGPD-30
+    texte: Un registre des traitements est tenu, avec finalité, catégories de données et base légale.
+    texte_reglementaire: Règlement (UE) 2016/679, article 30
+  - id: RGPD-32
+    texte: Des mesures techniques assurent la confidentialité et l'intégrité des traitements, et leur efficacité est testée.
+    texte_reglementaire: Règlement (UE) 2016/679, article 32
+  - id: RGPD-33
+    texte: Une violation de données est notifiée à l'autorité de contrôle dans les 72 heures.
+    texte_reglementaire: Règlement (UE) 2016/679, article 33
+
+  - id: NIS2-21.2.e
+    texte: La sécurité de l'acquisition, du développement et de la maintenance est traitée, vulnérabilités comprises.
+    texte_reglementaire: Directive (UE) 2022/2555, article 21.2.e
+  - id: NIS2-21.2.d
+    texte: La sécurité de la chaîne d'approvisionnement est traitée, y compris chez les fournisseurs directs.
+    texte_reglementaire: Directive (UE) 2022/2555, article 21.2.d
+  - id: NIS2-23
+    texte: Un incident significatif fait l'objet d'une alerte précoce sous 24 heures et d'une notification sous 72 heures.
+    texte_reglementaire: Directive (UE) 2022/2555, article 23
+
+  - id: CRA-13.1
+    texte: Le produit est conçu et développé de façon à assurer un niveau de cybersécurité approprié au risque.
+    texte_reglementaire: Règlement (UE) 2024/2847, article 13
+  - id: CRA-13.25
+    texte: Une nomenclature logicielle est tenue pour chaque version publiée, au moins pour les composants de premier niveau.
+    texte_reglementaire: Règlement (UE) 2024/2847, article 13 et annexe I partie II
+  - id: CRA-14
+    texte: Une vulnérabilité activement exploitée donne lieu à une alerte sous 24 heures et à une notification sous 72 heures.
+    texte_reglementaire: Règlement (UE) 2024/2847, article 14
+
+# Les obligations sur lesquelles le harnais ne se contente pas d'une preuve
+# existante. Elles sont nommées ici pour que l'énoncé ne mente pas sur
+# l'étendue du contrôle.
+approfondies:
+  PCI-6.4.3: La preuve doit être un inventaire qui nomme chaque script chargé par la page de paiement.
+  RGPD-5.1.e: La preuve doit être une politique de conservation qui déclare une durée par classe de données.
+  CRA-14: La preuve doit être un exécutable qui décide du signalement, pas un document qui le décrit.

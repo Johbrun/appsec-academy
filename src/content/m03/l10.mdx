@@ -1,0 +1,203 @@
+export const questions = [
+  {
+    q: "Quel réglage de jose.jwtVerify empêche la confusion d'algorithme ?",
+    options: [
+      "Vérifier que l'en-tête alg correspond au type de la clé configurée",
+      "Refuser explicitement l'algorithme none dans le code de vérification",
+      "Restreindre le kid à une table fermée de clés de confiance",
+      "Fixer côté serveur la liste des algorithmes acceptés",
+    ],
+    answer: 3,
+    explain: "Refuser none est le correctif partiel historique : il ferme une attaque et laisse intacte la confusion HS256 / RS256, où la clé publique sert de secret HMAC. Vérifier que alg correspond à la clé revient encore à lire une décision dans le jeton. La table de kid ferme la sélection de clé, pas le choix d'algorithme. Ces deux-là complètent utilement, mais c'est la liste fixée côté serveur qui fait décider le vérificateur, comme le demande la RFC 8725.",
+  },
+  {
+    q: "Quelle mesure réduit le risque d'une attaque de type « dirty dancing » sur le callback OAuth ?",
+    options: [
+      "Vérifier le state à la réception et refuser le code s'il ne correspond pas",
+      "Une page de callback nue, un redirect_uri exact, code et PKCE",
+      "Limiter la durée de vie des codes d'autorisation à trente secondes",
+      "Imposer response_mode=form_post pour que le code ne passe plus par l'URL",
+    ],
+    answer: 1,
+    explain: "Vérifier le state est indispensable, et c'est exactement ce que l'attaque retourne contre toi : en envoyant un state faux, l'attaquant fait refuser le code — mais la page d'erreur affiche encore l'URL, code compris, et un script tiers la lit. Imposer form_post ne ferme rien non plus, puisque le mode d'envoi fait partie de ce que l'attaquant change. Raccourcir la durée de vie rétrécit la fenêtre. Ce qui ferme la fuite, c'est qu'il n'y ait rien sur la page pour lire l'URL.",
+  },
+  {
+    q: "Quelle bibliothèque de l'écosystème Node était au cœur de SAMLStorm (CVE-2025-29775) ?",
+    options: ["xml-crypto", "@node-saml/node-saml", "samlify", "xml2js"],
+    answer: 0,
+    explain: "node-saml et samlify sont les noms qu'on lit dans son package.json, et c'est ce qui trompe : elles étaient bien touchées, mais par transitivité. Le défaut était dans xml-crypto, qu'elles utilisent toutes deux pour vérifier la signature — un commentaire placé dans DigestValue suffisait à faire accepter un document modifié. Corrigé en 6.0.1, 3.2.1 et 2.1.6. Conséquence pratique : c'est la version du lockfile qu'il faut vérifier, pas celle du paquet direct.",
+  },
+  {
+    q: "Novafact utilise @node-saml/node-saml sans préciser validateInResponseTo. Quelle est la conséquence ?",
+    options: [
+      "Aucune : la bibliothèque valide InResponseTo par défaut",
+      "Les assertions ne sont plus vérifiées, wantAssertionsSigned suivant la même option",
+      "Elle vaut « never » par défaut : une réponse capturée peut être rejouée",
+      "Elle vaut « ifPresent » : une réponse sans InResponseTo passe quand même",
+    ],
+    answer: 2,
+    explain: "« ifPresent » est le piège de connaisseur : cette valeur existe bien, et elle protège à moitié — mais ce n'est pas le défaut. Le défaut est « never », donc aucun contrôle, et une réponse capturée reste rejouable jusqu'à l'expiration de ses horodatages. wantAssertionsSigned est une option indépendante, qui reste à true. Passe celle-ci à « always », avec un cache partagé entre tâches ECS : l'invariant « une seule fois » ne tient pas en mémoire locale.",
+  },
+];
+
+<YouKnow>
+Tu as fait les labs JWT (jwk, jku, kid, confusion d'algorithme) et OAuth de l'Academy, et peut-être du signature wrapping SAML. Le fil commun : le message décide trop de ce qui est vérifié, et les valeurs par défaut des bibliothèques le laissent faire plus souvent qu'on ne croit.
+</YouKnow>
+
+## Le principe commun
+
+Dans les trois protocoles, les attaques avancées exploitent le même défaut : **le message influence la façon dont il est vérifié**. Un JWT qui choisit son algorithme ou sa clé, une réponse OAuth qui change de mode d'envoi, une assertion SAML dont la partie vérifiée n'est pas la partie lue. La règle de conception : **le vérificateur décide**, à partir de sa configuration. La RFC 8725 (bonnes pratiques JWT) le formule à sa façon dans une section au titre sans ambiguïté : ne pas faire confiance aux claims reçus, y compris les en-têtes qui servent à trouver la clé.
+
+## JWT
+
+| Attaque | Ce que le jeton choisit | Contrôle |
+| --- | --- | --- |
+| `alg: none` | Pas de signature | Liste d'algorithmes fixée côté serveur |
+| Confusion d'algorithme | HS256 avec la clé publique RSA comme secret | Un algorithme par clé, fixé côté serveur |
+| En-tête `jwk` | Une clé embarquée dans le jeton | Ignorer `jwk` : clés issues de la configuration uniquement |
+| En-tête `jku` | Une URL de JWKS contrôlée par l'attaquant | Ignorer `jku` : URL de JWKS fixée |
+| `kid` libre | Chemin de fichier, requête SQL ou clé inattendue | `kid` recherché dans une table fermée |
+
+<Diff file="apps/api/src/auth/jwt.ts" hlBefore="3" hlAfter="3-9">
+
+```ts
+import jwt from 'jsonwebtoken';
+
+export const verify = (token: string) => jwt.verify(token, getKey(jwt.decode(token, { complete: true })?.header.kid));
+```
+
+```ts
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
+const JWKS = createRemoteJWKSet(new URL('https://auth.novafact.example/.well-known/jwks.json'));
+
+export const verify = (token: string) => jwtVerify(token, JWKS, {
+  algorithms: ['RS256'],
+  issuer: 'https://auth.novafact.example',
+  audience: 'novafact-api',
+});
+```
+
+</Diff>
+
+<Callout kind="case">
+La version vulnérable n'est pas une caricature. Jusqu'à la version 8.5.1, `jsonwebtoken` acceptait l'algorithme `none` quand l'appel à `jwt.verify()` ne précisait pas `algorithms` (CVE-2022-23540, corrigée en 9.0.0). Un code qui « vérifiait » les jetons depuis des années pouvait donc n'en rien vérifier, selon la version installée. C'est l'argument le plus concret pour une bibliothèque qui **exige** les paramètres de sécurité plutôt que de les supposer.
+</Callout>
+
+La vérification de signature n'est que la moitié du travail. Il faut aussi s'assurer que le jeton est **du bon type**. Chez Novafact, Cognito émet un jeton d'identité et un jeton d'accès, signés par la même clé. Si l'API accepte l'un pour l'autre, un jeton d'identité destiné à une autre application du même pool peut ouvrir l'API. La RFC 8725 recommande un typage explicite et des règles de validation mutuellement exclusives entre types de jetons. Avec Cognito, c'est le claim `token_use` qui porte ce type, et la bibliothèque `aws-jwt-verify` le rend obligatoire :
+
+<Code file="apps/api/src/auth/cognito.ts">
+
+```ts
+import { CognitoJwtVerifier } from 'aws-jwt-verify';
+
+// userPoolId fixe l'issuer et l'URL des clés ; tokenUse et clientId sont obligatoires.
+export const accessTokenVerifier = CognitoJwtVerifier.create({
+  userPoolId: process.env.COGNITO_USER_POOL_ID!,
+  tokenUse: 'access',                    // un jeton d'identité est refusé
+  clientId: process.env.COGNITO_SPA_CLIENT_ID!,
+});
+
+export const verifyAccess = (token: string) => accessTokenVerifier.verify(token);
+```
+
+</Code>
+
+<Callout kind="debate">
+JWT ou session opaque ? Une partie des praticiens considère que les JWT dans le navigateur apportent surtout des problèmes (révocation difficile, stockage exposé au XSS, en-têtes piégés), et qu'une session opaque côté serveur fait mieux pour une application web. D'autres rappellent que les JWT restent le bon outil entre services. Novafact a tranché avec son BFF : le navigateur n'a qu'un cookie de session `HttpOnly`, le BFF garde les jetons Cognito, et seules les API internes reçoivent des JWT. Les attaques de ce tableau ne disparaissent pas, mais elles quittent le périmètre exposé au navigateur.
+</Callout>
+
+## OAuth : le « dirty dancing »
+
+Frans Rosén (Detectify, 2022) a montré comment **casser volontairement** un flux OAuth pour que le code ou le jeton atterrisse sur une page d'erreur ou une page du site, d'où il fuit. Trois leviers : un `state` volontairement faux (le client refuse le code, mais la page d'erreur l'affiche toujours dans l'URL), un `response_type` changé (le jeton arrive dans le fragment au lieu du code attendu en query) et un `response_mode` changé (fragment, `form_post` ou `web_message` au lieu de query). Il faut ensuite un **gadget** pour lire l'URL : écouteur `postMessage` trop permissif, script tiers qui lit `location.href`, widget de chat… La leçon pour l'architecte : la **page de callback** est un actif sensible.
+
+- une page de callback minimale, sans scripts tiers ;
+- `redirect_uri` comparé **exactement**, jamais par préfixe ;
+- code d'autorisation + PKCE, codes à usage unique et de courte durée ;
+- aucun écouteur `postMessage` qui accepte n'importe quelle origine sur le domaine.
+
+Le plus simple est de faire en sorte que la page de callback **n'existe pas** comme page : une route serveur du BFF consomme le code et redirige aussitôt, sans rendre le moindre HTML.
+
+<Code file="apps/bff/src/routes/callback.ts">
+
+```ts
+const Callback = z.object({ code: z.string().max(512), state: z.string().max(128) });
+
+router.get('/auth/callback', async (req, res) => {
+  const pending = req.session.oauth;                 // { state, codeVerifier } posés à l'envoi
+  delete req.session.oauth;                          // usage unique, même en cas d'échec
+  const q = Callback.safeParse(req.query);
+  if (!pending || !q.success || !safeEqual(q.data.state, pending.state)) {
+    return res.redirect(303, '/login?error=oauth');  // l'URL d'erreur ne recopie jamais le code
+  }
+  const tokens = await exchangeCode(q.data.code, pending.codeVerifier, REDIRECT_URI);
+  await startSession(req, tokens);                   // régénère l'identifiant de session
+  res.set('Referrer-Policy', 'no-referrer');
+  res.redirect(303, '/');
+});
+```
+
+</Code>
+
+Le module 9 reprend OAuth en détail, avec la RFC 9700.
+
+## SAML
+
+SAML repose sur des signatures XML, un terrain miné : le code qui **vérifie** la signature et celui qui **lit** l'identité ne regardent pas toujours le même nœud (signature wrapping), et deux parsers XML peuvent diverger.
+
+| Recherche | Ce qu'elle montre |
+| --- | --- |
+| **SAMLStorm** (WorkOS, mars 2025, CVE-2025-29775) | `xml-crypto`, utilisée par la plupart des bibliothèques SAML de Node (`@node-saml/node-saml`, `samlify`…), acceptait un document modifié via un commentaire dans `DigestValue`. Corrigée en 6.0.1 (et 3.2.1, 2.1.6). |
+| *SAML roulette* et *The Fragile Lock* (PortSwigger, 2025) | Des contournements d'authentification par divergences de parsers XML dans les écosystèmes Ruby et PHP ; les correctifs incrémentaux ne suffisent pas quand l'architecture repose sur deux parsers |
+
+<Callout kind="case">
+En mars 2025, le GitHub Security Lab a publié deux contournements d'authentification dans `ruby-saml` (dont CVE-2025-25291, corrigée en 1.12.4 et 1.18.0). La cause : la bibliothèque utilisait deux parsers XML, REXML et Nokogiri, qui peuvent construire des arbres différents à partir du même document. L'un servait à vérifier la signature, l'autre à lire les données. C'est la règle de la leçon 7 (« analyser une seule fois ») violée au cœur d'une bibliothèque d'authentification.
+</Callout>
+
+Les valeurs par défaut de `@node-saml/node-saml` méritent une lecture attentive, car certaines sont sûres et d'autres non :
+
+| Option | Défaut | À régler chez Novafact |
+| --- | --- | --- |
+| `wantAssertionsSigned`, `wantAuthnResponseSigned` | `true` | Laisser à `true` |
+| `audience` | Valeur d'`issuer` | Fixer explicitement ; ne jamais passer `false` |
+| `validateInResponseTo` | `"never"` : une réponse capturée peut être rejouée jusqu'à expiration | `"always"`, avec un cache partagé entre instances |
+| `signatureAlgorithm`, `digestAlgorithm` | `"sha1"` | `"sha256"` |
+| `acceptedClockSkewMs` | `0` (`-1` désactive les contrôles de validité temporelle) | Quelques secondes au plus, jamais `-1` |
+
+La documentation précise que `"always"` retire l'identifiant de requête au moment où la réponse est acceptée, ce qui empêche aussi deux copies simultanées d'être acceptées. Sur plusieurs tâches ECS, le cache en mémoire par défaut ne suffit plus : c'est la leçon 1 appliquée à l'authentification, l'invariant « une seule fois » doit vivre dans un stockage partagé.
+
+Pour Novafact, qui propose le SSO SAML aux clients entreprise :
+
+<Steps items={[
+  { title: "Une bibliothèque maintenue", text: "@node-saml/node-saml à jour, avec une version corrigée de xml-crypto vérifiée dans le lockfile." },
+  { title: "Exiger les signatures", text: "Assertions signées obligatoires, algorithmes faibles refusés, SHA-256 fixé explicitement." },
+  { title: "Vérifier le contexte", text: "Audience, destinataire, validité temporelle (NotOnOrAfter), InResponseTo en mode always et un identifiant d'assertion à usage unique dans un cache partagé." },
+  { title: "Lire ce qui a été vérifié", text: "Utiliser le résultat de la bibliothèque, ne jamais réanalyser le XML brut soi-même." },
+  { title: "Préférer OIDC", text: "Quand le client le permet, OIDC évite toute la complexité de XML-DSig." },
+]} />
+
+<Recap items={[
+  "Le défaut commun : le message influence sa propre vérification. Le vérificateur doit décider.",
+  "JWT : algorithmes et clés fixés côté serveur ; jwk, jku et kid libre ignorés ; jsonwebtoken ≤ 8.5.1 acceptait none sans liste d'algorithmes.",
+  "Vérifier aussi le type de jeton : un jeton d'identité n'est pas un jeton d'accès (token_use chez Cognito).",
+  "OAuth : la page de callback est sensible ; idéalement une route serveur qui consomme le code et redirige sans rendre de HTML.",
+  "SAML : SAMLStorm et ruby-saml rappellent le danger des signatures XML et des doubles parsers.",
+  "node-saml : InResponseTo vaut never par défaut ; le passer à always avec un cache partagé, et fixer SHA-256.",
+]} />
+
+<Lab id="ps-jwt" />
+<Lab id="ps-oauth" />
+
+<Sources items={[
+  { title: "Web Security Academy : JWT attacks", url: "https://portswigger.net/web-security/jwt" },
+  { title: "jose : jwtVerify", url: "https://github.com/panva/jose/blob/main/docs/jwt/verify/functions/jwtVerify.md" },
+  { title: "RFC 8725 : JSON Web Token Best Current Practices", url: "https://www.rfc-editor.org/rfc/rfc8725" },
+  { title: "GitHub Advisory : CVE-2022-23540 (jsonwebtoken)", url: "https://github.com/advisories/GHSA-qwph-4952-7xr6" },
+  { title: "aws-jwt-verify", url: "https://github.com/awslabs/aws-jwt-verify" },
+  { title: "Detectify Labs : Account hijacking using dirty dancing in sign-in OAuth flows", url: "https://labs.detectify.com/writeups/account-hijacking-using-dirty-dancing-in-sign-in-oauth-flows/" },
+  { title: "RFC 9700 : OAuth 2.0 Security Best Current Practice", url: "https://www.rfc-editor.org/rfc/rfc9700" },
+  { title: "WorkOS : SAMLStorm", url: "https://workos.com/blog/samlstorm" },
+  { title: "PortSwigger Research : The Fragile Lock", url: "https://portswigger.net/research/the-fragile-lock" },
+  { title: "GitHub Security Lab : Sign in as anyone, bypassing SAML SSO with parser differentials", url: "https://github.blog/security/sign-in-as-anyone-bypassing-saml-sso-authentication-with-parser-differentials/" },
+  { title: "node-saml : README (options de validation)", url: "https://github.com/node-saml/node-saml" },
+]} />

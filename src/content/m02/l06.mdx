@@ -1,0 +1,250 @@
+export const questions = [
+  {
+    q: "React échappe le texte par défaut. Dans une application React 19, laquelle de ces situations reste un sink XSS ?",
+    options: [
+      "<p>{invoice.label}</p> avec un libellé saisi par le client",
+      "<a href={client.website}>Site web</a> en React 19",
+      "<div dangerouslySetInnerHTML={{ __html: client.notes }} />",
+      "<input value={name} defaultValue={name} /> dans un formulaire",
+    ],
+    answer: 2,
+    explain: "Le href est le distracteur à discuter : une URL javascript: y serait un sink en React 18, mais React 19 la neutralise. Elle reste à valider — pas pour React, pour l'e-mail, le PDF et l'export CSV où la même URL finira. Le texte et les attributs de formulaire sont échappés quel que soit leur contenu. dangerouslySetInnerHTML est la seule sortie de secours ici : il injecte du HTML brut, et il faut le sanitiser.",
+  },
+  {
+    q: "Quelle configuration CORS est dangereuse sur l'API authentifiée par cookie de Novafact ?",
+    options: [
+      "origin: ['https://app.novafact.example'], credentials: true",
+      "origin: true, credentials: true",
+      "origin: 'https://app.novafact.example', credentials: false",
+      "origin: (o, cb) => cb(null, ALLOWED.has(o)), credentials: true",
+    ],
+    answer: 1,
+    explain: "Les trois autres sont des configurations tenables : une liste exacte, une fonction qui teste l'appartenance, ou une API sans credentials, où CORS ne peut de toute façon rien lire d'authentifié. origin: true renvoie en écho l'origine de n'importe quel site ; combinée à credentials: true, elle autorise n'importe quelle page à lire les réponses authentifiées de l'utilisateur. Méfie-toi aussi de la variante par expression régulière : /novafact\\.example$/ accepte evilnovafact.example.",
+  },
+  {
+    q: "Le middleware csurf est-il encore recommandé pour protéger une application Express contre le CSRF ?",
+    options: [
+      "Oui : il reste la référence dans Express, à condition de le configurer en double submit",
+      "Non : SameSite=Lax par défaut dans les navigateurs rend le CSRF impossible",
+      "Oui, mais seulement derrière une configuration CORS en liste blanche",
+      "Non : déprécié en 2022, remplacé par SameSite, en-tête requis et Fetch Metadata",
+    ],
+    answer: 3,
+    explain: "« SameSite=Lax par défaut suffit » est la croyance la plus répandue, et elle est fausse deux fois : le défaut varie encore selon les navigateurs, et Lax laisse passer les navigations GET de premier niveau, donc toute route GET qui modifie l'état. Le CORS en liste blanche ne bloque pas l'envoi de la requête, seulement la lecture de la réponse. Quant à csurf, il est archivé et déprécié depuis 2022.",
+  },
+  {
+    q: "Le cookie de session de Novafact est en SameSite=Strict. Le centre d'aide, hébergé par un prestataire sur support.novafact.example, a une XSS. Pourquoi SameSite ne protège-t-il pas l'API ?",
+    options: [
+      "Parce que les deux sous-domaines sont le même site, donc pas « cross-site »",
+      "Parce que SameSite ne s'applique qu'aux requêtes qui changent d'origine, pas d'hôte",
+      "Parce que Strict est ignoré quand le cookie porte le préfixe __Host-",
+      "Parce que la XSS s'exécute dans le navigateur, où SameSite n'a plus cours",
+    ],
+    answer: 0,
+    explain: "« SameSite raisonne en origines » est exactement l'inversion à corriger : il raisonne en sites, c'est-à-dire en domaine enregistrable — novafact.example — donc tous les sous-domaines sont same-site et le cookie part quand même. Le préfixe __Host- ne change rien à ce filtrage : il empêche un sous-domaine d'écraser le cookie, ce qui est une autre protection, utile ici aussi. Il faut en plus une vérification d'origine exacte ou un en-tête requis.",
+  },
+];
+
+<YouKnow>
+Tu as cherché des XSS dans des applications React et tu sais que l'échappement par défaut ne couvre pas tout. On regarde ici les sinks restants et les choix d'architecture qui limitent l'impact.
+</YouKnow>
+
+## Le modèle de sécurité du navigateur, côté défense
+
+Deux notions reviennent dans toute la leçon, et leur confusion produit des bugs de configuration.
+
+- **L'origine** (schéma, hôte, port) est l'unité de la politique de même origine et de CORS. `https://app.novafact.example` et `https://admin.novafact.example` sont deux origines différentes.
+- **Le site** (schéma et domaine enregistrable, `novafact.example`) est l'unité de `SameSite` et de `Sec-Fetch-Site`. Les deux sous-domaines précédents sont **le même site**.
+
+La politique de même origine empêche une page de **lire** la réponse d'une autre origine. Elle n'empêche pas d'**envoyer** une requête : c'est tout le sujet du CSRF. Et le navigateur joint les cookies selon des règles de site, pas d'origine. Retenir ces deux phrases évite la moitié des erreurs de ce chapitre.
+
+## Ce que React protège, et ce qu'il ne protège pas
+
+React échappe tout ce qui est rendu comme **texte** dans le JSX : `<p>{label}</p>` est sûr, quel que soit `label`. Kohnfelder (K11) le résume : s'appuyer sur un framework qui fait la bonne chose par défaut, plutôt que de réimplémenter l'échappement. Les XSS dans une application React viennent donc presque toujours des **sorties de secours** :
+
+| Sink | Pourquoi c'est dangereux | Contrôle |
+| --- | --- | --- |
+| `dangerouslySetInnerHTML` | Injecte du HTML brut | DOMPurify, ou ne pas rendre de HTML |
+| `href` et `src` avec une URL fournie | `javascript:` s'exécute au clic : React 19 le neutralise, les versions précédentes se contentent au mieux d'un avertissement | Valider le schéma avec `new URL()` |
+| `ref.current.innerHTML`, `insertAdjacentHTML` | Contournent React | Interdits par le lint |
+| Rendu Markdown avec HTML brut | `rehype-raw` réactive le HTML | `rehype-sanitize` ou pas de HTML brut |
+| Données injectées au rendu serveur | `JSON.stringify` dans un `<script>` ne neutralise pas `</script>` | Sérialiseur qui échappe `<` (serialize-javascript) |
+
+<Diff file="apps/web/src/components/ClientCard.tsx" hlBefore="2,5" hlAfter="1-4,7,10">
+
+```tsx
+export function ClientCard({ client }: { client: Client }) {
+  return (
+    <div className="card">
+      <h3>{client.name}</h3>
+      <a href={client.website}>Site web</a>
+      <div dangerouslySetInnerHTML={{ __html: client.notes }} />
+    </div>
+  );
+}
+```
+
+```tsx
+import DOMPurify from 'dompurify';
+
+const safeUrl = (u: string) => {
+  try { const x = new URL(u); return ['http:', 'https:'].includes(x.protocol) ? x.href : undefined; } catch { return undefined; }
+};
+
+export function ClientCard({ client }: { client: Client }) {
+  return (
+    <div className="card">
+      <h3>{client.name}</h3>
+      {safeUrl(client.website) && <a href={safeUrl(client.website)} rel="noopener noreferrer">Site web</a>}
+      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(client.notes) }} />
+    </div>
+  );
+}
+```
+
+</Diff>
+
+Pourquoi garder la validation d'URL si React 19 bloque déjà `javascript:` ? Parce que la même URL finit ailleurs que dans React : dans l'e-mail de facture, dans le PDF, dans l'export CSV ouvert par un tableur. Et parce qu'une liste blanche de schémas (`http:`, `https:`) écarte aussi `data:` et les schémas propres à certaines applications, que React laisse passer. La validation se fait idéalement **à l'entrée** (schéma zod de l'API), et le composant reste une seconde barrière.
+
+Le meilleur contrôle reste l'**isolement des sorties de secours** : un seul composant `SafeHtml` qui sanitise, et une règle de lint qui interdit `dangerouslySetInnerHTML` ailleurs. Côté navigateur, Trusted Types et une CSP stricte ferment les sinks par construction : c'est l'objet du module 4.
+
+<Code file="apps/web/src/components/SafeHtml.tsx">
+
+```tsx
+import DOMPurify from 'dompurify';
+
+const CONFIG = { ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'a'], ALLOWED_ATTR: ['href'] };
+
+// Seul composant autorisé à utiliser dangerouslySetInnerHTML (règle react/no-danger ailleurs).
+export function SafeHtml({ html }: { html: string }) {
+  // eslint-disable-next-line react/no-danger
+  return <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html, CONFIG) }} />;
+}
+```
+
+</Code>
+
+Deux pièges avec les sanitiseurs. D'abord, **sanitiser en dernier** : si le HTML nettoyé repasse ensuite dans un autre traitement (conversion Markdown, remplacement de chaînes, reparsing), ce qui était inoffensif peut redevenir dangereux. Ensuite, DOMPurify a besoin d'un DOM : dans un rendu serveur (Next.js), il faut une variante qui fournit ce DOM, et ne pas supposer que l'appel côté client suffira.
+
+## Où ranger les jetons
+
+Un jeton d'accès dans `localStorage` est lisible par n'importe quel script de la page : une seule XSS suffit à l'exfiltrer et à l'utiliser depuis ailleurs, pendant toute sa durée de vie. Un cookie `HttpOnly` n'est pas lisible par le JavaScript. Une XSS permet encore d'agir **depuis la page** tant qu'elle est ouverte, mais plus de voler un jeton réutilisable. C'est l'argument central du pattern BFF recommandé par la RFC 10017 (BCP 212) pour les SPA, détaillé au module 9.
+
+| Stockage | Une XSS peut… | Remarque |
+| --- | --- | --- |
+| `localStorage` / `sessionStorage` | Voler le jeton et l'utiliser ailleurs | Le pire cas |
+| Mémoire JavaScript (variable) | Le voler aussi, avec un peu plus d'effort | Perdu au rechargement, ce qui pousse à des contournements |
+| Cookie `HttpOnly` posé par un BFF | Agir depuis la page ouverte, sans emporter le jeton | Réintroduit le CSRF : à traiter ci-dessous |
+
+## CSRF
+
+Dès que l'API s'authentifie par **cookie**, le navigateur l'envoie aussi sur des requêtes initiées par un autre site. Les défenses se combinent :
+
+<Steps items={[
+  { title: "SameSite explicite", text: "Lax ou Strict sur le cookie de session. Ne compte pas sur la valeur par défaut, qui varie selon les navigateurs." },
+  { title: "Jeton ou en-tête requis", text: "Un jeton synchronisé, ou un en-tête personnalisé exigé sur les requêtes qui modifient l'état (un formulaire d'un autre site ne peut pas l'ajouter sans passer par CORS)." },
+  { title: "Fetch Metadata", text: "Refuser côté serveur les requêtes Sec-Fetch-Site: cross-site sur les routes sensibles (module 4)." },
+]} />
+
+Le middleware `csurf`, longtemps la référence dans Express, est **déprécié depuis 2022** : ne l'ajoute pas dans un nouveau projet.
+
+`SameSite` a deux angles morts. `Lax` laisse passer les navigations de premier niveau en `GET` : une route `GET /invoices/:id/cancel` qui modifie l'état reste exposée, et la seule bonne réponse est qu'aucun `GET` ne modifie rien. Et comme `SameSite` raisonne en **sites**, tout sous-domaine de `novafact.example` est « same-site » : un centre d'aide hébergé par un prestataire sur `support.novafact.example`, s'il a une XSS, peut envoyer des requêtes authentifiées à l'API. Le préfixe `__Host-` empêche en plus un sous-domaine d'écraser le cookie de session.
+
+<Code file="apps/bff/src/security.ts">
+
+```ts
+// Cookie de session : pas de Domain, Path=/, Secure, donc éligible au préfixe __Host-.
+res.cookie('__Host-sid', sessionId, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+
+// Filtre d'isolation : refuse les requêtes d'état venues d'un autre site ou d'une autre origine.
+const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
+const TRUSTED = new Set(['https://app.novafact.example', 'https://admin.novafact.example']);
+app.use((req, res, next) => {
+  if (SAFE.has(req.method)) return next();
+  const site = req.get('sec-fetch-site');
+  if (site && site !== 'same-origin' && site !== 'same-site') return res.status(403).end();
+  const origin = req.get('origin');
+  if (!origin || !TRUSTED.has(origin)) return res.status(403).end();   // bloque aussi le sous-domaine du centre d'aide
+  if (req.get('x-novafact-csrf') !== '1') return res.status(403).end(); // en-tête requis : impose un preflight CORS
+  next();
+});
+```
+
+</Code>
+
+Chaque couche couvre un angle : Fetch Metadata écarte les requêtes d'autres sites dans les navigateurs qui l'envoient, la liste d'origines exactes écarte les sous-domaines non fiables que `SameSite` et `Sec-Fetch-Site: same-site` laissent passer, et l'en-tête personnalisé force un preflight CORS qu'aucune origine hors liste ne passera.
+
+## CORS
+
+CORS n'est pas une protection, c'est un **assouplissement** de la politique de même origine. L'erreur classique dans Express :
+
+<Diff file="apps/api/src/app.ts" hlBefore="1" hlAfter="1-4">
+
+```ts
+app.use(cors({ origin: true, credentials: true }));
+```
+
+```ts
+const ALLOWED = new Set(['https://app.novafact.example', 'https://admin.novafact.example']);
+app.use(cors({
+  origin: (origin, cb) => cb(null, !!origin && ALLOWED.has(origin)),
+  credentials: true,
+}));
+```
+
+</Diff>
+
+`origin: true` reflète l'origine de n'importe quel site : combiné à `credentials: true`, n'importe quelle page peut lire les réponses authentifiées de l'utilisateur. Liste blanche d'origines exactes, jamais d'expression régulière approximative, et jamais `null` accepté.
+
+Trois idées reçues à corriger en revue :
+
+- **« CORS bloque la requête. »** Non : pour une requête simple, le navigateur l'envoie et bloque seulement la lecture de la réponse. L'effet de bord a eu lieu. CORS ne remplace pas la protection CSRF.
+- **« Une regex, c'est plus souple. »** `/novafact\.example$/` accepte aussi `https://evilnovafact.example`. Si tu dois accepter un motif, ancre-le complètement (schéma, point avant le domaine, fin de chaîne) et teste-le avec des origines hostiles.
+- **« `null`, c'est pour les tests en local. »** L'origine `null` est aussi celle des iframes en bac à sable et de certains contextes de redirection : l'accepter revient à accepter n'importe qui.
+
+## postMessage
+
+Les échanges entre fenêtres (widget de paiement, iframe d'aide) passent par `postMessage`. Deux règles : à l'envoi, préciser l'origine cible (jamais `'*'` pour des données sensibles) ; à la réception, **vérifier `event.origin`** contre une valeur exacte avant d'utiliser `event.data`, puis valider la forme des données.
+
+<Code file="apps/web/src/payment/listen.ts">
+
+```ts
+const PSP_ORIGIN = 'https://pay.psp.example';
+const PaymentResult = z.object({ type: z.literal('payment.result'), status: z.enum(['succeeded', 'failed']), ref: z.string().max(64) });
+
+window.addEventListener('message', (event) => {
+  if (event.origin !== PSP_ORIGIN) return;                 // égalité exacte, pas includes() ni endsWith()
+  const msg = PaymentResult.safeParse(event.data);
+  if (!msg.success) return;
+  refreshPaymentStatus(msg.data.ref);                      // le serveur confirme le statut, le message n'est qu'un signal
+});
+```
+
+</Code>
+
+Le dernier commentaire est le plus important : un message reçu d'une iframe n'est qu'un **signal**. Chez Novafact, la page de paiement ne marque jamais une facture comme payée sur la foi d'un `postMessage` ; elle demande au serveur, qui s'appuie sur le webhook signé du prestataire (leçon 5).
+
+<Recap items={[
+  "Origine pour CORS et la même origine, site pour SameSite et Sec-Fetch-Site : tous les sous-domaines sont same-site.",
+  "React échappe le texte ; les XSS viennent des sorties de secours (HTML brut, URL, DOM direct, Markdown, données SSR). React 19 neutralise javascript:, la validation d'URL reste utile ailleurs.",
+  "Isole les sorties de secours dans un composant unique, sanitise en dernier, et interdis-les ailleurs par le lint.",
+  "Un jeton dans localStorage est volable par une seule XSS ; un cookie HttpOnly via un BFF limite l'impact.",
+  "CSRF : SameSite explicite, __Host-, aucun GET qui modifie l'état, origine vérifiée, en-tête requis, Fetch Metadata ; csurf est déprécié.",
+  "CORS : liste blanche d'origines exactes, jamais origin: true avec credentials, jamais null ; CORS n'empêche pas l'envoi.",
+  "postMessage : origine cible précise à l'envoi, event.origin vérifié à la réception, et le message n'est qu'un signal.",
+]} />
+
+<Lab id="ps-xss" note="Fais les labs XSS Practitioner et Expert en notant, pour chacun, quel contrôle React ou quelle directive CSP l'aurait bloqué." />
+<Lab id="ps-cors" />
+<Lab id="ps-csrf" />
+
+<Sources items={[
+  { title: "React : dangerouslySetInnerHTML", url: "https://react.dev/reference/react-dom/components/common#dangerously-setting-the-inner-html" },
+  { title: "DOMPurify", url: "https://github.com/cure53/DOMPurify" },
+  { title: "RFC 10017 : OAuth 2.0 for Browser-Based Applications", url: "https://www.rfc-editor.org/info/rfc10017/" },
+  { title: "OWASP Cheat Sheet : Cross-Site Request Forgery Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html" },
+  { title: "web.dev : Fetch Metadata et politique d'isolation des ressources", url: "https://web.dev/articles/fetch-metadata" },
+  { title: "MDN : cookies et préfixes __Host-", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies" },
+  { title: "OWASP Cheat Sheet : HTML5 Security (postMessage)", url: "https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html" },
+  { title: "expressjs/csurf (archivé et déprécié)", url: "https://github.com/expressjs/csurf" },
+]} />

@@ -1,0 +1,203 @@
+export const questions = [
+  {
+    q: "Qu'est-ce qu'une authentification adaptative (step-up) ?",
+    options: [
+      "Adapter la durée de la session à la sensibilité du rôle de l'utilisateur",
+      "Exiger une vérification supplémentaire quand le risque de la situation l'exige",
+      "Choisir le facteur le plus fort disponible sur l'appareil de l'utilisateur",
+      "Renforcer progressivement les exigences de mot de passe au fil des connexions",
+    ],
+    answer: 1,
+    explain: "La friction se concentre sur les situations à risque — nouvel appareil, action sensible, signaux inhabituels — et laisse l'usage courant tranquille. Adapter la durée de session au rôle est une bonne pratique voisine, mais c'est une politique statique décidée à l'avance : l'authentification adaptative, elle, réagit à ce qui se passe maintenant.",
+  },
+  {
+    q: "Quelle séquence d'événements est typique d'une prise de contrôle suivie de monétisation ?",
+    options: [
+      "Création de compte, envoi massif de factures, puis suppression du compte",
+      "Connexions échouées en rafale, puis réinitialisation du mot de passe réussie par e-mail",
+      "Export complet des factures, puis connexions depuis plusieurs pays d'affilée",
+      "Connexion depuis un nouvel appareil, changement d'IBAN, puis export dans la foulée",
+    ],
+    answer: 3,
+    explain: "L'ordre compte autant que les événements : l'accès arrive d'abord, le changement qui détourne l'argent ensuite, l'exfiltration tout de suite après, parce que l'attaquant sait sa fenêtre courte. C'est ce que les règles de séquence EQL d'Elastic détectent bien (M18). Les rafales d'échecs décrivent la tentative d'entrée, pas la monétisation ; l'envoi massif de factures est un autre scénario, celui de l'abus de plateforme par un compte créé pour ça.",
+  },
+  {
+    q: "Après un appel à AdminUserGlobalSignOut sur un compte compromis, l'API Express de Novafact accepte encore son jeton d'accès pendant quelques minutes. Pourquoi, et que faire ?",
+    options: [
+      "Il faut attendre la propagation de la révocation dans le cache JWKS de l'API",
+      "Il faut appeler AdminDisableUser en plus, ce qui invalide les jetons déjà émis",
+      "L'API valide le JWT localement : couper la session au BFF et raccourcir les jetons",
+      "Il faut faire tourner la clé de signature du user pool pour invalider les jetons",
+    ],
+    answer: 2,
+    explain: "Un JWT se vérifie hors ligne : tant qu'il n'est pas expiré, l'API l'accepte, et aucune action côté Cognito ne l'atteint. La documentation précise que les jetons révoqués ne sont plus acceptés par les API de Cognito ni pour le rafraîchissement, mais que les autres requêtes restent valides jusqu'à expiration — désactiver l'utilisateur n'y change rien, c'est le piège le plus courant. Le vrai point de coupure est le BFF, qui porte la session, avec des jetons d'accès courts.",
+  },
+  {
+    q: "Une règle « voyage impossible » se déclenche sur un comptable qui se connecte depuis Lyon puis, cinq minutes plus tard, depuis Amsterdam. Quelle lecture est la bonne ?",
+    options: [
+      "C'est un signal à combiner : VPN et géolocalisation IP produisent ces sauts",
+      "C'est une prise de contrôle : suspendre le compte et contacter le titulaire",
+      "Exiger une vérification supplémentaire à chaque changement de pays détecté",
+      "La règle produit trop de faux positifs pour être exploitable : la retirer",
+    ],
+    answer: 0,
+    explain: "VPN d'entreprise, sortie d'opérateur mobile et bases de géolocalisation imprécises produisent ces sauts tous les jours. Seul, le signal justifie au plus un step-up ; combiné à un appareil inconnu et à un changement d'IBAN, il justifie une suspension. Exiger un défi à chaque changement de pays est la réaction intermédiaire tentante, et elle punit surtout les commerciaux en déplacement — tandis que retirer la règle perd un signal qui, corrélé, vaut cher.",
+  },
+];
+
+<YouKnow>
+En test, tu t'arrêtes souvent à la prise de contrôle. En production, c'est le début : l'attaquant monétise, et chaque minute compte pour limiter les pertes.
+</YouKnow>
+
+## Les signaux
+
+| Signal | Exemple |
+| --- | --- |
+| **Vélocité** | 40 connexions sur un même compte en une heure, 200 inscriptions depuis un même réseau |
+| **Nouveauté** | Nouvel appareil, nouveau pays, nouveau fournisseur réseau pour ce compte |
+| **Voyage impossible** | Paris puis Singapour à dix minutes d'intervalle |
+| **Séquence** | Connexion, changement d'e-mail, changement d'IBAN, export, en quelques minutes |
+| **Contenu** | Factures au texte typique des arnaques (leçon 5) |
+| **Signalements** | Destinataires qui signalent des factures |
+
+Aucun signal n'est concluant seul ; leur **combinaison** fait le risque. Le voyage impossible en est le meilleur exemple : VPN d'entreprise, sorties d'opérateurs mobiles et imprécision de la géolocalisation IP produisent des « téléportations » tous les jours. Seul, il mérite au plus un step-up. Suivi d'un changement d'IBAN depuis un appareil inconnu, il mérite une suspension.
+
+Ces signaux supposent des **événements** exploitables. Chez Novafact, chaque connexion, changement sensible et flux métier (leçon 1) produit un événement structuré au format ECS : `event.action`, `event.outcome`, `user.id`, `source.ip`, `source.geo.*`, un identifiant d'appareil, le tenant. Sans ces champs, les règles qui suivent ne peuvent pas s'écrire.
+
+<Callout kind="case">
+**Snowflake (2024).** Mandiant a relié une campagne d'extorsion visant des clients de Snowflake (environ 165 organisations notifiées) à des identifiants volés par des infostealers, certains exposés depuis 2020. Les comptes visés n'avaient pas de MFA, et les accès n'étaient pas restreints à des réseaux de confiance. Aucune faille du produit n'était en cause. Pour un éditeur SaaS, la leçon est double : l'ATO des comptes clients devient ton incident, et des contrôles côté plateforme (MFA imposable, détection des connexions depuis des sources nouvelles) changent l'issue.
+</Callout>
+
+## Un score de risque
+
+Plutôt que des règles binaires, Novafact calcule un **score de risque** pour chaque action sensible, à partir des signaux disponibles. Le score décide de la réponse :
+
+<Steps items={[
+  { title: "Risque faible", text: "L'action passe." },
+  { title: "Risque moyen", text: "Authentification adaptative : une MFA ou une passkey est demandée (step-up)." },
+  { title: "Risque élevé", text: "L'action est suspendue et revue ; l'utilisateur est prévenu par un canal déjà connu." },
+  { title: "Fraude avérée", text: "Suspension du compte, révocation des sessions et des jetons, notification des personnes touchées." },
+]} />
+
+Le score doit rester **explicable**. Le support qui reçoit l'appel d'un client bloqué doit pouvoir lui dire pourquoi, et l'équipe doit pouvoir régler les poids. Une somme pondérée qui renvoie ses raisons suffit largement à démarrer ; les modèles appris viennent après, quand on a des données étiquetées.
+
+<Code file="apps/bff/src/risk/score.ts" hl="12,13,19">
+
+```ts
+type Ctx = {
+  action: 'login' | 'iban_change' | 'email_change' | 'invoices_export';
+  newDevice: boolean; newCountry: boolean; impossibleTravel: boolean;
+  recentSensitiveChange: boolean; failedLoginsLastHour: number; ipReputationBad: boolean;
+};
+
+const WEIGHTS = { newDevice: 20, newCountry: 15, impossibleTravel: 20, recentSensitiveChange: 30, ipReputationBad: 25 } as const;
+const ACTION_BASE = { login: 0, invoices_export: 10, email_change: 20, iban_change: 30 } as const;
+
+export function riskScore(ctx: Ctx) {
+  const reasons: string[] = [];
+  let score = ACTION_BASE[ctx.action];
+  for (const [signal, weight] of Object.entries(WEIGHTS) as [keyof typeof WEIGHTS, number][]) {
+    if (ctx[signal]) { score += weight; reasons.push(signal); }
+  }
+  if (ctx.failedLoginsLastHour >= 5) { score += 15; reasons.push('failed_logins'); }
+
+  const decision = score >= 80 ? 'hold' : score >= 40 ? 'step_up' : 'allow';
+  return { score, decision, reasons }; // les raisons vont dans l'événement et dans l'outil du support
+}
+```
+
+</Code>
+
+Les poids sont ceux de Novafact et n'ont rien d'universel. Le point important est ailleurs : la même connexion peut passer (`allow`) pour consulter une facture et déclencher un step-up pour changer l'IBAN. Le risque se calcule **par action**, pas une fois pour toute la session.
+
+Si l'authentification passe par Cognito, sa *threat protection* (plan Plus) fournit une version gérée du même principe à la connexion : un niveau de risque faible, moyen ou élevé, et pour chacun une réponse choisie (autoriser, MFA si configurée, MFA exigée, blocage), avec notification de l'utilisateur. AWS recommande de la laisser au moins deux semaines en mode audit avant d'appliquer des actions. Elle ne couvre pas les actions sensibles dans l'application : le score applicatif reste nécessaire pour l'IBAN et les exports.
+
+## Détecter dans Elastic
+
+Les journaux applicatifs structurés (M18) permettent d'écrire ces détections. Chaque signal correspond à un type de règle d'Elastic Security :
+
+| Signal | Type de règle |
+| --- | --- |
+| Séquence ATO puis monétisation | EQL (corrélation d'événements) |
+| Nouveau pays ou nouvel appareil pour un compte | *New terms* : une valeur jamais vue dans une fenêtre d'historique |
+| Taux d'échec global en hausse | Seuil, ou ES\|QL avec agrégation |
+| Écart par rapport à l'habitude d'un tenant | Machine learning (détection d'anomalies) |
+
+```text
+sequence by user.id with maxspan=15m
+  [authentication where event.outcome == "success" and novafact.device.new == true]
+  [iam where event.action in ("email_changed", "iban_change_requested")]
+  [any where event.action == "invoices_exported"]
+```
+
+Cette règle EQL repère la séquence typique d'une prise de contrôle suivie de monétisation. La règle *new terms* sur le couple `user.id` et `source.geo.country_iso_code`, avec un historique de 30 jours, complète : elle alerte à la première connexion d'un compte depuis un pays nouveau pour lui, sans liste de pays à maintenir. Le module 18 en construit d'autres.
+
+## Contenir un compte
+
+Quand la décision est prise, la suspension doit couper **tous** les accès, et c'est plus subtil qu'il n'y paraît. L'API `AdminUserGlobalSignOut` de Cognito invalide les jetons de rafraîchissement et fait refuser les jetons d'accès par les API de Cognito ; mais la documentation précise que d'autres requêtes peuvent rester valides jusqu'à l'expiration du jeton. Une API qui valide les JWT localement, comme celle de Novafact, continue donc de les accepter. Le vrai point de coupure est la session du BFF.
+
+<Code file="apps/admin/src/fraud/containAccount.ts" hl="9,10,11,15">
+
+```ts
+import { CognitoIdentityProviderClient, AdminUserGlobalSignOutCommand, AdminDisableUserCommand } from '@aws-sdk/client-cognito-identity-provider';
+
+const cognito = new CognitoIdentityProviderClient({});
+
+export async function containAccount(user: { id: string; cognitoUsername: string; tenantId: string }, analyst: string, caseId: string) {
+  await audit.log({ action: 'account_contained', user: user.id, analyst, caseId }); // tracé avant d'agir
+
+  // 1. Coupure immédiate : sessions du BFF supprimées, les jetons ne sortent plus.
+  await sessions.deleteAllForUser(user.id);
+  // 2. Plus de rafraîchissement ni de nouvelle connexion côté Cognito.
+  await cognito.send(new AdminUserGlobalSignOutCommand({ UserPoolId: process.env.USER_POOL_ID, Username: user.cognitoUsername }));
+  await cognito.send(new AdminDisableUserCommand({ UserPoolId: process.env.USER_POOL_ID, Username: user.cognitoUsername }));
+  // 3. Gel des effets en cours : IBAN en attente annulé, envois suspendus, clés d'API révoquées.
+  await billing.freezeTenantOutflows(user.tenantId, caseId);
+  await apiKeys.revokeAllForUser(user.id);
+}
+```
+
+</Code>
+
+Les jetons d'accès courts (quelques minutes) bornent ce qui reste ; les clés d'API et les jetons d'intégration, souvent oubliés, se révoquent explicitement.
+
+## La réponse
+
+- **Le support** est en première ligne : c'est lui qui reçoit les appels des victimes et des clients bloqués. Donne-lui des procédures, des outils (voir les sessions actives et les raisons du score, révoquer, suspendre) et un circuit d'escalade.
+- **Les preuves** : les journaux d'audit (M7) permettent de reconstituer ce qui s'est passé, de rembourser ou de porter plainte. Une suspension doit aussi pouvoir se **justifier** auprès du client : quels événements, quand, depuis où. Préserve-les avant qu'une purge automatique ne les efface.
+- **La récupération** : le client légitime retrouve son compte par un canal vérifié, réinitialise ses facteurs, et revoit les changements faits pendant la compromission (IBAN, e-mails, utilisateurs ajoutés).
+- **La boucle d'apprentissage** : chaque fraude alimente les règles, les quotas et les signaux, et chaque faux positif ajuste les poids.
+
+## Mesurer le dispositif
+
+Un dispositif anti-fraude se juge sur deux colonnes à la fois, et en regarder une seule mène toujours à une mauvaise décision.
+
+| Côté abus | Côté clients |
+| --- | --- |
+| Délai entre la prise de contrôle et la détection | Taux de step-up réussis par de vrais clients (un taux d'échec élevé signale une friction mal placée) |
+| Délai entre la détection et le confinement | Tickets de support liés à un blocage ou à un défi |
+| Montants détournés, remboursés, récupérés | Abandons d'inscription et de paiement après un défi |
+| Part des fraudes détectées par une règle plutôt que par un signalement | Suspensions annulées après revue |
+
+La dernière ligne de gauche est la plus honnête : tant que la majorité des fraudes est découverte par les victimes ou le rapprochement comptable, la détection est en retard. La dernière ligne de droite dit si les suspensions sont justifiées. Chez Novafact, ces indicateurs sont revus chaque mois par le produit, le support et l'AppSec ensemble, et chaque réglage de seuil s'appuie sur eux plutôt que sur l'intuition du dernier incident.
+
+<Callout kind="tip">
+Le jeu **Abuse Desk** te met aux commandes : tu règles limites, défis et quotas face à une journée de trafic qui mêle clients, bots et fraudeurs, et tu vois à la fois l'abus bloqué et les clients gênés.
+</Callout>
+
+<Recap items={[
+  "Vélocité, nouveauté, voyage impossible, séquence, contenu et signalements : la combinaison fait le risque, sur des événements structurés.",
+  "Un score de risque explicable, calculé par action, décide d'une réponse graduée, du passage libre à la suspension.",
+  "L'authentification adaptative (Cognito à la connexion, score applicatif pour les actions sensibles) concentre la friction sur les situations risquées.",
+  "Elastic : EQL pour les séquences, new terms pour la nouveauté, seuils et ML pour les volumes.",
+  "Contenir, c'est couper la session du BFF, révoquer côté Cognito, geler les effets et garder les preuves.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Cheat Sheet : Credential Stuffing Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Credential_Stuffing_Prevention_Cheat_Sheet.html" },
+  { title: "Elastic : EQL syntax", url: "https://www.elastic.co/docs/reference/query-languages/eql/eql-syntax" },
+  { title: "Elastic Security : types de règles de détection", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/about-detection-rules" },
+  { title: "Amazon Cognito : threat protection", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pool-settings-threat-protection.html" },
+  { title: "Amazon Cognito : AdminUserGlobalSignOut", url: "https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminUserGlobalSignOut.html" },
+  { title: "Mandiant : UNC5537 et les clients Snowflake (2024)", url: "https://cloud.google.com/blog/topics/threat-intelligence/unc5537-snowflake-data-theft-extortion" },
+]} />

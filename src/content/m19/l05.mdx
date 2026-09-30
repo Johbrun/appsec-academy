@@ -1,0 +1,179 @@
+export const questions = [
+  {
+    q: "Un serveur MCP tiers ajouté à l'assistant de Novafact a été approuvé après relecture de ses outils. Trois semaines plus tard, la description d'un outil change et contient de nouvelles consignes. Comment s'appelle ce scénario, et quel contrôle le détecte ?",
+    options: [
+      "Un rug pull ; on compare l'empreinte des définitions d'outils à celle approuvée",
+      "Un token passthrough ; on le détecte en vérifiant l'audience des jetons émis",
+      "Une injection de prompt ; un classifieur sur la description d'outil la détecte",
+      "Une compromission de la chaîne d'approvisionnement ; le SBOM du serveur la révèle",
+    ],
+    answer: 0,
+    explain: "Le rug pull exploite le fait que l'approbation a porté sur une version des outils : la description change après coup, et personne ne relit. Le seul contrôle qui l'attrape est la comparaison d'empreinte des définitions renvoyées par `tools/list` avec celles approuvées, avec blocage du serveur en cas d'écart. C'est bien une attaque de chaîne d'approvisionnement, mais un SBOM décrit les dépendances du serveur, pas le texte que ses outils exposent à ton modèle : il ne verra rien passer. Et un classifieur d'injection intervient trop tard — on veut refuser la mise à jour, pas trier ce qu'elle produit.",
+  },
+  {
+    q: "Le serveur MCP interne de Novafact reçoit un jeton d'accès de l'assistant et le transmet tel quel à l'API de facturation. Que dit la spécification MCP ?",
+    options: [
+      "C'est la méthode recommandée pour propager l'identité de l'utilisateur en aval",
+      "C'est admis entre services d'un même domaine de confiance, sur un réseau privé",
+      "C'est admis si le serveur vérifie le `scope` du jeton avant de le transmettre",
+      "C'est du token passthrough, interdit : le serveur n'accepte que ses propres jetons",
+    ],
+    answer: 3,
+    explain: "La spécification l'interdit explicitement : un serveur MCP ne doit accepter que des jetons émis pour lui, et obtenir un jeton distinct — par token exchange, par exemple — pour appeler l'API en aval. Vérifier le `scope` avant de relayer est la concession qui paraît la plus raisonnable et manque le point : le problème n'est pas l'étendue du jeton mais son audience, car l'API en aval le validera comme si elle était bien la destinataire prévue. Le réseau privé n'y change rien non plus, et l'audit devient faux : l'API croit parler à l'application alors qu'elle parle au serveur MCP.",
+  },
+  {
+    q: "Dans l'OWASP Top 10 for Agentic Applications 2026, quel risque correspond à un agent dont une injection indirecte modifie l'objectif (résumer devient exfiltrer) ?",
+    options: [
+      "ASI07 Insecure Inter-Agent Communication",
+      "ASI01 Agent Goal Hijack",
+      "ASI08 Cascading Failures",
+      "ASI10 Rogue Agents",
+    ],
+    answer: 1,
+    explain: "ASI01 couvre le détournement de l'objectif ou du chemin de décision d'un agent par un contenu malveillant : c'est exactement « résumer devient exfiltrer ». ASI10 Rogue Agents est le voisin le plus tentant, mais il décrit un agent non autorisé ou devenu incontrôlable dans l'écosystème, pas un agent légitime dont l'objectif a été détourné. ASI02 couvrira ensuite l'usage abusif des outils qui en découle.",
+  },
+  {
+    q: "Pourquoi l'incident postmark-mcp (septembre 2025) concerne-t-il directement l'assistant de Novafact ?",
+    options: [
+      "Parce que Novafact utilise Postmark comme fournisseur d'envoi transactionnel",
+      "Parce qu'il s'agissait d'une faille du protocole MCP lui-même, donc de tout serveur",
+      "Un serveur MCP d'envoi d'e-mails a été modifié pour mettre l'attaquant en copie cachée",
+      "Parce que le serveur exploitait une injection de prompt cachée dans ses descriptions d'outils",
+    ],
+    answer: 2,
+    explain: "Aucune injection n'était nécessaire et le protocole n'était pas en cause : c'est une attaque de chaîne d'approvisionnement classique (ASI04) sur un composant qui voit passer tous les e-mails — exactement le profil de l'outil d'envoi de factures de Novafact, qu'elle utilise Postmark ou non. La confondre avec une injection de prompt change le correctif du tout au tout : ici, versions figées, relecture des mises à jour et sortie réseau contrôlée, comme pour n'importe quel paquet npm.",
+  },
+];
+
+<YouKnow>
+Tu as vu l'autorisation OAuth de MCP en M9 (leçon 5). Ici, on regarde le reste : ce que les serveurs MCP font entrer dans le contexte du modèle, les attaques propres aux agents, et le Top 10 qui les classe.
+</YouKnow>
+
+## Ce que MCP change pour la sécurité
+
+Le **Model Context Protocol** standardise la façon dont une application (le client) branche des **serveurs** qui exposent des outils, des ressources et des prompts. Chez Novafact, l'assistant est un client MCP ; il consomme un serveur interne (factures, clients, avoirs) et l'équipe envisage d'ajouter des serveurs d'éditeurs (comptabilité, signature électronique).
+
+Le point de sécurité central : **les descriptions d'outils sont du texte que le modèle lit**. Quand un client liste les outils d'un serveur, les noms, descriptions et schémas entrent dans le contexte, au même titre qu'un document. Brancher un serveur, c'est donc à la fois ajouter une dépendance qui exécute du code et une source de consignes pour le modèle.
+
+La spécification évolue vite. La version **2026-07-28**, publiée le 28 juillet 2026, rend le cœur du protocole sans état (plus de sessions ni de poignée de main `initialize`), déprécie l'enregistrement dynamique de clients au profit des *Client ID Metadata Documents*, et impose la validation de l'émetteur (`iss`, RFC 9207) contre les attaques de type mix-up. Les pratiques de sécurité décrites plus bas suivent la page *Security Best Practices* de la spécification.
+
+## L'OWASP Top 10 for Agentic Applications 2026
+
+Publié le **9 décembre 2025** par l'OWASP GenAI Security Project, avec plus d'une centaine de contributeurs, ce Top 10 complète celui des applications LLM : il traite de ce qui arrive quand le modèle cesse d'être un générateur de texte et devient un acteur, avec des objectifs, des identifiants, des outils, une mémoire et de l'autonomie.
+
+| ID | Risque | Chez Novafact | Contrôle principal |
+| --- | --- | --- | --- |
+| ASI01 | Agent Goal Hijack | Une facture importée transforme « résume » en « envoie tout à cette adresse » | Règle de deux, séparation des privilèges (leçons 2 et 3) |
+| ASI02 | Tool Misuse and Exploitation | L'outil d'avoir appelé en boucle avec des montants maximaux | Schémas stricts, plafonds, approbation |
+| ASI03 | Identity and Privilege Abuse | L'agent appelle l'API avec un compte de service omnipotent | Identité de l'utilisateur propagée, token exchange (M9) |
+| ASI04 | Agentic Supply Chain Vulnerabilities | Un serveur MCP ou un paquet d'outils compromis | Versions figées, revue, empreintes, AI SBOM |
+| ASI05 | Unexpected Code Execution | Un outil « calculatrice » qui évalue une expression écrite par le modèle | Pas d'`eval` ; bac à sable sans réseau |
+| ASI06 | Memory and Context Poisoning | Une consigne stockée dans la mémoire de l'assistant | Mémoire cloisonnée par utilisateur, provenance, expiration |
+| ASI07 | Insecure Inter-Agent Communication | Un agent de relance qui fait confiance aux messages d'un agent de tri | Authentification et validation entre agents |
+| ASI08 | Cascading Failures | Une erreur de classification propagée à 300 relances automatiques | Plafonds de volume, disjoncteurs, revue d'échantillons |
+| ASI09 | Human Agent Trust Exploitation | Un écran de confirmation rédigé par le modèle qui minimise l'action | Confirmation affichant les données stockées, pas le texte du modèle |
+| ASI10 | Rogue Agents | Un agent dont le comportement dérive sans que personne ne le voie | Journalisation, détection de dérive, coupe-circuit |
+
+## Tool poisoning, shadowing et rug pull
+
+Le **1er avril 2025**, Invariant Labs a décrit le **tool poisoning** : un serveur MCP place dans la description d'un outil des consignes que le modèle lit et suit, mais que l'utilisateur ne voit pas dans l'interface. Leur démonstration montrait un outil anodin dont la description demandait au modèle de lire des fichiers sensibles de la machine et de les transmettre en argument.
+
+Deux variantes aggravent le problème :
+
+- le **shadowing** : la description d'un outil malveillant modifie la façon dont le modèle utilise l'outil d'un **autre** serveur, de confiance (dans la démonstration d'Invariant, un outil d'addition redirigeait vers l'attaquant tous les e-mails envoyés par l'outil de messagerie légitime, quel que soit le destinataire demandé par l'utilisateur) ;
+- le **rug pull** : le serveur présente des descriptions saines au moment de l'approbation, puis les change plus tard.
+
+La défense combine revue humaine des descriptions à l'intégration, version figée du serveur, et **détection de tout changement** des définitions d'outils.
+
+<Code file="apps/api/src/mcp/tool-pinning.ts" hl="11,12,13">
+
+```ts
+import { createHash } from 'node:crypto';
+import approved from './approved-tools.json' with { type: 'json' }; // { "compta-editeur": "sha256:…" }
+
+const canonical = (tools: Array<{ name: string; description?: string; inputSchema: unknown }>) =>
+  JSON.stringify([...tools].sort((a, b) => a.name.localeCompare(b.name)).map(({ name, description, inputSchema }) => ({ name, description, inputSchema })));
+
+export async function loadServerTools(serverId: string, client: McpClient) {
+  const { tools } = await client.listTools();
+  const digest = 'sha256:' + createHash('sha256').update(canonical(tools)).digest('hex');
+  if (approved[serverId] !== digest) {
+    logger.warn({ event: 'mcp.tools.changed', serverId, digest }, 'définitions d’outils modifiées');
+    return [];                                   // serveur désactivé jusqu'à nouvelle revue
+  }
+  return tools;
+}
+```
+
+</Code>
+
+<Callout kind="case">
+En septembre 2025, Koi Security a révélé **postmark-mcp**, le premier serveur MCP malveillant documenté publiquement. Le paquet npm usurpait le nom du service d'e-mail Postmark ; ses premières versions fonctionnaient normalement. La version 1.0.16 a ajouté **une seule ligne** : l'adresse de l'attaquant en copie cachée de chaque e-mail envoyé. Factures, réinitialisations de mot de passe et correspondances internes sont ainsi parties chez l'attaquant ; le paquet avait été téléchargé 1 643 fois avant son retrait. En mars 2026, MITRE ATLAS l'a ajouté à ses études de cas (AML.CS0053). C'est très exactement le profil de l'outil d'envoi de factures de Novafact.
+</Callout>
+
+## Token passthrough et identité de l'agent
+
+La spécification est catégorique : un serveur MCP **ne doit accepter aucun jeton qui n'a pas été explicitement émis pour lui**. Le *token passthrough*, qui consiste à accepter le jeton du client et à le relayer tel quel vers une API en aval, est interdit : il contourne les contrôles de l'API (limites, audience), rend l'audit illisible et fait du serveur un proxy d'exfiltration pour un jeton volé.
+
+<Code file="services/mcp-novafact/src/auth.ts" hl="8,9">
+
+```ts
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
+const JWKS = createRemoteJWKSet(new URL('https://auth.novafact.example/.well-known/jwks.json'));
+
+export async function authenticate(authorization: string | undefined) {
+  const token = authorization?.replace(/^Bearer /, '');
+  if (!token) throw new Unauthorized();
+  const { payload } = await jwtVerify(token, JWKS, {
+    issuer: 'https://auth.novafact.example', audience: 'https://mcp.novafact.example', algorithms: ['RS256'],
+  });
+  return { userId: payload.sub!, tenantId: payload['tenant_id'] as string, scope: String(payload.scope ?? '').split(' ') };
+}
+// Pour appeler l'API de facturation : token exchange (RFC 8693) vers l'audience de l'API, jamais le jeton reçu.
+```
+
+</Code>
+
+Même logique pour les **scopes** : la spécification recommande un ensemble minimal au départ, puis une élévation progressive quand un outil privilégié est appelé, plutôt qu'un jeton omnipotent obtenu d'emblée. Chez Novafact, `invoices:read` suffit pour démarrer ; `credit_notes:write` fait l'objet d'une élévation explicite.
+
+## Les autres pratiques de la spécification
+
+La page *Security Best Practices* couvre aussi :
+
+- **SSRF côté client** : pendant la découverte OAuth, un serveur malveillant peut fournir des URL pointant vers le réseau interne ou le service de métadonnées cloud. HTTPS obligatoire, plages privées bloquées, redirections validées, proxy de sortie.
+- **Validation des URL d'autorisation** : n'accepter que `https` (et `http` en boucle locale pour le développement), refuser `javascript:` et consorts, ne jamais ouvrir une URL via un shell. En juillet 2025, JFrog a publié CVE-2025-6514 (CVSS 9.6) dans `mcp-remote` : une URL d'autorisation piégée renvoyée par un serveur malveillant provoquait l'exécution de commandes sur le poste du client ; corrigé en 0.1.16.
+- **Serveurs locaux** : consentement explicite affichant la commande exacte avant d'installer un serveur, exécution en bac à sable.
+- **Poignées d'état** : depuis que le protocole est sans état, un serveur qui garde un état entre requêtes émet un identifiant ; il doit être aléatoire, lié côté serveur à l'utilisateur authentifié, et ne jamais servir d'authentification.
+
+## Le bac à sable et l'intégration d'un serveur
+
+<Steps items={[
+  { title: "Qualifier", text: "Qui édite le serveur, où est le code, qui peut publier une version ? Même grille que pour un fournisseur ou un paquet npm critique (M14)." },
+  { title: "Relire", text: "Lire les descriptions et schémas de chaque outil comme un prompt : consignes cachées, texte hors sujet, demandes de lire d'autres outils ou fichiers." },
+  { title: "Restreindre", text: "N'exposer à l'agent que les outils nécessaires ; scopes minimaux ; jamais de serveur tiers dans une session qui détient les outils d'écriture de Novafact sans validation humaine." },
+  { title: "Isoler", text: "Conteneur sans privilèges, système de fichiers en lecture seule, aucun secret dans l'environnement, sortie réseau limitée aux domaines de l'éditeur." },
+  { title: "Figer", text: "Version exacte, empreinte des définitions d'outils, mises à jour relues comme une PR." },
+  { title: "Observer", text: "Journaliser chaque appel d'outil avec son serveur d'origine ; alerter sur un changement de définition ou un appel inhabituel." },
+]} />
+
+<Callout kind="tip">
+Le jeu **Agent Blast Radius** te fait choisir quels outils et quels serveurs exposer à l'assistant, et où placer les validations humaines.
+</Callout>
+
+<Recap items={[
+  "Les descriptions d'outils MCP entrent dans le contexte : un serveur est à la fois du code exécuté et une source de consignes.",
+  "Top 10 Agentic 2026 (9 décembre 2025) : ASI01 Agent Goal Hijack à ASI10 Rogue Agents.",
+  "Tool poisoning, shadowing et rug pull : relire, figer la version, détecter tout changement des définitions.",
+  "Token passthrough interdit : n'accepter que les jetons émis pour le serveur, token exchange vers l'aval, scopes progressifs.",
+  "Spécification 2026-07-28 : cœur sans état, CIMD, validation de l'émetteur ; serveurs tiers en bac à sable et sous surveillance.",
+]} />
+
+<Sources items={[
+  { title: "MCP : Security Best Practices", url: "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices" },
+  { title: "MCP : la spécification 2026-07-28", url: "https://blog.modelcontextprotocol.io/posts/2026-07-28/" },
+  { title: "OWASP Top 10 for Agentic Applications 2026", url: "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/" },
+  { title: "Invariant Labs : MCP Security Notification, Tool Poisoning Attacks", url: "https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks" },
+  { title: "Postmark : paquet malveillant postmark-mcp", url: "https://postmarkapp.com/blog/information-regarding-malicious-postmark-mcp-package" },
+  { title: "JFrog : CVE-2025-6514 dans mcp-remote", url: "https://jfrog.com/blog/2025-6514-critical-mcp-remote-rce-vulnerability/" },
+]} />

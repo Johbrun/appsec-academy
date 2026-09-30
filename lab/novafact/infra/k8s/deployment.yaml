@@ -1,0 +1,54 @@
+# VULNÉRABLE — fixture du lab, ne pas réutiliser
+#
+# Déploiement de l'API Novafact. Aucun contexte de sécurité n'est déclaré : les
+# valeurs par défaut de Kubernetes s'appliquent, et elles sont permissives. Le
+# pod partage en plus la pile réseau de l'hôte.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: novafact-api
+  namespace: novafact
+  labels:
+    app: novafact-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: novafact-api
+  template:
+    metadata:
+      labels:
+        app: novafact-api
+    spec:
+      serviceAccountName: novafact-api
+      # « Pour que la sonde de l'hôte joigne le port sans passer par le service. »
+      hostNetwork: true
+      containers:
+        - name: api
+          image: registry.novafact.example/novafact-api:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: novafact-api
+  namespace: novafact
+spec:
+  selector:
+    app: novafact-api
+  ports:
+    - port: 80
+      targetPort: 3000

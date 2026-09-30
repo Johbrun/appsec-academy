@@ -1,0 +1,29 @@
+# Inventaire des scripts chargés par la page de paiement (PCI DSS 6.4.3).
+#
+# L'exigence ne demande pas « pas de script tiers » : elle demande de savoir
+# lesquels, pourquoi, et de garantir leur intégrité. Un inventaire qui ne nomme
+# pas ce que la page charge réellement ne prouve rien — celui-ci se relit dans
+# `src/pages/Checkout.tsx`.
+
+page: src/pages/Checkout.tsx
+
+scripts:
+  - nom: analyticsUrl
+    origine: Variable de configuration, résolue à l'exécution et injectée en balise script.
+    autorise: non
+    justification: >-
+      Un script dont l'URL vient de la configuration peut changer sans revue : sur la page
+      qui porte le formulaire de carte, c'est exactement le vecteur d'un skimmer.
+    integrite: >-
+      Aucune : ni attribut d'intégrité, ni origine figée. À sortir de la page de paiement,
+      qui n'a pas besoin de mesure d'audience.
+    action: Retrait de la page de paiement, conservation sur le reste du site sous CSP à nonce.
+
+  - nom: bundle applicatif
+    origine: Construit par le pipeline de Novafact et servi depuis l'origine de l'application.
+    autorise: oui
+    justification: >-
+      C'est le code de la page elle-même : il passe par la revue, la construction
+      reproductible et l'attestation de provenance du pipeline.
+    integrite: Empreinte dans le manifeste de build, servie avec une CSP à nonce par réponse.
+    action: Aucune.

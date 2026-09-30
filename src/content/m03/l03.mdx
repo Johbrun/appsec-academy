@@ -1,0 +1,222 @@
+export const questions = [
+  {
+    q: "L'API publique de Novafact appelle un service interne en concaténant un paramètre utilisateur dans l'URL. Quel est le risque ?",
+    options: [
+      "Une SSRF : l'utilisateur choisit l'hôte que l'API publique contacte",
+      "Une fuite d'informations : l'URL interne apparaît dans les journaux d'accès",
+      "Server-side parameter pollution : l'entrée modifie la requête interne",
+      "Un contournement de la limitation de débit du service interne",
+    ],
+    answer: 2,
+    explain: "La SSRF est la confusion naturelle, et la distinction est nette : ici l'hôte est fixe, c'est LEDGER_URL. Ce que l'utilisateur déplace, c'est le contenu de la requête — un & ajoute un paramètre, un # tronque la suite, un ../ change de ressource. La fuite dans les journaux est un autre sujet. On construit l'appel avec URL et URLSearchParams, on valide l'identifiant avant, et le service interne vérifie lui-même l'autorisation.",
+  },
+  {
+    q: "Pourquoi une limitation de débit « par requête HTTP » ne suffit-elle pas sur une API GraphQL ?",
+    options: [
+      "Parce qu'une requête peut porter des dizaines d'opérations (alias, batching)",
+      "Parce que GraphQL n'expose qu'un seul endpoint, donc une seule clé de comptage",
+      "Parce que la profondeur d'une requête n'est pas bornée par défaut",
+      "Parce que les requêtes GraphQL passent en GET et sont mises en cache",
+    ],
+    answer: 0,
+    explain: "« Un seul endpoint, une seule clé » est la remarque la plus fine des trois, et elle rate quand même la cible : rien n'empêche de compter par nom d'opération. Le problème est plus bas — une seule requête HTTP peut porter des centaines de tentatives de connexion par des alias, et le compteur ne s'incrémente que d'un. La profondeur non bornée est un problème de coût, pas de contournement. On limite le nombre d'opérations et d'alias.",
+  },
+  {
+    q: "Le client interne encode l'identifiant de compte avec encodeURIComponent avant de l'insérer comme segment de chemin, puis construit l'URL avec new URL(). Pourquoi faut-il quand même valider le format de l'identifiant ?",
+    options: [
+      "Parce que new URL() décode les séquences %2e avant de résoudre le chemin",
+      "Parce qu'il n'encode pas le point : un segment « .. » remonte d'un niveau",
+      "Parce qu'encodeURIComponent laisse passer la barre oblique /",
+      "Parce que le service interne décode deux fois le segment reçu",
+    ],
+    answer: 1,
+    explain: "L'explication par un double décodage côté service interne est séduisante et inutile ici : rien n'a besoin d'être décodé, puisque le point n'a jamais été encodé. La barre oblique, elle, est bien encodée — c'est justement ce contre quoi encodeURIComponent protège, avec ? et #. Le trou est le segment point : « .. » traverse l'encodage intact, et le standard URL traite « %2e%2e » de la même façon. On valide le format avant de construire l'URL.",
+  },
+  {
+    q: "L'équipe active les « automatic persisted queries » (APQ) d'Apollo et considère que l'API n'exécute plus que des requêtes connues. A-t-elle raison ?",
+    options: [
+      "Oui : le serveur refuse tout hash qu'il ne connaît pas déjà",
+      "Oui, à condition d'avoir aussi désactivé l'introspection du schéma",
+      "Non : APQ ne s'applique qu'aux requêtes GET mises en cache par le CDN",
+      "Non : n'importe quel client peut enregistrer une nouvelle requête",
+    ],
+    answer: 3,
+    explain: "« Le serveur refuse tout hash inconnu » décrit le mode où l'on n'accepte que des requêtes persistées enregistrées d'avance — pas APQ, qui répond justement « je ne connais pas ce hash », reçoit la requête complète et l'enregistre. Désactiver l'introspection réduit ce qui est visible, pas ce qui est exécutable. La vraie liste blanche, ce sont les documents de confiance, extraits du front au build et refusant tout le reste.",
+  },
+];
+
+<YouKnow>
+Tu as exploité des paramètres cachés, des API internes atteintes par pollution de paramètres, et des schémas GraphQL trop bavards. On regarde les contrôles qui ferment ces portes par construction, et les faux amis qui donnent une impression de sécurité.
+</YouKnow>
+
+## Les appels internes sont une surface
+
+Dans une architecture de services, l'API publique appelle souvent des API internes. Si elle construit ces appels en **concaténant** des entrées utilisateur, l'utilisateur peut modifier la requête interne : ajouter un paramètre (`&role=admin`), tronquer la suite (`#`) ou changer de ressource (`../`). C'est la **server-side parameter pollution**, ajoutée au sujet *API testing* de l'Academy en 2024. Elle a trois terrains :
+
+| Terrain | Ce que l'entrée peut changer | Construction sûre |
+| --- | --- | --- |
+| Chaîne de requête | Ajouter ou dupliquer un paramètre, tronquer le reste avec `#` | `URLSearchParams`, jamais de gabarit de chaîne |
+| Chemin REST | Remonter d'un segment, viser une autre ressource | Identifiant validé (UUID) puis `encodeURIComponent` |
+| Corps structuré (JSON, XML) | Ajouter une clé, fermer une chaîne et injecter un champ | Construire un objet, puis `JSON.stringify` |
+
+<Diff file="apps/api/src/clients/ledger.ts" hlBefore="2" hlAfter="1,3-6">
+
+```ts
+export const getEntries = (tenant: string, account: string) =>
+  fetch(`${LEDGER_URL}/tenants/${tenant}/entries?account=${account}`);
+```
+
+```ts
+const AccountId = z.string().uuid();
+
+export const getEntries = (tenant: TenantId, account: string) => {
+  const url = new URL(`/tenants/${encodeURIComponent(tenant)}/entries`, LEDGER_URL);
+  url.searchParams.set('account', AccountId.parse(account));
+  return fetch(url, { headers: { authorization: `Bearer ${serviceToken()}` } });
+};
+```
+
+</Diff>
+
+<Callout kind="warn">
+`encodeURIComponent` n'encode ni le point ni le tiret. Un « identifiant » valant `..` reste `..` une fois encodé, et l'analyseur d'URL résout ce segment en remontant d'un niveau (la forme encodée `%2e%2e` est traitée de la même façon par le standard URL). L'encodage protège contre `/`, `?` et `#`, pas contre les segments point. D'où la validation du format **avant** la construction : un UUID ne peut pas valoir `..`.
+</Callout>
+
+Un autre détail propre à Express : avec l'analyseur de requête par défaut, `?account=a&account=b` devient un **tableau**. Si l'API publique transmet `req.query.account` tel quel, le service interne reçoit deux valeurs, et chaque composant choisit la première, la dernière ou les deux. Le schéma `z.string()` rejette le tableau et règle la question.
+
+Et surtout : **le service interne ne fait pas confiance à l'appelant**. Il vérifie lui-même l'identité (jeton de service) et l'autorisation, plutôt que de supposer que l'API publique a filtré. C'est le pattern *Accept Security Responsibility* de Kohnfelder (M8) appliqué aux services. Chez Novafact, le jeton de service porte le tenant de l'utilisateur d'origine : le ledger refuse une requête dont le chemin vise un autre tenant que celui du jeton, même si l'appelant est l'API publique.
+
+## Mass assignment et propriétés d'objet
+
+L'OWASP API Security Top 10 2023 regroupe sous **API3, Broken Object Property Level Authorization** deux défauts symétriques : le client **écrit** des propriétés qu'il ne devrait pas toucher (mass assignment), ou **lit** des propriétés qu'il ne devrait pas voir (exposition excessive). Dans l'écosystème JS, le premier naît presque toujours d'un `data: req.body` passé à l'ORM.
+
+<Diff file="apps/api/src/routes/users.ts" hlBefore="2" hlAfter="1-5,8">
+
+```ts
+router.patch('/me', async (req, res) => {
+  const user = await prisma.user.update({ where: { id: req.user.id }, data: req.body });
+  res.json(user);
+});
+```
+
+```ts
+const UpdateMe = z.object({
+  displayName: z.string().min(1).max(80).optional(),
+  locale: z.enum(['fr', 'en', 'de']).optional(),
+}).strict();                                  // role, tenantId, emailVerified : refusés
+
+router.patch('/me', async (req, res) => {
+  const data = UpdateMe.parse(req.body);
+  const user = await prisma.user.update({ where: { id: req.user.id }, data });
+  res.json(toPublicUser(user));               // sortie filtrée aussi
+});
+```
+
+</Diff>
+
+`.strict()` refuse les champs inconnus au lieu de les ignorer en silence : un client qui envoie `role` reçoit une erreur, et cette erreur apparaît dans les journaux. C'est plus utile qu'un filtrage muet, qui masque aussi les tentatives.
+
+## Paramètres cachés et documentation
+
+Les API exposent souvent plus que ce que l'interface utilise : champs acceptés mais non documentés, anciennes versions encore en ligne (API9, Improper Inventory Management). Deux contrôles :
+
+- **un schéma d'entrée strict** qui refuse les champs inconnus (M2) ;
+- **un inventaire** des API exposées, généré depuis le code ou le trafic, comparé à la spécification OpenAPI.
+
+Chez Novafact, la CI génère la spécification OpenAPI depuis les schémas zod, et un job hebdomadaire compare les chemins observés dans les journaux de l'ALB à cette spécification : toute route qui reçoit du trafic sans être documentée devient un ticket.
+
+## GraphQL
+
+GraphQL déplace les problèmes plutôt qu'il ne les supprime :
+
+| Risque | Contrôle |
+| --- | --- |
+| Autorisation par point d'entrée seulement | Autorisation **par résolveur** ou dans la couche d'accès aux données : chaque champ sensible vérifie ses droits |
+| Requêtes profondes ou coûteuses (DoS) | Limite de profondeur, analyse de coût, limite de taille de requête |
+| Alias et batching pour contourner les limites de débit | Limite du nombre d'opérations et d'alias par requête ; limite de débit sur les mutations sensibles, pas sur la requête HTTP |
+| Introspection en production | La désactiver réduit la surface visible, mais ce n'est pas un contrôle : le schéma se devine |
+| Suggestions de champs (« Did you mean… ») | Les masquer : elles permettent de reconstruire le schéma sans introspection (c'est ce que fait l'outil Clairvoyance) |
+| CSRF via GET ou formulaires | N'accepter que `POST` avec `application/json` pour les mutations |
+
+L'autorisation par résolveur mérite un exemple, car c'est là que GraphQL piège les équipes habituées au REST. En REST, chaque route est un point de contrôle. En GraphQL, une requête **traverse le graphe** : `invoice { client { invoices { … } } }` atteint des objets par des chemins que personne n'a listés. Si seul le résolveur racine vérifie le tenant, les résolveurs imbriqués deviennent des portes dérobées.
+
+<Code file="apps/api/src/graphql/resolvers.ts" hl="3,8,12">
+
+```ts
+export const resolvers = {
+  Query: {
+    invoice: (_: unknown, { id }: { id: string }, ctx: Ctx) => ctx.repos.invoices.get(ctx.user.tenantId, id),
+  },
+  Client: {
+    // Chaque relation repasse par le dépôt, qui impose le tenant de l'utilisateur.
+    invoices: (client: Client, _args: unknown, ctx: Ctx) =>
+      ctx.repos.invoices.listByClient(ctx.user.tenantId, client.id),
+  },
+  Invoice: {
+    // Champ sensible : seul le rôle finance voit l'IBAN du client.
+    clientIban: (inv: Invoice, _a: unknown, ctx: Ctx) => (ctx.user.roles.includes('finance') ? inv.clientIban : null),
+  },
+};
+```
+
+</Code>
+
+Le dépôt (`repos.invoices`) exige le tenant en premier argument : il est impossible d'écrire un résolveur qui l'oublie sans que le typage le signale. C'est la même idée que l'autorisation centralisée de M2, appliquée au graphe.
+
+<Code file="apps/api/src/graphql/server.ts">
+
+```ts
+import { ApolloServer } from '@apollo/server';
+import { ApolloArmor } from '@escape.tech/graphql-armor';
+
+const armor = new ApolloArmor({
+  maxDepth: { n: 8 },
+  maxAliases: { n: 10 },
+  costLimit: { maxCost: 2000 },
+  maxTokens: { n: 1000 },
+  blockFieldSuggestion: { enabled: true },
+});
+
+export const server = new ApolloServer({ schema, ...armor.protect(), introspection: process.env.NODE_ENV !== 'production' });
+```
+
+</Code>
+
+Quelques valeurs par défaut d'Apollo Server jouent déjà en ta faveur : la protection CSRF (`csrfPrevention`) est activée par défaut et bloque certaines requêtes `GET` sans en-tête spécifique, et le batching de plusieurs opérations dans un tableau JSON (`allowBatchedHttpRequests`) est désactivé par défaut. Vérifie qu'aucune configuration héritée ne les a désactivés.
+
+<Callout kind="tip">
+Les seuils ne se devinent pas. GraphQL Armor permet de rendre chaque plugin inoffensif (`propagateOnRejection: false`) tout en appelant tes callbacks `onReject`. Déploie d'abord en observation, envoie les rejets dans Elastic pendant deux semaines, mesure la profondeur et le coût des requêtes légitimes du front, puis fixe les limites avec une marge et passe en blocage.
+</Callout>
+
+## Requêtes persistées : le vrai contrôle, et son faux ami
+
+Pour une API consommée par ton propre front, les **documents de confiance** (*trusted documents*, aussi appelés liste de requêtes persistées) sont le contrôle le plus fort : au build, le front extrait ses opérations, les enregistre côté serveur, et le serveur refuse tout ce qui n'est pas dans la liste. L'attaquant ne peut plus écrire de requête, seulement rejouer celles du front avec d'autres variables.
+
+Le faux ami s'appelle **APQ** (*automatic persisted queries*). Le nom se ressemble, mais le mécanisme est inverse : le client envoie un hash, et si le serveur ne le connaît pas, le client envoie la requête complète qui est alors enregistrée. N'importe qui peut donc enregistrer n'importe quelle requête. APQ économise de la bande passante, ce n'est pas une fonctionnalité de sécurité ; Benjie Gillam le rappelle explicitement dans sa présentation des trusted documents.
+
+<Callout kind="novafact">
+L'API GraphQL de Novafact sert deux publics : la SPA (interne) et quelques intégrateurs partenaires. Décision : documents de confiance obligatoires pour la SPA, via une clé API distincte ; pour les partenaires, requêtes libres mais avec GraphQL Armor en blocage, un coût maximal plus bas et une limite de débit par clé. Deux profils, deux niveaux d'exposition, au lieu d'un compromis qui ne convient à personne.
+</Callout>
+
+<Recap items={[
+  "La server-side parameter pollution vient de la concaténation d'entrées dans des appels internes : chaîne de requête, chemin ou corps.",
+  "URL et URLSearchParams pour construire les appels, identifiants validés avant encodage (encodeURIComponent laisse passer « .. »).",
+  "Le service interne vérifie lui-même l'identité et l'autorisation, avec le tenant d'origine dans le jeton de service.",
+  "Mass assignment : schéma strict en entrée, objet public en sortie (API3:2023).",
+  "GraphQL : autorisation par résolveur jusque dans les relations imbriquées, limites de profondeur, de coût et d'alias, suggestions masquées.",
+  "Les documents de confiance sont une liste blanche ; APQ n'est qu'une optimisation.",
+]} />
+
+<Lab id="ps-api" />
+<Lab id="ps-graphql" />
+
+<Sources items={[
+  { title: "Web Security Academy : API testing", url: "https://portswigger.net/web-security/api-testing" },
+  { title: "Web Security Academy : GraphQL", url: "https://portswigger.net/web-security/graphql" },
+  { title: "OWASP Cheat Sheet : GraphQL", url: "https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html" },
+  { title: "GraphQL Armor", url: "https://github.com/Escape-Technologies/graphql-armor" },
+  { title: "OWASP API Security Top 10 2023 : API3 Broken Object Property Level Authorization", url: "https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/" },
+  { title: "Benjie Gillam : GraphQL Trusted Documents", url: "https://benjie.dev/graphql/trusted-documents" },
+  { title: "Apollo Server : CORS et prévention CSRF", url: "https://www.apollographql.com/docs/apollo-server/security/cors" },
+  { title: "Clairvoyance", url: "https://github.com/nikitastupin/clairvoyance", note: "reconstruction de schéma via les suggestions" },
+]} />

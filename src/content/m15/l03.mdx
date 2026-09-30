@@ -1,0 +1,237 @@
+export const questions = [
+  {
+    q: "Dans une définition de tâche ECS, quel rôle doit porter la permission `s3:PutObject` sur le bucket des exports, utilisée par le code de l'API ?",
+    options: [
+      "Le rôle d'exécution, qui porte les droits accordés au conteneur par la plateforme",
+      "Le rôle de la tâche, utilisé par le SDK depuis le code applicatif",
+      "Le rôle de l'instance EC2 hôte, dont le conteneur hérite par la chaîne par défaut",
+      "Les deux : l'agent ECS relaie les appels S3 émis par le conteneur",
+    ],
+    answer: 1,
+    explain: "Le rôle d'exécution appartient à l'agent ECS : tirer l'image, écrire les logs, résoudre les secrets injectés. Le SDK dans le conteneur, lui, prend le rôle de la tâche. Le rôle d'instance EC2 mérite un mot : sur le mode EC2 sans blocage d'IMDS, le conteneur peut effectivement l'atteindre et l'emprunter — c'est une fuite à fermer, pas un endroit où poser la permission.",
+  },
+  {
+    q: "Pourquoi IMDSv2 bloque-t-il la plupart des SSRF qui visaient les identifiants d'une instance ?",
+    options: [
+      "Parce que les réponses sont signées en SigV4 et qu'une SSRF ne peut pas fournir la signature attendue",
+      "Parce que les identifiants ne transitent plus par 169.254.169.254 mais par un socket local",
+      "Il faut d'abord un jeton obtenu par un PUT avec en-tête dédié, hors de portée d'une SSRF en GET",
+      "Parce que le jeton est lié à l'adresse de l'appelant, ce qui exclut toute requête relayée",
+    ],
+    answer: 2,
+    explain: "IMDSv2 impose une session : `PUT /latest/api/token` avec `X-aws-ec2-metadata-token-ttl-seconds`, puis le jeton en en-tête sur chaque `GET`. L'adresse, elle, n'a pas changé — croire que le point de terminaison a déménagé fait manquer le vrai mécanisme, qui est le protocole d'accès. Et le contrôle n'est pas absolu : une SSRF qui maîtrise méthode et en-têtes passe encore. Le hop limit à 1 ferme le relais réseau, pas la requête locale.",
+  },
+  {
+    q: "La chaîne d'identifiants par défaut du SDK v3 en Node.js interroge en premier…",
+    options: [
+      "Le fichier `~/.aws/credentials` du profil courant",
+      "Le point de terminaison de métadonnées de l'instance EC2",
+      "Les variables `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`",
+      "Le rôle de la tâche ECS, via `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`",
+    ],
+    answer: 2,
+    explain: "`fromEnv()` ouvre la chaîne, avant SSO, les fichiers partagés, le jeton web identity, le conteneur et IMDS. Le rôle de la tâche ECS est le faux ami : on le cite spontanément en premier parce qu'il « appartient » au conteneur, alors qu'il arrive tout en bas de la chaîne. C'est ce qui rend une variable oubliée dans un shell ou une image si dangereuse : elle masque le rôle prévu sans aucun message.",
+  },
+  {
+    q: "L'identity pool Cognito de Novafact autorise les identités non authentifiées avec un rôle qui peut écrire dans S3. Quel est le risque principal ?",
+    options: [
+      "Le rôle invité hérite des droits du rôle authentifié quand le pool n'en déclare qu'un",
+      "Les identifiants invités n'expirent pas tant que l'identité n'est pas supprimée",
+      "Les identités invitées se créent sans limite et épuisent le quota du pool",
+      "N'importe qui peut obtenir des identifiants temporaires avec l'ID public du pool",
+    ],
+    answer: 3,
+    explain: "L'ID du pool est dans le bundle front : `GetId` puis `GetCredentialsForIdentity` suffisent, sans jamais passer par l'API. Toute permission du rôle non authentifié est donc publique par construction. L'épuisement de quota existe, mais c'est le moindre problème ; et les identifiants expirent bien — ce qui ne change rien, puisqu'on peut en redemander autant qu'on veut.",
+  },
+];
+
+<YouKnow>
+Une SSRF ou une lecture de fichier sur un serveur Node dans AWS, c'est rarement « juste » une SSRF : c'est souvent l'accès aux identifiants du rôle qui fait tourner le code. Savoir où la plateforme dépose ces identifiants, et comment les protéger, transforme un finding critique en finding contenu.
+</YouKnow>
+
+## Qui porte l'identité de ton code
+
+Chaque plateforme de calcul livre des identifiants temporaires à l'application, par un canal différent. C'est ce canal qu'un attaquant vise, et c'est lui qu'on durcit.
+
+| Plateforme | Identité de l'application | Canal de livraison | Point d'attention |
+| --- | --- | --- | --- |
+| Lambda | Rôle d'exécution de la fonction | Variables d'environnement `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Une lecture de `/proc/self/environ` ou un log de `process.env` expose la session |
+| ECS (Fargate ou EC2) | **Task role** | Point de terminaison `169.254.170.2`, chemin dans `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI` | Ne pas confondre avec l'**execution role** |
+| EKS | Rôle associé par **Pod Identity** (ou IRSA) | Agent Pod Identity sur le nœud | Le rôle du nœud reste accessible si IMDS n'est pas fermé aux pods |
+| EC2 | Rôle de l'*instance profile* | IMDS, `169.254.169.254` | IMDSv1 lisible par une simple SSRF en GET |
+
+### Task role et execution role
+
+Sur ECS, deux rôles cohabitent et sont souvent fusionnés par facilité :
+
+- l'**execution role** sert à l'agent ECS : tirer l'image depuis ECR, écrire dans CloudWatch Logs, lire les secrets à injecter dans le conteneur au démarrage ;
+- le **task role** sert au code : lire le bucket, publier dans la file, appeler SES.
+
+Fusionnés, ils donnent au code Node la lecture de **tous** les secrets de toutes les tâches qui partagent ce rôle. Le CDK rend la séparation naturelle :
+
+<Diff file="infra/cdk/lib/api-service.ts" hlBefore="2,3,4" hlAfter="2,3,4,5,6,7,8,9,10,11,12,13,14,15" stack>
+
+```ts
+const taskDef = new ecs.FargateTaskDefinition(this, 'ApiTask', { cpu: 512, memoryLimitMiB: 1024 });
+// Un seul rôle « pour que ça marche »
+taskDef.addToTaskRolePolicy(new iam.PolicyStatement({ actions: ['secretsmanager:GetSecretValue', 's3:*'], resources: ['*'] }));
+taskDef.addToExecutionRolePolicy(new iam.PolicyStatement({ actions: ['secretsmanager:GetSecretValue', 's3:*'], resources: ['*'] }));
+```
+
+```ts
+const taskDef = new ecs.FargateTaskDefinition(this, 'ApiTask', { cpu: 512, memoryLimitMiB: 1024 });
+
+taskDef.addContainer('api', {
+  image: ecs.ContainerImage.fromEcrRepository(repo, props.imageTag),
+  // Injecté au démarrage : la lecture du secret est accordée au rôle d'exécution, pas au code
+  secrets: { DATABASE_URL: ecs.Secret.fromSecretsManager(dbSecret) },
+  logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'api' }),
+});
+
+// Le code n'obtient que ce qu'il utilise, sur des ressources nommées
+exportsBucket.grantPut(taskDef.taskRole, 'tenants/*');
+invoicesBucket.grantRead(taskDef.taskRole, 'tenants/*');
+```
+
+</Diff>
+
+Les méthodes `grant*` du CDK génèrent des politiques limitées aux ARN concernés. Le rôle d'exécution reçoit automatiquement la lecture du seul secret référencé dans `secrets`.
+
+Sur ECS avec des instances EC2 (pas sur Fargate), les conteneurs peuvent en plus atteindre IMDS et donc le rôle de l'**instance**. La documentation ECS recommande de le bloquer : `ECS_AWSVPC_BLOCK_IMDS=true` dans la configuration de l'agent en mode réseau `awsvpc`, une règle `iptables` sur `169.254.169.254` en mode `bridge`.
+
+### EKS Pod Identity
+
+Pod Identity associe un rôle IAM à un couple *namespace* / *service account*. La trust policy fait confiance au principal de service `pods.eks.amazonaws.com` pour `sts:AssumeRole` et `sts:TagSession`, et les tags de session posés par EKS (`kubernetes-namespace`, `kubernetes-service-account`…) permettent de restreindre davantage :
+
+<Code file="infra/iam/pod-identity-trust.json" hl="11,12">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowEksAuthToAssumeRoleForPodIdentity",
+      "Effect": "Allow",
+      "Principal": { "Service": "pods.eks.amazonaws.com" },
+      "Action": ["sts:AssumeRole", "sts:TagSession"],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/kubernetes-namespace": "invoicing",
+          "aws:RequestTag/kubernetes-service-account": "pdf-renderer"
+        }
+      }
+    }
+  ]
+}
+```
+
+</Code>
+
+## IMDSv2 et la leçon de Capital One
+
+<Callout kind="case">
+En 2019, une attaquante a exploité une SSRF permise par un pare-feu applicatif mal configuré chez **Capital One**. La requête forgée atteignait le service de métadonnées de l'instance (IMDSv1), qui a renvoyé les identifiants temporaires du rôle attaché. Ce rôle pouvait lister et lire de nombreux buckets S3 : les données d'environ 100 millions de personnes aux États-Unis et 6 millions au Canada ont été copiées. En 2020, l'OCC a infligé une amende de 80 millions de dollars, reprochant notamment l'absence d'évaluation des risques avant la migration vers le cloud. Trois défauts se sont additionnés : la SSRF, IMDSv1, et un rôle bien trop large pour un pare-feu.
+</Callout>
+
+**IMDSv2** impose une session : le client obtient d'abord un jeton par une requête `PUT` sur `/latest/api/token` avec l'en-tête `X-aws-ec2-metadata-token-ttl-seconds`, puis le présente dans l'en-tête `X-aws-ec2-metadata-token`. Une SSRF qui ne fait que des `GET` sans contrôler les en-têtes échoue. Le **hop limit** (TTL IP de la réponse au `PUT`) vaut 1 par défaut, sauf pour les AMI marquées IMDSv2 où il vaut 2 : à 1, la réponse ne traverse pas un saut supplémentaire, comme le pont réseau d'un conteneur. AWS recommande 2 quand l'instance héberge des conteneurs qui ont légitimement besoin d'IMDS.
+
+IMDSv2 **réduit** le risque, il ne l'élimine pas : une SSRF qui maîtrise la méthode et les en-têtes, ou une exécution de code, lit toujours les identifiants. La défense complète combine IMDSv2, un rôle minimal, un proxy de sortie (M3) et la détection.
+
+<Code file="scripts/aws/imds-defaults.sh">
+
+```bash
+# Par région : IMDSv2 par défaut pour les nouvelles instances, hop limit 2 pour les hôtes de conteneurs
+aws ec2 modify-instance-metadata-defaults \
+  --region eu-west-3 \
+  --http-tokens required \
+  --http-put-response-hop-limit 2
+
+# Et refuser tout lancement d'instance qui n'exige pas IMDSv2
+aws ec2 modify-instance-metadata-defaults \
+  --region eu-west-3 \
+  --http-tokens required \
+  --http-tokens-enforced enabled
+```
+
+</Code>
+
+À l'échelle de l'organisation, une **politique déclarative** EC2 applique ces paramètres à tous les comptes et toutes les régions (leçon 6). Côté détection, GuardDuty signale l'usage hors d'AWS d'identifiants d'instance (`UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS`) : route ce finding vers Elastic (M18).
+
+## La chaîne d'identifiants du SDK v3
+
+Sans identifiants explicites, `@aws-sdk/*` en Node.js essaie, dans l'ordre : les **variables d'environnement** (`fromEnv`), **Identity Center** (`fromSSO`), les **fichiers partagés** `~/.aws/config` et `credentials` (`fromIni`, qui gère aussi les profils à rôle), le **fournisseur de processus**, le **jeton web identity** (`fromTokenFile`, utilisé par IRSA), puis les **métadonnées de conteneur** (ECS) et enfin **IMDS**. La première source qui répond gagne.
+
+Trois pièges en découlent : une variable `AWS_ACCESS_KEY_ID` dans l'image ou la définition de tâche masque le task role ; un `~/.aws` monté par erreur dans un conteneur fait tourner la production avec les droits d'un développeur ; un fallback silencieux vers IMDS sur un hôte EC2 donne au conteneur le rôle de l'instance. D'où un contrôle au démarrage, qui échoue fort :
+
+<Code file="apps/api/src/boot/assert-identity.ts" hl="9,10,11,12,13">
+
+```ts
+import { STSClient, GetCallerIdentityCommand } from '@aws-sdk/client-sts';
+
+const EXPECTED_ROLE = /^arn:aws:sts::\d{12}:assumed-role\/novafact-(prod|staging)-api-task\//;
+
+export async function assertAwsIdentity(logger: { info: Function; fatal: Function }) {
+  const sts = new STSClient({});
+  const { Arn } = await sts.send(new GetCallerIdentityCommand({}));
+
+  if (!Arn || !EXPECTED_ROLE.test(Arn)) {
+    // Mauvaise identité effective : clé oubliée, profil monté, repli sur le rôle de l'instance…
+    logger.fatal({ event: 'aws.identity.unexpected', arn: Arn }, 'identité AWS inattendue');
+    process.exit(1);
+  }
+  logger.info({ event: 'aws.identity.ok', arn: Arn }, 'identité AWS vérifiée');
+}
+```
+
+</Code>
+
+`GetCallerIdentity` ne demande aucune permission IAM : le contrôle fonctionne avec n'importe quel rôle. Sur Lambda, la même vérification tient en une ligne au chargement du module ; ajoute surtout une règle de revue : **jamais** de journalisation de `process.env` ni d'objet de configuration complet.
+
+## Les pièges des identity pools Cognito
+
+Un **identity pool** Cognito échange un jeton (du user pool, d'un IdP social, ou rien du tout pour les invités) contre des identifiants AWS temporaires utilisables **directement depuis le navigateur**. L'ID du pool est dans le bundle : tout ce que le rôle permet est donc accessible à quiconque lit le JavaScript.
+
+| Piège | Pourquoi c'est grave | Correction |
+| --- | --- | --- |
+| Identités non authentifiées activées | Identifiants AWS pour n'importe qui, sans compte | Désactiver les invités ; sinon rôle invité quasi vide |
+| Rôle authentifié trop large (`s3:*` sur le bucket) | Chaque client lit les fichiers des autres tenants | Politique limitée au préfixe de l'identité, ou URL présignées générées par l'API |
+| Flux basique (*classic*) activé | Le client choisit le rôle et construit lui-même `AssumeRoleWithWebIdentity`, sans la politique de réduction appliquée par le flux amélioré aux invités | Garder le flux amélioré, désactiver le flux basique |
+| Trust policy sans `amr` | En flux basique, un invité peut présenter son jeton pour endosser le rôle « authentifié » | Condition `cognito-identity.amazonaws.com:amr` = `authenticated` en plus de `aud` |
+
+IAM refuse désormais d'enregistrer une trust policy qui fait confiance à `cognito-identity.amazonaws.com` sans condition sur `aud` (l'ID du pool), mais d'anciens rôles non conformes peuvent subsister : ils ne sont simplement plus modifiables sans ajouter la condition.
+
+<Callout kind="novafact">
+Novafact utilisait un identity pool pour que la SPA dépose les pièces jointes directement dans S3, avec la politique ci-dessous limitée au préfixe `${cognito-identity.amazonaws.com:sub}/*`. Ça isole les **identités**, pas les **tenants** : deux comptables d'un même client ne partageaient rien, et l'API devait deviner à quel tenant rattacher le fichier. L'équipe est passée aux **URL présignées** générées par l'API après contrôle d'autorisation (M8, leçon 10) : l'identity pool a été supprimé, et avec lui une surface AWS exposée au navigateur.
+</Callout>
+
+<Code file="infra/iam/identity-pool-authenticated.json">
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["s3:PutObject"],
+  "Resource": "arn:aws:s3:::novafact-prod-uploads/${cognito-identity.amazonaws.com:sub}/*"
+}
+```
+
+</Code>
+
+<Recap items={[
+  "Chaque plateforme livre des identifiants temporaires par un canal propre : variables Lambda, 169.254.170.2 pour ECS, Pod Identity pour EKS, IMDS pour EC2.",
+  "Sur ECS, le task role sert au code et l'execution role à l'agent : ne jamais les fusionner.",
+  "IMDSv2 (jeton par PUT, hop limit) bloque les SSRF simples ; imposer-le par défaut et le faire respecter, sans le croire suffisant.",
+  "La chaîne du SDK v3 prend la première source qui répond : vérifier l'identité effective au démarrage avec GetCallerIdentity.",
+  "Un identity pool expose au navigateur tout ce que ses rôles permettent : pas d'invités, flux amélioré, amr et aud, ou des URL présignées.",
+]} />
+
+<Lab id="ps-ssrf" />
+
+<Sources items={[
+  { title: "Amazon EC2 : Configure instance metadata options for new instances", url: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-IMDS-new-instances.html" },
+  { title: "Amazon ECS : Task IAM role", url: "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html" },
+  { title: "Amazon EKS : Pod Identity", url: "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html" },
+  { title: "AWS SDK for JavaScript v3 : Set credentials in Node.js", url: "https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/setting-credentials-node.html" },
+  { title: "Amazon Cognito : IAM roles for identity pools", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/iam-roles.html" },
+  { title: "Capital One : informations sur l'incident de 2019", url: "https://www.capitalone.com/digital/facts2019/" },
+  { title: "OCC : sanction contre Capital One (août 2020)", url: "https://www.occ.gov/news-issuances/news-releases/2020/nr-occ-2020-101.html" },
+]} />

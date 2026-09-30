@@ -1,0 +1,97 @@
+[
+  {
+    "id": "attaquant-1",
+    "malicious": true,
+    "label": "un bourrage d’identifiants"
+  },
+  {
+    "id": "attaquant-2",
+    "malicious": true,
+    "label": "un bourrage d’identifiants"
+  },
+  {
+    "id": "attaquant-3",
+    "malicious": true,
+    "label": "un bourrage d’identifiants"
+  },
+  {
+    "id": "integration-cassee-1",
+    "malicious": false,
+    "label": "une intégration cassée sur un compte de service"
+  },
+  {
+    "id": "integration-cassee-2",
+    "malicious": false,
+    "label": "une intégration cassée sur un compte de service"
+  },
+  {
+    "id": "oubli-1",
+    "malicious": false,
+    "label": "un mot de passe oublié"
+  },
+  {
+    "id": "oubli-2",
+    "malicious": false,
+    "label": "un mot de passe oublié"
+  },
+  {
+    "id": "oubli-3",
+    "malicious": false,
+    "label": "un mot de passe oublié"
+  },
+  {
+    "id": "oubli-4",
+    "malicious": false,
+    "label": "un mot de passe oublié"
+  },
+  {
+    "id": "maladroit-1",
+    "malicious": false,
+    "label": "un client qui se trompe puis se connecte"
+  },
+  {
+    "id": "maladroit-2",
+    "malicious": false,
+    "label": "un client qui se trompe puis se connecte"
+  },
+  {
+    "id": "maladroit-3",
+    "malicious": false,
+    "label": "un client qui se trompe puis se connecte"
+  },
+  {
+    "id": "maladroit-4",
+    "malicious": false,
+    "label": "un client qui se trompe puis se connecte"
+  },
+  {
+    "id": "maladroit-5",
+    "malicious": false,
+    "label": "un client qui se trompe puis se connecte"
+  },
+  {
+    "id": "maladroit-6",
+    "malicious": false,
+    "label": "un client qui se trompe puis se connecte"
+  },
+  {
+    "id": "maladroit-7",
+    "malicious": false,
+    "label": "un client qui se trompe puis se connecte"
+  },
+  {
+    "id": "maladroit-8",
+    "malicious": false,
+    "label": "un client qui se trompe puis se connecte"
+  },
+  {
+    "id": "bureau-partage-1",
+    "malicious": false,
+    "label": "un bureau partagé derrière une seule adresse"
+  },
+  {
+    "id": "bureau-partage-2",
+    "malicious": false,
+    "label": "un bureau partagé derrière une seule adresse"
+  }
+]

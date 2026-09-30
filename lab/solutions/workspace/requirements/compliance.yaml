@@ -1,0 +1,129 @@
+# Ce que la conformité impose vraiment à Novafact.
+#
+# Une ligne par obligation des quatre textes applicables. La colonne qui compte
+# n'est pas « couverte » : c'est « controle-technique ». Une obligation sans
+# contrôle nommé est une case cochée, et un contrôle sans preuve dans le dépôt
+# est une intention. D'où la règle qu'on s'est donnée : toute obligation
+# déclarée couverte cite un fichier qui existe et qui établit ce qu'il prétend.
+
+obligations:
+  # ── PCI DSS 4.0.1 ─────────────────────────────────────────────────────────
+  - id: PCI-6.4.3
+    controle-technique: >-
+      Inventaire versionné des scripts chargés par la page de paiement, relu à chaque
+      modification de Checkout.tsx, avec CSP à nonce et origines de script énumérées.
+    couverte: oui
+    preuves:
+      - workspace/requirements/payment-scripts.yaml
+
+  - id: PCI-11.6.1
+    controle-technique: >-
+      Surveillance de l'intégrité des en-têtes et du contenu servi sur la page de paiement,
+      avec alerte sur toute divergence par rapport à l'empreinte publiée par le pipeline.
+    couverte: non
+    plan: >-
+      Report-Only sur la CSP de la page de paiement puis collecte des rapports pendant deux
+      semaines, avant bascule en bloquant et branchement de l'alerte sur divergence.
+
+  - id: PCI-8.3.6
+    controle-technique: >-
+      Second facteur obligatoire sur tout compte disposant d'un accès au périmètre de paiement,
+      y compris les comptes de support et les rôles d'exploitation.
+    couverte: non
+    plan: >-
+      Le second facteur existe et reste facultatif. Généralisation aux rôles internes d'abord,
+      puis aux administrateurs de tenant, avec une période de grâce annoncée.
+
+  # ── RGPD ──────────────────────────────────────────────────────────────────
+  - id: RGPD-5.1.e
+    controle-technique: >-
+      Politique de conservation déclarant une durée par classe de données, appliquée par une
+      purge planifiée et recoupée avec la carte des données à chaque revue trimestrielle.
+    couverte: oui
+    preuves:
+      - workspace/privacy/retention.yaml
+
+  - id: RGPD-17
+    controle-technique: >-
+      Procédure d'effacement couvrant les cinq magasins où la donnée d'un compte se propage,
+      et test de régression qui cherche une valeur identifiante après suppression.
+    couverte: oui
+    preuves:
+      - workspace/verify/erasure.test.ts
+
+  - id: RGPD-30
+    controle-technique: >-
+      Registre tenu sous forme de carte des données confrontée au modèle : finalité, classe,
+      propriétaire, base légale et durée pour chaque champ réellement manipulé.
+    couverte: oui
+    preuves:
+      - workspace/privacy/data-classification.yaml
+
+  - id: RGPD-32
+    controle-technique: >-
+      Exigences de sécurité tracées jusqu'au test qui les établit, avec exécution du test à
+      chaque intégration : l'efficacité des mesures est mesurée, pas déclarée.
+    couverte: oui
+    preuves:
+      - workspace/requirements/traceability.csv
+
+  - id: RGPD-33
+    controle-technique: >-
+      Procédure de notification à l'autorité de contrôle sous 72 heures, avec qualification
+      de l'atteinte aux données conduite en parallèle de la réponse technique.
+    couverte: non
+    plan: >-
+      La procédure existe côté juridique et n'est pas branchée sur l'astreinte technique.
+      Ajout d'une étape de qualification au playbook d'incident, testée au prochain exercice.
+
+  # ── NIS2 ──────────────────────────────────────────────────────────────────
+  - id: NIS2-21.2.e
+    controle-technique: >-
+      Sous-ensemble ASVS L2 adopté comme référentiel de développement, révisé à chaque version
+      majeure et opposable en revue de code comme en revue de conception.
+    couverte: oui
+    preuves:
+      - workspace/requirements/asvs.yaml
+
+  - id: NIS2-21.2.d
+    controle-technique: >-
+      Inventaire des parties de confiance relevé dans le dépôt — dépendances, actions de CI,
+      origines externes — avec le pouvoir de nuisance et la mitigation de chacune.
+    couverte: oui
+    preuves:
+      - workspace/requirements/trust.yaml
+
+  - id: NIS2-23
+    controle-technique: >-
+      Alerte précoce sous 24 heures et notification sous 72 heures à l'autorité compétente,
+      déclenchées par le même dossier d'incident que le signalement CRA.
+    couverte: non
+    plan: >-
+      L'outil de décision CRA existe et ne couvre pas encore le seuil de significativité NIS2,
+      qui dépend du nombre d'utilisateurs touchés. Extension prévue avec l'équipe juridique.
+
+  # ── Cyber Resilience Act ──────────────────────────────────────────────────
+  - id: CRA-13.1
+    controle-technique: >-
+      Relevé route par route de l'authentification, de l'autorisation et de l'audit sur toute
+      opération mutante, avec l'écart mesuré contre le code et non déclaré.
+    couverte: oui
+    preuves:
+      - workspace/requirements/gold-standard.csv
+
+  - id: CRA-13.25
+    controle-technique: >-
+      Nomenclature logicielle produite et conservée pour chaque version publiée, au moins au
+      premier niveau, pour répondre à « quelle version avions-nous livrée le 3 mars ».
+    couverte: non
+    plan: >-
+      Le SBOM est généré à la demande et n'est pas conservé, ce qui interdit toute réponse
+      rétrospective. Génération dans le pipeline de publication et archivage par version.
+
+  - id: CRA-14
+    controle-technique: >-
+      Outil exécutable qui décide du signalement à partir d'un dossier d'incident et calcule
+      les deux échéances, pour ne pas relire le règlement en pleine crise.
+    couverte: oui
+    preuves:
+      - workspace/compliance/cra-14-signalement.mjs

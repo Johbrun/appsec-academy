@@ -1,0 +1,180 @@
+export const questions = [
+  {
+    q: "Une dépendance transitive a une CVE critique dans une fonction que Novafact n'appelle jamais. Quel outil aide à le démontrer ?",
+    options: [
+      "Un SBOM à jour, qui montre que le paquet est en dépendance transitive",
+      "Une couverture de tests qui prouve que la fonction n'est jamais appelée",
+      "Un scan du code applicatif à la recherche de l'appel à la fonction vulnérable",
+      "Une SCA avec analyse d'atteignabilité, et un VEX pour documenter le statut",
+    ],
+    answer: 3,
+    explain: "Chercher l'appel dans ton propre code est trop court : la fonction peut être atteinte par une dépendance intermédiaire, sans que ton code la nomme jamais. Le SBOM dit ce qui est présent, pas ce qui est appelé, et une couverture de tests ne prouve rien sur un chemin non testé. L'atteignabilité raisonne sur le graphe d'appels, et le VEX transmet la conclusion « not affected » aux clients et aux outils.",
+  },
+  {
+    q: "Qu'est-ce qu'un SBOM ?",
+    options: [
+      "L'inventaire lisible par machine des composants, avec versions et relations",
+      "L'état des vulnérabilités connues de chacun des composants à un instant donné",
+      "La liste des dépendances directes déclarées dans le package.json du projet",
+      "L'attestation signée de la manière dont l'artefact a été construit",
+    ],
+    answer: 0,
+    explain: "La confusion la plus coûteuse est avec l'état de vulnérabilité : le SBOM ne dit pas ce qui est vulnérable, il dit ce qui est là — répondre à l'autre question est le rôle du scan et du VEX. Ce n'est pas davantage le package.json, qui ignore les transitives, ni la provenance, qui atteste du build. CycloneDX et SPDX sont les deux formats standard.",
+  },
+  {
+    q: "Le 15 septembre 2025, des versions piégées de paquets npm populaires sont publiées. Pourquoi npm audit ne les signale-t-il pas le jour même ?",
+    options: [
+      "Parce que npm audit ne descend pas dans les dépendances transitives du lockfile",
+      "Parce que npm audit ne lit que package.json et ignore les versions installées",
+      "Parce qu'un paquet malveillant tout neuf n'a pas encore d'avis publié",
+      "Parce que le registre retire les versions signalées avant que l'avis soit publié",
+    ],
+    answer: 2,
+    explain: "npm audit lit bien le lockfile et descend dans les transitives : la limite n'est pas là. Elle est dans la source de vérité — une base d'avis décrit des défauts déjà connus, et un paquet hostile publié il y a deux heures n'y figure pas encore. D'où l'analyse comportementale (Socket, GuardDog), et le délai avant d'adopter une nouvelle version.",
+  },
+  {
+    q: "Tu configures npm avec min-release-age=3 (jours). Quel effet de bord dois-tu prévoir ?",
+    options: [
+      "Un correctif publié hier ne sera pas installable avant trois jours",
+      "Les installations deviennent plus lentes, le registre étant interrogé deux fois",
+      "Les versions déjà présentes dans le lockfile seront rétrogradées à la précédente",
+      "Les dépendances de développement échappent à la règle et restent exposées",
+    ],
+    answer: 0,
+    explain: "Le délai ne rétrograde rien et ne ralentit rien : il porte sur l'âge de la version au moment de l'installation, pour toutes les dépendances sans distinction. Son vrai coût est ailleurs — la quarantaine protège des versions piégées retirées en quelques heures, mais elle s'applique aussi aux correctifs urgents. La documentation de npm prévoit une liste d'exclusions pour ce cas précis.",
+  },
+];
+
+<YouKnow>
+`npm audit` te sort 40 alertes à chaque fois. Cette leçon explique comment passer du bruit à une gestion des composants que l'équipe suit vraiment.
+</YouKnow>
+
+## Deux problèmes différents
+
+| Problème | Question | Outils |
+| --- | --- | --- |
+| **Vulnérabilités connues** | Un composant a-t-il une CVE qui me concerne ? | npm audit, **OSV-Scanner**, Dependabot, Snyk, Renovate |
+| **Paquets malveillants** | Ce paquet fait-il quelque chose d'hostile ? | **Socket**, **GuardDog**, analyses de comportement |
+
+Un paquet malveillant n'a pas de CVE le jour où il est publié : les outils de vulnérabilités ne le voient pas. D'où deux outillages complémentaires. Une nuance tout de même : une fois identifiés, les paquets malveillants sont recensés par l'OpenSSF dans un dépôt public au format OSV, avec des identifiants `MAL-…` qu'OSV-Scanner remonte. Cela aide après coup, pour savoir si tu as installé une version piégée, pas avant.
+
+```bash
+npm audit --omit=dev                    # vulnérabilités connues, dépendances de production seulement
+osv-scanner scan source -r .            # base OSV, y compris les entrées MAL- de paquets malveillants
+npm audit signatures                    # signatures du registre et attestations de provenance
+```
+
+<Callout kind="case">
+Le 15 septembre 2025, des versions piégées de `@ctrl/tinycolor` et de dizaines d'autres paquets npm ont été publiées : un script exécuté à l'installation volait les jetons npm, GitHub et cloud présents sur la machine, puis republiait automatiquement des versions piégées des autres paquets de chaque mainteneur touché. Ce ver, baptisé Shai-Hulud, a compromis plus de 500 paquets en quelques jours, et la CISA a publié une alerte. Aucune CVE le premier jour : seuls les outils d'analyse comportementale, la vigilance de la communauté et les délais d'adoption protégeaient les équipes.
+</Callout>
+
+## Réduire le bruit
+
+<Steps items={[
+  { title: "L'atteignabilité", text: "Le paquet vulnérable est-il importé, et la fonction vulnérable appelée depuis ton code ? C'est la première réduction de bruit." },
+  { title: "Le contexte", text: "Dépendance de développement ou de production ? Exposée à Internet ou dans un script interne ?" },
+  { title: "La priorisation de M5", text: "EPSS, KEV et impact, comme pour tout finding." },
+  { title: "Les mises à jour groupées", text: "Renovate regroupe les mises à jour, les fusionne automatiquement quand les tests passent, et attend avant d'adopter une nouvelle version (minimumReleaseAge)." },
+]} />
+
+Méfie-toi du mot « atteignabilité » : il recouvre des niveaux très différents. Au plus simple, l'outil vérifie que le paquet est **importé** quelque part ; au plus fin, il vérifie que la **fonction** vulnérable est appelée depuis un chemin de ton code. Le premier niveau élimine surtout les dépendances mortes ; le second change vraiment la file de travail. Demande à ton outil lequel il calcule, pour quels langages, et garde en tête qu'en JavaScript, les appels dynamiques rendent l'analyse imparfaite : « non atteignable » veut dire « non trouvé », pas « prouvé impossible ».
+
+## Délais d'adoption et scripts d'installation
+
+Beaucoup de versions piégées sont repérées et retirées en quelques heures. Attendre quelques jours avant d'adopter une nouvelle version élimine une grande partie du risque, pour un coût faible. Tous les outils le permettent désormais : Renovate (`minimumReleaseAge`), pnpm (`minimumReleaseAge`, en minutes), npm 11 (`min-release-age`, en jours).
+
+<Code file="renovate.json">
+
+```json
+{
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "3 days",
+  "packageRules": [
+    { "matchDepTypes": ["devDependencies"], "matchUpdateTypes": ["minor", "patch"], "automerge": true }
+  ]
+}
+```
+
+</Code>
+
+<Callout kind="debate">
+**Quarantaine, même pour les correctifs de sécurité ?** La documentation de npm est explicite : si la fenêtre empêche `npm audit fix` d'installer une version corrigée publiée trop récemment, npm garde la version vulnérable, prévient et échoue. Pour : la plupart des jours, le risque d'une version piégée est plus grand que celui d'une CVE. Contre : le jour d'une CVE critique exploitée (React2Shell, M12), trois jours d'attente sont inacceptables. La réponse de Novafact : quarantaine par défaut, et procédure d'urgence documentée qui ajoute le paquet à la liste d'exclusion (`min-release-age-exclude`), avec revue du diff de la nouvelle version.
+</Callout>
+
+Deuxième levier : les **scripts d'installation**. pnpm 10 n'exécute plus par défaut les scripts `postinstall` des dépendances, et demande de lister explicitement celles qui en ont besoin. Avec npm, `ignore-scripts=true` dans `.npmrc` produit un effet comparable, au prix de quelques paquets à construire à la main. C'est exactement le vecteur de Shai-Hulud.
+
+## Le SBOM
+
+Un **SBOM** (Software Bill of Materials) est l'inventaire des composants d'un logiciel. Deux formats standard : **CycloneDX** (OWASP, normalisé par Ecma sous le nom ECMA-424 ; la version 1.6 couvre aussi les services, les modèles d'IA et les attestations, la 1.7 d'octobre 2025 enrichit notamment l'inventaire cryptographique) et **SPDX** (Linux Foundation, version 3.0).
+
+```bash
+npm sbom --sbom-format cyclonedx --omit dev > sbom.cdx.json   # intégré à npm
+npx @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json       # plugin CycloneDX
+cdxgen -t js -o sbom.cdx.json .                                # multi-langages
+syft dir:. -o cyclonedx-json                                   # aussi pour les images
+```
+
+Un SBOM utile se génère **au build**, à partir du lockfile et de l'artefact réellement livré, pas à la main sur le poste d'un développeur. Pour Novafact, il en faut au moins deux par version : celui de l'application (dépendances npm) et celui de l'image de conteneur (paquets du système en plus), qui ne disent pas la même chose.
+
+En juillet 2026, la CISA et ses partenaires ont publié les **2026 Minimum Elements** d'un SBOM, qui remplacent la version NTIA de 2021. Parmi les ajouts : l'empreinte cryptographique de chaque composant, sa licence, l'outil qui a généré le SBOM et le contexte de génération (à quelle étape du cycle de vie il a été produit). Le CRA européen (M1) exige, pour les produits qu'il couvre, un SBOM dans un format courant et lisible par machine, couvrant **au minimum les dépendances de premier niveau** ; ses obligations de signalement s'appliquent depuis le 11 septembre 2026, et l'essentiel de ses autres obligations à partir du 11 décembre 2027.
+
+## Dependency-Track et VEX
+
+**OWASP Dependency-Track** ingère les SBOM de chaque version déployée et surveille en continu les nouvelles vulnérabilités. Le jour où une CVE sort, la question « sommes-nous touchés, où, dans quelle version ? » prend une minute. L'envoi se fait en fin de build :
+
+```bash
+curl -X POST "$DT_URL/api/v1/bom" -H "X-Api-Key: $DT_API_KEY" \
+  -F "autoCreate=true" -F "projectName=novafact-api" -F "projectVersion=$GIT_SHA" -F "bom=@sbom.cdx.json"
+```
+
+Le **VEX** (Vulnerability Exploitability eXchange) complète le SBOM : pour chaque vulnérabilité, un état, une justification et un détail. Il évite que chaque client pose la même question après chaque CVE. Plusieurs formats coexistent, avec des vocabulaires différents : CycloneDX (états comme `not_affected`, `exploitable`, `in_triage`, `resolved`), OpenVEX et CSAF (`not_affected`, `affected`, `fixed`, `under_investigation`). En CycloneDX :
+
+<Code file="vex/novafact-api.cdx.json">
+
+```json
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "vulnerabilities": [{
+    "id": "CVE-2024-45590",
+    "affects": [{ "ref": "pkg:npm/body-parser@1.20.2" }],
+    "analysis": {
+      "state": "not_affected",
+      "justification": "code_not_reachable",
+      "detail": "L'API n'active pas express.urlencoded (extended) ; seul express.json est monté. Mise à jour prévue au prochain lot."
+    }
+  }]
+}
+```
+
+</Code>
+
+Un VEX est un **engagement** : « not affected » publié à un client doit reposer sur une analyse relisible, datée, et révisée si le code change (quelqu'un qui active `express.urlencoded` demain rend la déclaration fausse). Chez Novafact, chaque statut `not_affected` est lié à une règle Semgrep qui échoue si la condition cesse d'être vraie.
+
+## Les licences
+
+Le SBOM porte aussi les **licences**. Une dépendance AGPL dans le back-end d'un SaaS peut imposer de publier le code ; une licence incompatible bloque une acquisition. La politique de licences se vérifie en CI comme les vulnérabilités (M14, leçon 6).
+
+<Recap items={[
+  "Vulnérabilités connues et paquets malveillants demandent deux outillages distincts ; les entrées MAL- d'OSV n'aident qu'après coup.",
+  "L'atteignabilité (en sachant à quel niveau elle est calculée), le contexte et la priorisation de M5 réduisent le bruit.",
+  "Délais d'adoption et scripts d'installation désactivés coupent le vecteur des vers npm, avec une procédure d'urgence pour les correctifs.",
+  "SBOM CycloneDX ou SPDX générés au build, conformes aux 2026 Minimum Elements de la CISA et au CRA.",
+  "Dependency-Track surveille en continu ; le VEX documente ce qui n'est pas exploitable, et c'est un engagement à maintenir.",
+]} />
+
+<Sources items={[
+  { title: "OSV-Scanner", url: "https://google.github.io/osv-scanner/" },
+  { title: "OpenSSF : malicious packages", url: "https://github.com/ossf/malicious-packages" },
+  { title: "CycloneDX", url: "https://cyclonedx.org/" },
+  { title: "CycloneDX 1.7", url: "https://cyclonedx.org/news/cyclonedx-v1.7-released/" },
+  { title: "SPDX", url: "https://spdx.dev/" },
+  { title: "OWASP Dependency-Track", url: "https://dependencytrack.org/" },
+  { title: "CISA : 2026 Minimum Elements for a SBOM", url: "https://www.cisa.gov/resources-tools/resources/2026-minimum-elements-software-bill-materials-sbom" },
+  { title: "CISA : compromission étendue de l'écosystème npm (septembre 2025)", url: "https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem" },
+  { title: "npm : configuration (min-release-age)", url: "https://docs.npmjs.com/cli/v11/using-npm/config" },
+  { title: "pnpm : supply chain security", url: "https://pnpm.io/supply-chain-security" },
+  { title: "Renovate : minimumReleaseAge", url: "https://docs.renovatebot.com/configuration-options/#minimumreleaseage" },
+  { title: "GuardDog (Datadog)", url: "https://github.com/DataDog/guarddog" },
+  { title: "npm sbom", url: "https://docs.npmjs.com/cli/v11/commands/npm-sbom" },
+]} />

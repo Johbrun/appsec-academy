@@ -1,0 +1,44 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://novafact.example/vex/2026-09-28-api",
+  "author": "AppSec Novafact <appsec@novafact.example>",
+  "role": "Document Creator",
+  "timestamp": "2026-09-28T09:30:00.000Z",
+  "version": 1,
+  "tooling": "lecture du code, chaînes d'appel vérifiées à la main",
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-61001",
+        "description": "Fusion récursive qui recopie les clés spéciales du client dans l'objet cible."
+      },
+      "products": [{ "@id": "pkg:npm/%40novafact/settings@3.1.0" }],
+      "status": "affected",
+      "action_statement": "Refuser les clés __proto__ / constructor / prototype et valider par schéma strict avant la fusion. Correctif prévu au prochain cycle.",
+      "action_statement_timestamp": "2026-09-28T09:30:00.000Z",
+      "timestamp": "2026-09-28T09:30:00.000Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-61004",
+        "description": "Réinitialisation complète de l'état en mémoire, sans contrôle d'accès."
+      },
+      "products": [{ "@id": "pkg:npm/%40novafact/store@2.2.0" }],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "resetAll() est définie dans server/store.ts mais n'a aucun appelant : la remise à zéro exposée passe par resetData(). Aucune route montée ne mène au symbole vulnérable.",
+      "timestamp": "2026-09-28T09:30:00.000Z"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-61005",
+        "description": "Entités externes résolues à l'analyse du document."
+      },
+      "products": [{ "@id": "pkg:npm/%40novafact/legacy-xml@0.9.4" }],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Le module server/lib/xml.ts n'existe pas dans l'arbre livré : parseXmlDocument() n'est embarquée nulle part.",
+      "timestamp": "2026-09-28T09:30:00.000Z"
+    }
+  ]
+}

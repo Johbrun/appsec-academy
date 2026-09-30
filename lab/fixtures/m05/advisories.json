@@ -1,0 +1,65 @@
+{
+  "_a_propos": "Cinq avis de sécurité émis sur les composants internes du monorepo Novafact. Chaque avis désigne le symbole vulnérable : le fichier qui le définit et le nom de la fonction. L’outil de composition ne sait pas dire si ce symbole est réellement atteint depuis une route servie — c’est le travail de l’exercice.",
+  "avis": [
+    {
+      "id": "NF-ADV-2026-001",
+      "composant": "@novafact/settings",
+      "version": "3.1.0",
+      "cve": "CVE-2026-61001",
+      "cwe": "CWE-1321",
+      "resume": "Fusion récursive qui recopie les clés spéciales du client dans l’objet cible.",
+      "symbole": {
+        "fichier": "server/routes/settings.ts",
+        "fonction": "deepMerge"
+      }
+    },
+    {
+      "id": "NF-ADV-2026-002",
+      "composant": "@novafact/invoicing",
+      "version": "2.4.0",
+      "cve": "CVE-2026-61002",
+      "cwe": "CWE-681",
+      "resume": "Calcul du total en virgule flottante, sans borne sur les quantités.",
+      "symbole": {
+        "fichier": "server/routes/invoices.ts",
+        "fonction": "computeTotal"
+      }
+    },
+    {
+      "id": "NF-ADV-2026-003",
+      "composant": "@novafact/http",
+      "version": "1.8.2",
+      "cve": "CVE-2026-61003",
+      "cwe": "CWE-918",
+      "resume": "Le test d’adresse interne laisse passer des formes équivalentes.",
+      "symbole": {
+        "fichier": "server/routes/webhooks.ts",
+        "fonction": "isInternal"
+      }
+    },
+    {
+      "id": "NF-ADV-2026-004",
+      "composant": "@novafact/store",
+      "version": "2.2.0",
+      "cve": "CVE-2026-61004",
+      "cwe": "CWE-306",
+      "resume": "Réinitialisation complète de l’état en mémoire, sans contrôle d’accès.",
+      "symbole": {
+        "fichier": "server/store.ts",
+        "fonction": "resetAll"
+      }
+    },
+    {
+      "id": "NF-ADV-2026-005",
+      "composant": "@novafact/legacy-xml",
+      "version": "0.9.4",
+      "cve": "CVE-2026-61005",
+      "cwe": "CWE-611",
+      "resume": "Entités externes résolues à l’analyse du document.",
+      "symbole": {
+        "fichier": "server/lib/xml.ts",
+        "fonction": "parseXmlDocument"
+      }
+    }
+  ]
+}

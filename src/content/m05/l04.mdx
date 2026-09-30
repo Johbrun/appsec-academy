@@ -1,0 +1,164 @@
+export const questions = [
+  {
+    q: "Selon Kohnfelder, que faut-il produire à la place d'un exploit complet pour faire corriger une vulnérabilité ?",
+    options: [
+      "Une preuve de concept minimale, exécutée dans un environnement de test",
+      "Un vecteur CVSS complet, qui décrit précisément le chemin d'attaque",
+      "Une démonstration de la chaîne complète devant l'équipe produit",
+      "Un test de régression qui déclenche directement le bug",
+    ],
+    answer: 3,
+    explain: "Le test de régression montre le défaut, décrit le comportement attendu, reste en CI et coûte bien moins qu'un exploit fiabilisé. Kohnfelder ne nie pas la force d'une démonstration : il la réserve aux désaccords persistants, où une PoC minimale en environnement de test garde tout son intérêt. Ce qu'il conteste, c'est d'en faire le prix d'entrée — on ne corrigerait alors que ce qu'on a su exploiter.",
+  },
+  {
+    q: "Pourquoi l'échec à produire un exploit ne prouve-t-il pas qu'une vulnérabilité est inexploitable ?",
+    options: [
+      "Parce qu'un attaquant peut avoir plus de temps, d'outils ou un autre maillon",
+      "Parce qu'un environnement de test ne reproduit jamais la production",
+      "Parce que l'exploitabilité se juge sur le vecteur CVSS, pas sur une tentative isolée",
+      "Parce qu'une vulnérabilité finit toujours par être exploitée un jour",
+    ],
+    answer: 0,
+    explain: "C'est l'asymétrie centrale de Kohnfelder : une réussite prouve quelque chose, un échec prouve seulement que toi, ce jour-là, avec tes outils, tu n'y es pas arrivé. L'écart entre test et production en fait partie, mais ce n'est qu'un cas particulier — l'attaquant dispose aussi de plus de temps, d'une technique publiée plus tard, d'un autre maillon de chaîne. Quant au vecteur CVSS, il décrit une sévérité et ne tranche pas l'exploitabilité réelle.",
+  },
+  {
+    q: "Le client de webhooks de Novafact accepte des URL qui résolvent vers des adresses internes. Que joins-tu au ticket ?",
+    options: [
+      "Une capture du proxy montrant la requête sortante vers 169.254.169.254 qui aboutit",
+      "Une preuve d'extraction des identifiants IAM depuis la production",
+      "Un test qui appelle la validation avec des adresses privées et attend un refus",
+      "Le vecteur CVSS de la SSRF et le score EPSS de la classe de vulnérabilité",
+    ],
+    answer: 2,
+    explain: "Le test décrit l'invariant — aucune URL de webhook ne doit viser une adresse interne — : il échoue aujourd'hui, passera après correction et restera en CI comme critère de fermeture. Une capture de proxy prouve la même chose sur l'instant, mais ne protège pas du retour du bug. Aller chercher des identifiants en production n'aide pas au correctif et sort de tout cadre acceptable ; un score, lui, ne dit pas à l'équipe quoi changer.",
+  },
+  {
+    q: "Un développeur conteste : « ce n'est pas exploitable ». Quelle réponse est la plus productive ?",
+    options: [
+      "Écrire l'exploit complet : c'est le seul argument qui tranche un désaccord",
+      "Proposer le test et le correctif : corriger coûte souvent moins que prouver",
+      "Acter une acceptation de risque, avec un propriétaire et une date d'expiration",
+      "Escalader au responsable produit, qui tranchera la priorité du ticket",
+    ],
+    answer: 1,
+    explain: "Kohnfelder le note : il est souvent plus simple de corriger que d'établir avec certitude l'innocuité d'un bug. Si le test et le correctif tiennent en quelques lignes, le débat n'a plus d'objet ; sinon, une PoC minimale en environnement de test reste l'outil des désaccords réellement coûteux. Formaliser une acceptation de risque est correct sur le principe mais prématuré ici : on accepte un risque évalué, pas un risque qu'on a refusé d'examiner. Et escalader avant d'avoir montré quoi que ce soit transforme une question technique en arbitrage politique.",
+  },
+];
+
+<YouKnow>
+Ton métier t'a appris à prouver : une vulnérabilité sans preuve d'exploitation, c'est une vulnérabilité qu'on conteste. Cette leçon ouvre un débat qui divise la profession.
+</YouKnow>
+
+## La position de Kohnfelder
+
+Dans *Designing Secure Software* (K13, *Crafting Working Exploits*), Kohnfelder défend une position qui surprend souvent les pentesters : produire un exploit complet pour faire corriger une vulnérabilité est **rarement nécessaire**. Deux arguments :
+
+- un exploit fiable demande beaucoup de travail une fois la cause identifiée ;
+- surtout, **échouer à écrire un exploit ne prouve pas que la vulnérabilité est inexploitable**. Un attaquant plus motivé, mieux outillé, ou disposant d'un autre maillon (M3, leçon 4) peut réussir.
+
+Il recommande à la place d'écrire un **test de régression** qui déclenche directement le bug, même sans attaque complète. Il ajoute qu'en triage, on sous-estime une menace bien plus facilement qu'on ne la surestime.
+
+Il ne nie pas la force d'une démonstration : il reconnaît qu'une preuve de concept fonctionnelle est l'argument le plus fort pour faire corriger, et que certains bugs s'exploitent de façon si évidente que la démonstration ne coûte rien. Sa thèse porte sur le **rapport coût-bénéfice** : le temps passé à fiabiliser un exploit est rarement le meilleur usage du temps d'une équipe de sécurité, et il crée un biais dangereux, celui de ne corriger que ce qu'on a su exploiter.
+
+## Pourquoi l'échec prouve si peu
+
+L'asymétrie est la clé du raisonnement. Quand tu réussis un exploit, tu as une preuve. Quand tu échoues, tu as seulement la preuve que **toi**, avec **ton** temps, **tes** outils et **tes** connaissances du jour, n'y es pas arrivé. L'attaquant n'a pas les mêmes contraintes : il dispose de plus de temps, d'une autre vulnérabilité pour compléter la chaîne, d'une technique publiée la semaine suivante, ou d'une configuration de production légèrement différente de ton environnement de test.
+
+Les deux erreurs n'ont pas non plus le même coût. Corriger un bug qui n'était pas exploitable coûte quelques heures de développement. Laisser un bug exploitable parce que la PoC a échoué peut coûter un incident. Face à cette asymétrie, la règle raisonnable est de faire porter la charge de la preuve sur l'**innocuité**, pas sur l'exploitabilité.
+
+## Le test de régression comme preuve
+
+Un test de régression bien écrit fait mieux qu'un exploit sur presque tous les plans : il **montre** le défaut (il échoue aujourd'hui), il **définit** le comportement attendu (il passera après correction), il **protège** contre le retour du bug (il reste en CI), et il parle la langue de l'équipe. Il décrit un **invariant** plutôt qu'une attaque. Trois exemples tirés du backlog de Novafact :
+
+<Code file="apps/api/test/security/regressions.test.ts" hl="9,17,24">
+
+```ts
+import request from 'supertest';
+import { describe, expect, test } from 'vitest';
+import { app } from '../../src/app';
+import { assertPublicWebhookUrl } from '../../src/webhooks/validate';
+import { parseInvoiceDate } from '../../src/lib/dates';
+import { tokenFor, seedInvoice } from '../helpers';
+
+describe('régressions de sécurité', () => {
+  test('BOLA : un utilisateur du tenant A ne lit pas une facture du tenant B', async () => {
+    const invoice = await seedInvoice({ tenant: 'tenant-b' });
+    await request(app).get(`/api/invoices/${invoice.id}`)
+      .set('Authorization', `Bearer ${await tokenFor('alice@tenant-a')}`)
+      .expect(404); // 404 plutôt que 403 : ne pas confirmer l'existence
+  });
+
+  test.each(['http://127.0.0.1/', 'http://10.0.4.2/', 'http://169.254.169.254/', 'http://[::1]/'])(
+    'SSRF : une URL de webhook vers %s est refusée', async (url) => {
+      await expect(assertPublicWebhookUrl(url)).rejects.toThrow();
+    });
+
+  test('ReDoS : une date pathologique est traitée en temps borné', () => {
+    const start = performance.now();
+    expect(() => parseInvoiceDate('1'.repeat(50_000))).toThrow();
+    expect(performance.now() - start).toBeLessThan(50);
+  });
+});
+```
+
+</Code>
+
+Aucun de ces tests n'est un exploit. Le premier ne vole rien : il vérifie qu'une frontière existe. Le deuxième ne touche pas le service de métadonnées : il vérifie que la validation refuse les destinations internes. Le troisième ne met aucun serveur à genoux : il mesure que le traitement reste borné. Chacun est pourtant une preuve suffisante pour ouvrir le ticket, et un critère de fermeture objectif.
+
+## Le contrepoint du terrain
+
+<Callout kind="debate">
+Une preuve d'exploitation reste parfois le seul argument qui débloque une correction : face à une équipe sceptique, à un produit qui refuse de prioriser, ou pour démontrer une chaîne dont chaque maillon semble anodin. Elle aide aussi à calibrer la priorité : entre « théoriquement possible » et « exploitable en deux requêtes », la différence d'urgence est réelle.
+</Callout>
+
+Il faut ajouter deux cas où la PoC est attendue par tout le monde. En **bug bounty**, les programmes exigent généralement une démonstration de l'impact, et la récompense en dépend : c'est une règle du jeu, pas une nécessité technique. En **détection**, rejouer une variante contrôlée de l'attaque dans un environnement de préproduction est la seule façon de vérifier qu'une règle WAF ou une détection Elastic se déclenche vraiment (M18). Dans ce cas, la PoC est un outil de test des défenses, et elle mérite l'effort.
+
+## Une règle pratique
+
+| Situation | Ce qu'il faut produire |
+| --- | --- |
+| Classe de bug connue, correctif simple | Rien de plus qu'une explication et un test de régression |
+| Désaccord sur la réalité du risque | Une preuve de concept minimale, dans un environnement de test |
+| Chaîne de plusieurs findings | Une démonstration de la chaîne, qui justifie la priorité de chaque maillon |
+| Vulnérabilité dans une dépendance | L'atteignabilité (le code est-il appelé ?), rarement un exploit |
+| Validation d'une défense (WAF, détection) | Un rejeu contrôlé en préproduction, coordonné avec l'équipe qui surveille |
+
+Dans tous les cas : **jamais d'exploitation en production**, et les preuves de concept restent dans un environnement contrôlé, sans données réelles.
+
+## Si une PoC est nécessaire
+
+<Steps items={[
+  { title: "Cadrer", text: "Un accord écrit de l'équipe propriétaire et un périmètre : quel environnement, quelle durée, qui est prévenu. Même en interne, une PoC non annoncée ressemble à une attaque." },
+  { title: "Isoler", text: "Préproduction ou environnement éphémère, jeux de données fictifs, et un objet témoin créé pour l'occasion (une facture « canari »)." },
+  { title: "S'arrêter à la preuve", text: "Démontrer l'accès à l'objet témoin suffit. Pas d'extraction de volume, pas de persistance, pas de pivot au-delà de ce que la décision exige." },
+  { title: "Documenter", text: "Étapes, prérequis, résultat observé : de quoi rejouer la preuve et vérifier le correctif, rien de plus." },
+  { title: "Ranger", text: "Stockage à accès restreint, et suppression ou archivage une fois le correctif vérifié. Une PoC qui traîne dans un dépôt partagé est une arme prête à l'emploi." },
+]} />
+
+Le réflexe à désapprendre, quand on vient du pentest, est celui de l'**impact maximal**. Dans un rapport de pentest, montrer jusqu'où va la compromission a du sens : le client paie pour mesurer son exposition. Dans une équipe AppSec interne, l'objectif est inverse : la **preuve minimale** qui déclenche la bonne décision, avec le moins de risque et de temps possible.
+
+## Et DREAD ?
+
+Kohnfelder utilise **DREAD** (Damage, Reproducibility, Exploitability, Affected users, Discoverability) comme grille de triage. Microsoft, qui l'avait popularisé, l'a abandonné : les notes sont trop subjectives et varient d'un évaluateur à l'autre. Il reste utile comme **liste de questions** pour ne rien oublier ; pour décider, préfère CVSS-BTE combiné aux signaux de la leçon précédente, ou SSVC.
+
+Kohnfelder réserve d'ailleurs DREAD aux cas où l'équipe ne s'accorde pas vite, et le présente comme un **support de discussion** en réunion de triage : cinq dimensions indépendantes, notées en tailles de t-shirt plutôt qu'en chiffres, qu'on ne additionne pas. Utilisé ainsi, il est cohérent avec sa position sur les exploits : on argumente sur la nature du risque, pas sur la réussite d'une démonstration. Sur la découvrabilité, il donne un conseil simple : si tu as pensé à l'attaque, suppose que d'autres y penseront bientôt.
+
+<Callout kind="novafact">
+Chez Novafact, la règle d'équipe tient en une phrase : « tout finding confirmé arrive avec un test qui échoue, ou avec une explication de pourquoi ce n'est pas possible ». Les PoC complètes sont réservées aux chaînes et aux désaccords persistants, validées par le responsable AppSec, et toujours exécutées en préproduction. Après six mois, le délai médian entre le signalement et le début de la correction a nettement baissé : le débat « est-ce exploitable ? » a presque disparu des réunions, remplacé par « le test passe-t-il ? ».
+</Callout>
+
+<Recap items={[
+  "Kohnfelder : un exploit complet est rarement nécessaire, un test de régression qui déclenche le bug suffit.",
+  "Échouer à exploiter ne prouve pas l'inexploitabilité ; la charge de la preuve porte sur l'innocuité.",
+  "Le test de régression montre le défaut, définit le comportement attendu et protège contre le retour du bug.",
+  "Une preuve de concept reste utile face au scepticisme, pour démontrer une chaîne ou pour valider une défense.",
+  "Une PoC se cadre, s'isole, s'arrête à la preuve minimale et se range ; jamais en production.",
+  "DREAD aide à discuter (tailles de t-shirt, sans addition), mais pas à décider de façon reproductible.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 13, Vulnerability Triage" },
+  { title: "OWASP : Threat Modeling Process (sur DREAD et ses limites)", url: "https://owasp.org/www-community/Threat_Modeling_Process" },
+  { title: "OWASP Cheat Sheet : Server-Side Request Forgery Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html" },
+  { title: "Vitest : test.each", url: "https://vitest.dev/api/#test-each" },
+]} />

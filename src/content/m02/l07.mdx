@@ -1,0 +1,193 @@
+export const questions = [
+  {
+    q: "Une Server Action Next.js supprime une facture. Où doit se faire le contrôle d'autorisation ?",
+    options: [
+      "Dans le proxy (ex-middleware), qui voit toutes les requêtes avant routage",
+      "Dans le Server Component qui rend la page, avant d'afficher le bouton",
+      "Dans l'action, en s'appuyant sur la vérification Origin/Host de Next.js",
+      "Dans l'action, ou la couche d'accès aux données qu'elle appelle",
+    ],
+    answer: 3,
+    explain: "Le proxy est le placement le plus courant et le plus fragile : c'est exactement celui que CVE-2025-29927 a contourné avec un simple en-tête. Le Server Component décide de ce qui est affiché, pas de qui peut appeler. Et la comparaison Origin/Host de Next.js est une protection CSRF, pas une autorisation : elle vérifie d'où vient la requête, pas qui l'envoie. Une Server Action est un endpoint POST public.",
+  },
+  {
+    q: "Quelle leçon d'architecture tirer de CVE-2025-29927 ?",
+    options: [
+      "Les en-têtes HTTP ne sont jamais fiables pour décider d'un routage",
+      "Le middleware doit refuser toute requête portant un en-tête interne",
+      "Un contrôle unique en amont se contourne : l'autorisation vit près des données",
+      "Une application auto-hébergée doit reproduire le routage de son hébergeur",
+    ],
+    answer: 2,
+    explain: "« Les en-têtes ne sont pas fiables » est vrai, et c'est la leçon du bug ; ce n'est pas la leçon d'architecture. Filtrer x-middleware-subrequest corrige ce contournement-là et laisse intacte la fragilité qui l'a rendu grave : tous les contrôles d'accès vivaient au même endroit, en amont. L'hébergement explique pourquoi les déploiements auto-hébergés étaient exposés et pas Vercel — c'est une donnée d'inventaire, pas un principe de conception.",
+  },
+  {
+    q: "Pourquoi React2Shell (CVE-2025-55182) touchait-il des applications dont aucune Server Action n'avait de bug ?",
+    options: [
+      "Parce que les identifiants d'actions chiffrés étaient prévisibles d'un build à l'autre",
+      "Parce que la vérification Origin/Host n'était pas appliquée aux Server Actions",
+      "Parce que le proxy Next.js exposait les endpoints d'actions sans authentification",
+      "Parce que la faille était dans la désérialisation Flight, avant tout code applicatif",
+    ],
+    answer: 3,
+    explain: "Les trois autres cherchent le défaut dans la façon dont l'application expose ses actions : identifiants devinés, endpoint non protégé, contrôle CSRF absent. Or aucune ligne de code applicatif n'était nécessaire — le bug était dans la désérialisation du protocole Flight, exécutée par les paquets React Server Components avant d'atteindre quoi que ce soit que tu aies écrit. La seule présence d'un endpoint de Server Function suffisait, d'où une réponse qui passe par l'inventaire et la montée de version en heures.",
+  },
+  {
+    q: "La page /admin vérifie que l'utilisateur est administrateur, puis affiche un formulaire dont l'action inline ('use server') supprime des données sans autre vérification. Est-ce sûr ?",
+    options: [
+      "Non : l'action est un endpoint POST distinct, qui doit revérifier elle-même",
+      "Oui : l'identifiant de l'action n'existe que dans le bundle de la page protégée",
+      "Oui : la comparaison Origin/Host garantit que l'appel provient bien de /admin",
+      "Non, mais l'élimination des actions non référencées suffit en production",
+    ],
+    answer: 0,
+    explain: "Origin/Host est le piège le plus subtil : il vérifie que la requête vient bien de ton site, pas qu'elle vient de la page /admin ni qu'elle émane d'un administrateur — n'importe quel utilisateur connecté la passe, depuis n'importe quelle page. L'identifiant dans le bundle relève de l'obscurité, puisqu'il est lisible par quiconque charge la page. Et l'élimination ne retire que les actions référencées nulle part ; celle-ci l'est. La page décide de l'affichage, pas de l'appel.",
+  },
+];
+
+<YouKnow>
+Tu as l'habitude de chercher des endpoints dans le JavaScript d'une SPA. Avec les React Server Components et les Server Actions, une partie des endpoints n'apparaît plus comme des routes classiques, mais elle existe bel et bien.
+</YouKnow>
+
+## Le modèle mental
+
+Avec l'App Router de Next.js, le code se répartit entre **Server Components** (exécutés sur le serveur, jamais envoyés au navigateur), **Client Components** (`'use client'`) et **Server Actions** ou Server Functions (`'use server'`), des fonctions serveur appelables depuis le client. La frontière entre serveur et client se lit dans le code, pas dans une liste de routes, ce qui la rend facile à franchir par erreur.
+
+Pour une revue, commence par l'inventaire des **points d'entrée**, qui ne se limitent pas aux routes visibles :
+
+| Point d'entrée | Où le trouver | Ce qui arrive du client |
+| --- | --- | --- |
+| Pages et layouts | `app/**/page.tsx` | `params` (les dossiers entre crochets sont des entrées), `searchParams`, cookies, en-têtes |
+| Route Handlers | `app/**/route.ts` | Toute la requête HTTP |
+| Server Actions | Toute fonction exportée d'un fichier `'use server'`, ou action inline | Les arguments, sérialisés par le client |
+| Proxy (ex-middleware) | `proxy.ts` à la racine | Toute la requête, avant le routage |
+
+L'article de l'équipe Next.js *How to Think About Security in Next.js* recommande une **couche d'accès aux données** (Data Access Layer) unique : toutes les lectures et écritures passent par elle, et c'est elle qui vérifie l'authentification et l'autorisation. La documentation actuelle précise le contrat : la DAL ne s'exécute que côté serveur, fait les vérifications d'autorisation, renvoie des **DTO** minimaux, et c'est le seul endroit du code qui lit `process.env`.
+
+<Code file="apps/admin/data/invoices.ts">
+
+```ts
+import 'server-only';
+import { cache } from 'react';
+import { cookies } from 'next/headers';
+
+export const getSession = cache(async () => {
+  const token = (await cookies()).get('__Host-sid')?.value;
+  const session = token ? await verifySession(token) : null;
+  if (!session) throw new AuthError();
+  return session; // { userId, tenantId, role }
+});
+
+export async function listInvoices() {
+  const s = await getSession();
+  const rows = await db.invoice.findMany({ where: { tenantId: s.tenantId }, orderBy: { issuedAt: 'desc' }, take: 50 });
+  return rows.map((r) => ({ id: r.id, number: r.number, totalCents: r.totalCents, status: r.status })); // DTO
+}
+
+export async function removeInvoice(id: string) {
+  const s = await getSession();
+  if (s.role !== 'owner') throw new ForbiddenError();
+  await db.invoice.delete({ where: { id, tenantId: s.tenantId } });
+}
+```
+
+</Code>
+
+`cache` de React déduplique la lecture de session sur une même requête : les composants appellent `getSession()` autant de fois qu'ils veulent sans se passer l'objet de main en main, ce qui réduit le risque de le transmettre par erreur à un Client Component. Le `where` qui combine `id` et `tenantId` est accepté depuis Prisma 5 (filtres supplémentaires à côté d'un champ unique) : si la facture appartient à un autre tenant, Prisma lève une erreur au lieu de supprimer.
+
+## Les Server Actions sont des endpoints publics
+
+Chaque Server Action reçoit un identifiant et devient un point d'entrée HTTP (POST). Masquer le bouton dans l'interface ne protège rien : l'action reste appelable.
+
+<Diff file="apps/admin/app/invoices/actions.ts" hlBefore="3" hlAfter="4-7">
+
+```ts
+'use server';
+
+export async function deleteInvoice(id: string) {
+  await db.invoice.delete({ where: { id } });
+  revalidatePath('/invoices');
+}
+```
+
+```ts
+'use server';
+import { z } from 'zod';
+
+export async function deleteInvoice(rawId: unknown) {
+  const id = z.string().uuid().parse(rawId);
+  await removeInvoice(id); // la DAL vérifie session, tenant et rôle
+  revalidatePath('/invoices');
+}
+```
+
+</Diff>
+
+Next.js ajoute des protections, utiles mais qu'il faut connaître pour ne pas les surestimer :
+
+- **Identifiants chiffrés et non déterministes**, recalculés entre les builds, et **élimination** des actions qui ne sont référencées nulle part. Cela réduit l'exposition d'une action oubliée, mais une action utilisée par l'interface reste appelable par quiconque en connaît l'identifiant, visible dans le bundle client.
+- **POST uniquement, et comparaison de l'en-tête `Origin` avec `Host`** (ou `X-Forwarded-Host`) : une requête dont l'origine ne correspond pas est rejetée. C'est une protection CSRF, pas une autorisation.
+- **Chiffrement des variables capturées** par une action définie dans un composant (closure). La documentation elle-même déconseille de compter sur ce seul chiffrement pour protéger une valeur sensible.
+
+Le piège le plus fréquent en revue : une page qui vérifie le rôle, puis définit une action inline qui ne revérifie rien. La vérification de la page décide de ce qui est **affiché** ; l'action est un point d'entrée distinct, et la documentation de Next.js le rappelle explicitement. Même raisonnement pour les **valeurs de retour** : elles sont sérialisées vers le client, donc on renvoie `{ ok: true }` ou un DTO, jamais l'enregistrement mis à jour.
+
+<Callout kind="warn">
+Novafact auto-héberge son back-office sur ECS, derrière CloudFront et un ALB, avec plusieurs tâches. Deux conséquences. D'abord, la comparaison `Origin`/`Host` dépend de ce que les proxys transmettent : si le domaine public diffère de celui que voit Next.js, on configure `serverActions.allowedOrigins` avec la liste exacte, plutôt que de désactiver la vérification. Ensuite, chaque instance génère sa propre clé de chiffrement des actions : il faut fournir la même à toutes via `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, stockée dans Secrets Manager et pas dans le dépôt.
+</Callout>
+
+## Fuites par la sérialisation
+
+Tout ce qu'un Server Component passe en **props à un Client Component** est sérialisé dans la réponse. Passer l'objet utilisateur complet pour afficher un prénom envoie aussi le hash du mot de passe ou le secret MFA au navigateur. On passe des objets réduits (DTO), et le paquet `server-only` fait échouer le build si un module serveur est importé côté client.
+
+Deux filets supplémentaires :
+
+- Les **API de taint** de React (`experimental_taintObjectReference`, `experimental_taintUniqueValue`, activées par `experimental.taint` dans `next.config.js`) empêchent un objet ou une valeur marqués d'atteindre un Client Component. Elles sont expérimentales et la documentation les présente comme une couche en plus de la DAL, pas à sa place.
+- Les **variables d'environnement** ne sont disponibles que côté serveur, sauf celles préfixées `NEXT_PUBLIC_`, qui sont intégrées au bundle client. Une revue du fichier `.env` qui cherche ce préfixe sur un secret (`NEXT_PUBLIC_STRIPE_SECRET`) prend deux minutes et trouve régulièrement quelque chose.
+
+## Trois CVE à connaître
+
+| CVE | Ce qui s'est passé | Leçon |
+| --- | --- | --- |
+| **CVE-2024-34351** | SSRF dans les Server Actions via l'en-tête Host, sur les déploiements auto-hébergés (corrigée en 14.1.1) | Le framework fait lui-même des requêtes : l'en-tête Host n'est pas une donnée de confiance (M3) |
+| **CVE-2025-29927** (mars 2025, CVSS 9.1) | Un en-tête interne permettait de sauter le middleware, donc les contrôles d'accès qui y étaient placés (corrigée en 15.2.3, 14.2.25, 13.5.9, 12.3.5) | Un point de contrôle unique en amont est fragile ; défense en profondeur dans la DAL |
+| **CVE-2025-55182** « React2Shell » (décembre 2025, CVSS 10) | Désérialisation non sûre dans le protocole Flight des Server Components : exécution de code à distance sans authentification, exploitée dans les 24 h | Les mécanismes internes d'un framework sont une surface d'attaque ; il faut un inventaire et une capacité de correction en heures (M5) |
+
+Le postmortem de Vercel sur CVE-2025-29927 est instructif au-delà du bug. L'en-tête en cause, `x-middleware-subrequest`, servait en interne à éviter qu'un middleware s'appelle lui-même en boucle, et il n'était pas documenté. Les déploiements auto-hébergés (`next start`, sortie `standalone`) étaient exposés, alors que l'hébergement Vercel ne l'était pas grâce à un routage séparé. Autrement dit, la même application avait deux profils de risque selon son hébergement : une donnée à intégrer dans l'inventaire, au même titre que la version.
+
+<Callout kind="case">
+Pour React2Shell, les paquets React Server Components 19.0.0, 19.1.0, 19.1.1 et 19.2.0 étaient touchés, corrigés en 19.0.1, 19.1.2 et 19.2.1. Aucune ligne de code applicatif n'était nécessaire à l'exploitation : seule la présence d'un endpoint de Server Function comptait. Amazon a observé des tentatives d'exploitation par plusieurs groupes liés à l'État chinois dans les heures suivant la divulgation du 3 décembre 2025. L'histoire ne s'arrête pas là : l'examen du même code a produit des avis complémentaires (déni de service avec CVE-2025-55184, CVE-2025-67779 et CVE-2026-23864, exposition de code source avec CVE-2025-55183), sans nouvelle exécution de code, et un premier correctif du déni de service s'est révélé incomplet. Les versions sûres sont finalement 19.0.4, 19.1.5 et 19.2.4. Le module 5 s'en sert comme cas d'école de la gestion de crise à J+0.
+</Callout>
+
+La leçon opérationnelle de cette séquence : une première CVE critique sur un composant attire les chercheurs, et les avis suivants arrivent en quelques jours ou semaines. Prévois de mettre à jour **plusieurs fois**, et garde la chaîne de build capable de livrer une montée de version de React ou de Next.js en quelques heures, tests compris.
+
+## Checklist Next.js pour Novafact
+
+<Steps items={[
+  { title: "Une DAL unique", text: "Toutes les données passent par une couche qui authentifie et autorise, importée avec server-only. Aucun import de Prisma ni lecture de process.env ailleurs." },
+  { title: "Chaque action se protège", text: "Session, autorisation et validation de schéma dans chaque Server Action, y compris les actions inline d'une page déjà protégée." },
+  { title: "Des DTO vers le client", text: "Jamais d'objet de base complet en props d'un Client Component ni en valeur de retour d'une action." },
+  { title: "Le proxy en plus, pas à la place", text: "Le middleware (renommé proxy.ts depuis Next.js 16) redirige et filtre, mais la DAL reste le contrôle de référence." },
+  { title: "Configuration serrée", text: "images.remotePatterns restreint aux domaines utiles, pour ne pas transformer l'optimiseur d'images en proxy ouvert ; en Next.js 16, laisser images.dangerouslyAllowLocalIP désactivé." },
+  { title: "Auto-hébergement", text: "serverActions.allowedOrigins exact derrière les proxys, clé de chiffrement des actions partagée et stockée dans Secrets Manager." },
+  { title: "Versions suivies", text: "React et Next.js dans l'inventaire (SBOM), alertes sur leurs avis de sécurité, et une montée de version testable en quelques heures." },
+]} />
+
+<Recap items={[
+  "Server Components, Client Components et Server Actions : la frontière serveur/client se lit dans le code ; l'inventaire des points d'entrée inclut actions, route.ts, proxy.ts et paramètres dynamiques.",
+  "Une Server Action est un endpoint public : elle authentifie, autorise et valide elle-même ; les protections intégrées (identifiants, Origin/Host, chiffrement) ne sont pas une autorisation.",
+  "Les props passées à un Client Component et les valeurs de retour des actions sont sérialisées : n'envoie que des DTO ; NEXT_PUBLIC_ publie la variable.",
+  "CVE-2025-29927 montre la fragilité d'un contrôle unique en amont ; la DAL porte l'autorisation, et l'hébergement change le profil de risque.",
+  "React2Shell : un mécanisme interne du framework exploité sans code applicatif, suivi d'avis complémentaires ; il faut pouvoir mettre à jour plusieurs fois, vite.",
+]} />
+
+<Sources items={[
+  { title: "Next.js : How to Think About Security in Next.js", url: "https://nextjs.org/blog/security-nextjs-server-components-actions" },
+  { title: "Next.js : How to think about data security (documentation)", url: "https://nextjs.org/docs/app/guides/data-security" },
+  { title: "Next.js 16 : proxy.ts et changements de configuration", url: "https://nextjs.org/blog/next-16" },
+  { title: "Vercel : postmortem CVE-2025-29927", url: "https://vercel.com/blog/postmortem-on-next-js-middleware-bypass" },
+  { title: "GitHub Advisory : CVE-2024-34351", url: "https://github.com/advisories/GHSA-fr5h-rqp8-mj6g" },
+  { title: "Rapid7 : React2Shell CVE-2025-55182", url: "https://www.rapid7.com/blog/post/etr-react2shell-cve-2025-55182-critical-unauthenticated-rce-affecting-react-server-components/" },
+  { title: "React : déni de service et exposition de code source dans les Server Components", url: "https://react.dev/blog/2025/12/11/denial-of-service-and-source-code-exposure-in-react-server-components" },
+  { title: "AWS : exploitation rapide de React2Shell par des groupes liés à la Chine", url: "https://aws.amazon.com/blogs/security/china-nexus-cyber-threat-groups-rapidly-exploit-react2shell-vulnerability-cve-2025-55182/" },
+  { title: "Microsoft : défendre contre React2Shell", url: "https://www.microsoft.com/en-us/security/blog/2025/12/15/defending-against-the-cve-2025-55182-react2shell-vulnerability-in-react-server-components/" },
+]} />

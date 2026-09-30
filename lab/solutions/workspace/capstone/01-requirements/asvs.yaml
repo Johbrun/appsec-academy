@@ -1,0 +1,55 @@
+# Étape 1 — le sous-ensemble ASVS L2 retenu pour Novafact.
+#
+# Chaque exigence dit ce qu'elle couvre (entité.champ, repris de la
+# classification) et par quoi elle est vérifiée : un fichier du dépôt, pas une
+# intention.
+
+requirements:
+  - id: V2.1.1
+    statement: Les mots de passe font au moins douze caractères et sont comparés à une liste de mots de passe compromis.
+    covers: [User.password]
+    verified_by: solutions/server/routes/auth.ts
+  - id: V2.1.7
+    statement: Les mots de passe sont stockés sous forme d'empreinte mémoire-dure avec un sel par compte, jamais en clair.
+    covers: [User.password]
+    verified_by: server/store.ts
+  - id: V2.2.1
+    statement: Les tentatives d'authentification sont limitées par compte et par source, sans que le verrouillage devienne une arme de déni de service.
+    covers: [User.password, User.email]
+    verified_by: solutions/server/routes/auth.ts
+  - id: V3.5.2
+    statement: Les jetons de session sont vérifiés côté serveur avec une liste d'algorithmes fixée, et leurs revendications ne sont jamais lues avant vérification.
+    covers: [User.role]
+    verified_by: solutions/server/lib/jwt.ts
+  - id: V4.1.3
+    statement: Chaque accès à une ressource vérifie l'appartenance au locataire dans la couche d'accès aux données, pas dans chaque route.
+    covers: [Invoice.total, Invoice.lines, Invoice.note]
+    verified_by: solutions/server/routes/invoices.ts
+  - id: V4.2.1
+    statement: Les opérations d'écriture sensibles refusent par défaut et journalisent l'acteur, l'objet et la valeur précédente.
+    covers: [Invoice.total, User.role]
+    verified_by: server/store.ts
+  - id: V5.1.3
+    statement: Toute entrée est validée par un schéma strict avant d'atteindre la couche de données, y compris son type.
+    covers: [Invoice.client, Invoice.note]
+    verified_by: server/lib/validate.ts
+  - id: V5.3.3
+    statement: Les contenus fournis par un utilisateur sont échappés ou assainis avant rendu dans le navigateur d'un autre utilisateur.
+    covers: [Invoice.note]
+    verified_by: solutions/src/pages/InvoiceDetail.tsx
+  - id: V8.3.4
+    statement: Les données personnelles collectées sont inventoriées, classées, et leur durée de conservation est bornée.
+    covers: [User.email, User.name, Invoice.client]
+    verified_by: fixtures/m11/data-classification.json
+  - id: V12.3.1
+    statement: Aucun chemin de fichier n'est dérivé d'une entrée utilisateur ; les documents sont résolus depuis un index côté serveur.
+    covers: [Invoice.attachment]
+    verified_by: solutions/server/routes/attachments.ts
+  - id: V13.1.4
+    statement: Les autorisations d'accès aux points d'API sont vérifiées au niveau du service, pas seulement de l'interface.
+    covers: [Invoice.total, User.role]
+    verified_by: server/lib/auth.ts
+  - id: V14.2.1
+    statement: Les dépendances sont installées depuis un lockfile vérifié, et chaque composant est inventorié dans un SBOM.
+    covers: [User.password]
+    verified_by: novafact/package-lock.json

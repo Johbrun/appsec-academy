@@ -1,0 +1,23 @@
+id: audit-log-tampering
+name: Altération du journal d’audit
+description: La chaîne d’intégrité du journal est rompue, ou la journalisation a été désactivée.
+severity: critical
+risk_score: 90
+tags:
+  - 'Domaine: Plateforme'
+  - 'Tactique: Defense Evasion'
+  - 'Technique: T1562.008'
+interval: 1m
+from: now-10m
+note: |-
+  ## Triage
+
+  1. Regarder ce qui s’est passé juste avant et juste après.
+  2. Remonter la chaîne : qui a désactivé quoi, et depuis quelle session ?
+query:
+  where:
+    - field: event.action
+      op: in
+      value:
+        - sys_monitor_disabled
+        - audit_log_tampered

@@ -1,0 +1,169 @@
+export const questions = [
+  {
+    q: "Quelles sont les quatre questions du threat modeling ?",
+    options: [
+      "Quels actifs protégeons-nous, contre quelles menaces, avec quelles vulnérabilités, pour quel coût ?",
+      "Que construisons-nous ? Qui voudrait l'attaquer ? Avec quels moyens ? Pour quel gain ?",
+      "Sur quoi travaillons-nous ? Qu'est-ce qui peut mal tourner ? Qu'allons-nous faire ? Avons-nous bien travaillé ?",
+      "Quel périmètre, quelle méthode, quel livrable, et à quelle fréquence recommencer ?",
+    ],
+    answer: 2,
+    explain: "Les quatre questions popularisées par Adam Shostack et reprises par le Threat Modeling Manifesto structurent toute démarche, quelle que soit la méthode. La série « actifs, menaces, vulnérabilités, coût » est la plus tentante parce qu'elle sonne juste, mais elle décrit une analyse de risque : elle suppose le système déjà connu et ne demande jamais si le travail a été bien fait — or c'est cette dernière question qui distingue un modèle vivant d'un document rangé dans un dossier.",
+  },
+  {
+    q: "Qu'est-ce qu'une frontière de confiance dans un DFD ?",
+    options: [
+      "La limite entre deux zones où le niveau de confiance change",
+      "La limite entre deux réseaux, matérialisée par un pare-feu ou un groupe de sécurité",
+      "La limite entre le code qu'on écrit et les bibliothèques qu'on importe",
+      "La limite au-delà de laquelle les données doivent être chiffrées en transit",
+    ],
+    answer: 0,
+    explain: "Les menaces se concentrent là où des données franchissent une frontière de confiance, parce que c'est là qu'il faut les vérifier. La confusion avec la frontière réseau est la plus fréquente et la plus coûteuse : la frontière entre deux tenants d'une même API ne correspond à aucun pare-feu, et c'est pourtant l'une des plus importantes dans un SaaS.",
+  },
+  {
+    q: "L'équipe passe deux séances à peaufiner le diagramme de l'export comptable (icônes AWS, chaque Lambda, chaque file SQS) sans avoir encore listé une menace. Quel anti-motif du Threat Modeling Manifesto est-ce ?",
+    options: [
+      "Hero Threat Modeler : seule l'AppSec produit les modèles de menaces",
+      "Tendency to Overfocus : toute la séance passée sur un seul composant",
+      "Admiration for the Problem : débattre d'une attaque sans rien décider",
+      "Perfect Representation : un diagramme exhaustif, et zéro menace listée",
+    ],
+    answer: 3,
+    explain: "Le Manifesto met en garde contre la quête de la représentation parfaite : un modèle utile suffit, et plusieurs vues simples valent mieux qu'un diagramme exhaustif. Admiration for the Problem est le piège voisin, mais il décrit une équipe qui débat longuement d'une menace déjà identifiée sans décider quoi en faire ; ici, on n'a même pas atteint le stade de la menace.",
+  },
+  {
+    q: "Pourquoi le DFD de Novafact doit-il faire apparaître une frontière entre tenants, alors qu'aucun réseau ne les sépare ?",
+    options: [
+      "Parce que la confiance change entre deux clients d'une même API",
+      "Parce que chaque tenant devrait à terme disposer de sa propre base de données",
+      "Parce que le RGPD impose de documenter la séparation des données clients",
+      "Parce que la frontière matérialise le périmètre de chiffrement propre au tenant",
+    ],
+    answer: 0,
+    explain: "Les frontières de confiance sont des frontières de privilège, pas forcément de réseau : c'est là que naissent les BOLA, et aucun schéma d'infrastructure ne les montre. Attendre une base par tenant inverse le raisonnement — le modèle doit décrire le système tel qu'il est, base partagée comprise, pour que la menace apparaisse et qu'on décide ensuite de la mitigation.",
+  },
+];
+
+<YouKnow>
+Un pentest, c'est un threat model exécuté après coup : tu cherches ce qui peut mal tourner dans un système construit. Le threat modeling fait le même raisonnement avant, sur papier, quand tout coûte moins cher à changer.
+</YouKnow>
+
+## Les quatre questions
+
+Adam Shostack a résumé le threat modeling en quatre questions, reprises par le **Threat Modeling Manifesto** (2020) et par Kohnfelder (K2) :
+
+<Steps items={[
+  { title: "Sur quoi travaillons-nous ?", text: "Un modèle du système : un diagramme de flux de données (DFD) suffit souvent." },
+  { title: "Qu'est-ce qui peut mal tourner ?", text: "Les menaces, identifiées méthodiquement (STRIDE, leçon suivante)." },
+  { title: "Qu'allons-nous faire ?", text: "Les mitigations, et les décisions (réduire, accepter, transférer, éviter)." },
+  { title: "Avons-nous fait du bon travail ?", text: "Une vérification : le modèle est-il complet, les mitigations sont-elles en place ?" },
+]} />
+
+Toutes les méthodes (STRIDE, PASTA, arbres d'attaque…) sont des façons de répondre à ces quatre questions. Chacune a son piège.
+
+**La première** échoue quand le modèle décrit l'architecture rêvée, celle de la présentation, au lieu du système réel. Le bon diagramme est celui sur lequel l'équipe qui code est d'accord, avec ses raccourcis et ses dettes.
+
+**La deuxième** échoue par manque de méthode (on ne trouve que les menaces qu'on connaît déjà) ou par excès (deux cents menaces improbables). Une grille comme STRIDE donne de la couverture ; l'expérience des participants donne la pertinence.
+
+**La troisième** oublie souvent que « corriger » n'est qu'une option parmi quatre. Chez Novafact : **réduire** (signer les webhooks entrants), **éviter** (ne plus stocker l'IBAN complet dans l'export CSV), **transférer** (confier la saisie de carte au prestataire de paiement), **accepter** (le risque résiduel de scraping des pages de paiement publiques, documenté, avec un propriétaire et une date de revue).
+
+**La quatrième** est la plus sautée. Elle se pose à la fin de la séance (le modèle couvre-t-il tout le périmètre ?) et des mois plus tard : les vulnérabilités trouvées en pentest ou en production auraient-elles dû apparaître dans le modèle ? Si oui, c'est la méthode qu'il faut corriger, pas seulement le code.
+
+## Le Threat Modeling Manifesto
+
+Le Manifesto, rédigé en 2020 par un groupe de praticiens, ne propose pas de méthode : il dit ce qui compte. Ses cinq valeurs, dans l'esprit du manifeste agile, préfèrent une culture qui trouve et corrige les problèmes de conception à la conformité par cases à cocher, les personnes et la collaboration aux processus et aux outils, un parcours de compréhension à un instantané, **faire** du threat modeling plutôt qu'en parler, et l'amélioration continue à un livrable unique.
+
+Ses anti-motifs sont encore plus utiles en pratique, parce qu'on les reconnaît dans les séances ratées :
+
+| Anti-motif | À quoi il ressemble chez Novafact |
+| --- | --- |
+| *Hero Threat Modeler* | Seule l'AppSec fait les modèles ; les équipes les reçoivent comme un audit |
+| *Admiration for the Problem* | Une heure à débattre d'une attaque élégante sans décider de rien |
+| *Tendency to Overfocus* | Toute la séance sur l'assistant IA, rien sur l'import CSV qui alimente la même base |
+| *Perfect Representation* | Deux séances pour un diagramme exhaustif, zéro menace listée |
+
+Ses principes donnent la direction inverse. Le threat modeling sert le mieux quand il est **précoce et fréquent**. Il doit suivre les pratiques de développement de l'organisation, par itérations qui portent chacune sur une portion gérable du système. Ses résultats n'ont de sens que s'ils ont de la valeur pour les parties prenantes. Enfin, le **dialogue** construit la compréhension commune, et le document ne fait que l'enregistrer. Pour un AppSec, la conséquence est concrète : ton rôle en séance est de faire parler l'équipe, pas de produire le document à sa place.
+
+## La démarche de Kohnfelder
+
+Kohnfelder (K2) détaille la deuxième question en étapes :
+
+| Étape | Question | Chez Novafact |
+| --- | --- | --- |
+| Partir d'un modèle | À quoi ressemble le système ? | Le DFD de l'export comptable |
+| Identifier les **actifs** | Qu'est-ce qui a de la valeur ? | Factures, IBAN, identifiants, disponibilité du service |
+| Identifier les **surfaces d'attaque** | Par où entre-t-on ? | API publique, BFF, webhooks entrants, imports de fichiers |
+| Identifier les **frontières de confiance** | Où la confiance change-t-elle ? | Navigateur / BFF, BFF / API, API / prestataires, CI / production |
+| Identifier les **menaces** | Qu'est-ce qui peut mal tourner ? | STRIDE sur chaque élément |
+| **Atténuer** | Que fait-on ? | Contrôles, décisions, tickets |
+
+Trois conseils de Kohnfelder changent la pratique. Pour les **actifs**, il déconseille de chiffrer leur valeur en euros, ce qui revient à inventer des probabilités, et propose des tailles de t-shirt : les « L » se protègent d'abord, les « S » opportunément. Pour les **surfaces d'attaque**, il rappelle que toute réduction de surface est une victoire nette : une route supprimée n'a plus besoin d'être défendue. Pour le **grain du modèle**, il cherche le juste milieu entre une boîte « système » trop vague et un inventaire de chaque bibliothèque.
+
+### Les surfaces qu'on oublie
+
+Les surfaces évidentes sont les routes HTTP. Les autres sont celles par où une donnée non fiable entre **indirectement** : le CSV importé qu'un worker traite plus tard, l'e-mail entrant qu'un assistant IA résume, le nom de fichier d'un PDF téléversé qui finit dans un log, la réponse d'une API tierce que l'on croit fiable. Chez Novafact, l'assistant IA a ajouté d'un coup toutes les données qu'il lit à la liste des surfaces (leçon 6).
+
+## Le DFD
+
+Un diagramme de flux de données utilise cinq éléments :
+
+| Élément | Représente |
+| --- | --- |
+| **Entité externe** | Un acteur hors du système (utilisateur, prestataire de paiement) |
+| **Processus** | Un composant qui traite des données (BFF, API, worker) |
+| **Stockage** | Une base, un bucket, un cache |
+| **Flux de données** | Une donnée qui circule entre deux éléments |
+| **Frontière de confiance** | Une ligne pointillée là où la confiance change |
+
+Les menaces se concentrent sur les **flux qui franchissent une frontière** : c'est là que l'on vérifie, authentifie, valide. Pour l'export comptable, cela donne :
+
+```text
+[Comptable] ──(1) demande d'export──▶ (BFF) ──(2) appel avec jeton──▶ (API) ──(3) job──▶ [[File SQS]]
+  navigateur  ┆ frontière Internet     ┆ frontière BFF/API              ┆                      │
+                                                                     (Worker export) ◀──(4)──┘
+                                                                          │ (5) lecture factures du tenant
+                                                                          ▼
+                                                                    [[Postgres]]   ┆ frontière tenant (logique)
+                                                                          │ (6) écriture CSV
+                                                                          ▼
+                                                                    [[S3 exports]] ──(7) URL présignée──▶ [Comptable]
+```
+
+Les flux 1, 2 et 7 franchissent des frontières réseau. Le flux 5 franchit une frontière qui n'apparaît sur aucun schéma réseau : celle **entre tenants**. Kohnfelder rapproche frontières de confiance et frontières de privilège, et c'est exactement le cas ici : le worker a le droit de lire toutes les factures, mais ne doit lire que celles du tenant qui a demandé l'export. C'est sur ce flux qu'une BOLA naîtrait, et c'est le premier que l'équipe regarde.
+
+## Ce que produit une séance
+
+Un threat model utile tient en une page, versionnée avec le code (leçon 5) :
+
+```md
+# Threat model : export comptable (v3, 2026-09)
+Périmètre : demande d'export, génération, téléchargement. Hors périmètre : import.
+Hypothèses : le BFF vérifie la session ; les URL présignées expirent en 5 min.
+Actifs : factures (L), IBAN des clients (L), disponibilité du worker (M).
+| # | Élément / flux | Menace | Décision | Ticket |
+| 1 | Flux 5 | Worker lit un autre tenant (I) | Réduire : tenantId imposé par la DAL | NOVA-812 |
+| 2 | Flux 7 | URL présignée partagée (I) | Accepter : expiration 5 min, audit | n/a |
+Questions ouvertes : rétention des CSV dans S3 ?
+```
+
+Les hypothèses comptent autant que les menaces : ce sont elles qu'un changement futur invalidera, et c'est leur remise en cause qui doit déclencher une mise à jour du modèle.
+
+## Du threat model partout
+
+Kohnfelder conclut le chapitre 2 par un encouragement : on peut modéliser les menaces de **tout** (une fonctionnalité, un processus, un pipeline, même une scène de film). Plus on pratique, plus c'est rapide ; un threat model léger d'une heure sur chaque nouvelle fonctionnalité vaut mieux qu'un gros modèle annuel.
+
+<Recap items={[
+  "Quatre questions, chacune avec son piège : modèle rêvé, menaces sans méthode, « corriger » comme seule décision, vérification oubliée.",
+  "Le Manifesto privilégie la collaboration et l'itération ; ses anti-motifs (héros, admiration, focalisation, représentation parfaite) guettent chaque séance.",
+  "Actifs en tailles de t-shirt, surfaces d'attaque y compris indirectes, grain de modèle raisonnable.",
+  "Les menaces se concentrent sur les flux qui franchissent une frontière, y compris la frontière logique entre tenants.",
+  "Une séance produit une page versionnée : périmètre, hypothèses, actifs, menaces, décisions, tickets.",
+]} />
+
+<Sources items={[
+  { title: "Threat Modeling Manifesto", url: "https://www.threatmodelingmanifesto.org/" },
+  { title: "Adam Shostack : ressources sur le threat modeling", url: "https://shostack.org/resources/threat-modeling" },
+  { title: "OWASP Cheat Sheet : Threat Modeling", url: "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 2" },
+]} />

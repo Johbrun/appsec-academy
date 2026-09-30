@@ -1,0 +1,13 @@
+# Injection indirecte dans l'assistant — corrigé de référence.
+#
+# Ni l'origine ni la destination ne suffisent seules :
+#
+#   origine document seule    attrape les huit résumés de facture légitimes
+#   sortie externe seule      attrape les douze envois demandés par l'utilisateur
+#
+# C'est la conjonction qui décrit l'abus : une instruction venue d'une donnée,
+# qui déclenche un effet vers l'extérieur.
+id: prompt-injection-external
+where:
+  - { field: novafact.assistant.origin, op: eq, value: document }
+  - { field: novafact.assistant.target, op: eq, value: external }

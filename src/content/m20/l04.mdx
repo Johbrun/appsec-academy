@@ -1,0 +1,92 @@
+export const questions = [];
+
+<YouKnow>
+Le design et le threat model sont posés. Place au code : cette étape te fait relire une PR de Novafact, transformer un finding en règle et écrire les tests de régression, comme aux modules 12 et 13.
+</YouKnow>
+
+## Étape 4 : revue de PR, règles et tests
+
+Un développeur de Novafact ouvre la PR qui implémente le paiement par lien. Ton livrable : une **revue commentée**, une **règle** qui empêche le retour de la classe trouvée, et les **tests de régression** correspondants.
+
+## Relire la PR
+
+Applique la méthode du module 12 : parcours la liste des fichiers, repère les zones sensibles, lis-les en détail. Ici, les points chauds sont prévisibles à partir du threat model :
+
+<Steps items={[
+  { title: "Le lien signé", text: "Portée, durée de vie, usage unique. Le secret de signature vient-il de l’environnement ? L’algorithme est-il épinglé (M9) ?" },
+  { title: "La page de paiement", text: "Que renvoie l’API à un client non authentifié ? Le strict nécessaire, ou toute la facture avec les coordonnées ?" },
+  { title: "Le webhook", text: "Signature vérifiée avant tout traitement ? Idempotence sur l’identifiant d’événement ? Échec fermé ?" },
+  { title: "La transition d’état", text: "Le passage à « payée » passe-t-il par la machine à états, ou une route écrit-elle directement en base (M10) ?" },
+  { title: "Les dépendances", text: "La PR ajoute-t-elle un paquet ? Existe-t-il, qui le publie, depuis quand (M14) ?" },
+]} />
+
+Rédige des commentaires **actionnables** : qualification (bloquant, à corriger, suggestion), explication courte, correction proposée dans les conventions de l’équipe.
+
+## Du finding à la règle
+
+Supposons que la revue trouve une route qui lit la facture par son identifiant sans filtrer par tenant : une BOLA. La corriger ne suffit pas ; il faut empêcher la classe de revenir (M13, variant analysis).
+
+<Code file="rules/novafact-invoice-tenant.yml">
+
+```yaml
+rules:
+  - id: novafact-invoice-access-without-tenant
+    languages: [typescript]
+    severity: ERROR
+    message: >
+      Accès à une facture sans filtre de tenant. Passe par invoicesRepo.get(tenantOf(req), id),
+      jamais par findUnique({ where: { id } }). Voir docs/secure-coding/authz.md
+    patterns:
+      - pattern: prisma.invoice.findUnique(...)
+      - pattern-not-inside: invoicesRepo.$_(...)
+```
+
+</Code>
+
+## Les tests de régression
+
+Chaque finding devient un test qui échoue sur le code vulnérable et passe après le correctif (M13). Pour la BOLA :
+
+<Code file="apps/api/test/pay-link.authz.test.ts">
+
+```ts
+it('un lien de paiement d’un tenant ne lit pas la facture d’un autre', async () => {
+  const link = await createPayLink('inv_acme_0001');       // tenant Acme
+  const res = await request(app).get(`/pay/${forgeFor('inv_globex_0001', link)}`);
+  expect(res.status).toBe(404);                              // jamais la facture de Globex
+});
+
+it('un lien de paiement expiré est refusé', async () => {
+  const link = await createPayLink('inv_acme_0001', { ageMinutes: 31 });
+  const res = await request(app).get(`/pay/${link}`);
+  expect(res.status).toBe(410);
+});
+```
+
+</Code>
+
+## Boucler avec la matrice
+
+Reviens à la matrice de l’étape 1 : chaque exigence d’autorisation et d’intégrité doit maintenant pointer vers un **contrôle** (la DAL, la machine à états) et un **test** (ceux que tu viens d’écrire). Les cases vides de la matrice se remplissent ici.
+
+<Callout kind="novafact">
+À la fin de cette étape, Novafact a gagné trois choses durables : une règle Semgrep bloquante de plus dans la CI, deux tests de régression qui resteront, et une entrée dans CODEOWNERS pour que l’AppSec relise les routes de paiement. Le finding ponctuel est devenu une classe surveillée.
+</Callout>
+
+## Livrable de l’étape
+
+- La **revue commentée** de la PR (commentaires qualifiés et actionnables).
+- Une ou deux **règles** maison qui verrouillent les classes trouvées.
+- Les **tests de régression** correspondants, reliés à la matrice d’exigences.
+
+<Recap items={[
+  "Relire la PR par les zones sensibles issues du threat model : lien signé, page publique, webhook, transition, dépendances.",
+  "Transformer chaque finding en règle qui empêche le retour de la classe (variant analysis).",
+  "Écrire les tests de régression : échec avant correctif, succès après.",
+  "Remplir les colonnes contrôle et test de la matrice d’exigences.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Code Review Guide", url: "https://owasp.org/www-project-code-review-guide/" },
+  { title: "Semgrep : writing rules", url: "https://semgrep.dev/docs/writing-rules/overview" },
+]} />

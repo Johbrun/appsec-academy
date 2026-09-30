@@ -1,0 +1,66 @@
+{
+  "_comment": "CORRIGÉ : plus aucun identifiant de longue durée. Un identifiant permanent finit toujours dans un dépôt, un journal ou un poste — et les trois clés supprimées ici avaient jusqu'à quatre ans. Les humains passent par Identity Center, les machines par des rôles et de l'OIDC. Rappel : une clé retirée doit d'abord être RÉVOQUÉE, sinon elle continue de marcher.",
+  "Account": "123456789012",
+  "Users": [],
+  "Roles": [
+    {
+      "_comment": "CORRIGÉ : l'intégration continue n'a plus de clé. Elle échange un jeton OIDC de courte durée contre ce rôle, et le sujet nomme le dépôt ET l'environnement.",
+      "RoleName": "novafact-ci-deploy",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "GitHubActions",
+            "Effect": "Allow",
+            "Principal": {
+              "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+              "StringEquals": {
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                "token.actions.githubusercontent.com:sub": "repo:novafact/novafact:environment:production"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "_comment": "CORRIGÉ : la sauvegarde est un service AWS, pas un utilisateur. Le rôle est assumé par le service, borné au compte appelant.",
+      "RoleName": "novafact-sauvegardes",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "AwsBackup",
+            "Effect": "Allow",
+            "Principal": { "Service": "backup.amazonaws.com" },
+            "Action": "sts:AssumeRole",
+            "Condition": {
+              "StringEquals": { "aws:SourceAccount": "123456789012" }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "_comment": "CORRIGÉ : les humains passent par Identity Center. Le MFA et la durée de session sont réglés côté fournisseur d'identité, et un départ se traduit par une désactivation unique.",
+      "RoleName": "novafact-operateurs",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "IdentityCenter",
+            "Effect": "Allow",
+            "Principal": { "Federated": "arn:aws:iam::123456789012:saml-provider/AWSSSO" },
+            "Action": "sts:AssumeRoleWithSAML",
+            "Condition": {
+              "StringEquals": { "SAML:aud": "https://signin.aws.amazon.com/saml" }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

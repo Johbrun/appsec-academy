@@ -1,0 +1,57 @@
+{
+  "_comment": "CORRIGÉ : le fournisseur d'identité GitHub émet des jetons pour TOUS les dépôts du monde. Faire confiance au fournisseur sans filtrer le sujet, c'est faire confiance à tout GitHub. C'est le député confus de Kohnfelder en version AWS : le rôle agit pour le compte de qui le demande, donc il faut vérifier qui demande.",
+  "Provider": {
+    "Url": "https://token.actions.githubusercontent.com",
+    "ClientIdList": ["sts.amazonaws.com"]
+  },
+  "Roles": [
+    {
+      "_comment": "CORRIGÉ : la condition manquait entièrement. Elle nomme maintenant le dépôt ET la référence, et vérifie l'audience du jeton.",
+      "RoleName": "novafact-ci",
+      "Description": "Rôle assumé par les workflows d'intégration continue.",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "GitHubActionsCi",
+            "Effect": "Allow",
+            "Principal": {
+              "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+              "StringEquals": {
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                "token.actions.githubusercontent.com:sub": "repo:novafact/novafact:ref:refs/heads/main"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "_comment": "CORRIGÉ : « repo:novafact/*:* » donnait le rôle de déploiement en production à tout dépôt de l'organisation — y compris le prototype créé par un stagiaire la semaine prochaine. Le sujet nomme le dépôt exact et l'environnement GitHub, dont l'approbation est le bon grain de séparation.",
+      "RoleName": "novafact-deploy-prod",
+      "Description": "Rôle assumé par le workflow de déploiement en production.",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "GitHubActionsProduction",
+            "Effect": "Allow",
+            "Principal": {
+              "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+              "StringEquals": {
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                "token.actions.githubusercontent.com:sub": "repo:novafact/novafact:environment:production"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

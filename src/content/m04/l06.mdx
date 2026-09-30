@@ -1,0 +1,231 @@
+export const questions = [
+  {
+    q: "Une requête arrive sur /api/invoices avec Sec-Fetch-Site: cross-site et Sec-Fetch-Mode: no-cors. Que fait une resource isolation policy ?",
+    options: [
+      "Elle l'accepte : sans en-tête Origin, ce n'est pas une requête inter-site",
+      "Elle la refuse : une ressource privée n'a pas à être chargée par un autre site",
+      "Elle l'accepte parce que la méthode est GET : seules les écritures sont refusées",
+      "Elle la laisse passer et s'en remet au cookie SameSite=Lax pour la bloquer",
+    ],
+    answer: 1,
+    explain: "Les en-têtes Sec-Fetch-* sont posés par le navigateur, et un site tiers ne peut pas les falsifier : cross-site en mode no-cors décrit exactement la forme d'un CSRF ou d'un XS-Leak. La politique refuse cette forme quelle que soit la méthode — seule une navigation (mode navigate en GET) reste tolérée, pour ne pas casser les liens entrants. Compter sur SameSite=Lax ne suffit pas : Lax laisse justement passer ces navigations.",
+  },
+  {
+    q: "Que garantit un cookie nommé avec le préfixe __Host- ?",
+    options: [
+      "Qu'il est Secure, sans Domain et en Path=/ : aucun sous-domaine ne l'écrase",
+      "Qu'il est Secure et HttpOnly : aucun script de la page ne peut jamais le lire",
+      "Qu'il est Secure et SameSite=Strict, donc absent des requêtes inter-sites",
+      "Qu'il est lié à l'hôte exact, port compris, sur lequel il a été posé",
+    ],
+    answer: 0,
+    explain: "Le navigateur n'accepte un cookie __Host- que s'il est Secure, sans attribut Domain et avec Path=/ : il reste lié à l'hôte exact, donc un sous-domaine compromis ne peut ni le poser ni l'écraser. Le préfixe ne dit rien de HttpOnly ni de SameSite, qu'il faut écrire soi-même, et l'isolation ne va pas jusqu'au port, que les cookies ignorent. C'est __Secure- qui se contente d'exiger Secure, en laissant passer Domain.",
+  },
+  {
+    q: "Le prestataire de paiement appelle le webhook POST /webhooks/psp de Novafact depuis ses serveurs. Que fait le middleware Fetch Metadata de la leçon ?",
+    options: [
+      "Il bloque : la requête ne vient pas d'une origine de novafact.example",
+      "Il bloque, sauf si le chemin figure dans la liste d'exceptions CORS publiques",
+      "Il laisse passer : un client hors navigateur n'envoie pas de Sec-Fetch-*",
+      "Il laisse passer si l'appel porte un Origin correspondant au prestataire",
+    ],
+    answer: 2,
+    explain: "Fetch Metadata protège contre les requêtes émises par un navigateur détourné ; un appel serveur à serveur ne porte aucun de ces en-têtes, et le middleware le laisse donc passer sans rien savoir de lui. C'est tout l'enjeu : ce n'est pas une authentification. Le webhook se valide par sa signature HMAC horodatée, ni par une exception de chemin, ni par un en-tête Origin qu'un appelant serveur choisit librement.",
+  },
+  {
+    q: "Une XSS a permis d'enregistrer un service worker malveillant sur l'origine du back-office. La XSS est corrigée. Que faut-il encore faire ?",
+    options: [
+      "Rien : le service worker sera remplacé au prochain chargement de la page",
+      "Purger le cache de CloudFront pour ne plus servir le script compromis",
+      "Révoquer les sessions : le service worker perd alors tout accès aux données",
+      "Le désenregistrer chez les visiteurs : Clear-Site-Data ou script de remplacement",
+    ],
+    answer: 3,
+    explain: "Un service worker vit dans le navigateur de chaque visiteur, indépendamment du serveur : purger le CDN ou révoquer les sessions ne l'atteint pas, et il ne sera remplacé que si quelque chose est servi à son URL. Le nettoyage se fait côté client — Clear-Site-Data: storage sur une réponse de ton origine, ou un service worker publié à la même URL qui se désinscrit à l'activation — et cette étape appartient au runbook d'incident.",
+  },
+];
+
+<YouKnow>
+Tu connais le CSRF, le clickjacking et les XS-Leaks côté attaque (M3, leçon 12). Cette leçon rassemble les mécanismes du navigateur qui isolent ton origine des autres, et que tu peux activer depuis Express.
+</YouKnow>
+
+## Fetch Metadata
+
+Les navigateurs ajoutent à chaque requête des en-têtes `Sec-Fetch-*` qui décrivent son contexte : **d'où** elle vient (`Sec-Fetch-Site` : same-origin, same-site, cross-site, none), **comment** (`Sec-Fetch-Mode` : navigate, cors, no-cors…) et **pour quoi** (`Sec-Fetch-Dest` : document, image, script…). Un site tiers ne peut pas les falsifier.
+
+Une **resource isolation policy** utilise ces en-têtes pour refuser les requêtes inter-sites vers les ressources privées. Elle bloque d'un coup le CSRF, de nombreux XS-Leaks et l'inclusion de ressources privées.
+
+Pourquoi est-ce si efficace ? La plupart des attaques inter-sites ont la même forme : un site contrôlé par l'attaquant fait émettre au navigateur de la victime une requête vers ton application, avec les cookies de la victime. CSRF, inclusion d'un JSON privé par une balise `<script>`, sondage d'une ressource pour en déduire un état (XS-Leak) : dans tous ces cas, la requête arrive avec `Sec-Fetch-Site: cross-site`. Au lieu de défendre chaque endpoint contre chaque technique, on refuse la **forme** de la requête. Les en-têtes font partie du socle commun des navigateurs depuis mars 2023, date à laquelle Safari les a rejoints.
+
+<Code file="apps/api/src/middleware/fetchMetadata.ts">
+
+```ts
+// Resource isolation policy : refuse les requêtes inter-sites, sauf navigations simples.
+export const isolateResources = (req, res, next) => {
+  const site = req.get('sec-fetch-site');
+  if (!site) return next();                                   // ancien navigateur ou client non navigateur
+  if (['same-origin', 'same-site', 'none'].includes(site)) return next();
+  const isNav = req.get('sec-fetch-mode') === 'navigate' && req.method === 'GET'
+    && !['object', 'embed'].includes(req.get('sec-fetch-dest') ?? '');
+  if (isNav) return next();                                   // liens entrants vers les pages
+  res.status(403).json({ error: 'Requête inter-site refusée' });
+};
+```
+
+</Code>
+
+## Déployer la politique sans casser
+
+Trois catégories de requêtes légitimes méritent une attention particulière :
+
+- **les clients non navigateurs** (webhooks du prestataire de paiement, SDK `@novafact/sdk` côté serveur, scripts des clients) n'envoient pas ces en-têtes : ils passent la politique, et doivent être authentifiés autrement. Fetch Metadata est une défense contre le navigateur détourné, pas une authentification ;
+- **les endpoints volontairement publics en CORS** (un widget de statut intégré par les clients, par exemple) reçoivent des requêtes `cross-site` en mode `cors` : ils vont dans une liste d'exceptions explicite, revue ;
+- **`same-site`** couvre tous les sous-domaines de `novafact.example`. Si l'un d'eux sert du contenu moins fiable, restreins la politique de l'API à `same-origin`.
+
+Comme pour la CSP, commence par un mode qui journalise sans bloquer, regarde ce qui serait refusé pendant une à deux semaines, puis bascule.
+
+<Code file="apps/api/src/middleware/fetchMetadata.ts" hl="1,2,8,11">
+
+```ts
+const PUBLIC_CORS = new Set(['/public/status', '/.well-known/security.txt']);
+const ENFORCE = process.env.FETCH_METADATA_MODE === 'enforce';
+
+export const isolateResources: RequestHandler = (req, res, next) => {
+  const site = req.get('sec-fetch-site');
+  if (!site || site === 'same-origin' || site === 'same-site' || site === 'none') return next();
+  const isNav = req.get('sec-fetch-mode') === 'navigate' && req.method === 'GET';
+  if (isNav || PUBLIC_CORS.has(req.path)) return next();
+  req.log.warn({ event: 'fetch_metadata.cross_site', path: req.path, site,
+    mode: req.get('sec-fetch-mode'), dest: req.get('sec-fetch-dest'), enforced: ENFORCE });
+  if (!ENFORCE) return next();
+  res.status(403).json({ error: 'Requête inter-site refusée' });
+};
+```
+
+</Code>
+
+Et un test qui garde la politique en place quand quelqu'un réorganise les middlewares :
+
+<Code file="apps/api/test/fetchMetadata.test.ts">
+
+```ts
+import request from 'supertest';
+import { app } from '../src/app';
+
+test('refuse une requête inter-site non navigante vers une API privée', async () => {
+  await request(app).get('/api/invoices')
+    .set('Sec-Fetch-Site', 'cross-site').set('Sec-Fetch-Mode', 'no-cors').expect(403);
+});
+
+test('laisse un client non navigateur atteindre l’authentification', async () => {
+  await request(app).get('/api/invoices').expect(401); // refusé plus loin, faute de jeton
+});
+```
+
+</Code>
+
+## Isoler les fenêtres et les ressources
+
+| En-tête | Effet | Valeur conseillée |
+| --- | --- | --- |
+| `Cross-Origin-Opener-Policy` | Coupe la référence entre ta fenêtre et celles ouvertes par ou vers d'autres sites (XS-Leaks, attaques via `window.opener`) | `same-origin` (ou `same-origin-allow-popups` si un fournisseur d'identité ouvre une fenêtre) |
+| `Cross-Origin-Resource-Policy` | Empêche d'autres sites de charger tes ressources (images, scripts, JSON) | `same-origin` sur l'API |
+| `Cross-Origin-Embedder-Policy` | N'autorise que les ressources qui acceptent explicitement d'être chargées | `require-corp`, surtout pour activer l'isolation complète si besoin |
+| `frame-ancestors` (CSP) | Qui peut intégrer la page dans une iframe | `'none'`, ou la liste exacte des domaines partenaires |
+
+`helmet`, dans Express, positionne la plupart de ces en-têtes avec des valeurs par défaut raisonnables, à ajuster selon l'application.
+
+Deux nuances évitent des surprises. D'abord, `COOP: same-origin` coupe aussi la relation avec les fenêtres que **ta** page ouvre vers d'autres origines : un login par popup ou une fenêtre d'authentification 3-D Secure qui communique avec l'opener cesse de fonctionner. `same-origin-allow-popups` garde ce cas tout en protégeant contre les sites qui t'ouvrent. Ensuite, COEP ne sert que si tu as besoin de l'**isolation cross-origin** complète (condition d'accès à `SharedArrayBuffer` et aux minuteurs de haute précision). Une application de facturation n'en a généralement pas besoin, et `helmet` ne pose pas COEP par défaut.
+
+<Code file="apps/api/src/app.ts">
+
+```ts
+import helmet from 'helmet';
+
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // popup d'authentification entreprise
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  // COEP non activé : aucune fonctionnalité ne demande l'isolation cross-origin
+}));
+```
+
+</Code>
+
+## Les cookies
+
+```text
+Set-Cookie: __Host-session=…; Secure; HttpOnly; SameSite=Lax; Path=/
+```
+
+- **`__Host-`** : le navigateur n'accepte ce cookie que s'il est `Secure`, sans `Domain` et avec `Path=/`. Un sous-domaine compromis ne peut ni le poser ni l'écraser.
+- **`SameSite=Lax`** (ou `Strict`) explicite, comme vu en M2.
+- **Cookies partitionnés** (attribut `Partitioned`, dit CHIPS) : pour un widget tiers qui a besoin d'un cookie, celui-ci est isolé par site intégrant.
+
+Le préfixe `__Secure-` n'exige que l'attribut `Secure` : il laisse passer `Domain`, donc le partage avec les sous-domaines. `__Host-` est le bon choix pour une session. Pourquoi « explicite » pour `SameSite` ? Parce que le comportement par défaut d'un cookie sans l'attribut n'est pas le même dans tous les navigateurs : Chrome le traite comme `Lax`, d'autres non. Écrire l'attribut rend le comportement identique partout.
+
+<Diff file="apps/bff/src/session.ts" hlBefore="3,4" hlAfter="1,4-7">
+
+```ts
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  name: 'sid',
+  cookie: { domain: '.novafact.example', secure: true },
+}));
+```
+
+```ts
+app.set('trust proxy', 1); // derrière l'ALB : sinon Express croit la requête en HTTP et refuse de poser un cookie Secure
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  name: '__Host-sid',
+  cookie: { secure: true, httpOnly: true, sameSite: 'lax', path: '/' }, // pas de domain
+  resave: false, saveUninitialized: false,
+}));
+```
+
+</Diff>
+
+## Les service workers
+
+Un service worker intercepte les requêtes de son périmètre et survit au rechargement de la page. Si un attaquant parvient à en enregistrer un (via une XSS et un fichier JavaScript sur ton origine), il **persiste** même après correction de la XSS. Garde le périmètre (`scope`) minimal, ne sers jamais de JavaScript contrôlé par les utilisateurs depuis ton origine, et prévois une procédure de désenregistrement (en-tête `Clear-Site-Data`) en cas d'incident.
+
+Quelques règles du navigateur fixent les limites du risque. Le script d'un service worker doit venir de la même origine que la page, et son périmètre maximal est le répertoire du script, sauf si le serveur l'élargit avec l'en-tête `Service-Worker-Allowed`. Un fichier déposé par un utilisateur et servi sous `/uploads/` ne pourrait donc contrôler que `/uploads/`, à condition d'être servi comme du JavaScript : raison de plus pour servir les fichiers des clients depuis un autre domaine, avec `Content-Disposition: attachment` et `X-Content-Type-Options: nosniff`.
+
+Pour le nettoyage, deux outils se complètent :
+
+- `Clear-Site-Data: "storage"` sur une réponse de ton origine désenregistre les service workers et vide le stockage local (ajouter `"cache"` et `"cookies"` pour une remise à zéro complète, au prix d'une déconnexion) ;
+- un **service worker de remplacement**, publié à la même URL que le légitime, qui se désinscrit à l'activation : le navigateur vérifie les mises à jour du script à chaque navigation, et au moins toutes les 24 heures.
+
+## XS-Leaks : la défense en couches
+
+Les XS-Leaks n'ont pas de correctif unique : chaque technique exploite un canal différent (nombre de cadres, temps de chargement, erreurs, cache). La défense consiste à fermer les canaux par familles, avec les mécanismes de cette leçon : `SameSite` retire les cookies des requêtes inter-sites, Fetch Metadata les refuse, COOP coupe l'accès aux fenêtres, `frame-ancestors` empêche l'intégration, CORP bloque le chargement des ressources. Le wiki xsleaks.dev associe chaque technique aux défenses qui la neutralisent : c'est la grille à utiliser en revue.
+
+## En pratique chez toi
+
+- Relève les en-têtes `Sec-Fetch-*` reçus par ton API pendant une journée (un simple log suffit) : la répartition entre `same-origin`, `same-site` et `cross-site` te dit tout de suite si une politique est réaliste.
+- Liste les cookies posés par l'application : lesquels pourraient porter le préfixe `__Host-`, lesquels ont un attribut `Domain` qui n'a pas de raison d'être ?
+- Cherche les fenêtres ouvertes par l'application (login, paiement, export) avant de poser COOP : chacune est un test de non-régression.
+- Vérifie qu'aucun service worker n'est enregistré sur une origine qui n'en a pas besoin, et que le runbook d'incident sait comment les retirer.
+
+<Callout kind="novafact">
+Configuration retenue pour l'API et le BFF de Novafact : politique Fetch Metadata en mode journalisation pendant deux semaines (trois exceptions découvertes : le widget de statut, le webhook du prestataire, un ancien export ouvert dans un nouvel onglet), puis bascule en blocage. Cookie de session `__Host-sid` en `SameSite=Lax`, COOP `same-origin-allow-popups` pour le SSO entreprise, CORP `same-origin` sur l'API, pas de COEP, et `Clear-Site-Data` ajouté au runbook d'incident du back-office.
+</Callout>
+
+<Recap items={[
+  "Fetch Metadata dit d'où vient une requête ; une resource isolation policy refuse l'inter-site sur les ressources privées.",
+  "Les clients non navigateurs passent la politique : ils s'authentifient autrement ; les endpoints CORS publics sont des exceptions explicites.",
+  "Journaliser d'abord, bloquer ensuite, et un test qui garde la politique en place.",
+  "COOP, CORP, COEP et frame-ancestors isolent fenêtres, ressources et intégrations ; COEP seulement si l'isolation complète est nécessaire.",
+  "Cookies : __Host-, SameSite explicite, trust proxy derrière l'ALB, Partitioned pour les tiers.",
+  "Un service worker malveillant persiste : périmètre minimal, fichiers utilisateurs ailleurs, Clear-Site-Data ou service worker de remplacement.",
+]} />
+
+<Sources items={[
+  { title: "web.dev : Fetch Metadata", url: "https://web.dev/articles/fetch-metadata" },
+  { title: "MDN : Sec-Fetch-Site", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Sec-Fetch-Site" },
+  { title: "MDN : Cross-Origin-Opener-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy" },
+  { title: "MDN : cookies et préfixes", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies" },
+  { title: "MDN : Clear-Site-Data", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Clear-Site-Data" },
+  { title: "helmet", url: "https://helmetjs.github.io/" },
+  { title: "XS-Leaks Wiki : défenses", url: "https://xsleaks.dev/" },
+]} />

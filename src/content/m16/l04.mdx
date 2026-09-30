@@ -1,0 +1,241 @@
+export const questions = [
+  {
+    q: "Pourquoi le rôle utilisé par `terraform plan` sur une PR doit-il être en lecture seule, alors que le plan « ne modifie rien » ?",
+    options: [
+      "Parce qu'un `plan` sur une ressource supprimée à la main la recrée avant de comparer",
+      "Parce que le plan exécute le code des providers et des sources de données de la PR",
+      "Parce que le plan écrit les valeurs sensibles dans le fichier d'état et doit être isolé",
+      "Parce qu'une erreur de `-target` transforme le plan en apply partiel sur les ressources visées",
+    ],
+    answer: 1,
+    explain: "Un `plan` lance les binaires des providers et évalue toutes les sources de données, y compris une source `external` ou un provisioner ajoutés dans la PR : ouvrir une PR revient donc à exécuter du code avec les droits de ce rôle. Le plan ne crée ni ne modifie jamais de ressource, même avec `-target` — c'est le contresens à écarter. Il peut en revanche rafraîchir l'état et lire des attributs sensibles, raison de plus pour que ce rôle ne puisse lire aucun secret.",
+  },
+  {
+    q: "Que protège `.terraform.lock.hcl` commité, et que ne protège-t-il pas ?",
+    options: [
+      "Il fige les providers et les modules du registre, mais pas ceux tirés depuis Git",
+      "Il fige la version de Terraform lui-même, que `required_version` ne contraint qu'en plage",
+      "Il ne fige rien : c'est un cache local que `terraform init -upgrade` régénère à chaque fois",
+      "Il fige version et empreintes des providers, mais ne couvre pas les modules",
+    ],
+    answer: 3,
+    explain: "Le lock file enregistre la version retenue et les empreintes de chaque provider : un binaire modifié est refusé dès l'init. Les modules n'y figurent pas du tout, ni ceux du registre ni ceux tirés de Git — c'est la nuance qui trompe le plus, parce qu'on les voit passer dans la même commande `init`. Il faut les épingler à la main : `version` exacte pour le registre, `?ref=<sha>` pour Git (CKV_TF_1). Il ne dit rien non plus de la version de Terraform, qui relève de `required_version`.",
+  },
+  {
+    q: "Le job d'apply télécharge le plan produit et approuvé plus tôt dans le même workflow. Entre-temps, quelqu'un a appliqué un autre changement sur le même state. Que se passe-t-il ?",
+    options: [
+      "Terraform refuse le plan périmé : il faut replanifier et faire réapprouver",
+      "Terraform rafraîchit l'état avant l'apply et applique le plan sur le nouvel état",
+      "Terraform applique le plan et écrase le changement fait entre-temps",
+      "L'apply échoue à mi-parcours, quand une ressource ne correspond plus au plan",
+    ],
+    answer: 0,
+    explain: "Un plan enregistré est lié au numéro de série de l'état à partir duquel il a été calculé : si cet état a changé, l'apply s'arrête avant de toucher quoi que ce soit. La crainte d'un apply partiel à mi-parcours est donc infondée ici, et le rafraîchissement silencieux n'a pas lieu — ce serait appliquer autre chose que ce qui a été relu et approuvé, exactement ce que le plan enregistré sert à empêcher.",
+  },
+];
+
+<YouKnow>
+En pentest de CI/CD, le rôle qui applique Terraform est souvent le trésor : il administre les comptes, et le state qu'il écrit contient des secrets. Cette leçon traite l'IaC comme un système à part entière : un stockage d'état sensible, un pipeline à privilèges et une chaîne d'approvisionnement de providers et de modules.
+</YouKnow>
+
+## Le state : sensible et unique
+
+Le state Terraform est à la fois la **source de vérité** (ce que Terraform croit gérer) et un **document sensible** (tous les attributs des ressources, secrets compris, voir la leçon 1). Il faut donc le protéger en confidentialité, en intégrité et en disponibilité, et empêcher deux applications simultanées de le corrompre.
+
+<Code file="infra/terraform/envs/prod/backend.tf" hl="4,5,6,7,8">
+
+```hcl
+terraform {
+  required_version = ">= 1.11"
+  backend "s3" {
+    bucket       = "novafact-tfstate-prod"
+    key          = "platform/network.tfstate"
+    region       = "eu-west-3"
+    encrypt      = true
+    kms_key_id   = "arn:aws:kms:eu-west-3:777788889999:alias/novafact-tfstate"
+    use_lockfile = true
+  }
+}
+```
+
+</Code>
+
+`use_lockfile = true` active le **verrouillage natif** du backend S3 : un fichier `.tflock` à côté du state, créé par écriture conditionnelle. Le verrouillage par table DynamoDB est déprécié et sera retiré. Le bucket lui-même suit la baseline la plus stricte :
+
+- **versionnement** activé : un state corrompu ou effacé se restaure ;
+- **Block Public Access**, TLS imposé, chiffrement par une clé KMS dont la politique ne connaît que les rôles du pipeline ;
+- **compte dédié** (chez Novafact, `shared-services`), hors des comptes de workloads : un rôle compromis en production ne lit pas le state de toute l'organisation ;
+- **politique de bucket** qui refuse tout principal autre que les rôles de plan et d'apply, et journalisation des accès (data events CloudTrail) vers Elastic.
+
+<Code file="infra/terraform/state-bucket-policy.json" hl="11,12,13,14,15,16">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OnlyPipelineRoles",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": ["arn:aws:s3:::novafact-tfstate-prod", "arn:aws:s3:::novafact-tfstate-prod/*"],
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalArn": [
+            "arn:aws:iam::777788889999:role/gha-terraform-plan-prod",
+            "arn:aws:iam::777788889999:role/gha-terraform-apply-prod",
+            "arn:aws:iam::777788889999:role/org-breakglass-admin"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "TlsOnly",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": ["arn:aws:s3:::novafact-tfstate-prod", "arn:aws:s3:::novafact-tfstate-prod/*"],
+      "Condition": { "Bool": { "aws:SecureTransport": "false" } }
+    }
+  ]
+}
+```
+
+</Code>
+
+Une subtilité de permissions : `terraform plan` **prend aussi le verrou** par défaut. Le rôle de plan a donc besoin de `s3:GetObject` sur le state, mais aussi de `s3:PutObject` et `s3:DeleteObject` sur le seul fichier `*.tflock`. Le rôle d'apply est le seul à pouvoir écrire le state.
+
+## Deux rôles OIDC : plan et apply
+
+La CI obtient ses identifiants AWS par **OIDC** (M14, leçon 2 ; M15, leçon 4), sans secret stocké. Le point clé est de séparer deux identités, avec deux trust policies qui n'acceptent pas les mêmes jetons :
+
+| | Rôle de plan | Rôle d'apply |
+| --- | --- | --- |
+| Déclencheur | `pull_request` (branches du dépôt, pas les forks) | Workflow sur `main`, environnement GitHub `production` |
+| `sub` accepté | `repo:novafact/platform-infra:pull_request` | `repo:novafact/platform-infra:environment:production` |
+| Protection côté GitHub | Aucune écriture possible de toute façon | Environnement protégé : branche `main` uniquement, deux relecteurs requis |
+| Permissions AWS | Lecture de la configuration (sans lecture de secrets), lecture du state, verrou | Écriture des ressources gérées, écriture du state |
+
+Pourquoi le rôle de plan doit-il être **vraiment** en lecture seule ? Parce qu'un plan **exécute du code** : les providers tournent, et une source de données `external` ou un provider inattendu ajoutés dans une PR s'exécutent avec les identifiants du job. Quiconque peut ouvrir une PR peut donc agir avec le rôle de plan. Trois conséquences : pas de droit d'écriture, pas de lecture de secrets (`secretsmanager:GetSecretValue`, `ssm:GetParameter` avec déchiffrement), et une règle de policy as code (leçon 3) qui refuse les providers hors de la liste approuvée.
+
+## Le plan comme artefact de revue
+
+Ce qu'on applique doit être **exactement** ce qu'on a relu. Le workflow de Novafact sur `main` enchaîne un job de plan et un job d'apply qui réutilise le fichier de plan binaire :
+
+<Code file=".github/workflows/terraform-prod.yml" hl="27,28,29,30,34,35,42,43">
+
+```yaml
+name: terraform-prod
+on:
+  push:
+    branches: [main]
+    paths: ['infra/terraform/envs/prod/**']
+permissions:
+  contents: read
+  id-token: write
+concurrency: terraform-prod
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: infra/terraform/envs/prod } }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::777788889999:role/gha-terraform-plan-prod
+          aws-region: eu-west-3
+      - run: terraform init -input=false -lockfile=readonly
+      - run: terraform plan -input=false -out=tfplan
+      - run: terraform show -no-color tfplan >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tfplan-prod
+          path: infra/terraform/envs/prod/tfplan
+          retention-days: 1
+  apply:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: production # relecteurs requis : ils lisent le résumé du plan avant d'approuver
+    defaults: { run: { working-directory: infra/terraform/envs/prod } }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::777788889999:role/gha-terraform-apply-prod
+          aws-region: eu-west-3
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: tfplan-prod, path: infra/terraform/envs/prod }
+      - run: terraform init -input=false -lockfile=readonly
+      - run: terraform apply -input=false tfplan
+```
+
+</Code>
+
+Trois propriétés rendent ce schéma sûr :
+
+- l'apply applique le **fichier de plan** relu, pas un nouveau calcul ; si le state a changé depuis, Terraform refuse ce plan périmé ;
+- le fichier de plan contient des valeurs sensibles en clair : artefact à rétention courte (un jour), jamais publié en commentaire de PR (seul le résumé l'est, et les valeurs `sensitive` y sont masquées) ;
+- `concurrency` empêche deux exécutions simultanées sur la production, en plus du verrou du state.
+
+Les relecteurs de l'environnement `production` approuvent en lisant le résumé du plan, avec les résultats des scanners et des règles (leçons 2 et 3) : un « destroy » inattendu ou une politique IAM élargie doivent sauter aux yeux.
+
+## La supply chain de l'IaC
+
+Terraform télécharge du code à chaque `init` : des **providers** (binaires qui détiennent tes identifiants) et des **modules** (du HCL qui décide de ta configuration). Le CDK, lui, tire des paquets npm (M14, leçon 5). Chacun doit être épinglé et vérifié.
+
+<Steps items={[
+  { title: "Providers : contrainte et lock file", text: "Une contrainte de version dans required_providers, et .terraform.lock.hcl commité : il enregistre la version choisie et les empreintes des paquets. Un binaire différent est refusé." },
+  { title: "Toutes les plateformes dans le lock file", text: "`terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 -platform=linux_arm64` : sinon la CI complète le fichier elle-même et la revue perd son sens." },
+  { title: "CI en lecture seule", text: "`terraform init -lockfile=readonly` échoue si le lock file devrait changer : une mise à jour de provider passe par une PR dédiée, relue." },
+  { title: "Modules épinglés", text: "Le lock file ne couvre pas les modules : version exacte pour le registre (`version = \"5.8.1\"`), commit pour Git (`?ref=` suivi du SHA, règle Checkov CKV_TF_1)." },
+  { title: "Sources maîtrisées", text: "Modules internes dans un dépôt de l'organisation ; miroir de providers (`provider_installation` avec `network_mirror`) si la politique l'exige ; mises à jour par Dependabot ou Renovate, relues comme du code." },
+]} />
+
+<Diff file="infra/terraform/modules.tf" hlBefore="2,6" hlAfter="2,3,7" stack>
+
+```hcl
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+}
+
+module "billing_bucket" {
+  source = "git::https://github.com/novafact/tf-modules.git//s3-bucket?ref=main"
+}
+```
+
+```hcl
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.8.1"
+}
+
+module "billing_bucket" {
+  source = "git::https://github.com/novafact/tf-modules.git//s3-bucket?ref=4f9c2d1e7a3b5c6d8e0f1a2b3c4d5e6f7a8b9c0d"
+}
+```
+
+</Diff>
+
+<Callout kind="case">
+En mars 2025, l'action GitHub `tj-actions/changed-files`, utilisée par des dizaines de milliers de dépôts, a été compromise (CVE-2025-30066) : ses tags de version pointaient vers un commit qui affichait les secrets du runner dans les journaux des workflows. Les dépôts qui référençaient l'action par un **SHA** n'ont pas exécuté la version piégée, et ceux qui s'authentifiaient à AWS par **OIDC** n'avaient pas de clé longue durée à perdre. Un pipeline IaC concentre exactement ce qu'un tel incident cherche : épinglage et identifiants temporaires ne sont pas des options.
+</Callout>
+
+<Recap items={[
+  "Le state est sensible et unique : backend S3 chiffré par KMS, versionné, verrou natif (use_lockfile), compte dédié, accès limité aux rôles du pipeline.",
+  "Deux rôles OIDC : plan en lecture seule (le plan exécute du code), apply limité à main et à un environnement protégé.",
+  "Appliquer le fichier de plan relu ; un plan périmé est refusé ; l'artefact est sensible et de courte durée.",
+  "Providers : contrainte, lock file multi-plateformes commité, init -lockfile=readonly en CI.",
+  "Modules : version exacte ou SHA, sources internes, mises à jour relues.",
+]} />
+
+<Lab id="terragoat" />
+
+<Sources items={[
+  { title: "Terraform : backend S3", url: "https://developer.hashicorp.com/terraform/language/backend/s3" },
+  { title: "Terraform : dependency lock file", url: "https://developer.hashicorp.com/terraform/language/files/dependency-lock" },
+  { title: "Terraform : terraform providers lock", url: "https://developer.hashicorp.com/terraform/cli/commands/providers/lock" },
+  { title: "GitHub : configuring OpenID Connect in AWS", url: "https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services" },
+  { title: "OpenTofu : state and plan encryption", url: "https://opentofu.org/docs/language/state/encryption/" },
+]} />

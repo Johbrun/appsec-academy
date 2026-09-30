@@ -1,0 +1,21 @@
+id: admin-role-change
+name: Élévation de rôle
+description: Les permissions d’un compte ont changé.
+severity: high
+risk_score: 60
+tags:
+  - 'Domaine: Identité'
+  - 'Tactique: Privilege Escalation'
+  - 'Technique: T1098'
+interval: 5m
+from: now-15m
+note: |-
+  ## Triage
+
+  1. Vérifier la demande de changement associée.
+  2. Confirmer que l’auteur avait le droit de l’accorder.
+query:
+  where:
+    - field: event.action
+      op: eq
+      value: privilege_permissions_changed

@@ -1,0 +1,173 @@
+export const questions = [
+  {
+    q: "L'assistant de Novafact résume les factures et peut envoyer des e-mails. Une facture contient un texte qui demande au modèle d'envoyer des données ailleurs. De quelle attaque s'agit-il ?",
+    options: [
+      "Une injection de prompt indirecte : la consigne vient des données lues",
+      "Une injection de prompt directe, puisque le modèle exécute la consigne",
+      "Un excès d'agentivité : le modèle dispose d'un outil d'envoi d'e-mails",
+      "Une exfiltration par la sortie, la donnée quittant le périmètre du tenant",
+    ],
+    answer: 0,
+    explain: "L'excès d'agentivité est réel, et c'est ce qui rend l'attaque grave : sans outil d'envoi, la consigne resterait sans effet. Mais c'est la condition, pas l'attaque, et l'exfiltration en est la conséquence. L'injection n'est pas directe non plus : l'utilisateur n'a rien tapé de malveillant, la consigne est entrée par une donnée que le modèle a lue. Cette distinction commande la défense — on ne peut pas filtrer la saisie, il faut encadrer les outils.",
+  },
+  {
+    q: "Que change pour un défenseur l'arrivée de systèmes d'IA capables d'inventer des variantes d'attaques (comme le HTTP Terminator) ?",
+    options: [
+      "Il faut générer les règles WAF par IA, au même rythme que les variantes",
+      "Il faut augmenter la fréquence des pentests et des scans de préproduction",
+      "Il faut suivre les publications de recherche pour patcher chaque variante",
+      "Les variantes arrivent plus vite : les correctifs d'architecture prennent l'avantage",
+    ],
+    answer: 3,
+    explain: "Les trois autres restent dans la même stratégie : énumérer les variantes, en accélérant le tempo. Générer des règles WAF par IA garde la logique de la signature, donc un train de retard à chaque nouvelle forme. Des pentests plus fréquents détectent sans rien supprimer. Et attendre les publications suppose que les variantes soient publiées. Quand le coût d'en inventer une s'effondre, seuls les contrôles qui suppriment la classe gardent leur valeur.",
+  },
+  {
+    q: "Selon l'Agents Rule of Two (Meta, 2025), quelle configuration de l'assistant Novafact est acceptable dans une même session ?",
+    options: [
+      "Lire des factures importées, accéder au tenant et envoyer des e-mails si le prompt système l'encadre",
+      "Lire des factures importées et les données du tenant, sans action externe",
+      "Les trois propriétés, à condition de journaliser et de revoir chaque appel d'outil",
+      "Une seule propriété par session, la règle interdisant d'en cumuler deux",
+    ],
+    answer: 1,
+    explain: "« Une seule propriété par session » durcit la règle au point de la rendre inutilisable : deux sont bien admises, c'est la troisième qui pose problème. Encadrer par le prompt système est la parade la plus répandue et la moins fiable, puisqu'une consigne se contourne par une autre consigne. Journaliser et revoir après coup constate l'incident au lieu de l'empêcher. Quand les trois sont nécessaires, il faut une validation humaine explicite avec aperçu, ou une nouvelle session.",
+  },
+  {
+    q: "La réponse de l'assistant est rendue en Markdown dans la SPA. Pourquoi faut-il bloquer les images vers des domaines arbitraires, même sans aucun XSS ?",
+    options: [
+      "Parce qu'une image distante peut embarquer un SVG porteur de script",
+      "Parce que le référent envoyé révèle l'URL de la page de l'assistant",
+      "Parce qu'une URL d'image peut porter des données du contexte, chargées sans clic",
+      "Parce que react-markdown n'échappe pas les URL d'images par défaut",
+    ],
+    answer: 2,
+    explain: "Le SVG est une fausse piste connue : chargé par une balise img, il n'exécute aucun script. Le référent fuit une URL, pas le contenu du contexte. Et il ne s'agit pas d'échappement — l'image est un élément Markdown parfaitement légitime, donc échapper le HTML n'y change rien. Le mécanisme est une exfiltration sans clic : le modèle, manipulé, écrit une URL qui encode des données, et le navigateur va la chercher tout seul.",
+  },
+];
+
+<YouKnow>
+Tu as peut-être fait les labs Web LLM attacks de l'Academy : faire utiliser à un assistant des API qu'il ne devrait pas, injecter des consignes via des avis produits, exploiter la sortie du modèle. Cette leçon fait le pont avec le module 19, et regarde aussi l'autre face du sujet : l'IA comme outil de recherche offensive.
+</YouKnow>
+
+## Le sujet « Web LLM attacks » de l'Academy
+
+Les labs de PortSwigger posent le bon modèle mental : **un LLM connecté à des outils est un utilisateur non fiable qui dispose de droits**. Les labs couvrent trois familles :
+
+| Famille | Mécanisme | Correspondance OWASP LLM Top 10 |
+| --- | --- | --- |
+| Abus des API accessibles au modèle | Le modèle appelle des fonctions sensibles pour le compte de l'utilisateur | Excessive Agency |
+| Injection de prompt indirecte | Des consignes cachées dans des données lues par le modèle (avis, e-mails, pages web) | Prompt Injection |
+| Sortie non maîtrisée | La réponse du modèle est rendue en HTML ou transmise à un système sans traitement | Improper Output Handling |
+
+La page de l'Academy se termine par trois principes de défense, qui résument bien l'angle AppSec :
+
+- **traiter les API données au modèle comme publiques** : authentification et contrôle d'accès dans l'API elle-même, jamais « le modèle ne l'appellera pas » ;
+- **ne pas nourrir le modèle de données sensibles** : ne lui donner que ce que l'utilisateur le moins privilégié a le droit de voir, car tout ce qu'il lit peut ressortir ;
+- **ne pas compter sur le prompt pour bloquer les attaques** : une consigne du type « n'utilise pas cette API » se contourne par une autre consigne.
+
+## Le cas Novafact
+
+L'assistant « Ask Novafact » lit les factures d'un tenant et peut **envoyer des e-mails** et **créer des avoirs**. Une facture importée depuis un client contient une consigne cachée. Quand un comptable demande un résumé, le modèle lit la consigne et l'exécute avec les outils à sa disposition. Aucun des contrôles web classiques ne voit rien : pas de payload dans la requête de l'utilisateur, pas d'anomalie HTTP.
+
+Deux grilles de lecture récentes aident à raisonner sur ce scénario. Simon Willison décrit la **lethal trifecta** (juin 2025) : un agent devient dangereux dès qu'il combine l'accès à des données privées, l'exposition à du contenu non fiable et un moyen de communiquer vers l'extérieur. Meta en a tiré une règle opérationnelle, l'**Agents Rule of Two** (octobre 2025) : tant qu'on ne sait pas détecter l'injection de prompt de façon fiable, un agent ne doit pas réunir plus de deux de ces propriétés dans une même session : traiter des entrées non fiables, accéder à des systèmes sensibles ou des données privées, changer d'état ou communiquer vers l'extérieur.
+
+| Capacité de l'assistant | Entrées non fiables | Données sensibles | Action externe |
+| --- | --- | --- | --- |
+| Résumer les factures du tenant | Oui (factures importées) | Oui | Non |
+| Envoyer un e-mail de relance | Selon le contexte de la session | Oui | **Oui** |
+| Créer un avoir | Selon le contexte de la session | Oui | **Oui** (changement d'état) |
+
+Dès qu'une session a lu une facture importée, les deux dernières lignes réunissent les trois propriétés. D'où la décision de conception : dans ce cas, toute action passe par une **validation humaine** explicite, avec un aperçu de ce qui sera envoyé ou créé.
+
+Les défenses structurelles, développées au module 19 :
+
+<Steps items={[
+  { title: "Moindre privilège des outils", text: "L'assistant de résumé n'a pas besoin d'envoyer d'e-mails. Un outil par usage, avec la portée minimale (tenant, montant)." },
+  { title: "Validation humaine", text: "Toute action à effet (envoi, création d'avoir) demande une confirmation explicite, avec un aperçu." },
+  { title: "Sortie traitée comme une entrée", text: "La réponse du modèle est échappée à l'affichage et validée avant d'alimenter un autre système." },
+  { title: "Séparer données et consignes", text: "Des patterns comme la règle de deux limitent ce qu'un agent peut combiner : données non fiables, données sensibles, action externe." },
+]} />
+
+En code, le principe « l'API est publique » se traduit par des outils qui **ignorent** tout ce que le modèle pourrait prétendre sur l'identité ou le périmètre, et qui ne font que préparer une action quand elle a un effet :
+
+<Code file="apps/assistant/src/tools/createCreditNote.ts" hl="8,11-12">
+
+```ts
+const Args = z.object({
+  invoiceId: z.string().uuid(),
+  amountCents: z.number().int().positive().max(500_00),   // plafond métier, pas une consigne au modèle
+  reason: z.string().max(200),
+}).strict();
+
+export async function createCreditNote(rawArgs: unknown, ctx: SessionContext) {
+  const args = Args.parse(rawArgs);                         // les arguments du modèle sont une entrée non fiable
+  const invoice = await invoices.get(ctx.user.tenantId, args.invoiceId); // tenant de la session, jamais des arguments
+  if (!can(ctx.user, 'creditNote:create', invoice)) throw new Forbidden();
+  // Aucune écriture ici : on crée une action en attente, que l'utilisateur confirme dans l'interface.
+  return pendingActions.create({ kind: 'credit_note', tenantId: ctx.user.tenantId, userId: ctx.user.id, args });
+}
+```
+
+</Code>
+
+## La sortie du modèle est une entrée
+
+Le troisième lab de l'Academy rappelle que la réponse du modèle est rendue quelque part. Dans la SPA de Novafact, elle est affichée en Markdown. Deux risques distincts : un XSS si le Markdown autorise le HTML brut, et une **exfiltration sans clic** si le modèle, manipulé, écrit une image dont l'URL contient des données du contexte. Le navigateur charge l'image automatiquement et envoie ces données au domaine choisi par l'attaquant, sans le moindre script.
+
+<Code file="apps/web/src/assistant/AnswerView.tsx">
+
+```tsx
+import Markdown from 'react-markdown';
+
+const ALLOWED_LINK = /^https:\/\/(app|docs)\.novafact\.example\//;
+
+export const AnswerView = ({ text }: { text: string }) => (
+  <Markdown
+    skipHtml                                   // aucun HTML brut
+    disallowedElements={['img']}               // pas d'image : pas de requête automatique
+    urlTransform={(url) => (ALLOWED_LINK.test(url) ? url : '')}
+  >
+    {text}
+  </Markdown>
+);
+```
+
+</Code>
+
+La CSP de la SPA (`img-src 'self'`, `connect-src` limité) sert de seconde barrière si un autre composant affiche un jour la sortie sans ces réglages.
+
+## L'IA qui fait de la recherche offensive
+
+En août 2026, James Kettle a présenté à Black Hat USA *Meet the HTTP Terminator*, un système autonome qui **invente de nouvelles variantes de désynchronisation HTTP** (leçon 5) et les teste à grande échelle. Le système formalise un processus de recherche jusque-là intuitif en quatre étapes (idéation, évaluation, exploitation, puis « cascade », quand une découverte devient le point de départ de l'hypothèse suivante), et ses meilleurs résultats sont venus quand le chercheur reprenait la main à cette dernière étape. PortSwigger en a publié le code en preuve de concept open source. Avec les agents de pentest comme Strix ou XBOW (module 13), c'est une tendance de fond : le rythme d'apparition des variantes s'accélère.
+
+<Callout kind="tip">
+Pour un défenseur, la conséquence est nette : les contrôles qui **énumèrent** les variantes (règles WAF par signature, filtres de chaînes) perdent du terrain ; ceux qui **suppriment la classe** (HTTP/2 de bout en bout, parsers stricts, isolation, moindre privilège) gardent leur valeur. C'est tout l'argument du module 3, et une bonne façon de le présenter à une direction.
+</Callout>
+
+<Callout kind="warn">
+L'Academy a ajouté une section sur les **scanners assistés par IA** : un scanner qui lit du contenu contrôlé par l'attaquant (les pages qu'il teste) peut lui-même subir une injection de prompt indirecte, et être amené à exfiltrer des données ou à viser des systèmes internes. Si ton équipe adopte un agent de pentest, applique-lui la règle de deux : environnement isolé, pas d'identifiants de production, sortie réseau limitée au périmètre testé.
+</Callout>
+
+## Détecter
+
+Les contrôles web ne voient pas l'injection indirecte ; la trace est dans l'application. Journalise chaque appel d'outil avec l'identifiant de session, les documents présents dans le contexte (et leur provenance : saisie de l'utilisateur ou import externe) et la décision de l'utilisateur sur l'action en attente. Deux signaux simples dans Elastic : une action à effet proposée dans une session qui a ingéré un document externe, et un taux de refus anormal des actions proposées pour un tenant, qui indique souvent un document piégé.
+
+<Recap items={[
+  "Un LLM connecté à des outils est un utilisateur non fiable qui dispose de droits : ses API se protègent comme des API publiques.",
+  "Trois familles : abus des API du modèle, injection indirecte, sortie non maîtrisée.",
+  "Lethal trifecta et Rule of Two : pas plus de deux propriétés parmi entrées non fiables, données sensibles, action externe.",
+  "Les outils prennent le tenant dans la session, valident leurs arguments et préparent les actions au lieu de les exécuter.",
+  "La sortie du modèle se rend sans HTML ni images arbitraires : l'exfiltration par image ne demande aucun script.",
+  "L'IA accélère l'invention de variantes : les contrôles qui suppriment une classe prennent l'avantage.",
+]} />
+
+<Lab id="ps-llm" />
+
+<Sources items={[
+  { title: "Web Security Academy : Web LLM attacks", url: "https://portswigger.net/web-security/llm-attacks" },
+  { title: "PortSwigger : Can AI invent new attack techniques ? (HTTP Terminator)", url: "https://portswigger.net/blog/can-ai-invent-new-attack-techniques-new-research-from-james-kettle-and-portswigger-research" },
+  { title: "OWASP GenAI Security Project", url: "https://genai.owasp.org/" },
+  { title: "Simon Willison : The lethal trifecta for AI agents", url: "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/" },
+  { title: "Meta AI : Agents Rule of Two", url: "https://ai.meta.com/blog/practical-ai-agent-security/" },
+  { title: "react-markdown", url: "https://github.com/remarkjs/react-markdown", note: "skipHtml, disallowedElements, urlTransform" },
+]} />

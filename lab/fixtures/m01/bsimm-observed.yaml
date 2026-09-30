@@ -1,0 +1,47 @@
+# Étude descriptive — données embarquées du lab.
+#
+# Reprend l'IDÉE de BSIMM : ne pas dire ce qu'il faudrait faire, mais décrire ce
+# que font réellement les organisations observées, activité par activité, avec
+# la proportion de celles qui la pratiquent. Les identifiants reprennent la
+# nomenclature BSIMM (domaine, niveau, rang) ; les intitulés sont réécrits en
+# français et les fréquences sont celles de ce lab, pas celles d'un rapport.
+#
+# Ce fichier existe pour opposer deux lectures : un modèle prescriptif dit
+# « niveau 3 » ; une étude descriptive dit « 9 organisations sur 10 le font
+# déjà, et vous non ». La seconde déplace plus de budget que la première.
+#
+# Seuil retenu par le challenge : une activité est dite TRÈS RÉPANDUE quand sa
+# fréquence est supérieure ou égale à 60 %.
+
+activites:
+  - { id: SM1.1, frequence: 74, nom: 'Publier un plan de sécurité applicative et le faire porter' }
+  - { id: SM1.4, frequence: 81, nom: 'Tenir l''inventaire des applications et de leur criticité' }
+  - { id: SM2.1, frequence: 42, nom: 'Publier des indicateurs et s''en servir pour arbitrer' }
+  - { id: SM3.2, frequence: 21, nom: 'Faire porter le programme par un sponsor exécutif' }
+  - { id: CP1.2, frequence: 88, nom: 'Identifier les obligations réglementaires applicables au produit' }
+  - { id: CP2.1, frequence: 47, nom: 'Décliner les obligations en exigences testables' }
+  - { id: CP2.4, frequence: 55, nom: 'Imposer des clauses de sécurité aux fournisseurs' }
+  - { id: T1.1, frequence: 77, nom: 'Sensibiliser toute l''équipe technique à la sécurité' }
+  - { id: T2.5, frequence: 38, nom: 'Former par rôle et sur la pile réellement utilisée' }
+  - { id: T3.4, frequence: 12, nom: 'Certifier les compétences des relais sécurité' }
+  - { id: AM1.2, frequence: 63, nom: 'Tenir une liste des attaques probables sur le produit' }
+  - { id: AM2.1, frequence: 29, nom: 'Tenir un modèle de menaces à jour par composant' }
+  - { id: SFD1.1, frequence: 71, nom: 'Fournir des composants de sécurité réutilisables' }
+  - { id: SFD2.1, frequence: 34, nom: 'Imposer un chemin par défaut sûr pour les nouvelles fonctions' }
+  - { id: SR1.1, frequence: 69, nom: 'Écrire des exigences de sécurité opposables aux équipes' }
+  - { id: SR1.3, frequence: 61, nom: 'Traduire les exigences en contrôles vérifiables dans le dépôt' }
+  - { id: SR3.3, frequence: 18, nom: 'Tracer chaque exigence jusqu''au test qui l''établit' }
+  - { id: AA1.1, frequence: 66, nom: 'Relire la conception des fonctions sensibles' }
+  - { id: AA2.1, frequence: 27, nom: 'Relire la conception à partir du modèle de menaces' }
+  - { id: CR1.4, frequence: 85, nom: 'Analyser le code automatiquement à chaque changement' }
+  - { id: CR2.6, frequence: 24, nom: 'Écrire des règles d''analyse propres au produit' }
+  - { id: ST1.1, frequence: 72, nom: 'Tester les fonctions à haut risque avant mise en production' }
+  - { id: ST2.4, frequence: 31, nom: 'Automatiser un test par exigence de sécurité retenue' }
+  - { id: PT1.1, frequence: 90, nom: 'Faire réaliser des tests d''intrusion périodiques' }
+  - { id: PT1.2, frequence: 78, nom: 'Réinjecter les constats de pentest dans le suivi des défauts' }
+  - { id: PT3.1, frequence: 16, nom: 'Transformer chaque constat en test de non-régression durable' }
+  - { id: SE1.2, frequence: 83, nom: 'Tenir l''inventaire des dépendances et de leur provenance' }
+  - { id: SE2.4, frequence: 26, nom: 'Signer les artefacts publiés et vérifier à l''admission' }
+  - { id: CMVM1.2, frequence: 80, nom: 'Disposer d''un canal de signalement de vulnérabilités' }
+  - { id: CMVM2.1, frequence: 64, nom: 'Corriger dans des délais fixés par la criticité' }
+  - { id: CMVM3.4, frequence: 19, nom: 'Fermer la boucle : l''incident corrige la classe de cause' }

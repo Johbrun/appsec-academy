@@ -1,0 +1,190 @@
+export const questions = [
+  {
+    q: "Pourquoi une limite de tentatives par adresse IP ne suffit-elle pas contre le credential stuffing moderne ?",
+    options: [
+      "Parce que les clients derrière un NAT d'entreprise partagent tous la même adresse publique",
+      "Parce que le navigateur peut masquer son adresse via un résolveur DNS chiffré",
+      "Parce que l'attaquant usurpe l'adresse source dans les paquets qu'il envoie",
+      "Parce que les attaquants répartissent les essais sur des milliers de proxys résidentiels",
+    ],
+    answer: 3,
+    explain: "Une attaque distribuée sur des milliers d'adresses résidentielles reste sous toutes les limites par IP, avec deux ou trois essais par compte. Le NAT d'entreprise est un vrai problème de la limite par IP, mais dans l'autre sens : il produit des faux positifs, il n'explique pas l'échec de la détection. Et on n'usurpe pas une adresse source sur une connexion TCP, la poignée de main ne se termine pas. Il faut combiner limites par compte, mots de passe compromis, MFA et signaux globaux.",
+  },
+  {
+    q: "Comment vérifier qu'un mot de passe figure dans une fuite connue sans l'envoyer à un tiers ?",
+    options: [
+      "En envoyant l'empreinte SHA-256 complète, qui n'est pas réversible",
+      "Avec le k-anonymat : on n'envoie que le préfixe de l'empreinte SHA-1",
+      "En chiffrant le mot de passe avec la clé publique du service avant l'envoi",
+      "En le comparant à une liste locale des dix mille mots de passe les plus courants",
+    ],
+    answer: 1,
+    explain: "On envoie les cinq premiers caractères de l'empreinte SHA-1, le service renvoie toutes celles qui commencent ainsi, et la comparaison se fait chez Novafact : le service ne sait pas laquelle t'intéressait. Envoyer une empreinte complète, même SHA-256, est le piège — elle n'est pas réversible, mais elle identifie exactement le mot de passe pour qui possède déjà le dictionnaire, ce qui est précisément le métier de ce service.",
+  },
+  {
+    q: "Pourquoi Novafact prévient-il l'ancienne adresse et garde-t-il l'ancien IBAN sur les factures pendant 72 heures après un changement ?",
+    options: [
+      "Parce que le RGPD impose d'informer la personne de toute modification de ses données",
+      "Parce que la banque a besoin de ce délai pour valider le nouvel IBAN",
+      "Parce qu'un attaquant qui a pris le compte contrôle la nouvelle adresse, pas l'ancienne",
+      "Parce qu'une facture déjà émise ne doit plus changer après son envoi",
+    ],
+    answer: 2,
+    explain: "La monétisation d'une prise de contrôle passe par ces deux changements. Notifier une adresse hors de portée de l'attaquant et geler l'IBAN pendant 72 heures transforme une fraude silencieuse en incident détecté, avec le temps de réagir. L'immuabilité d'une facture émise est un vrai principe, mais elle n'explique ni la notification ni le délai : elle s'appliquerait de la même façon sans aucun changement d'IBAN.",
+  },
+  {
+    q: "Laquelle de ces pratiques NIST SP 800-63B-4 interdit-elle pour les mots de passe ?",
+    options: [
+      "Imposer un changement périodique et des règles de composition",
+      "Interdire les mots de passe figurant dans une liste de fuites connues",
+      "Refuser un mot de passe de plus de 64 caractères pour éviter les abus",
+      "Bloquer temporairement un compte après plusieurs échecs consécutifs",
+    ],
+    answer: 0,
+    explain: "La révision 4 écrit SHALL NOT pour le renouvellement périodique et pour les règles de composition : les deux poussent l'utilisateur vers des variantes prévisibles. Elle écrit au contraire SHALL pour la comparaison à une liste de mots de passe compromis, et autorise explicitement la limitation des tentatives — d'où la difficulté de la question, ces propositions décrivant des pratiques recommandées, pas interdites. Elle impose aussi d'accepter au moins 64 caractères.",
+  },
+];
+
+<YouKnow>
+Tu as sûrement monté des attaques par pulvérisation de mots de passe pendant des tests. Le credential stuffing, c'est la même idée à l'échelle industrielle, avec les milliards d'identifiants des fuites passées.
+</YouKnow>
+
+## Le mécanisme
+
+Les utilisateurs réutilisent leurs mots de passe. Des milliards de couples identifiant et mot de passe circulent après des fuites, et des outils les testent en masse sur d'autres sites. Le taux de réussite est faible, mais sur des millions d'essais, il suffit. Le résultat : une **prise de contrôle de compte** (ATO, *account takeover*), sans aucune vulnérabilité dans l'application.
+
+Deux sources alimentent ces listes. Les **fuites de bases** d'autres services, souvent anciennes, donnent des mots de passe que l'utilisateur a peut-être changés depuis. Les **infostealers**, des logiciels malveillants installés sur les postes des victimes, récoltent les identifiants enregistrés dans le navigateur : ils sont récents, donc beaucoup plus souvent valides. La conséquence pratique : un identifiant rejoué avec succès ne produit **aucun échec** sur le compte concerné. Du point de vue de ce compte, c'est une connexion normale.
+
+Pour Novafact, la prise de contrôle a une monétisation évidente : changer l'IBAN affiché sur les factures pour que les clients du client paient le fraudeur. C'est la fraude au changement de coordonnées bancaires, appliquée depuis l'intérieur d'un compte légitime.
+
+<Callout kind="case">
+**23andMe (2023).** D'avril à septembre 2023, un attaquant a mené une campagne de credential stuffing contre la plateforme. Selon la déclaration de l'entreprise à la SEC, environ 14 000 comptes ont été pris, mais la fonctionnalité de partage entre proches (DNA Relatives) a exposé les données d'environ 6,9 millions de personnes. Des enquêtes ponctuelles en juillet n'ont pas déclenché d'investigation globale avant la mise en vente des données en octobre. L'ICO britannique a infligé en juin 2025 une amende de 2,31 millions de livres, en citant l'absence de MFA obligatoire et de surveillance efficace des menaces. Deux leçons : les fonctionnalités de partage amplifient chaque ATO, et des signaux isolés doivent être reliés entre eux (leçon 7).
+</Callout>
+
+## Les signaux
+
+| Signal | Ce qu'il suggère |
+| --- | --- |
+| Taux d'échec de connexion qui grimpe sur l'ensemble du service | Une campagne en cours |
+| Beaucoup de comptes, peu d'essais chacun | Credential stuffing ou pulvérisation |
+| Proportion élevée d'identifiants inexistants | Une liste achetée, pas tes utilisateurs |
+| Adresses IP résidentielles variées, même empreinte de client | Un réseau de proxys |
+| Connexion réussie depuis un pays ou un appareil inhabituel, puis changement d'e-mail ou d'IBAN | Prise de contrôle suivie de monétisation |
+
+Le troisième signal est souvent le plus net : tes vrais utilisateurs se trompent de mot de passe, rarement d'adresse e-mail. Une vague de tentatives sur des comptes qui n'existent pas trahit une liste générique.
+
+## La défense en couches
+
+<Steps items={[
+  { title: "MFA et passkeys", text: "La défense la plus efficace : un mot de passe volé ne suffit plus. Les passkeys résistent en plus au phishing (M8)." },
+  { title: "Mots de passe compromis", text: "Refuser à l'inscription et au changement les mots de passe présents dans des fuites (Pwned Passwords, avec k-anonymat), comme l'exige NIST SP 800-63B-4." },
+  { title: "Limites par compte et globales", text: "Ralentir après plusieurs échecs sur un compte, et surveiller le taux d'échec global (leçon 3)." },
+  { title: "Défis adaptatifs", text: "Un défi ou une MFA supplémentaire quand le risque monte, plutôt que pour tout le monde (leçon 4)." },
+  { title: "Protéger les actions sensibles", text: "Changer l'e-mail, l'IBAN ou le mot de passe exige une réauthentification récente et prévient l'ancienne adresse." },
+  { title: "Notifier", text: "Un e-mail à chaque connexion depuis un nouvel appareil permet à l'utilisateur de réagir." },
+]} />
+
+Chaque couche couvre le trou de la précédente. La MFA protège les comptes qui l'ont activée, pas les autres. Le refus des mots de passe compromis protège les nouveaux mots de passe, pas ceux déjà en base. Les limites ralentissent, sans arrêter un attaquant patient. La protection des actions sensibles, enfin, limite ce qu'un compte pris permet de faire : c'est la couche qui reste quand toutes les autres ont cédé.
+
+## Ce que dit NIST SP 800-63B-4
+
+La révision 4, publiée en août 2025, tranche plusieurs débats :
+
+| Exigence NIST | Conséquence chez Novafact |
+| --- | --- |
+| Comparer tout nouveau mot de passe à une liste de mots de passe courants, attendus ou compromis (SHALL) | Vérification Pwned Passwords à l'inscription et au changement |
+| Au moins 15 caractères pour un mot de passe utilisé seul, 8 s'il fait partie d'une MFA | 15 caractères tant que la MFA reste optionnelle |
+| Accepter au moins 64 caractères (SHOULD) | Les gestionnaires de mots de passe fonctionnent |
+| Pas de règles de composition, pas de changement périodique (SHALL NOT) | Suppression de la règle « une majuscule, un chiffre » et de l'expiration à 90 jours |
+| Limiter à 100 au plus les échecs consécutifs sur un compte | Ralentissement progressif bien avant ce plafond (leçon 3) |
+
+Le plafond de 100 surprend souvent : il est volontairement haut, car un verrouillage trop précoce devient une arme de déni de service. NIST cite des alternatives pour gêner l'attaquant avant ce seuil : CAPTCHA, attente croissante entre essais, authentification fondée sur le risque (adresse IP, géolocalisation, métadonnées du navigateur).
+
+## Pwned Passwords sans fuite
+
+Le service Pwned Passwords de Have I Been Pwned utilise le **k-anonymat** : Novafact calcule l'empreinte SHA-1 du mot de passe, n'envoie que ses **5 premiers caractères**, reçoit la liste des suffixes d'empreintes qui commencent ainsi (avec leur nombre d'occurrences), et compare localement. Le mot de passe ne quitte jamais Novafact, ni même son empreinte complète. L'API ne demande pas de clé, et l'en-tête `Add-Padding: true` ajoute des entrées factices (avec un compteur à 0) pour que la taille de la réponse ne trahisse rien.
+
+<Code file="apps/bff/src/auth/pwnedPasswords.ts" hl="5,9,15">
+
+```ts
+import { createHash } from 'node:crypto';
+
+/** Nombre d'occurrences du mot de passe dans les fuites connues (0 si absent). */
+export async function pwnedCount(password: string): Promise<number> {
+  const hash = createHash('sha1').update(password, 'utf8').digest('hex').toUpperCase();
+  const prefix = hash.slice(0, 5);
+  const suffix = hash.slice(5);
+
+  const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    headers: { 'Add-Padding': 'true', 'User-Agent': 'novafact-bff' },
+    signal: AbortSignal.timeout(2_000),
+  });
+  if (!res.ok) throw new Error(`pwned-passwords: HTTP ${res.status}`);
+
+  for (const line of (await res.text()).split('\n')) {
+    const [candidate, count] = line.trim().split(':');
+    if (candidate === suffix) return Number(count); // les entrées de padding valent 0
+  }
+  return 0;
+}
+```
+
+</Code>
+
+Deux décisions restent à prendre. **Que faire si le service ne répond pas ?** Chez Novafact, l'inscription continue (échec ouvert), l'événement est journalisé, et le mot de passe est revérifié à la connexion suivante ; pour un besoin plus strict, le corpus peut être téléchargé et interrogé localement. **Où faire la vérification ?** Avec Cognito, elle dépend du flux : si le BFF reçoit le mot de passe (flux `ADMIN_USER_PASSWORD_AUTH`), il peut l'appeler ; avec SRP, le mot de passe n'atteint jamais le serveur. Le plan Plus de Cognito propose une détection des identifiants compromis intégrée, mais la documentation précise qu'elle ne s'applique ni à SRP ni à l'authentification personnalisée.
+
+## Limiter ce qu'un compte pris permet
+
+Le changement d'IBAN est l'action la plus rentable pour un attaquant. Avant, Novafact l'acceptait avec une simple session valide :
+
+<Diff file="apps/api/src/routes/settings.ts" hlBefore="1,3" hlAfter="1,5,6,8,9">
+
+```ts
+router.patch('/settings/iban', requireSession, async (req, res) => {
+  const { iban } = ibanSchema.parse(req.body);
+  await prisma.tenant.update({ where: { id: req.tenant.id }, data: { iban } });
+  res.sendStatus(204);
+});
+```
+
+```ts
+router.patch('/settings/iban', requireSession, requireRecentAuth({ maxAgeSec: 300, mfa: true }), async (req, res) => {
+  const { iban } = ibanSchema.parse(req.body);
+  const before = await prisma.tenant.findUniqueOrThrow({ where: { id: req.tenant.id }, select: { iban: true } });
+  await prisma.tenant.update({
+    where: { id: req.tenant.id },
+    data: { pendingIban: iban, pendingIbanEffectiveAt: new Date(Date.now() + 72 * 3_600_000) },
+  });
+  await notify.security(req.tenant.ownerEmail, 'iban_change_requested', { previousLast4: before.iban?.slice(-4) });
+  audit.log(req, 'iban_change_requested');
+  res.sendStatus(202);
+});
+```
+
+</Diff>
+
+`requireRecentAuth` vérifie dans la session du BFF l'heure de la dernière authentification et la présence d'un second facteur. Le nouvel IBAN ne s'applique qu'après 72 heures, l'ancienne adresse du propriétaire est prévenue avec un lien pour annuler, et l'événement est tracé. Un attaquant qui a pris le compte ne contrôle ni la boîte de l'ancien propriétaire, ni le délai.
+
+<Callout kind="debate">
+**MFA obligatoire pour tous ?** Pour un SaaS qui manipule des IBAN, beaucoup d'équipes l'imposent aux rôles propriétaire et administrateur, et la proposent aux autres. L'argument contre l'obligation générale : le support croule sous les pertes de second facteur, et les petits clients abandonnent l'inscription. Le compromis courant : MFA obligatoire pour les rôles qui peuvent modifier l'IBAN ou exporter, passkeys proposées dès l'inscription, et réauthentification forte sur les actions sensibles pour tout le monde.
+</Callout>
+
+<Recap items={[
+  "Le credential stuffing exploite la réutilisation des mots de passe ; les identifiants issus d'infostealers réussissent sans aucun échec.",
+  "Les attaques distribuées restent sous les limites par IP : il faut des signaux globaux, dont le taux d'identifiants inexistants.",
+  "MFA et passkeys d'abord, puis refus des mots de passe compromis, limites par compte et défis adaptatifs.",
+  "NIST SP 800-63B-4 exige la liste de mots de passe compromis et interdit composition imposée et expiration périodique.",
+  "Les actions sensibles (IBAN, e-mail) exigent une réauthentification récente, un délai de carence et une notification hors de portée de l'attaquant.",
+]} />
+
+<Lab id="ps-authentication" />
+
+<Sources items={[
+  { title: "OWASP Cheat Sheet : Credential Stuffing Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Credential_Stuffing_Prevention_Cheat_Sheet.html" },
+  { title: "Have I Been Pwned : Pwned Passwords", url: "https://haveibeenpwned.com/Passwords" },
+  { title: "Have I Been Pwned : documentation de l'API (range, Add-Padding)", url: "https://haveibeenpwned.com/API/v3" },
+  { title: "NIST SP 800-63B-4", url: "https://pages.nist.gov/800-63-4/sp800-63b.html" },
+  { title: "Amazon Cognito : threat protection", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pool-settings-threat-protection.html" },
+  { title: "HIPAA Journal : 23andMe, credential stuffing et déclaration SEC", url: "https://www.hipaajournal.com/23andme-user-data-stolen-credential-stuffing-campaign/" },
+  { title: "ICO : amende de 23andMe (juin 2025)", url: "https://ico.org.uk/about-the-ico/media-centre/news-and-blogs/2025/06/23andme-fined-for-failing-to-protect-uk-users-genetic-data/" },
+]} />

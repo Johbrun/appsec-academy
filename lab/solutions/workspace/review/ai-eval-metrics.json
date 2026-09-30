@@ -1,0 +1,5 @@
+{
+  "precision": 0.267,
+  "rappel": 0.625,
+  "note": "8 vrais positifs sur 30 constats rendus ; 5 des 8 défauts connus couverts. À cette précision, chaque constat juste coûte trois constats à écarter."
+}

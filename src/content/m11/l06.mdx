@@ -1,0 +1,145 @@
+export const questions = [
+  {
+    q: "Quel est l'actif principal quand on modélise les menaces de l'environnement de développement ?",
+    options: [
+      "Les identifiants des développeurs, qui ouvrent tous les autres accès",
+      "Le code source et la capacité à le publier en production",
+      "Les postes de travail, seul point de contact avec le reste du système",
+      "La chaîne d'intégration continue et les secrets qu'elle détient",
+    ],
+    answer: 1,
+    explain: "Kohnfelder (K13) recommande de modéliser l'environnement de développement en traitant le code source — et surtout le pouvoir de le publier — comme l'actif principal : c'est ce qui se retrouve chez tous les clients. La CI est le chemin le plus probable pour y parvenir, mais c'est un moyen, pas l'actif : la protéger sans protéger le dépôt laisse ouverte la voie du commit direct.",
+  },
+  {
+    q: "Qu'est-ce qui change dans le threat model d'un agent IA par rapport à une API classique ?",
+    options: [
+      "Des données non fiables peuvent se comporter comme des instructions",
+      "Le modèle peut produire des réponses fausses qui trompent l'utilisateur",
+      "Le prompt système peut être extrait par un utilisateur suffisamment insistant",
+      "Le fournisseur du modèle voit toutes les données qui lui sont envoyées",
+    ],
+    answer: 0,
+    explain: "La frontière entre données et instructions disparaît : chaque source de contenu devient une surface d'attaque, et chaque outil un impact potentiel. Les autres propositions sont de vrais sujets, mais l'extraction du prompt système et la confidentialité vis-à-vis du fournisseur se modélisent comme n'importe quelle divulgation d'information, et les réponses fausses relèvent de la qualité. Seule l'injection indirecte change la structure du modèle.",
+  },
+  {
+    q: "L'assistant IA de Novafact lit les e-mails entrants des clients et a accès aux factures de tous les tenants de l'utilisateur. Selon la « Rule of Two » de Meta, que ne doit-il pas pouvoir faire sans validation humaine ?",
+    options: [
+      "Lire les factures des autres tenants du même utilisateur",
+      "Résumer un e-mail reçu et afficher le résumé dans l'interface",
+      "Changer un état ou communiquer vers l'extérieur (e-mail, IBAN, URL)",
+      "Traiter un e-mail dont l'expéditeur n'est pas un client déjà connu",
+    ],
+    answer: 2,
+    explain: "La Rule of Two veut qu'un agent ne cumule pas plus de deux des trois propriétés : entrées non fiables, accès à des données sensibles, capacité d'agir ou de communiquer sans validation. Ici les deux premières sont déjà là, donc c'est la troisième qu'il faut retirer, ou placer un humain dans la boucle. Restreindre la lecture aux tenants de l'utilisateur est une mesure saine, mais elle ne change pas le compte : l'agent garde l'accès à des données sensibles.",
+  },
+  {
+    q: "Dans le modèle de menaces de SLSA, quelle menace n'est couverte ni par la piste Source ni par la piste Build ?",
+    options: [
+      "Le choix d'un mauvais paquet par le consommateur, comme un typosquat",
+      "La compromission de la plateforme de build par un attaquant interne",
+      "La modification du code dans le dépôt sans passer par une revue",
+      "La publication d'un artefact qui ne correspond pas à ses sources",
+    ],
+    answer: 0,
+    explain: "SLSA prouve d'où vient un artefact et comment il a été construit : la piste Source couvre la modification non revue, la piste Build couvre la compromission de la plateforme et l'artefact qui ne correspond pas aux sources. Ce qu'aucune des deux ne dit, c'est si tu as choisi le bon paquet — un typosquat parfaitement construit satisfait SLSA niveau 3. La sélection des dépendances relève d'autres contrôles (M14).",
+  },
+];
+
+<YouKnow>
+Les attaques récentes les plus marquantes ne visaient pas le code applicatif, mais la chaîne qui le produit ou les agents qui l'utilisent. Le threat model doit s'étendre à ces systèmes.
+</YouKnow>
+
+## L'environnement de développement
+
+Kohnfelder (K13) recommande de modéliser les menaces de l'environnement de développement lui-même, avec le **code source comme actif principal**. Il en tire des mesures de base : postes de développement configurés et mis à jour, usage personnel limité, revue systématique des nouvelles dépendances, machines de build administrées avec soin, secrets comme les clés de signature gérés à part, et une séparation nette entre développement et production (le développeur n'accède pas aux données de production, l'exploitation n'a pas d'accès en écriture au code). Les attaques de 2025 lui donnent raison : Shai-Hulud volait les jetons sur les postes des développeurs et les runners CI, et l'action tj-actions/changed-files, utilisée par des dizaines de milliers de dépôts, a été modifiée pour écrire les secrets des pipelines dans leurs journaux.
+
+| Élément | Menaces typiques |
+| --- | --- |
+| Poste du développeur | Paquet npm malveillant à l'installation, extension d'IDE compromise, vol de jetons |
+| Assistant de code IA | Instructions cachées dans un fichier du dépôt, outils MCP trop puissants, commandes exécutées sans relecture |
+| Dépôt | Compte compromis, merge sans revue, modification des workflows |
+| CI/CD | Exécution de code non fiable avec des secrets, actions tierces compromises, cache empoisonné |
+| Registre | Publication d'une version malveillante, typosquatting |
+| Déploiement | Rôle de déploiement trop large, artefact non vérifié |
+
+Le point commun de ces menaces : l'attaquant ne cherche pas une faille dans Novafact, il cherche à **devenir** un développeur de Novafact, le temps d'un commit ou d'une publication.
+
+## Le modèle de SLSA
+
+Le modèle de menaces de **SLSA** (M14) décrit ces menaces de la source à l'usage, avec une lettre par point d'attaque. Il a l'avantage de dire aussi ce que SLSA **ne** couvre **pas** :
+
+| Menace SLSA | Chez Novafact | Couverte par |
+| --- | --- | --- |
+| A. Producteur malveillant | Un mainteneur d'une dépendance qui publie volontairement du code hostile | Aucune piste |
+| B. Création et revue | Commit poussé sans revue, ou revue contournée | Piste Source |
+| C. Gestion du code source | Compromission de l'organisation GitHub | Piste Source |
+| D. Paramètres de build externes | Build lancé depuis une branche ou un paramètre non prévu | Piste Build (provenance) |
+| E. Processus de build | Runner compromis qui modifie l'artefact | Piste Build |
+| F. Publication de l'artefact | Image poussée à la main dans ECR, hors pipeline | Piste Build (vérification de provenance) |
+| G. Canal de distribution | Miroir ou registre intermédiaire compromis | Piste Build |
+| H. Sélection du paquet | Paquet typosquatté ajouté par erreur | Aucune piste |
+| I. Usage | Image correcte, mais déployée avec des identifiants par défaut | Aucune piste |
+
+Les lignes « aucune piste » sont celles où le threat model de Novafact doit apporter ses propres contrôles : revue des nouvelles dépendances (A, H), configuration sûre par défaut et scans de déploiement (I).
+
+## Les agents IA
+
+Un agent IA a un profil de menaces nouveau :
+
+<Steps items={[
+  { title: "Les données deviennent des instructions", text: "Un document, une page web ou un e-mail lu par l'agent peut contenir des consignes (injection indirecte)." },
+  { title: "Les outils deviennent l'impact", text: "Ce que l'agent peut faire (envoyer, créer, supprimer, payer) est ce qu'un attaquant peut lui faire faire." },
+  { title: "Les droits sont ceux de l'agent", text: "Risque de confused deputy si l'agent agit avec ses propres droits (M8)." },
+  { title: "La mémoire persiste", text: "Une injection stockée en mémoire ou dans le RAG continue d'agir." },
+]} />
+
+Deux heuristiques de conception, apparues en 2025, se prêtent bien au threat modeling. La **« lethal trifecta »** de Simon Willison désigne la combinaison dangereuse d'un agent qui a accès à des données privées, qui est exposé à du contenu non fiable, et qui peut communiquer vers l'extérieur : les trois ensemble permettent l'exfiltration par injection. La **« Agents Rule of Two »** publiée par Meta généralise l'idée : un agent ne devrait cumuler, sans supervision humaine, que deux des trois propriétés suivantes : traiter des entrées non fiables, accéder à des systèmes sensibles ou des données privées, changer un état ou communiquer vers l'extérieur.
+
+Appliqué à l'assistant de Novafact, qui passe par des serveurs MCP :
+
+| Outil de l'assistant | Entrée non fiable | Données sensibles | Change un état / sort | Décision |
+| --- | --- | --- | --- | --- |
+| Résumer les e-mails entrants | ✓ | ✓ |  | Autorisé |
+| Rechercher des factures | (texte des factures) | ✓ |  | Autorisé, filtré par tenant dans la DAL |
+| Rédiger un e-mail de relance | ✓ | ✓ | ✓ | Brouillon seulement, envoi par l'humain |
+| Modifier les coordonnées bancaires | ✓ | ✓ | ✓ | Outil retiré de l'assistant |
+
+Le tableau se lit comme un threat model : chaque ligne qui coche les trois colonnes appelle une validation humaine ou la suppression de l'outil. Dans le DFD, représente chaque **source de contenu** lue par l'agent comme une entité externe non fiable, et chaque **outil** comme un flux vers un système à protéger.
+
+**MITRE ATLAS** fournit les tactiques et techniques propres aux systèmes d'IA, et l'**OWASP Top 10 for Agentic Applications 2026**, publié en décembre 2025, les risques des agents (détournement d'objectif, mauvais usage des outils, abus d'identité et de privilèges, empoisonnement de la mémoire…). Pour les systèmes multi-agents, le cadre **MAESTRO** de la Cloud Security Alliance propose une analyse en sept couches, des modèles de fondation jusqu'à l'intégration dans l'écosystème. Le module 19 détaille ces référentiels.
+
+## Le cloud
+
+Le modèle de responsabilité partagée fixe la frontière : AWS sécurise l'infrastructure, Novafact sa configuration, ses identités et ses données. Les menaces cloud se concentrent sur l'**IAM** (M15), la **configuration** (M16) et la **détection** (M18). Dans un DFD, cela se traduit par une règle simple : chaque rôle IAM est un **processus** à part entière, avec ses propres menaces d'élévation de privilège, et chaque politique de ressource (bucket, file, clé KMS) est une frontière de confiance. **Stratus Red Team** permet de rejouer des techniques d'attaque cloud pour vérifier que le modèle et les détections tiennent.
+
+## La revue de risque architecturale
+
+Les threat models par fonctionnalité voient bien le local et mal le systémique : un même secret partagé par trois services, un rôle IAM que tout le monde réutilise, un point unique de défaillance. Une fois par an, ou avant un changement majeur, Novafact assemble les modèles existants en une **revue de risque architecturale** : un DFD de haut niveau, les frontières principales, les hypothèses de chaque modèle confrontées entre elles. Le résultat alimente un registre de risques avec un propriétaire par ligne, et c'est souvent là qu'apparaissent les menaces qu'aucune équipe ne possédait.
+
+## Animer un atelier
+
+- 6 à 8 personnes : développeurs, PO, champion, AppSec. Un animateur et un scribe distincts.
+- Un DFD préparé, projeté, simple, envoyé la veille.
+- On cherche les menaces **ensemble** ; l'AppSec pose des questions plus qu'il ne répond.
+- On finit par les décisions et les tickets, avec un propriétaire pour chacun.
+
+Quelques questions débloquent presque toutes les séances : « qu'est-ce qu'on suppose sur ce flux ? », « que se passe-t-il si cette entité ment ? », « qui d'autre que nous peut écrire ici ? », « comment saurait-on que c'est arrivé ? ». Et une objection revient toujours : « personne ne ferait ça ». La réponse n'est pas de débattre, c'est de noter la menace avec une vraisemblance faible et de passer à la suite : la grille de priorisation (leçon 3) tranchera, et l'hypothèse restera écrite si elle s'avère fausse un jour.
+
+<Recap items={[
+  "L'environnement de développement se modélise avec le code source comme actif principal ; l'attaquant cherche à devenir un développeur le temps d'un commit.",
+  "Le modèle SLSA couvre source, build et distribution ; producteur malveillant, sélection de paquet et usage restent à ta charge.",
+  "Pour un agent IA : les données deviennent des instructions, les outils deviennent l'impact ; lethal trifecta et Rule of Two guident les décisions.",
+  "Dans le cloud, chaque rôle IAM est un processus et chaque politique de ressource une frontière.",
+  "Une revue de risque architecturale assemble les modèles pour voir le systémique ; un atelier réussi pose des questions et finit par des décisions.",
+]} />
+
+<Sources items={[
+  { title: "SLSA : modèle de menaces", url: "https://slsa.dev/spec/v1.2/threats-overview" },
+  { title: "MITRE ATLAS", url: "https://atlas.mitre.org/" },
+  { title: "OWASP Top 10 for Agentic Applications 2026", url: "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/" },
+  { title: "Meta : Agents Rule of Two", url: "https://ai.meta.com/blog/practical-ai-agent-security/" },
+  { title: "Simon Willison : the lethal trifecta for AI agents", url: "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/" },
+  { title: "Cloud Security Alliance : MAESTRO", url: "https://cloudsecurityalliance.org/blog/2025/02/06/agentic-ai-threat-modeling-framework-maestro" },
+  { title: "Stratus Red Team", url: "https://stratus-red-team.cloud/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 13" },
+]} />

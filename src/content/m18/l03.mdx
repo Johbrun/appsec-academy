@@ -1,0 +1,227 @@
+export const questions = [
+  {
+    q: "Dans Discover, `user.name : \"Alice.Martin\"` ne renvoie rien sur CloudTrail, alors que l'événement existe avec `alice.martin`. Pourquoi ?",
+    options: [
+      "KQL met les valeurs en minuscules, mais pas le contenu des champs `keyword`",
+      "Il faut échapper le point de `user.name`, interprété comme un séparateur de chemin",
+      "Sur un champ `keyword`, KQL exige une correspondance exacte, casse comprise",
+      "`user.name` n'est pas rempli par l'intégration CloudTrail, qui n'utilise que `user.id`",
+    ],
+    answer: 2,
+    explain: "Les champs `keyword`, numériques, dates et booléens se comparent tels quels : seuls les champs `text` passent par un analyseur qui met en minuscules. KQL n'applique aucune normalisation de son côté, et c'est l'inversion à corriger — le traitement dépend du type déclaré dans le mapping, pas du langage de requête. Le point dans `user.name` est un séparateur de chemin parfaitement normal et ne s'échappe pas. Pour les variantes de casse, passe par ES|QL (`TO_LOWER`) ou par EQL, dont l'opérateur `:` est insensible à la casse.",
+  },
+  {
+    q: "Tu veux détecter, pour un même utilisateur, une connexion réussie suivie d'une désactivation de la MFA puis d'un export de factures, le tout en moins de 30 minutes. Quel outil convient ?",
+    options: [
+      "Une séquence EQL `sequence by user.id with maxspan=30m` à trois étapes",
+      "Une requête KQL combinant les trois conditions avec `and`",
+      "Une règle threshold sur `user.id` avec un seuil de trois événements",
+      "Une règle ES|QL qui agrège les trois actions par `user.id` avec `STATS…BY`",
+    ],
+    answer: 0,
+    explain: "EQL est fait pour les séquences : des étapes ordonnées, jointes par une clé commune et bornées par `maxspan`. L'agrégation ES|QL est la proposition la plus séduisante, parce qu'elle sait bien réunir les trois actions sous un même `user.id` dans la fenêtre de la règle — mais elle ne dit rien de l'ordre, donc elle alerterait aussi sur un utilisateur qui réactive sa MFA après un export de routine. Le `and` de KQL est pire encore : il évalue un document à la fois, et aucun document ne porte les trois actions.",
+  },
+  {
+    q: "Une source tierce écrit `AccessDenied`, la tienne `accessdenied`, et tu ne peux pas normaliser à l'ingestion. Quel opérateur EQL rattrape les deux ?",
+    options: [
+      "`like`, qui compare par motif et tolère donc les variantes de casse",
+      "`in`, en énumérant les écritures rencontrées dans une liste de valeurs",
+      "`:`, la variante insensible à la casse de l'égalité stricte",
+      "`==` avec la valeur en minuscules, EQL repliant les deux côtés",
+    ],
+    answer: 2,
+    explain: "EQL marque l'insensibilité à la casse par une famille d'opérateurs dédiés : `:` pour l'égalité, et `like~`, `regex~`, `in~` pour les autres — le tilde est le signe. Sans lui, `like` et `in` restent sensibles à la casse, et `==` ne replie rien. Énumérer les écritures marche jusqu'à la prochaine variante que personne n'avait vue passer. Cela dit, l'opérateur est ici un pansement : la vraie correction est de normaliser à l'ingestion, pour que toutes les règles en profitent au lieu de la rattraper chacune de son côté.",
+  },
+
+  {
+    q: "Une règle ES|QL agrège les échecs de connexion par `source.ip` avec STATS…BY. L'analyste s'étonne que l'alerte ne contienne ni user-agent ni exemples d'identifiants. Pourquoi ?",
+    options: [
+      "Parce que les règles ES|QL tronquent les alertes au-delà de dix champs",
+      "Parce que le user-agent est supprimé par la redaction du pipeline d'ingestion Elastic",
+      "Parce que `STATS` ne conserve que le premier document de chaque groupe",
+      "Après `STATS`, la ligne ne porte que les champs du `BY` et les valeurs calculées",
+    ],
+    answer: 3,
+    explain: "Chaque ligne du résultat devient une alerte, et après une agrégation une ligne ne contient plus que les champs du `BY` et ce qui a été calculé. `STATS` ne garde pas davantage « le premier document du groupe » : il n'y a plus de document du tout, seulement un agrégat — c'est la nuance qui trompe, parce qu'on imagine un échantillon représentatif. Ce que l'analyste doit voir se prévoit donc dans la requête : `VALUES(user_agent.original)`, `COUNT_DISTINCT(user.name)`, `MIN` et `MAX` sur l'horodatage.",
+  },
+];
+
+<YouKnow>
+Dans Burp, tu passes sans y penser de la recherche dans l'historique au comparateur puis à l'extension qui rejoue une séquence. Elastic te donne le même découpage : **KQL** pour chercher, **EQL** pour enchaîner des événements dans le temps, **ES|QL** pour compter et comparer. Choisir le bon langage fait souvent la différence entre une requête de trois lignes et une impasse.
+</YouKnow>
+
+## Trois langages, trois questions
+
+| Langage | Question typique | Où on l'utilise | Limite |
+| --- | --- | --- | --- |
+| **KQL** | « Montre-moi les refus d'autorisation du tenant Acme » | Barre de recherche de Discover et des tableaux de bord, règles *custom query*, *threshold*, *new terms* | Filtre seulement : ni agrégation, ni tri, ni ordre temporel |
+| **EQL** | « Qui a fait A puis B puis C en moins de 30 minutes ? » | Règles EQL, onglet *Correlation* de Timeline | Pensé pour des événements ordonnés, pas pour des statistiques |
+| **ES\|QL** | « Quelles IP ont essayé plus de 20 identifiants distincts cette heure ? » | Discover en mode ES\|QL, règles ES\|QL, tableaux de bord | Une ligne de résultat devient une alerte : à concevoir en conséquence |
+
+Une enquête typique les enchaîne : KQL pour cadrer, ES|QL pour trouver l'anomalie dans la masse, EQL pour vérifier qu'une chaîne d'actions s'est bien produite dans l'ordre.
+
+## KQL : chercher vite, et juste
+
+KQL est le langage que tu tapes le plus souvent. Sa syntaxe tient en quelques formes :
+
+<Code file="elastic/queries/kql-novafact.txt">
+
+```text
+event.dataset : "novafact.api" and event.action : "authz_fail" and organization.id : "acme"
+
+event.dataset : "aws.waf" and event.action : "BLOCK" and not url.path : "/health"
+
+http.response.status_code >= 500 and service.name : "novafact-api"
+
+aws.cloudtrail.user_identity.access_key_id : AKIA* and event.outcome : "success"
+
+novafact.object_id : *
+```
+
+</Code>
+
+Les pièges se ressemblent d'une équipe à l'autre :
+
+- **La casse et les keywords** : sur un champ `keyword`, la valeur doit correspondre exactement, casse comprise. `event.action : "block"` ne trouve rien dans les logs WAF, qui écrivent `BLOCK`. Seuls les champs `text` passent par l'analyseur.
+- **L'existence** : `champ : *` teste la présence d'un champ, ce qui sert à repérer les documents incomplets (un événement de sécurité sans `user.id`, par exemple).
+- **Les jokers en tête** (`*admin`) sont coûteux et peuvent être désactivés par l'option `query:allowLeadingWildcards` de Kibana.
+- **La priorité** entre `and` et `or` : mets des parenthèses dès que tu mélanges les deux, plutôt que de te fier à ta mémoire.
+- **Ce qu'il ne sait pas faire** : KQL filtre, un point c'est tout. Dès que la question contient « combien », « le plus », « puis » ou « jamais vu », tu as besoin d'un autre langage.
+
+## EQL : raconter une séquence
+
+EQL (*Event Query Language*) décrit une suite d'événements ordonnés. Chaque étape a la forme `catégorie where condition`, la catégorie étant lue dans `event.category` (d'où l'intérêt d'avoir rempli ce champ ECS dès l'application, leçon 1). `any where` accepte toutes les catégories.
+
+Le scénario de prise de contrôle de compte de Novafact (M10) s'écrit ainsi :
+
+<Code file="elastic/rules/ato-mfa-export.eql" hl="1,5">
+
+```text
+sequence by user.id with maxspan=30m
+  [authentication where event.action == "authn_login_success"]
+  [iam where event.action == "authn_mfa_disabled"]
+  [database where event.action == "invoice_export"]
+until [authentication where event.action == "session_logout"]
+```
+
+</Code>
+
+Trois mécanismes font la puissance de la séquence :
+
+- **La clé de jointure** (`sequence by user.id`) : les trois événements doivent partager la même valeur. Si la clé porte un nom différent selon l'étape, on la déclare étape par étape avec `by`, par exemple `by source.ip` pour un log WAF puis `by client.ip` pour une autre source.
+- **La fenêtre** (`with maxspan=30m`) : tous les événements doivent tomber dans les 30 minutes qui suivent le premier.
+- **L'expiration** (`until`) : si l'utilisateur se déconnecte entre deux étapes, la séquence en cours est abandonnée. C'est un moyen simple de réduire les faux positifs.
+
+EQL sait aussi chercher ce qui **manque**. Chez Novafact, un changement d'IBAN doit être confirmé par un lien envoyé par e-mail. Une demande suivie d'un export sans confirmation dans l'intervalle est suspecte :
+
+<Code file="elastic/rules/iban-sans-confirmation.eql">
+
+```text
+sequence by user.id with maxspan=1h
+  [iam where event.action == "iban_change_requested"]
+  ![iam where event.action == "iban_change_confirmed"]
+  [database where event.action == "invoice_export"]
+```
+
+</Code>
+
+Les étapes « manquantes » (préfixées par `!`) exigent une fenêtre `maxspan`. Côté syntaxe, retiens la distinction entre `==` (sensible à la casse) et `:` (insensible), et les variantes `like~`, `regex~` et `in~` : utiles quand deux sources n'écrivent pas les valeurs de la même façon.
+
+<Callout kind="warn">
+Une séquence n'est jamais meilleure que ses données. Si l'événement `authn_mfa_disabled` n'est pas journalisé quand c'est le **support** qui désactive la MFA (par l'outil d'administration plutôt que par l'API), la règle a un angle mort exactement là où les attaquants d'ingénierie sociale passent. Vérifie chaque étape avec un vrai parcours, pas seulement avec la requête.
+</Callout>
+
+## ES|QL : compter, comparer, enrichir
+
+ES|QL est un langage en tuyaux : chaque commande reçoit une table et en produit une autre. C'est le bon outil pour les questions statistiques. Le credential stuffing se voit par le **nombre d'identifiants distincts** tentés depuis une même source, bien plus que par le nombre d'échecs :
+
+<Code file="elastic/queries/stuffing-par-ip.esql" hl="3,4">
+
+```sql
+FROM logs-novafact.api-prod
+| WHERE event.action == "authn_login_fail" AND @timestamp > NOW() - 1 hour
+| STATS echecs = COUNT(*), identifiants = COUNT_DISTINCT(novafact.login_fingerprint),
+        agents = VALUES(user_agent.original) BY source.ip
+| WHERE identifiants >= 20
+| SORT identifiants DESC
+| LIMIT 50
+```
+
+</Code>
+
+L'empreinte HMAC de la leçon 1 prend ici tout son sens : on compte des identifiants distincts sans jamais les avoir stockés en clair. `COUNT_DISTINCT` est une approximation, largement suffisante à ces volumes.
+
+Côté AWS, une clé volée se trahit souvent par une **rafale de refus** sur des actions variées : l'attaquant cartographie ce qu'elle a le droit de faire.
+
+<Code file="elastic/queries/cartographie-permissions.esql">
+
+```sql
+FROM logs-aws.cloudtrail-*
+| WHERE @timestamp > NOW() - 24 hours AND event.outcome == "failure"
+  AND (aws.cloudtrail.error_code LIKE "*AccessDenied*" OR aws.cloudtrail.error_code LIKE "*UnauthorizedOperation*")
+| STATS refus = COUNT(*), actions = COUNT_DISTINCT(event.action), services = VALUES(event.provider)
+    BY aws.cloudtrail.user_identity.arn, source.ip
+| WHERE actions >= 15
+| SORT actions DESC
+```
+
+</Code>
+
+Deux commandes méritent d'être connues. `BUCKET(@timestamp, 1 hour)` dans un `BY` découpe le temps pour tracer une évolution. `LOOKUP JOIN` enrichit chaque ligne avec un index de référence, configuré en mode `lookup` : Novafact y range ses tenants (offre, pays, responsable de compte), ce qui transforme `organization.id: "t_4812"` en information utile pour le triage.
+
+```sql
+FROM logs-novafact.api-prod
+| WHERE event.action == "authz_fail"
+| STATS refus = COUNT(*) BY organization.id, heure = BUCKET(@timestamp, 1 hour)
+| LOOKUP JOIN novafact-tenants ON organization.id
+| KEEP heure, organization.id, tenant.plan, tenant.owner, refus
+| SORT refus DESC
+```
+
+Dans une règle ES|QL, **chaque ligne du résultat devient une alerte**. Une requête agrégée ne garde que les champs du `BY` et les valeurs calculées : ce que l'analyste doit voir dans l'alerte (user-agents, exemples d'actions) se prévoit dans la requête, avec `VALUES` par exemple.
+
+## Des requêtes qui tiennent la charge
+
+Une requête d'enquête tourne une fois ; une règle tourne toutes les cinq minutes, pendant des années. Quelques habitudes évitent les mauvaises surprises :
+
+- **Cibler l'index** : `FROM logs-aws.cloudtrail-*` plutôt que `FROM logs-*`. Le motif d'index est le premier filtre, et le moins cher.
+- **Filtrer tôt** : en ES|QL, le `WHERE` sur `@timestamp` et `event.action` vient avant tout `STATS` ou `EVAL`. En EQL, une condition précise à chaque étape réduit le nombre de séquences candidates que le moteur garde en mémoire.
+- **Borner les résultats** : sans `LIMIT`, ES|QL renvoie 1 000 lignes par défaut, et jamais plus de 10 000. Une enquête qui « ne trouve que 1 000 IP » a peut-être atteint la limite, pas la réalité.
+- **Nommer les colonnes** en français ou en anglais, mais toujours de la même façon : les requêtes d'enquête deviennent des règles, et les règles des tableaux de bord que d'autres liront.
+
+## Timelines et cas : de l'alerte au dossier
+
+Une requête répond à une question ; une enquête en pose vingt. Elastic Security fournit deux outils pour garder le fil.
+
+<Steps items={[
+  { title: "Ouvrir l'alerte dans une Timeline", text: "La Timeline rassemble les événements autour de l'alerte. Tu y ajoutes des requêtes KQL, et l'onglet Correlation accepte des requêtes EQL, séquences comprises." },
+  { title: "Épingler et annoter", text: "Chaque événement pertinent est épinglé ; les notes expliquent pourquoi. La Timeline devient le récit de l'enquête, relisible par un collègue." },
+  { title: "Attacher un modèle à la règle", text: "Un modèle de Timeline, associé à une règle, préremplit l'enquête avec les bons champs et les bonnes requêtes dès l'alerte suivante." },
+  { title: "Ouvrir un cas", text: "Le cas regroupe alertes, Timelines, entités et commentaires. Il peut se synchroniser avec Jira ou ServiceNow et fermer les alertes rattachées à sa clôture." },
+  { title: "Transformer la découverte en règle", text: "Une requête EQL écrite dans la Timeline peut devenir une règle EQL : l'enquête d'aujourd'hui est la détection de demain (leçon 4)." },
+]} />
+
+<Callout kind="novafact">
+Premier incident traité dans Elastic par Novafact (scénario fictif) : une alerte ES|QL signale 180 identifiants distincts depuis une même IP en une heure. La Timeline montre trois connexions réussies parmi eux ; la séquence EQL de prise de contrôle ne s'est déclenchée pour aucun des trois comptes. Le cas documente la réinitialisation des mots de passe, la révocation des sessions et l'ajout de l'ASN en règle WAF à débit limité. Durée totale : 50 minutes, dont 20 perdues à retrouver quel champ contenait le tenant, d'où l'index de référence `novafact-tenants`.
+</Callout>
+
+<Callout kind="tip">
+Le jeu **Log Detective AppSec** te présente des événements Elastic (pino/ECS, CloudTrail, WAF) : à toi d'identifier l'attaque et la technique ATT&CK. Un bon entraînement pour choisir le bon langage selon la question.
+</Callout>
+
+<Recap items={[
+  "KQL filtre, EQL séquence, ES|QL agrège et enrichit : choisis selon la question, pas par habitude.",
+  "En KQL, les champs keyword se comparent exactement, casse comprise ; KQL ne sait ni compter ni ordonner.",
+  "EQL relie des événements par une clé, dans une fenêtre, avec until pour expirer et ! pour les étapes manquantes.",
+  "ES|QL compte des valeurs distinctes, découpe le temps et joint un index de référence ; dans une règle, chaque ligne devient une alerte.",
+  "Timeline et cas transforment une suite de requêtes en enquête documentée, puis en nouvelle règle.",
+]} />
+
+<Sources items={[
+  { title: "Elastic : KQL", url: "https://www.elastic.co/docs/explore-analyze/query-filter/languages/kql" },
+  { title: "Elastic : syntaxe EQL", url: "https://www.elastic.co/docs/reference/query-languages/eql/eql-syntax" },
+  { title: "Elastic : ES|QL", url: "https://www.elastic.co/docs/reference/query-languages/esql" },
+  { title: "Elastic : LOOKUP JOIN", url: "https://www.elastic.co/docs/reference/query-languages/esql/commands/lookup-join" },
+  { title: "Elastic Security : Timeline", url: "https://www.elastic.co/docs/solutions/security/investigate/timeline" },
+  { title: "Elastic Security : cas", url: "https://www.elastic.co/docs/solutions/security/investigate/security-cases" },
+]} />

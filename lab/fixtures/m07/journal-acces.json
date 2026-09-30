@@ -1,0 +1,33 @@
+{
+  "_comment": "Journal d'audit des exercices de droits — données embarquées du challenge access-recertification (M7). Attention : le journal déborde de la période de revue des deux côtés. Un droit exercé AVANT le 1er juin ne compte pas — c'est précisément ce qu'on veut retirer.",
+  "evenements": [
+    { "at": "2026-03-04T10:02:00Z", "identifiant": "stage2025@novafact.example", "droit": "export:comptable" },
+    { "at": "2026-04-18T14:31:00Z", "identifiant": "thomas.roy@novafact.example", "droit": "secrets:lire" },
+    { "at": "2026-05-29T08:47:00Z", "identifiant": "lea.moreau@novafact.example", "droit": "reglages:ecrire" },
+
+    { "at": "2026-06-03T09:12:00Z", "identifiant": "marie.dubois@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-06-03T09:20:00Z", "identifiant": "marie.dubois@novafact.example", "droit": "factures:ecrire" },
+    { "at": "2026-06-05T11:44:00Z", "identifiant": "svc-facturx@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-06-05T11:45:00Z", "identifiant": "svc-facturx@novafact.example", "droit": "factures:ecrire" },
+    { "at": "2026-06-11T16:03:00Z", "identifiant": "karim.benali@novafact.example", "droit": "admin:audit" },
+    { "at": "2026-06-14T07:58:00Z", "identifiant": "svc-sauvegarde@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-06-14T07:59:00Z", "identifiant": "svc-sauvegarde@novafact.example", "droit": "clients:lire" },
+    { "at": "2026-06-22T13:27:00Z", "identifiant": "marie.dubois@novafact.example", "droit": "export:comptable" },
+    { "at": "2026-07-01T10:11:00Z", "identifiant": "svc-analytics@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-07-01T10:12:00Z", "identifiant": "svc-analytics@novafact.example", "droit": "clients:lire" },
+    { "at": "2026-07-08T15:39:00Z", "identifiant": "thomas.roy@novafact.example", "droit": "infra:deployer" },
+    { "at": "2026-07-09T09:03:00Z", "identifiant": "karim.benali@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-07-15T12:50:00Z", "identifiant": "svc-facturx@novafact.example", "droit": "factures:ecrire" },
+    { "at": "2026-07-21T08:15:00Z", "identifiant": "marie.dubois@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-07-28T17:02:00Z", "identifiant": "thomas.roy@novafact.example", "droit": "admin:audit" },
+    { "at": "2026-08-03T09:44:00Z", "identifiant": "svc-sauvegarde@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-08-05T14:21:00Z", "identifiant": "lea.moreau@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-08-12T11:07:00Z", "identifiant": "marie.dubois@novafact.example", "droit": "factures:ecrire" },
+    { "at": "2026-08-19T16:48:00Z", "identifiant": "thomas.roy@novafact.example", "droit": "infra:deployer" },
+    { "at": "2026-08-25T10:33:00Z", "identifiant": "svc-analytics@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-08-31T23:41:00Z", "identifiant": "karim.benali@novafact.example", "droit": "admin:audit" },
+
+    { "at": "2026-09-04T09:02:00Z", "identifiant": "stage2025@novafact.example", "droit": "factures:lire" },
+    { "at": "2026-09-06T10:18:00Z", "identifiant": "lea.moreau@novafact.example", "droit": "reglages:ecrire" }
+  ]
+}

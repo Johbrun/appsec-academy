@@ -1,0 +1,62 @@
+# Extrait du template de bootstrap CDK déployé sur le compte de production —
+# corrigé.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Novafact — bootstrap CDK (extrait)
+
+Parameters:
+  Qualifier:
+    Type: String
+    # CORRIGÉ : le qualificatif par défaut rendait le nom du bucket de staging
+    # devinable pour n'importe qui connaissant le numéro de compte.
+    Default: nova1
+  TrustedAccounts:
+    Type: CommaDelimitedList
+    Default: ''
+
+Resources:
+  StagingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'cdk-${Qualifier}-assets-${AWS::AccountId}-${AWS::Region}'
+
+  FilePublishingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'cdk-${Qualifier}-file-publishing-role-${AWS::AccountId}-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              AWS: !Ref TrustedAccounts
+      Policies:
+        - PolicyName: file-publishing
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CORRIGÉ : la condition sur le compte propriétaire.
+              #
+              # Sans elle, ce rôle peut écrire dans n'importe quel bucket dont
+              # il connaît le nom. Si le bucket de staging est supprimé et
+              # qu'un tiers reprend le nom — ce que le qualificatif par défaut
+              # rendait devinable — le prochain `cdk deploy` publie les
+              # artefacts chez lui, et il contrôle ce qui part en production.
+              #
+              # `aws:ResourceAccount` exige que la ressource visée appartienne
+              # au compte : un bucket repris ailleurs est hors de portée, même
+              # si son nom est le bon. Et la ressource est nommée plutôt que
+              # « * ».
+              - Effect: Allow
+                Action:
+                  - s3:GetObject*
+                  - s3:PutObject*
+                  - s3:Abort*
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::cdk-${Qualifier}-assets-${AWS::AccountId}-${AWS::Region}'
+                  - !Sub 'arn:${AWS::Partition}:s3:::cdk-${Qualifier}-assets-${AWS::AccountId}-${AWS::Region}/*'
+                Condition:
+                  StringEquals:
+                    aws:ResourceAccount: !Ref 'AWS::AccountId'

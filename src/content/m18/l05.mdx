@@ -1,0 +1,220 @@
+export const questions = [
+  {
+    q: "Pour ne rien révéler, l'API de Novafact répond 404 quand un utilisateur demande la facture d'un autre tenant. Comment garder la détection d'énumération BOLA ?",
+    options: [
+      "Renvoyer 403 au lieu de 404, pour que le WAF et l'ALB puissent les compter",
+      "Journaliser un `authz_fail` avec l'identifiant demandé, quel que soit le code renvoyé",
+      "Compter les 404 dans les journaux CloudFront et alerter sur un taux anormal",
+      "Impossible : un 404 d'autorisation est indiscernable d'une faute de frappe",
+    ],
+    answer: 1,
+    explain: "Le code HTTP est une décision d'interface, le journal une décision de détection : rien n'empêche de renvoyer 404 au client et d'écrire `authz_fail` avec `novafact.object_id` dans Elastic. Conclure à l'impossibilité, c'est confondre les deux. Compter les 404 de CloudFront est le raccourci séduisant, et il noie le signal : fautes de frappe, favicons manquants et vieux liens produisent exactement le même code. Une règle threshold avec cardinalité sur l'identifiant d'objet repère ensuite l'énumération.",
+  },
+  {
+    q: "L'équipe veut semer une fausse clé AWS dans un fichier de configuration. Pourquoi préférer un utilisateur IAM leurre créé dans son propre compte à une clé gratuite de canarytokens.org ?",
+    options: [
+      "Parce qu'un leurre externe n'apparaît pas dans ton CloudTrail, donc pas dans Elastic",
+      "Parce que le service gratuit limite le nombre de jetons et devient payant ensuite",
+      "Les clés du service gratuit appartiennent à des comptes connus, donc repérables hors ligne",
+      "Parce qu'une clé leurre doit porter des droits réels pour que l'appel soit journalisé",
+    ],
+    answer: 2,
+    explain: "L'identifiant du compte AWS se déduit de l'access key ID : les clés du service public appartiennent à quelques comptes bien connus, et des outils comme TruffleHog les reconnaissent sans jamais les utiliser — donc sans déclencher l'alerte. Un attaquant outillé les écarte avant d'essayer. L'argument des droits est le contresens à écarter : un leurre ne doit surtout porter aucune permission, et la tentative est journalisée de toute façon, ne serait-ce que comme appel refusé. Un leurre dans ton compte, ou une offre auto-hébergée, reste indiscernable d'une vraie clé.",
+  },
+  {
+    q: "Dans les access logs de l'ALB (mode *defensive*), des requêtes apparaissent avec `classification` = Ambiguous et `classification_reason` = BothTeClPresent. Qu'en conclure ?",
+    options: [
+      "Des requêtes combinent `Transfer-Encoding` et `Content-Length`, signature du desync",
+      "Que l'ALB tourne en mode `strictest` et a rejeté ces requêtes avant l'application",
+      "Que le WAF a bloqué ces requêtes, l'ALB se contentant de les classer au passage",
+      "Qu'un client HTTP mal configuré envoie des requêtes non conformes, sans aucune intention",
+    ],
+    answer: 0,
+    explain: "`BothTeClPresent` signale une requête portant à la fois `Transfer-Encoding` et `Content-Length` : la signature d'une tentative de request smuggling. En mode `defensive`, l'ALB sert la requête puis ferme la connexion cliente — elle n'a donc été bloquée ni par lui ni par le WAF, qui ne produit pas cette classification. Reste la bonne objection : un client ou un proxy mal écrit produit la même chose par accident, et c'est fréquent. C'est pourquoi on regarde la répartition par source et la variété des motifs, au lieu d'alerter sur un événement isolé.",
+  },
+  {
+    q: "Comment repérer le rejeu d'un jeton de session volé sans jamais journaliser le jeton ?",
+    options: [
+      "Stocker le jeton chiffré dans Elastic et ne le déchiffrer que lors d'une enquête",
+      "Alerter sur deux connexions du même compte depuis deux pays en moins d'une heure",
+      "Compter les sessions actives par compte et alerter au-delà de trois simultanées",
+      "Journaliser une empreinte HMAC du `jti`, puis alerter sur des réseaux différents",
+    ],
+    answer: 3,
+    explain: "L'empreinte HMAC, avec une clé conservée hors des logs, permet de corréler sans jamais exposer le secret : un même `jti` vu depuis deux ASN ou deux user-agents en dix minutes est rarement légitime. Le voyage impossible et le nombre de sessions simultanées sont de vraies détections, mais elles portent sur le *compte* : un attaquant qui rejoue un jeton volé depuis le même pays, sans ouvrir de nouvelle session, leur échappe entièrement. Chiffrer le jeton dans Elastic le ramène, lui, dans le périmètre à protéger — et une clé de déchiffrement à portée des analystes n'en est plus vraiment une.",
+  },
+];
+
+<YouKnow>
+Tes attaques de pentest laissent des traces : rafales de 403, identifiants qui défilent, en-têtes bizarres, clés utilisées depuis ton VPS. Cette leçon prend le point de vue d'en face : pour chaque attaque applicative que tu connais, quel signal elle produit dans Elastic, et quelle règle le transforme en alerte.
+</YouKnow>
+
+## Credential stuffing et prise de contrôle de compte
+
+Le credential stuffing ne se voit pas au nombre d'échecs par compte (chaque compte n'est essayé qu'une fois) mais au **nombre d'identifiants distincts** par source. La requête ES|QL de la leçon 3 le fait sur les logs applicatifs, grâce à l'empreinte HMAC de l'identifiant (leçon 1).
+
+Les campagnes sérieuses se distribuent sur des milliers d'adresses résidentielles, à raison de quelques essais chacune : le regroupement par IP ne voit plus rien. Il faut alors regrouper par ce que les requêtes ont **en commun**. Les logs AWS WAF exposent l'empreinte TLS JA4 du client, que l'intégration Elastic range dans `aws.waf.ja4_fingerprint` :
+
+<Code file="elastic/queries/stuffing-distribue.esql">
+
+```sql
+FROM logs-aws.waf-*
+| WHERE url.path == "/api/v1/auth/login" AND http.request.method == "POST"
+  AND @timestamp > NOW() - 1 hour
+| STATS requetes = COUNT(*), ips = COUNT_DISTINCT(source.ip),
+        pays = COUNT_DISTINCT(source.geo.country_iso_code) BY aws.waf.ja4_fingerprint
+| WHERE ips >= 200
+| SORT ips DESC
+```
+
+</Code>
+
+Une empreinte TLS n'identifie pas un attaquant : un navigateur courant la partage avec des millions d'utilisateurs. Elle devient un signal quand elle apparaît soudain sur des centaines d'IP qui ne font **que** se connecter. Compare toujours au volume habituel de la même empreinte.
+
+Une fois un compte pris, la suite se lit dans les logs applicatifs : la séquence EQL connexion, désactivation de la MFA, export (leçon 3), et les signaux de M10 (nouvel appareil, voyage impossible, changement d'IBAN).
+
+<Callout kind="case">
+**Snowflake (2024)**. Mandiant a attribué à UNC5537 une campagne contre des instances clientes de Snowflake, menée avec des identifiants volés par des infostealers, certains depuis 2020 et jamais changés. Les comptes touchés n'avaient pas de MFA ; environ 165 organisations ont été notifiées comme potentiellement exposées. Une connexion réussie avec un mot de passe valide, suivie d'un export massif, est exactement le scénario qu'une séquence « connexion depuis un réseau nouveau puis export » est faite pour voir.
+</Callout>
+
+## Énumération BOLA
+
+L'attaquant qui a trouvé une BOLA la parcourt : il incrémente ou rejoue des identifiants de factures. Côté logs, cela donne une rafale de refus d'autorisation sur **beaucoup d'objets différents**. La règle threshold avec contrainte de cardinalité est taillée pour cela :
+
+<Code file="detections/api/bola-enumeration.json">
+
+```json
+{
+  "type": "threshold",
+  "language": "kuery",
+  "name": "Novafact - Énumération d'objets (BOLA)",
+  "description": "Un utilisateur essuie au moins 50 refus d'autorisation sur au moins 25 objets distincts.",
+  "query": "event.dataset: \"novafact.api\" and event.action: \"authz_fail\"",
+  "threshold": {
+    "field": ["user.id"],
+    "value": 50,
+    "cardinality": [{ "field": "novafact.object_id", "value": 25 }]
+  },
+  "index": ["logs-novafact.api-*"],
+  "severity": "high",
+  "risk_score": 73,
+  "interval": "5m",
+  "from": "now-6m"
+}
+```
+
+</Code>
+
+Deux conditions de conception en amont. D'abord, **le refus doit être journalisé même s'il est masqué** : si l'API répond 404 pour ne pas révéler l'existence d'une facture d'un autre tenant (bonne pratique), le log interne, lui, écrit `authz_fail` avec l'objet demandé. Ensuite, la BOLA **réussie** ne produit aucun refus : c'est pourquoi la règle new terms « premier export » (leçon 4) et les volumes de `sensitive_read` par utilisateur complètent ce filet. Côté identifiants, des UUID aléatoires rendent l'énumération bruyante et coûteuse ; des entiers séquentiels la rendent silencieuse.
+
+## Rejeu de jeton
+
+Un cookie de session ou un jeton volé (infostealer, XSS, log mal filtré) est rejoué depuis la machine de l'attaquant. Le signal : **le même jeton depuis deux contextes différents**. On ne journalise jamais le jeton, mais une empreinte HMAC de son `jti` ou de l'identifiant de session (`novafact.session_fingerprint`) suffit :
+
+<Code file="elastic/queries/rejeu-de-session.esql">
+
+```sql
+FROM logs-novafact.api-prod
+| WHERE @timestamp > NOW() - 30 minutes AND novafact.session_fingerprint IS NOT NULL
+| STATS ips = COUNT_DISTINCT(source.ip), agents = COUNT_DISTINCT(user_agent.original),
+        adresses = VALUES(source.ip) BY novafact.session_fingerprint, user.id
+| WHERE ips >= 2 AND agents >= 2
+```
+
+</Code>
+
+Deux IP seules ne suffisent pas (un téléphone passe du Wi-Fi à la 4G) ; deux IP **et** deux user-agents sur une même session en trente minutes, beaucoup plus. Le cas le plus net reste le **refresh token révoqué qui revient** : avec la rotation des refresh tokens (M9), la réutilisation d'un jeton déjà consommé est l'événement `authn_token_reuse` du Logging Vocabulary, classé CRITICAL. Il mérite une custom query à sévérité élevée, et une réponse automatique : révocation de toute la famille de jetons.
+
+## Desync et cache poisoning, vus depuis l'ALB et le WAF
+
+Les attaques de protocole (M3, M17) laissent des traces en amont de l'application. L'ALB, en mode de mitigation *defensive* (le mode par défaut), **classe** chaque requête non conforme à la RFC 7230 et l'écrit dans ses access logs : `classification` vaut Acceptable, Ambiguous ou Severe, et `classification_reason` en donne la cause. Les requêtes Severe sont bloquées ; les Ambiguous passent, signalées.
+
+<Code file="elastic/queries/desync-alb.kql">
+
+```text
+event.dataset : "aws.elb_logs" and aws.elb.classification : ("Ambiguous" or "Severe")
+  and aws.elb.classification_reason : ("BothTeClPresent" or "SuspiciousHeader" or "MultipleContentLength")
+```
+
+</Code>
+
+Une poignée de ces requêtes depuis une même source, dans un intervalle court, ressemble fort à quelqu'un qui teste le request smuggling. Pour le **cache poisoning**, le signal est ailleurs : des requêtes publiques qui portent des en-têtes que les clients légitimes n'envoient jamais (`X-Forwarded-Host`, `X-Original-URL`), visibles dans les en-têtes journalisés par le WAF, et côté CloudFront, une réponse d'erreur soudain servie depuis le cache à de nombreux clients. Ces règles demandent de connaître le trafic normal : commence en mode observation, avec une alerte de faible sévérité.
+
+## Exfiltration S3 et usage anormal de clés
+
+Côté AWS, trois familles de signaux se complètent :
+
+| Signal | Source | Exemple |
+| --- | --- | --- |
+| Accès massif ou inhabituel aux objets | CloudTrail (événements de données S3, activés sur les buckets critiques) | Un rôle qui lit 40 000 factures en une heure au lieu de 300 |
+| Changement de la surface d'exposition | CloudTrail (gestion) | `PutBucketPolicy` ouvrant le bucket à un autre compte, réplication vers un compte externe |
+| Identifiants utilisés hors de leur contexte | GuardDuty | `UnauthorizedAccess:IAMUser/ResourceCredentialExfiltration.OutsideAWS` : des identifiants d'une tâche ECS ou d'une Lambda utilisés depuis une IP extérieure à AWS |
+| Clé longue durée depuis un nouveau réseau | CloudTrail, règle new terms | Règle prête à l'emploi d'Elastic : une clé `AKIA…` vue pour la première fois depuis une `source.ip` |
+
+GuardDuty signale aussi `Exfiltration:S3/AnomalousBehavior` ou `Exfiltration:S3/MaliciousIPCaller`. Mais un finding est une conclusion : l'enquête revient toujours à CloudTrail pour savoir **quels** objets et **quelles** actions (leçon 6). Et les règles prêtes à l'emploi d'Elastic couvrent déjà une bonne partie de ces cas : les activer et les régler vaut mieux que les réécrire.
+
+<Callout kind="novafact">
+Sur les identifiants de tâches ECS, Novafact a ajouté une règle maison simple : tout appel CloudTrail réussi signé par le rôle `novafact-api-task` dont `source.ip` n'appartient pas aux plages de sortie NAT de son VPC. Les tâches n'ont aucune raison d'appeler AWS d'ailleurs. Le premier mois (chiffres fictifs), la règle a produit deux alertes, toutes deux dues à un test de charge mal configuré, et zéro depuis.
+</Callout>
+
+## Honeytokens : des pièges presque sans faux positifs
+
+Un **honeytoken** est une ressource que personne n'a de raison légitime de toucher. Tout accès est donc suspect, ce qui en fait les alertes les plus fiables d'un SIEM. A09:2025 les recommande explicitement ; AppSensor les formalise (HT1 à HT3 : donnée piège modifiée, ressource piège demandée, donnée piège utilisée).
+
+| Piège | Où | Détection |
+| --- | --- | --- |
+| **Clé AWS leurre** | Un fichier `.env.backup` dans un dépôt interne, une variable dans un vieux job CI | Tout événement CloudTrail portant cet `access_key_id` |
+| **Route leurre** | `/api/v1/admin/export-all`, absente de la SPA, citée seulement dans un commentaire du bundle | Toute requête sur la route |
+| **Enregistrement leurre** | Un tenant fictif « Globex Holding » et ses factures, invisibles pour tout utilisateur réel | Tout `sensitive_read` sur ces identifiants |
+| **Compte leurre** | Un utilisateur `admin-backup@novafact.example` sans accès réel | Toute tentative de connexion |
+
+Pour la clé AWS, **Canarytokens** (Thinkst) génère des clés prêtes à l'emploi et envoie l'alerte à leur utilisation. Mais les clés du service gratuit canarytokens.org appartiennent à des comptes AWS connus : TruffleHog sait les reconnaître **sans les utiliser**, donc sans déclencher l'alerte. Novafact crée plutôt un utilisateur IAM sans aucune permission dans un compte dédié ; même un appel refusé ou un simple `GetCallerIdentity` apparaît dans CloudTrail :
+
+```text
+event.dataset : "aws.cloudtrail" and aws.cloudtrail.user_identity.access_key_id : "AKIA_LEURRE_EXEMPLE"
+```
+
+La route leurre s'écrit en quelques lignes, avec le helper de la leçon 1 :
+
+<Code file="apps/api/src/routes/honeytrap.ts">
+
+```ts
+import { Router } from 'express';
+import { securityEvent } from '@novafact/service-kit';
+
+export const honeytrap = Router();
+
+// Aucune fonctionnalité derrière : la route n'existe que pour être découverte.
+honeytrap.all('/api/v1/admin/export-all', (req, res) => {
+  securityEvent(req, 'malicious_honeytrap', 'failure', { reason: 'HT2: ressource piège demandée' });
+  res.status(404).json({ error: 'not_found' });
+});
+```
+
+</Code>
+
+Deux précautions : un honeytoken ne doit **jamais** donner accès à quoi que ce soit de réel, et son existence est documentée auprès de l'équipe (pour qu'un collègue curieux ne déclenche pas un incident) sans être visible par les utilisateurs. Et pense à ton propre pentest : un auditeur qui touche la route leurre doit déclencher l'alerte, c'est un test gratuit.
+
+## Threat intelligence : enrichir plus que bloquer
+
+Les règles **indicator match** comparent tes événements à des index d'indicateurs (IP, domaines, empreintes) alimentés par les intégrations de threat intel d'Elastic ou par ta propre plateforme (MISP, par exemple). Par défaut, la requête sur les indicateurs ne regarde que les 30 derniers jours : une adresse malveillante le mois dernier peut être un client légitime aujourd'hui, surtout avec les proxys résidentiels.
+
+Pour une application SaaS, la threat intel sert surtout à **prioriser** : une connexion réussie depuis une IP listée n'est pas forcément une attaque, mais elle mérite d'être triée avant les autres. Elle sert aussi dans l'autre sens : les indicateurs tirés de tes propres incidents (empreinte JA4 d'une campagne, ASN, user-agent) deviennent un index de référence réutilisé par tes règles et partagé avec tes pairs.
+
+<Recap items={[
+  "Credential stuffing : compte les identifiants distincts par source, et regroupe par empreinte JA4 ou ASN quand la campagne est distribuée.",
+  "Énumération BOLA : journalise authz_fail même derrière un 404, puis threshold avec cardinalité sur les objets.",
+  "Rejeu de jeton : empreinte HMAC de la session, plusieurs contextes en peu de temps ; authn_token_reuse est critique.",
+  "Desync et cache poisoning se voient dans la classification de l'ALB et les en-têtes journalisés par le WAF.",
+  "Côté AWS, combine événements de données S3, changements de politique, GuardDuty et règles prêtes à l'emploi.",
+  "Les honeytokens donnent les alertes les plus fiables ; évite les clés du service public, reconnaissables sans être déclenchées.",
+]} />
+
+<Sources items={[
+  { title: "Elastic Security : règles threshold", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/threshold" },
+  { title: "AWS : access logs de l'Application Load Balancer", url: "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-access-logs.html" },
+  { title: "AWS GuardDuty : types de findings IAM", url: "https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-iam.html" },
+  { title: "Mandiant : UNC5537 et Snowflake", url: "https://cloud.google.com/blog/topics/threat-intelligence/unc5537-snowflake-data-theft-extortion" },
+  { title: "Truffle Security : détection des clés AWS canaries", url: "https://trufflesecurity.com/blog/canaries" },
+  { title: "Elastic Security : règles indicator match", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/indicator-match" },
+]} />

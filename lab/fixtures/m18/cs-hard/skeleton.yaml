@@ -1,0 +1,20 @@
+_note: La règle est écrite ; seuls la fenêtre et les deux seuils sont à toi. Écris-les dans workspace/detections/thresholds.yaml.
+rule: credential-stuffing
+window: <fenêtre>
+thresholds:
+  failures: <entier>
+  distinct_users: <entier>
+where:
+  - field: event.action
+    op: eq
+    value: authn_login_fail
+group_by:
+  - source.ip
+having:
+  - metric: count
+    op: gte
+    value: <failures>
+  - metric: distinct
+    field: user.name
+    op: gte
+    value: <distinct_users>

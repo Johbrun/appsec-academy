@@ -1,0 +1,201 @@
+export const questions = [
+  {
+    q: "Le PO refuse de corriger une vulnérabilité avant la livraison d'une fonctionnalité. Quelle réponse fait avancer ?",
+    options: [
+      "Proposer trois options chiffrées et laisser décider le propriétaire du risque",
+      "Poser une condition bloquante dans la CI, pour que la décision ne se négocie plus",
+      "Accepter le report et consigner l'exception au nom du PO",
+      "Escalader au CTO, seul niveau habilité à accepter ce risque",
+    ],
+    answer: 0,
+    explain: "Tu instruis et tu recommandes ; la décision appartient au propriétaire du risque, et elle se prend sur des options comparables — corriger maintenant, réduire en attendant, accepter formellement —, chacune chiffrée par l'équipe et non par toi. Improviser une condition bloquante fait de l'AppSec une porte, alors que ces conditions se décident à l'avance avec la direction. Consigner l'exception tout de suite saute l'étape qui débloque le plus souvent, la mesure compensatoire, qui fait baisser le risque dès aujourd'hui. Et l'escalade n'a de sens qu'une fois les options posées.",
+  },
+  {
+    q: "Selon Kohnfelder, qui a le dernier mot sur une conception quand le relecteur sécurité et le designer ne sont pas d'accord ?",
+    options: [
+      "Le relecteur sécurité : c'est lui qui porte le risque devant la direction",
+      "Le propriétaire du risque, qui arbitre entre sécurité et délai de livraison",
+      "Le designer, qui porte la responsabilité de la conception",
+      "Personne : le désaccord remonte automatiquement au niveau supérieur",
+    ],
+    answer: 2,
+    explain: "Le designer décide, parce qu'il est responsable de la conception ; le relecteur, lui, documente les deux positions et les recommandations non suivies, pour qu'elles restent visibles. Le glissement le plus courant est de confondre avec le propriétaire du risque : ce sont deux décisions différentes, l'une sur la conception, l'autre sur le fait de vivre avec un risque connu. Et remonter chaque désaccord d'un niveau userait l'escalade, qui ne vaut que par sa rareté.",
+  },
+  {
+    q: "Une mesure compensatoire a été acceptée à la place d'un correctif immédiat. Qu'est-ce qui la rend légitime plutôt qu'un simple report ?",
+    options: [
+      "Qu'elle a été validée en revue avec le PO et l'équipe sécurité",
+      "Qu'elle réduit vraiment le risque, et que le correctif a date et propriétaire",
+      "Qu'elle coûte nettement moins cher que le correctif définitif",
+      "Qu'elle repose sur une règle du pare-feu applicatif, activable sans toucher au code",
+    ],
+    answer: 1,
+    explain: "Deux conditions indissociables : la mesure doit changer la vraisemblance ou l'impact — pas seulement rassurer — et le correctif définitif doit avoir une échéance ferme avec un nom en face. Sans la seconde, c'est un report déguisé. La règle WAF illustre bien le manquement à la première : générique, devant un défaut de logique métier, elle ne réduit rien, là où un contrôle serveur ciblé réduit. Le coût et la validation collective, eux, n'établissent ni l'une ni l'autre.",
+  },
+  {
+    q: "Au cours d'une négociation, le désaccord persiste et semble irréconciliable. D'après Kohnfelder, d'où vient-il le plus souvent ?",
+    options: [
+      "D'une différence d'appétit au risque entre la sécurité et le produit",
+      "D'un manque de budget ou de capacité dans l'équipe concernée",
+      "D'une sous-estimation technique de la vulnérabilité par le designer",
+      "D'hypothèses implicites divergentes sur l'usage ou sur les données",
+    ],
+    answer: 3,
+    explain: "Kohnfelder l'observe après des années de revues de conception : un désaccord qui paraît irréconciliable vient presque toujours du fait que les deux parties ne décrivent pas le même système — qui utilise réellement cet export, quelles données y transitent. Les expliciter débloque l'essentiel des situations. L'écart d'appétit au risque existe, mais il se traite ensuite, une fois qu'on parle du même objet ; en faire la cause première, c'est négocier un arbitrage là où il n'y avait qu'un malentendu de périmètre.",
+  },
+];
+
+<YouKnow>
+Tu as déjà vu tes recommandations ignorées « faute de temps ». Négocier n'est pas céder : c'est trouver l'option qui réduit le risque le plus vite, avec l'accord de ceux qui livrent.
+</YouKnow>
+
+## Parler le langage du produit
+
+Un PO arbitre en permanence entre des fonctionnalités, des délais et des risques. Une vulnérabilité est un risque parmi d'autres. Pour qu'elle soit traitée, elle doit arriver sous une forme **comparable** : impact métier, probabilité, coût de correction, délai.
+
+Le réflexe du pentester est de défendre la gravité technique : « c'est une critique, CVSS 9,1 ». Pour le PO, ce chiffre n'est comparable à rien de ce qu'il gère. Ce qui est comparable, c'est « un client peut marquer ses factures comme payées sans payer ; si quelqu'un le découvre, on perd le chiffre d'affaires de ces factures et la confiance des clients qui relancent leurs débiteurs avec notre outil ». Il peut mettre cette phrase en face d'une date de livraison promise à un grand compte.
+
+Deux choses à comprendre avant d'entrer dans la pièce :
+
+- **ce qui contraint le PO** : une démonstration client fixée, un engagement commercial, une équipe amputée de deux personnes. Ces contraintes sont réelles ; les ignorer te fait perdre la discussion avant de la commencer ;
+- **ta position de repli** : ce que tu feras si aucun accord n'est trouvé (documenter et escalader, ou accepter une mesure compensatoire). La connaître à l'avance t'évite de céder par fatigue ou de durcir le ton par frustration.
+
+## Proposer des options, pas un ultimatum
+
+<Steps items={[
+  { title: "Corriger maintenant", text: "Coût en jours, et ce que ça décale." },
+  { title: "Réduire en attendant", text: "Une mesure compensatoire rapide (règle WAF, désactivation d'une option, contrôle serveur supplémentaire, journalisation et alerte) et un correctif planifié à une date ferme." },
+  { title: "Accepter formellement", text: "Le propriétaire du risque signe, au bon niveau, pour une durée limitée (M1, leçon 7)." },
+]} />
+
+Le PO choisit, avec les conséquences écrites. Dans la plupart des cas, l'option intermédiaire l'emporte, et le risque baisse dès aujourd'hui.
+
+Trois règles rendent ces options honnêtes :
+
+- **chiffre chaque option** avec la même unité (jours de développement, date de livraison, risque résiduel). Une option « corriger » estimée par l'AppSec à « une demi-journée » alors que l'équipe sait qu'il faut trois jours détruit ta crédibilité : fais estimer par l'équipe ;
+- **une mesure compensatoire doit changer le risque**, pas seulement rassurer. Une règle WAF générique devant un défaut de logique métier ne réduit rien ; un contrôle serveur ciblé, si ;
+- **le correctif définitif a une date et un propriétaire**. Sans les deux, l'option intermédiaire n'est qu'un report.
+
+## Un exemple : les relances automatiques de Novafact
+
+<Callout kind="novafact">
+Vendredi, trois jours avant la démonstration à un grand compte, la revue de la fonctionnalité « relances automatiques » montre que le webhook du prestataire de paiement n'est pas vérifié : n'importe qui peut envoyer un événement `payment.succeeded` et faire passer une facture à « payée », ce qui arrête les relances. Corriger proprement (vérifier la signature, gérer le rejeu, tester) prend trois jours selon l'équipe. Le PO refuse de décaler la démonstration.
+</Callout>
+
+La discussion s'est jouée sur trois options, posées côte à côte :
+
+| Option | Coût | Risque résiduel jusqu'au correctif | Décision |
+| --- | --- | --- | --- |
+| Corriger avant la démo | 3 jours, démo décalée | Nul | Refusée par le PO |
+| Revérifier chaque paiement auprès du prestataire avant de changer le statut, alerte sur les écarts, correctif complet sous 10 jours | 0,5 jour | Faible : un faux événement ne change plus rien | **Retenue** |
+| Accepter jusqu'à la version suivante | 0 | Élevé : factures marquées payées sans paiement | Aurait exigé le CTO (M1, leçon 7) |
+
+La mesure retenue ne dépend pas du contenu de la requête entrante : le handler ne se sert plus de l'événement que comme d'un **signal** et interroge l'API du prestataire, par un appel serveur à serveur authentifié, pour connaître le statut réel.
+
+<Diff file="apps/api/src/webhooks/payments.ts" hlBefore="3,4" hlAfter="3,4,5,6,7,8,9,10,11" stack>
+
+```ts
+router.post('/webhooks/psp', express.json(), async (req, res) => {
+  const event = req.body;
+  if (event.type === 'payment.succeeded') {
+    await invoices.markPaid(event.data.invoiceId, event.data.amount);
+  }
+  res.sendStatus(200);
+});
+```
+
+```ts
+router.post('/webhooks/psp', express.json(), async (req, res) => {
+  const event = req.body;
+  if (event.type === 'payment.succeeded' && typeof event.data?.paymentId === 'string') {
+    // Mesure compensatoire (NOVA-EXC-2026-031) : l'événement n'est qu'un signal.
+    const payment = await psp.payments.retrieve(event.data.paymentId);
+    const invoice = await invoices.findByPaymentRef(payment.reference);
+    if (invoice && payment.status === 'succeeded' && payment.amountCents === invoice.totalCents) {
+      await invoices.markPaid(invoice.id, payment.amountCents);
+    } else {
+      logger.warn({ event: 'psp.webhook.mismatch', paymentId: event.data.paymentId }, 'webhook non confirmé');
+    }
+  }
+  res.sendStatus(200);
+});
+```
+
+</Diff>
+
+Ce n'est pas le correctif final : la signature du webhook reste à vérifier pour ne pas laisser n'importe qui déclencher des appels vers le prestataire. Mais le risque principal (une facture payée sans paiement) disparaît le jour même, et l'alerte `psp.webhook.mismatch` dans Elastic montre si quelqu'un essaie. L'exception est enregistrée avec une échéance de dix jours et le PO comme propriétaire du risque.
+
+## SLA et dette de sécurité
+
+Les délais de correction (M5) sont des **engagements négociés**, pas des ordres de l'équipe sécurité. Fixe-les avec les équipes et la direction, publie-les, et suis-les. La **dette de sécurité** (vulnérabilités connues non corrigées, exceptions actives) se rend visible dans le même tableau de bord que la dette technique, pour que les arbitrages de planification la prennent en compte.
+
+Négocier un SLA, c'est négocier deux choses distinctes qu'on confond souvent :
+
+- **le délai**, qui dépend du risque (la grille de M5 : 24 à 72 heures pour ce qui est exploité et exposé, 7 jours pour « Attend », 30 jours pour « Track* ») ;
+- **la capacité**, c'est-à-dire la part du temps de l'équipe réservée à la dette de sécurité et technique. Sans capacité réservée, chaque SLA se renégocie ticket par ticket, ce qui épuise tout le monde.
+
+Chez Novafact, les équipes ont accepté de réserver une part fixe de chaque sprint à la dette (sécurité comprise), en échange d'une règle claire : tant que les SLA sont tenus, l'AppSec ne vient pas renégocier le contenu des sprints. Ce contrat vaut mieux que dix escalades.
+
+<Callout kind="warn">
+Le piège classique : l'exception renouvelée indéfiniment. Une acceptation de trois mois qui se prolonge quatre fois est devenue une décision permanente prise sans personne. Deux garde-fous simples : un nombre maximal de renouvellements, et un niveau d'approbation qui monte à chaque renouvellement (le PO la première fois, le CTO la suivante).
+</Callout>
+
+## Répondre aux objections
+
+Les mêmes objections reviennent. Mieux vaut avoir préparé une réponse qui fait avancer que de les découvrir en réunion :
+
+| Objection | Ce qu'elle cache souvent | Réponse qui fait avancer |
+| --- | --- | --- |
+| « On n'a pas le temps » | Un engagement de date déjà pris | Proposer l'option compensatoire, la plus petite possible, et une date ferme pour le reste |
+| « Personne ne trouvera ça » | Une sous-estimation de l'exposition | Un scénario concret : qui a intérêt à le trouver, et ce qu'il lui faut (souvent juste un compte gratuit) |
+| « C'est derrière l'authentification » | L'idée que les utilisateurs sont fiables | Rappeler que chez un SaaS multi-tenant, l'attaquant le plus probable est un client authentifié |
+| « On le fera dans la V2 » | Une V2 sans date | Demander la date et le propriétaire, et enregistrer l'exception jusqu'à cette date |
+| « Le client ne le demande pas » | Une vision du risque limitée aux exigences contractuelles | Relier au questionnaire de sécurité du client ou à une obligation (RGPD, CRA) |
+
+## Le désaccord
+
+Kohnfelder consacre une partie du chapitre 7 à la gestion des désaccords lors des revues de conception. Ses règles valent pour toute négociation :
+
+- **communiquer avec tact** : on critique une conception, jamais une personne. Un défaut paraît évident une fois trouvé ; le présenter comme de la négligence ferme la discussion ;
+- illustrer par un **scénario concret** de ce qui peut arriver, plutôt que par un principe abstrait ;
+- proposer **plusieurs solutions** et leurs compromis ;
+- ne pas **noyer l'équipe** : des retours limités aux points importants, annoncés à l'avance, plutôt qu'une avalanche de tickets ouverts sans prévenir ;
+- accepter que **le designer ait le dernier mot**, puisqu'il porte la responsabilité ;
+- **documenter** les deux positions et les recommandations non suivies, pour qu'elles restent visibles ;
+- **escalader** seulement quand le risque le justifie, en présentant les deux positions de façon équitable.
+
+Kohnfelder fait une observation utile : un désaccord fort vient presque toujours d'**hypothèses implicites différentes**, sur l'usage réel du logiciel ou sur la sensibilité des données qu'il traite. Avant de défendre ta position, vérifie que vous parlez du même système : « tu considères que seuls les comptables du client utilisent cet export ? ». Il propose aussi une question qui aide à trancher : **si l'on change d'avis après la mise en production, combien plus difficile sera le changement ?** Un format d'API public ou un schéma de données se corrige beaucoup plus mal qu'une règle de validation.
+
+## Escalader proprement
+
+Quand l'escalade est justifiée, elle suit un format qui protège la relation :
+
+<Steps items={[
+  { title: "Partir du terrain commun", text: "Ce sur quoi vous êtes d'accord : le risque existe, la date compte, la solution idéale coûte trois jours." },
+  { title: "Écrire les deux positions", text: "Chaque partie rédige la sienne, et les brouillons sont échangés avant la réunion : personne ne découvre l'argument de l'autre devant la direction." },
+  { title: "Lister les options et leurs coûts", text: "Les mêmes options que dans la négociation, avec le risque résiduel de chacune." },
+  { title: "Consigner la décision", text: "La décision prise, le mémo et la date de revue rejoignent le dossier de la fonctionnalité, dans une section « recommandations non retenues » si c'est le cas." },
+]} />
+
+<Callout kind="debate">
+Faut-il donner à l'AppSec un droit de veto sur les mises en production ? Pour : certains risques (fuite entre tenants, exécution de code) ne se négocient pas, et un veto rare mais réel donne du poids aux recommandations. Contre : un veto utilisé devient une porte, et les équipes apprennent à contourner l'AppSec plutôt qu'à la consulter. Un compromis courant : pas de veto individuel, mais une liste courte de conditions bloquantes décidées à l'avance avec la direction (M1, leçon 5), qui s'appliquent automatiquement sans négociation.
+</Callout>
+
+<Callout kind="tip">
+Le jeu **Pushback** te met face aux objections réelles d'un développeur, d'un PO et d'une direction. Le score mesure à la fois le risque réduit et la relation préservée : gagner un débat en perdant l'équipe n'est pas une victoire.
+</Callout>
+
+<Recap items={[
+  "Une vulnérabilité se présente sous une forme comparable aux autres arbitrages : impact, probabilité, coût, délai.",
+  "Connaître les contraintes du PO et ta position de repli avant de négocier.",
+  "Proposer trois options chiffrées : corriger, réduire en attendant, accepter formellement.",
+  "Une mesure compensatoire doit changer le risque, et le correctif définitif a une date et un propriétaire.",
+  "Les SLA se négocient avec une capacité réservée ; les exceptions ont un nombre de renouvellements limité.",
+  "Le désaccord vient souvent d'hypothèses implicites : les expliciter avant d'argumenter.",
+  "Le designer a le dernier mot ; l'escalade présente les deux positions, écrites et échangées à l'avance.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 7, Managing Disagreement" },
+  { title: "OWASP SAMM : Strategy & Metrics", url: "https://owaspsamm.org/model/governance/strategy-and-metrics/" },
+]} />

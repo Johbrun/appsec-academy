@@ -1,0 +1,222 @@
+export const questions = [
+  {
+    q: "Quel modèle d'autorisation exprime le mieux « un utilisateur peut voir une facture s'il est membre du tenant propriétaire, ou si la facture a été partagée avec lui » ?",
+    options: [
+      "RBAC, avec un rôle par tenant et un rôle « invité » par facture partagée",
+      "ReBAC : l'autorisation se déduit de relations (membre de, partagé avec)",
+      "ABAC, avec un attribut « tenant » et un attribut « partagé » sur la requête",
+      "MAC : des niveaux de sensibilité imposés par l'administrateur du système",
+    ],
+    answer: 1,
+    explain: "Les relations (propriétaire de, membre de, partagé avec) sont le cœur de ReBAC, popularisé par Zanzibar et implémenté par OpenFGA. ABAC est le concurrent sérieux et sait exprimer le cas, mais il faut alors transporter dans la requête des attributs que seul un graphe de relations sait calculer : le partage transitif, l'appartenance à un groupe. RBAC, lui, explose en rôles dès qu'on partage un objet précis.",
+  },
+  {
+    q: "Quel contrôle garantit l'isolation des tenants même si un développeur oublie le filtre dans une requête ?",
+    options: [
+      "Un test d'intégration qui vérifie l'isolation sur chaque endpoint de l'API",
+      "Une revue de code obligatoire sur toute requête touchant la table des factures",
+      "Des identifiants de facture imprévisibles, impossibles à deviner de l'extérieur",
+      "La RLS de PostgreSQL, alimentée par le tenant de la transaction courante",
+    ],
+    answer: 3,
+    explain: "La RLS applique le filtre dans le moteur : une requête sans clause WHERE ne voit que les lignes du tenant courant, quel que soit le code qui l'a écrite. Les tests d'intégration sont la réponse la plus souvent proposée, et ils ne couvrent que les routes auxquelles on a pensé — or c'est précisément l'oubli qu'on cherche à rattraper. Des identifiants imprévisibles compliquent la découverte, ils n'empêchent pas l'accès une fois l'identifiant connu.",
+  },
+  {
+    q: "Avec un pool de connexions, pourquoi positionner le tenant par set_config('app.tenant_id', …, true) dans une transaction plutôt que par un SET au niveau de la session ?",
+    options: [
+      "Parce que la valeur locale disparaît au commit : la connexion rendue au pool est propre",
+      "Parce qu'un SET de session est de toute façon réinitialisé par le pool à chaque retour",
+      "Parce que set_config est lu par les politiques RLS, contrairement à un SET de session",
+      "Parce qu'un SET sur un paramètre applicatif exige des droits de superutilisateur",
+    ],
+    answer: 0,
+    explain: "Le troisième argument true rend la valeur locale à la transaction : elle disparaît au commit, donc la connexion rendue au pool ne garde pas le tenant précédent. Croire que le pool nettoie lui-même est l'erreur la plus courante — un pool applicatif comme celui de node-postgres ne réinitialise rien, et la requête suivante, pour un autre tenant, hériterait de l'ancienne valeur si elle oubliait de la poser. Côté PostgreSQL, current_setting lit indifféremment les deux.",
+  },
+  {
+    q: "L'API de Novafact se connecte à PostgreSQL avec le rôle propriétaire des tables. Qu'en est-il de la RLS ?",
+    options: [
+      "Elle s'applique à tous les rôles, à la seule exception des superutilisateurs",
+      "Le propriétaire contourne les politiques, sauf en FORCE ROW LEVEL SECURITY",
+      "Elle ne filtre que les SELECT ; les UPDATE et DELETE passent au travers",
+      "Elle bloque toutes les requêtes tant qu'aucune politique n'a été définie",
+    ],
+    answer: 1,
+    explain: "Le propriétaire de la table est exempté par défaut : il faut ALTER TABLE … FORCE ROW LEVEL SECURITY pour que les politiques s'appliquent à lui, et un superutilisateur ou un rôle BYPASSRLS passe toujours au travers. Réserver l'exemption aux seuls superutilisateurs est le piège : c'est vrai pour eux, et cela fait oublier le cas du propriétaire, qui est justement celui de beaucoup d'applications. D'où deux règles : un rôle applicatif dédié, non propriétaire et sans BYPASSRLS, et FORCE sur les tables sensibles.",
+  },
+];
+
+<YouKnow>
+Les failles d'autorisation (BOLA, BFLA) sont probablement ta source de findings critiques la plus fiable. Cette leçon regarde comment les rendre structurellement rares dans un SaaS multi-tenant.
+</YouKnow>
+
+## Les modèles
+
+| Modèle | Principe | Exemple Novafact |
+| --- | --- | --- |
+| **RBAC** | Des rôles portent des permissions | Administrateur, comptable, lecteur |
+| **ABAC** | Des règles sur des attributs (utilisateur, ressource, contexte) | Un remboursement de plus de 5 000 € exige le rôle administrateur et une MFA récente |
+| **ReBAC** | Des relations entre objets | Membre du tenant, facture partagée avec un expert-comptable externe |
+| DAC / MAC | Vocabulaire classique (CSSLP) : le propriétaire décide / une autorité centrale impose des niveaux | Rarement utilisés tels quels dans un SaaS |
+
+Dans la pratique, on combine : des rôles pour la base, quelques attributs pour les cas sensibles, des relations pour le partage. Chaque modèle a son mode d'échec. RBAC seul dérive vers l'**explosion des rôles** (« comptable-sans-export-sauf-fin-de-mois ») ; ABAC est très expressif mais difficile à auditer, car la décision dépend de valeurs connues seulement à l'exécution ; ReBAC exige de maintenir un graphe de relations synchronisé avec les données métier. Le modèle ReBAC a été popularisé par **Zanzibar**, le système d'autorisation de Google décrit dans un article de 2019.
+
+## Où se prend la décision
+
+Le pattern *Complete Mediation* (leçon 2) impose un seul chemin vérifié. Le vocabulaire courant distingue le **point de décision** (qui répond « autorisé ou non ») et le **point d'application** (qui applique la réponse, dans chaque route ou service). La bonne architecture **centralise la décision** et **généralise l'application** : chaque accès passe par un contrôle, mais la logique n'est écrite qu'une fois. Trois niveaux de centralisation :
+
+- une **fonction** d'autorisation unique dans le code, appelée par toutes les routes (le `defineRoute` de M2) ;
+- un **moteur de politiques** : **OPA** (langage Rego), **Cedar** (langage d'AWS, utilisé par Amazon Verified Permissions), **OpenFGA** (ReBAC inspiré de Zanzibar) ;
+- des politiques **versionnées et testées** comme du code.
+
+Contre les BOLA, le point d'application le plus efficace est celui qui **charge** la ressource : un middleware qui lit l'objet à travers la DAL filtrée par tenant, vérifie l'action, et le transmet au handler. Le handler ne peut plus oublier le contrôle, puisqu'il ne reçoit l'objet qu'une fois vérifié.
+
+<Code file="apps/api/src/authz/loadInvoice.ts" hl="5,6,7">
+
+```ts
+export const loadInvoice = (action: InvoiceAction) =>
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { invoiceId } = InvoiceParams.parse(req.params);
+    const invoice = await invoices.findForTenant(req.auth.tenantId, invoiceId);
+    // 404 dans les deux cas : on ne révèle pas l'existence d'une facture d'un autre tenant
+    if (!invoice) return res.sendStatus(404);
+    if (!(await authz.can(req.auth, action, invoice))) return res.sendStatus(404);
+    res.locals.invoice = invoice;
+    next();
+  };
+
+router.post('/invoices/:invoiceId/send', loadInvoice('send'), sendInvoiceHandler);
+```
+
+</Code>
+
+Les BOLA ont un cousin, la **BFLA** (API5:2023) : une fonction réservée à un rôle (supprimer un utilisateur, modifier les coordonnées bancaires du tenant) accessible à un autre. La parade est structurelle : chaque route **déclare** l'action qu'elle exige dans sa définition, et une route qui n'en déclare aucune est refusée par défaut au démarrage de l'application, plutôt qu'ouverte par oubli. Une revue de code n'a alors plus à chercher le contrôle dans le corps du handler : il est dans la signature de la route.
+
+<Callout kind="debate">
+**403 ou 404 ?** Répondre 404 à un accès interdit évite de confirmer qu'un objet existe (utile avec des identifiants devinables). Répondre 403 facilite le support et le débogage, et reste acceptable quand les identifiants sont aléatoires et que l'existence de l'objet n'est pas sensible. Novafact répond 404 pour les objets d'un autre tenant et 403 pour une action refusée sur un objet du tenant de l'utilisateur, où l'existence n'est pas un secret.
+</Callout>
+
+## Les moteurs de politiques
+
+Un moteur externalise la décision dans un langage dédié. Avec **Cedar**, tout est refusé par défaut, et une règle `forbid` l'emporte toujours sur une règle `permit`. Le langage a été conçu pour être analysable : on peut vérifier automatiquement des propriétés d'un ensemble de politiques. Amazon Verified Permissions l'exécute en service managé et sait lire directement les jetons de Cognito. La règle ABAC de Novafact sur les remboursements :
+
+<Code file="policies/refunds.cedar">
+
+```cedar
+permit (
+  principal in Role::"tenant-admin",
+  action == Action::"approveRefund",
+  resource
+)
+when { principal.tenantId == resource.tenantId && context.mfaAgeSeconds < 300 };
+
+forbid (principal, action == Action::"approveRefund", resource)
+when { resource.amount > 5000 && !(context has secondApprover) };
+```
+
+</Code>
+
+Pour le partage, un modèle **OpenFGA** exprime les relations plutôt que des règles :
+
+<Code file="policies/model.fga">
+
+```text
+model
+  schema 1.1
+
+type user
+
+type tenant
+  relations
+    define member: [user]
+    define admin: [user]
+
+type invoice
+  relations
+    define owner: [tenant]
+    define shared_with: [user]
+    define viewer: member from owner or shared_with
+    define editor: admin from owner
+```
+
+</Code>
+
+Un moteur ne décide qu'avec ce qu'on lui donne : si l'application lui transmet un `tenantId` lu dans la requête au lieu de la session, la politique la plus élégante autorise la mauvaise chose. Et il ajoute une dépendance critique : sa disponibilité, sa latence et sa synchronisation avec les données (pour OpenFGA, les relations) entrent dans la conception, avec un échec qui refuse (leçon 2).
+
+Qu'elles soient en TypeScript ou en Cedar, les politiques se testent par **matrice** : pour chaque rôle, chaque action et deux tenants, le résultat attendu. Un test généré à partir de cette matrice détecte une régression qu'aucun test écrit à la main n'aurait couverte.
+
+## L'isolation des tenants
+
+Le risque numéro un d'un SaaS : qu'un client voie les données d'un autre. Trois modèles :
+
+| Modèle | Isolation | Coût |
+| --- | --- | --- |
+| Base par tenant | Très forte | Élevé à grande échelle |
+| Schéma par tenant | Forte | Moyen, migrations plus lourdes |
+| **Base partagée**, colonne `tenant_id` | Dépend des contrôles | Faible : c'est le modèle de Novafact |
+
+<Callout kind="case">
+**ChaosDB (2021)**. Les chercheurs de Wiz ont montré qu'une fonctionnalité de notebooks Jupyter, activée automatiquement sur Azure Cosmos DB en février 2021, permettait d'obtenir les clés primaires des bases d'autres clients. Microsoft a confirmé que plusieurs milliers de clients étaient concernés. Même chez un grand fournisseur cloud, une fonctionnalité ajoutée sur une infrastructure partagée peut devenir le mécanisme commun qui relie les tenants (*Least Common Mechanism*).
+</Callout>
+
+Avec une base partagée, la **sécurité au niveau des lignes** de PostgreSQL applique le filtre dans la base elle-même :
+
+<Code file="db/migrations/042_rls_invoices.sql">
+
+```sql
+ALTER TABLE invoice ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invoice FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation ON invoice
+  USING (tenant_id = current_setting('app.tenant_id')::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
+```
+
+</Code>
+
+Trois pièges transforment souvent cette défense en illusion :
+
+- **Le rôle de connexion**. Le propriétaire d'une table contourne ses politiques, sauf avec `FORCE ROW LEVEL SECURITY` ; un superutilisateur ou un rôle doté de `BYPASSRLS` les contourne toujours. L'application utilise un rôle dédié, non propriétaire ; les migrations, un autre.
+- **Le pool de connexions**. Un `SET app.tenant_id` de session survit sur la connexion physique et peut profiter à la requête suivante. On positionne la valeur **localement à la transaction**.
+- **La source du tenant**. Il vient toujours de la **session**, jamais d'un paramètre de requête.
+
+<Code file="apps/api/src/db/withTenant.ts" hl="6">
+
+```ts
+import { Prisma } from '@prisma/client';
+
+export function withTenant<T>(tenantId: TenantId, fn: (tx: Prisma.TransactionClient) => Promise<T>) {
+  return prisma.$transaction(async (tx) => {
+    // is_local = true : la valeur disparaît à la fin de la transaction, la connexion rendue au pool est propre
+    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+    return fn(tx);
+  });
+}
+```
+
+</Code>
+
+Si une requête s'exécute sans que le tenant ait été positionné, `current_setting` échoue ou renvoie une chaîne vide, que la conversion en `uuid` refuse : la requête **échoue** au lieu de tout renvoyer, ce qui est le comportement voulu. Même une requête qui oublie son filtre ne voit que le tenant courant. La DAL (M2) reste la première ligne ; RLS est la **défense en profondeur**, indépendante du code applicatif.
+
+<Callout kind="novafact">
+Pour MongoDB, pas de RLS native : Novafact impose le `tenantId` dans le repository (type `TenantId` marqué, M2) et ajoute une règle Semgrep qui interdit toute requête sur les collections multi-tenant hors du repository. Un test d'intégration crée deux tenants, remplit chacun, et vérifie que chaque endpoint de lecture n'a jamais renvoyé de document de l'autre.
+</Callout>
+
+<Recap items={[
+  "RBAC pour la base, ABAC pour les cas sensibles, ReBAC pour le partage ; chaque modèle a son mode d'échec.",
+  "Centraliser la décision, généraliser l'application : le middleware qui charge la ressource est le meilleur point contre les BOLA.",
+  "Un moteur de politiques (OPA, Cedar, OpenFGA) ne vaut que par les données qu'on lui donne ; les politiques se testent par matrice.",
+  "RLS PostgreSQL : rôle non propriétaire sans BYPASSRLS, FORCE ROW LEVEL SECURITY, tenant positionné localement à la transaction.",
+  "Sans RLS (MongoDB) : repository imposé, règle SAST et test d'isolation entre deux tenants.",
+]} />
+
+<Lab id="ps-access-control" />
+
+<Sources items={[
+  { title: "OWASP Cheat Sheet : Authorization", url: "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html" },
+  { title: "PostgreSQL : Row Security Policies", url: "https://www.postgresql.org/docs/current/ddl-rowsecurity.html" },
+  { title: "Cedar", url: "https://www.cedarpolicy.com/" },
+  { title: "OpenFGA", url: "https://openfga.dev/" },
+  { title: "Open Policy Agent", url: "https://www.openpolicyagent.org/" },
+  { title: "Zanzibar : Google's Consistent, Global Authorization System (USENIX ATC 2019)", url: "https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/" },
+  { title: "Wiz : ChaosDB", url: "https://www.wiz.io/blog/chaosdb-how-we-hacked-thousands-of-azure-customers-databases" },
+]} />

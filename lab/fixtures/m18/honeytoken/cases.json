@@ -1,0 +1,222 @@
+[
+  {
+    "id": "acces-leurre-1",
+    "malicious": true,
+    "label": "l’accès à la route d’export total"
+  },
+  {
+    "id": "acces-leurre-2",
+    "malicious": true,
+    "label": "l’accès à la facture leurre"
+  },
+  {
+    "id": "acces-leurre-3",
+    "malicious": true,
+    "label": "l’accès à la clé d’API leurre"
+  },
+  {
+    "id": "acces-leurre-4",
+    "malicious": true,
+    "label": "l’accès à la route et la clé leurres"
+  },
+  {
+    "id": "parcours-01",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-02",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-03",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-04",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-05",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-06",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-07",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-08",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-09",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-10",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-11",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-12",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-13",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-14",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-15",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-16",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-17",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-18",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-19",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-20",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-21",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-22",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-23",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-24",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-25",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-26",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-27",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-28",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-29",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-30",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-31",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-32",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-33",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-34",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-35",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-36",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-37",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-38",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-39",
+    "malicious": false,
+    "label": "un parcours légitime"
+  },
+  {
+    "id": "parcours-40",
+    "malicious": false,
+    "label": "un parcours légitime"
+  }
+]

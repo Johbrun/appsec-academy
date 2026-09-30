@@ -1,0 +1,14 @@
+{
+  "_a_propos": "Les défauts réellement présents dans le code du lab, au périmètre relu par l'outil. Sert de dénominateur au rappel : un défaut est « couvert » quand au moins un constat vrai positif le désigne (même fichier, même symbole, même CWE).",
+  "perimetre": ["server/lib/", "server/routes/", "server/store.ts"],
+  "defauts": [
+    { "id": "KD-01", "fichier": "server/routes/settings.ts", "symbole": "deepMerge", "cwe": "CWE-1321", "resume": "Fusion récursive qui recopie __proto__ dans l’objet cible." },
+    { "id": "KD-02", "fichier": "server/routes/invoices.ts", "symbole": "computeTotal", "cwe": "CWE-681", "resume": "Total calculé en virgule flottante, quantités non bornées." },
+    { "id": "KD-03", "fichier": "server/routes/invoices.ts", "symbole": "REF_PATTERN", "cwe": "CWE-1333", "resume": "Quantificateur imbriqué évalué sur la boucle d’événements." },
+    { "id": "KD-04", "fichier": "server/lib/jwt.ts", "symbole": "readToken", "cwe": "CWE-347", "resume": "L’algorithme de vérification vient du jeton lui-même." },
+    { "id": "KD-05", "fichier": "server/routes/webhooks.ts", "symbole": "isInternal", "cwe": "CWE-918", "resume": "Le filtre d’adresse interne laisse passer des formes équivalentes." },
+    { "id": "KD-06", "fichier": "server/routes/attachments.ts", "symbole": "ATTACH_DIR", "cwe": "CWE-22", "resume": "Chemin dérivé du nom fourni par le client." },
+    { "id": "KD-07", "fichier": "server/routes/profile.ts", "symbole": "profileRoutes", "cwe": "CWE-915", "resume": "Le corps de la requête est recopié dans l’entité persistée." },
+    { "id": "KD-08", "fichier": "server/routes/credits.ts", "symbole": "roundtrip", "cwe": "CWE-362", "resume": "Contrôle puis écriture séparés par une attente." }
+  ]
+}

@@ -1,0 +1,164 @@
+export const questions = [
+  {
+    q: "Quelle propriété de sécurité la menace « Repudiation » viole-t-elle ?",
+    options: [
+      "L'authenticité : savoir de qui vient une requête",
+      "La non-répudiation : pouvoir prouver qui a fait quoi",
+      "L'intégrité : savoir que la donnée n'a pas été modifiée",
+      "La traçabilité technique : disposer de journaux exploitables",
+    ],
+    answer: 1,
+    explain: "Répudier, c'est pouvoir nier une action qu'on a faite. La défense passe par un audit fiable et infalsifiable — d'où la confusion fréquente avec la simple traçabilité : avoir des journaux ne suffit pas si celui qui agit peut aussi les modifier ou les effacer. C'est pourquoi Kohnfelder applique Separation of Privilege aux journaux d'audit.",
+  },
+  {
+    q: "Selon STRIDE par élément, quelles catégories s'appliquent à un stockage de données ?",
+    options: [
+      "Tampering, Information disclosure et Denial of service, mais jamais Repudiation",
+      "Spoofing, Tampering, Information disclosure et Elevation of privilege",
+      "Tampering, Repudiation (pour les journaux), Information disclosure, Denial of service",
+      "Les six catégories, un stockage étant concerné par tous les types de menaces",
+    ],
+    answer: 2,
+    explain: "Un stockage ne s'usurpe pas et n'élève pas ses propres privilèges ; il peut être modifié, divulgué ou rendu indisponible. Repudiation est le cas subtil qu'on écarte à tort : elle s'applique quand le stockage est justement celui des journaux, puisque altérer ou perdre la trace, c'est permettre de nier.",
+  },
+  {
+    q: "Quelqu'un envoie au endpoint de webhook de Novafact un faux événement « paiement réussi ». Quelle catégorie STRIDE et quelle contre-mesure principale ?",
+    options: [
+      "Tampering du flux de données : imposer TLS et épingler le certificat",
+      "Elevation of privilege : restreindre le endpoint aux adresses IP du prestataire",
+      "Repudiation : journaliser l'événement avec son identifiant et son horodatage",
+      "Spoofing de l'entité externe : vérifier la signature HMAC sur le corps brut",
+    ],
+    answer: 3,
+    explain: "L'attaquant se fait passer pour le prestataire : c'est un spoofing de l'entité externe, et seule une preuve d'origine le règle — signature calculée sur le corps brut, tolérance d'horodatage, déduplication par identifiant d'événement. Le tampering est le piège naturel puisqu'on parle d'un message, mais ici rien n'est altéré en chemin : le message est fabriqué de toutes pièces, et TLS ne dit rien de qui l'a écrit. Le filtrage par IP est utile en défense en profondeur et ne survit ni à un changement d'infrastructure du prestataire ni à une SSRF.",
+  },
+  {
+    q: "Pourquoi STRIDE par élément n'associe-t-il pas Spoofing aux flux de données ?",
+    options: [
+      "Parce qu'un flux chiffré et authentifié ne peut pas être usurpé",
+      "Parce qu'on usurpe une extrémité du flux, où la menace est déjà comptée",
+      "Parce qu'un flux ne porte aucune identité propre, donc rien à usurper",
+      "Parce que Microsoft réserve Spoofing aux processus et aux entités externes",
+    ],
+    answer: 1,
+    explain: "Un flux peut être altéré, lu ou saturé ; l'usurpation porte sur qui envoie ou qui reçoit, donc sur les éléments aux deux bouts, et la compter deux fois ne ferait qu'alourdir la matrice. Dire qu'un flux ne porte aucune identité n'est pas loin, mais le raisonnement est faux : un flux porte bien celle de son émetteur, et c'est précisément pour cela que la menace existe — simplement, elle se traite à l'extrémité.",
+  },
+];
+
+<YouKnow>
+Tu utilises STRIDE implicitement quand tu cherches à usurper, modifier, nier, lire, bloquer ou élever. La méthode le rend systématique, élément par élément.
+</YouKnow>
+
+## D'où vient STRIDE
+
+STRIDE est né chez Microsoft à la fin des années 1990, dans un article de Loren Kohnfelder et Praerit Garg destiné à aider les développeurs à voir les failles de leurs propres produits. Kohnfelder raconte dans son livre que la taxonomie a porté un vaste effort de formation dans tous les groupes produit. Son but n'a jamais été de classer les attaques avec précision : c'est un **aide-mémoire** qui fait penser aux six grandes façons dont un composant peut trahir la confiance qu'on lui accorde.
+
+## Les six catégories
+
+Kohnfelder associe chaque catégorie STRIDE à la propriété qu'elle viole. On peut y ajouter la famille de contre-mesures qui y répond :
+
+| Menace | Propriété violée | Exemples chez Novafact | Famille de contre-mesures |
+| --- | --- | --- | --- |
+| **S**poofing | Authenticité | Webhook non signé imitant le prestataire de paiement, session volée | Authentification, signatures |
+| **T**ampering | Intégrité | Montant modifié côté client, facture altérée après émission | Validation serveur, signatures, contrôle d'accès en écriture |
+| **R**epudiation | Non-répudiation | Administrateur qui supprime des factures sans trace | Journal d'audit infalsifiable, horodatage |
+| **I**nformation disclosure | Confidentialité | BOLA sur les factures, logs contenant des IBAN | Autorisation, chiffrement, minimisation |
+| **D**enial of service | Disponibilité | ReDoS, génération de PDF massive, verrouillage de comptes | Quotas, limites, isolation, files |
+| **E**levation of privilege | Autorisation | Mass assignment du rôle, confused deputy de l'assistant IA | Moindre privilège, autorisation centralisée |
+
+### Ne pas se disputer sur la case
+
+Une même faille touche souvent plusieurs catégories. Une BOLA en lecture est une divulgation (I) ; la même BOLA en écriture est une altération (T) et, si elle touche le rôle, une élévation (E). Une session volée est une usurpation (S) qui mène à tout le reste. Les équipes débutantes perdent du temps à trancher : « c'est plutôt du T ou du E ? ». La réponse pratique : peu importe, la catégorie sert à **trouver** la menace, pas à la ranger. Note la plus parlante, et passe à la suite.
+
+## STRIDE par élément
+
+Toutes les catégories ne s'appliquent pas à tous les éléments du DFD. La variante **STRIDE par élément** (issue du SDL de Microsoft) évite de chercher des menaces absurdes :
+
+| Élément | S | T | R | I | D | E |
+| --- | --- | --- | --- | --- | --- | --- |
+| Entité externe | ✓ |  | ✓ |  |  |  |
+| Processus | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Stockage |  | ✓ | ✓ (journaux) | ✓ | ✓ |  |
+| Flux de données |  | ✓ |  | ✓ | ✓ |  |
+
+La logique se retrouve facilement. Une **entité externe** est hors de ton contrôle : tu ne peux ni la modifier ni la protéger, seulement te demander si elle est bien celle qu'elle prétend (S) et si elle pourra nier ses actions (R). Un **flux** ne s'usurpe pas : on usurpe ses extrémités ; il peut en revanche être altéré, lu ou saturé. Un **stockage** n'a pas d'identité ni de privilèges propres, mais ses journaux portent la non-répudiation. Le **processus** cumule tout, parce qu'il exécute du code avec des droits : c'est là que se concentre l'essentiel du travail.
+
+Une variante, **STRIDE par interaction**, raisonne sur chaque couple « source, flux, destination » plutôt que sur chaque élément isolé. Elle produit moins de doublons sur les gros diagrammes, au prix d'une préparation plus longue.
+
+## Un exemple complet : le webhook de paiement
+
+Le prestataire de paiement notifie Novafact par un webhook. Quatre éléments : le prestataire (entité externe), le flux HTTPS, le handler (processus), la table des paiements (stockage).
+
+| Élément | Menace | Mitigation retenue |
+| --- | --- | --- |
+| Prestataire | S : un tiers envoie un faux « paiement réussi » | Signature HMAC vérifiée sur le corps brut |
+| Prestataire | R : litige sur la réception d'un événement | Journal de chaque événement reçu, avec son identifiant |
+| Flux | T : événement valide rejoué plus tard | Horodatage signé et tolérance de 5 minutes, déduplication par identifiant |
+| Flux | D : corps énorme ou rafale d'appels | Limite de taille, réponse 2xx rapide, traitement en file |
+| Handler | E : le handler écrit avec un rôle base trop large | Rôle Postgres limité aux tables de paiement |
+| Handler | I : le payload complet, avec données de carte partielles, finit dans les logs | Journaliser l'identifiant et le type, pas le corps |
+| Table des paiements | T : double encaissement | Index unique sur l'identifiant du paiement (M10) |
+
+La première ligne se traduit directement en code. La bibliothèque officielle vérifie la signature et l'horodatage, à condition de lui passer le corps **non parsé** :
+
+<Diff file="apps/api/src/webhooks/payments.ts" hlBefore="1,2" hlAfter="1,3,4,5,6,7,10">
+
+```ts
+router.post('/webhooks/payments', express.json(), async (req, res) => {
+  await handlePaymentEvent(req.body); // n'importe qui peut appeler cette route
+  res.sendStatus(200);
+});
+```
+
+```ts
+router.post('/webhooks/payments', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.header('stripe-signature') ?? '', env.STRIPE_WEBHOOK_SECRET);
+  } catch {
+    return res.sendStatus(400); // signature ou horodatage invalide
+  }
+  const firstTime = await processedEvents.insertIfAbsent(event.id); // unicité en base
+  if (firstTime) await queue.send('payment-events', { id: event.id, type: event.type });
+  res.sendStatus(200);
+});
+```
+
+</Diff>
+
+Sept menaces, une heure de discussion, et chaque ligne du tableau devient un test ou une revue ciblée. C'est l'ordre de grandeur d'une séance réussie sur une fonctionnalité de cette taille.
+
+## Des abuse cases aux cartes
+
+- Les **abuse cases** (M7) sont une façon narrative de trouver des menaces : « en tant qu'attaquant, je veux… ».
+- Les **jeux de cartes** rendent l'exercice collectif et moins intimidant pour les développeurs.
+
+**Elevation of Privilege**, créé par Adam Shostack en 2010 à Microsoft, reprend les six catégories STRIDE comme couleurs. Chaque carte décrit une menace concrète ; pour la jouer, il faut l'accrocher à un élément du diagramme. La mécanique de jeu est un prétexte : elle donne la parole à tout le monde, y compris au développeur junior qui n'aurait jamais osé dire « et si quelqu'un rejouait ce webhook ? ».
+
+**OWASP Cornucopia** suit la même idée avec des couleurs orientées web : validation et encodage des données, authentification, gestion de session, autorisation, cryptographie, et une couleur « Cornucopia » pour le reste. Ses cartes renvoient vers des exigences de l'ASVS, ce qui relie directement une menace trouvée à une exigence vérifiable (M7). Une édition mobile existe aussi.
+
+Une séance d'une heure avec l'équipe sur un DFD produit souvent une dizaine de menaces pertinentes. Au-delà de six participants, la séance se transforme en réunion : mieux vaut deux tables.
+
+## Du constat à l'action
+
+Chaque menace retenue devient une ligne du threat model : l'élément, la catégorie, le scénario, la mitigation choisie (ou la décision d'accepter), et un **ticket** si une action est nécessaire. Sans ticket, le threat model reste un document. Le ticket reprend le scénario en une phrase, le critère d'acceptation vérifiable (« un webhook sans signature valide reçoit 400 »), et un lien vers la ligne du modèle, pour que la revue de code (M12) sache ce qu'elle doit vérifier.
+
+<Callout kind="tip">
+Le jeu **STRIDE Cards** te fait poser des menaces sur le DFD de Novafact : pour chacune, la bonne catégorie, le bon élément, puis la contre-mesure.
+</Callout>
+
+<Recap items={[
+  "STRIDE, créé chez Microsoft par Kohnfelder et Garg, est un aide-mémoire : chaque catégorie viole une propriété et appelle une famille de contre-mesures.",
+  "Une faille touche souvent plusieurs catégories : la case sert à trouver la menace, pas à la ranger.",
+  "STRIDE par élément évite les menaces absurdes : entité (S, R), flux (T, I, D), stockage (T, R, I, D), processus (tout).",
+  "Sur un webhook de paiement, sept menaces mènent à des mitigations concrètes : signature sur corps brut, déduplication, limites, moindre privilège.",
+  "Abuse cases et jeux de cartes (Elevation of Privilege, Cornucopia) rendent l'exercice collectif ; chaque menace retenue devient une décision et un ticket vérifiable.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 2, STRIDE" },
+  { title: "Microsoft : Threat Modeling Tool et STRIDE", url: "https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats" },
+  { title: "OWASP Cornucopia", url: "https://owasp.org/www-project-cornucopia/" },
+  { title: "Elevation of Privilege (jeu de cartes)", url: "https://shostack.org/games/elevation-of-privilege" },
+  { title: "Stripe : vérifier les signatures de webhooks", url: "https://docs.stripe.com/webhooks" },
+]} />

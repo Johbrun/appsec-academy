@@ -1,0 +1,58 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "Account": "123456789012",
+  "Users": [
+    {
+      "UserName": "ci-deploy",
+      "CreateDate": "2023-04-02",
+      "ConsoleAccess": false,
+      "MfaDevices": [],
+      "AccessKeys": [
+        {
+          "AccessKeyId": "AKIALABFAKE0000000001",
+          "Status": "Active",
+          "CreateDate": "2023-04-02",
+          "LastUsedDate": "2026-09-27"
+        }
+      ],
+      "AttachedPolicies": ["arn:aws:iam::aws:policy/AdministratorAccess"]
+    },
+    {
+      "UserName": "sauvegardes",
+      "CreateDate": "2024-11-18",
+      "ConsoleAccess": false,
+      "MfaDevices": [],
+      "AccessKeys": [
+        {
+          "AccessKeyId": "AKIALABFAKE0000000002",
+          "Status": "Active",
+          "CreateDate": "2024-11-18",
+          "LastUsedDate": "2026-09-26"
+        },
+        {
+          "AccessKeyId": "AKIALABFAKE0000000003",
+          "Status": "Inactive",
+          "CreateDate": "2024-11-18",
+          "LastUsedDate": null
+        }
+      ],
+      "AttachedPolicies": ["arn:aws:iam::123456789012:policy/novafact-backup"]
+    },
+    {
+      "UserName": "marie.lebrun",
+      "CreateDate": "2022-09-05",
+      "ConsoleAccess": true,
+      "MfaDevices": [],
+      "AccessKeys": [
+        {
+          "AccessKeyId": "AKIALABFAKE0000000004",
+          "Status": "Active",
+          "CreateDate": "2022-09-05",
+          "LastUsedDate": "2026-09-20"
+        }
+      ],
+      "AttachedPolicies": ["arn:aws:iam::aws:policy/PowerUserAccess"]
+    }
+  ],
+  "Roles": []
+}

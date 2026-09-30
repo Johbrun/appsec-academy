@@ -1,0 +1,160 @@
+export const questions = [
+  {
+    q: "Combien de fonctions métier compte OWASP SAMM v2, et laquelle couvre la gestion des incidents ?",
+    options: [
+      "Quatre ; Deployment",
+      "Cinq ; Verification",
+      "Cinq ; Operations",
+      "Cinq ; Implementation",
+    ],
+    answer: 2,
+    explain: "Governance, Design, Implementation, Verification et Operations. « Quatre ; Deployment » vient de BSIMM, qui compte bien quatre domaines dont Deployment : c'est la confusion la plus courante entre les deux modèles. Implementation est tentant parce qu'il contient Defect Management, mais un défaut n'est pas un incident : Incident Management relève d'Operations, avec Environment et Operational Management.",
+  },
+  {
+    q: "Tu évalues Novafact sur « Threat Assessment » et obtiens 0,5. Quelle est la bonne réaction ?",
+    options: [
+      "Viser 3 sur Threat Assessment, la pratique la plus basse, pour rattraper le retard",
+      "Viser 1 sur quelques pratiques choisies selon le risque de Novafact",
+      "Aligner toutes les pratiques sur la moyenne du benchmark SAMM, soit 1,44",
+      "Concentrer l'effort sur Security Testing, là où ton expérience rend le plus",
+    ],
+    answer: 1,
+    explain: "Chacun des trois autres prend un mauvais juge : le score lui-même (rattraper la pratique la plus basse), la moyenne des autres (1,44 vient d'un échantillon de grandes multinationales, c'est un repère, pas une cible), ou ton propre confort. Le juge, c'est le risque de Novafact. Et comme SAMM se gravit par marches de 0,25, passer de 0,5 à 1 sur deux pratiques bien choisies tient dans un trimestre, ce que « 3 partout » ne tiendra jamais.",
+  },
+  {
+    q: "Dans la Toolbox SAMM, les deux questions de niveau 1 de Threat Assessment reçoivent 1 (stream A) et 0 (stream B), et rien n'est acquis aux niveaux 2 et 3. Quel est le score de la pratique ?",
+    options: ["0,5", "1", "0,17", "0,25"],
+    answer: 0,
+    explain: "1 est le piège : c'est la somme des deux streams au lieu de leur moyenne, et c'est aussi ce qu'on obtient en retenant le meilleur des deux. 0,17 vient de diviser par les trois niveaux au lieu de les additionner. 0,25 est une valeur de réponse possible, jamais un score de pratique. La Toolbox fait la moyenne des streams à chaque niveau, puis additionne les niveaux : (1 + 0) / 2 = 0,5 au niveau 1, rien ensuite, soit 0,5 sur 3.",
+  },
+  {
+    q: "Le lead d'une équipe affirme que « toutes les applications ont un threat model ». Que fais-tu avant de noter la réponse ?",
+    options: [
+      "Tu notes « Yes, for most or all applications » : c'est exactement ce que dit la personne",
+      "Tu notes 0,5 par prudence, faute de pouvoir vérifier sur le moment",
+      "Tu poses la même question au lead d'une autre équipe pour recouper la réponse",
+      "Tu demandes deux threat models récents et tu les confrontes aux critères de qualité",
+    ],
+    answer: 3,
+    explain: "Recouper auprès d'un autre lead est le réflexe le plus tentant, et c'est encore une déclaration : deux témoignages concordants ne font pas une preuve. Noter 0,5 « par prudence » invente une donnée que personne ne pourra rejouer à la prochaine évaluation. SAMM tranche à ta place : sous chaque question figurent des critères de qualité, et tant qu'un artefact ne les démontre pas, la réponse reste « No », même si l'activité existe sur le papier.",
+  },
+];
+
+<YouKnow>
+Tu as sans doute vu des grilles d'audit organisationnel. SAMM en est une, mais pensée pour la sécurité du logiciel et utilisable comme outil de pilotage, pas seulement de constat.
+</YouKnow>
+
+## À quoi sert SAMM
+
+OWASP SAMM (Software Assurance Maturity Model) répond à une question simple : **où en est notre programme de sécurité logicielle, et quelle est la prochaine étape raisonnable ?** C'est un modèle **prescriptif** : il décrit ce qu'il faudrait faire, niveau par niveau, indépendamment de la taille ou de la technologie.
+
+La version 2 a été publiée le 31 janvier 2020. Elle a ajouté une cinquième fonction, **Implementation**, pour couvrir le build, le déploiement et la gestion des défauts, qui étaient mal représentés dans la version précédente. Elle se veut indépendante de la méthode de développement (cycle en V, agile, DevOps), et son contenu est publié en YAML, ce qui permet de l'intégrer dans des outils.
+
+## La structure
+
+SAMM v2 s'organise en **5 fonctions métier**, chacune avec **3 pratiques**, soit 15 pratiques. Chaque pratique a **2 streams** (A et B), et chaque stream a **3 niveaux de maturité**.
+
+| Fonction | Pratiques |
+| --- | --- |
+| Governance | Strategy & Metrics · Policy & Compliance · Education & Guidance |
+| Design | Threat Assessment · Security Requirements · Secure Architecture |
+| Implementation | Secure Build · Secure Deployment · Defect Management |
+| Verification | Architecture Assessment · Requirements-driven Testing · Security Testing |
+| Operations | Incident Management · Environment Management · Operational Management |
+
+Les niveaux suivent une logique commune : **1** = pratique ponctuelle ou initiale, **2** = pratique structurée et plus efficace, **3** = pratique optimisée et mesurée.
+
+Les streams sont ce qui rend SAMM utilisable : ils séparent deux axes d'une même pratique, qui avancent souvent à des rythmes différents.
+
+| Pratique | Stream A | Stream B |
+| --- | --- | --- |
+| Threat Assessment | Application Risk Profile : classer les applications par risque | Threat Modeling : modéliser les menaces |
+| Security Requirements | Software Requirements : exigences du produit | Supplier Security : exigences envers les fournisseurs |
+| Defect Management | Defect Tracking : suivre et classer les défauts | Metrics and Feedback : en tirer des indicateurs |
+
+Prends le stream Threat Modeling. Au niveau 1, on fait du threat modeling « au mieux », orienté risque, avec un brainstorming et les schémas existants. Au niveau 2, on standardise la formation, le processus et les outils pour que toutes les équipes le pratiquent de la même façon. Au niveau 3, on optimise et on automatise la méthode en continu. Chaque marche décrit un changement d'organisation, pas seulement un outil.
+
+## Comment se calcule un score
+
+Dans la SAMM Toolbox, chaque activité correspond à une question. La réponse la plus basse est « No » (0) ; les autres traduisent une adoption de plus en plus large, avec des valeurs de 0,25, 0,5 et 1 (par exemple « Yes, for some applications », « Yes, for at least half of the applications », « Yes, for most or all of the applications »). Sous chaque question figurent des **critères de qualité** : s'ils ne sont pas remplis, la réponse reste « No », même si l'activité existe sur le papier.
+
+Pour chaque niveau, la Toolbox fait la moyenne des deux streams, puis additionne les trois niveaux. Le score d'une pratique va donc de 0 à 3.
+
+| Niveau | Stream A (Application Risk Profile) | Stream B (Threat Modeling) | Moyenne |
+| --- | --- | --- | --- |
+| 1 | 0,5 (au moins la moitié des applications) | 0,5 (au moins la moitié) | 0,5 |
+| 2 | 0 | 0 | 0 |
+| 3 | 0 | 0 | 0 |
+| **Pratique** | | | **0,5** |
+
+Ce calcul a une conséquence utile : un gain de 0,25 sur un seul stream se voit dans le score. Une équipe peut montrer une progression réelle au bout d'un trimestre, sans attendre d'avoir « validé » un niveau entier.
+
+## Mener une évaluation
+
+<Steps items={[
+  { title: "Délimiter", text: "Toute l'organisation, un produit, ou une équipe. Pour Novafact, commence par le produit principal." },
+  { title: "Interroger", text: "Chaque activité se note par une question avec plusieurs réponses graduées. La SAMM Toolbox (tableur Excel ou Google Sheets fourni par OWASP) calcule les scores." },
+  { title: "Obtenir des preuves", text: "Une réponse sans preuve (document, pipeline, ticket) vaut moins qu'on ne le croit. Demande à voir." },
+  { title: "Fixer des cibles", text: "Une cible par pratique, justifiée par les risques et les moyens. Pas besoin de 3 partout." },
+  { title: "Planifier", text: "Des étapes de 3 à 6 mois, avec des activités concrètes et un propriétaire pour chacune." },
+]} />
+
+Pour une première évaluation, compte une journée d'entretiens courts : un lead par équipe, le responsable plateforme, la personne qui gère les incidents, quelqu'un du produit. Si les pratiques varient beaucoup d'une équipe à l'autre, note par équipe puis consolide : une moyenne globale qui mélange une équipe à 2 et une autre à 0 ne dit rien d'utile. Au-delà du tableur, OWASP propose SAMMwise, un outil web à héberger soi-même, et il existe des outils tiers comme SAMMY (Codific).
+
+<Callout kind="warn">
+Le piège classique : transformer SAMM en concours de notes. Une organisation à 1,2 qui progresse sur les bonnes pratiques vaut mieux qu'une autre à 2,5 sur le papier, sans preuve. Le score est un outil de conversation, pas un objectif. Deuxième piège : n'interroger que des managers. Les réponses les plus fiables viennent de ceux qui font le travail, avec leurs artefacts sous les yeux.
+</Callout>
+
+Une pratique illustre bien la différence entre une note et un progrès : **Threat Assessment**, dans la fonction Conception. On atteint le niveau 1 en produisant un modèle de menaces ; on atteint le niveau 2 quand le modèle suit l'architecture livrée, c'est-à-dire quand une modification d'architecture invalide le modèle et qu'on le sait (M11). C'est un travail d'outillage, pas de rédaction — et c'est ce genre d'écart que l'évaluation doit faire apparaître.
+
+## Se situer : le SAMM Benchmark
+
+OWASP collecte des évaluations anonymisées dans le **SAMM Benchmark**. Le rapport publié repose sur un échantillon modeste, et il le dit lui-même.
+
+<Callout kind="info">
+Le rapport du SAMM Benchmark porte sur 30 évaluations, surtout de grandes multinationales, dont plus de 80 % ont été menées par des évaluateurs tiers. Le score moyen est de 1,44 sur 3. Operations est la fonction la mieux notée (1,81), Verification la plus faible (1,12). Les auteurs préviennent que cette moyenne est probablement plus élevée que celle d'entreprises plus petites.
+</Callout>
+
+Deux leçons pour Novafact. Un score autour de 1 n'a rien de honteux pour une entreprise de sa taille. Et la faiblesse de Verification rappelle que vérifier que les exigences de sécurité sont réellement implémentées reste rare, y compris chez les grands : c'est un terrain où un ancien pentester apporte beaucoup.
+
+## Ce que SAMM apporte à un ancien pentester
+
+Ton regard offensif te pousse naturellement vers **Security Testing** et **Defect Management**. SAMM t'oblige à regarder le reste : les exigences (Security Requirements), la conception (Threat Assessment, Secure Architecture), la formation (Education & Guidance) et l'exploitation (Incident Management). C'est souvent là que se trouvent les meilleurs leviers, parce que ce sont eux qui empêchent les vulnérabilités d'apparaître.
+
+Un exemple de lecture croisée : si ton pentest trouve des BOLA à chaque campagne, le problème n'est pas dans Security Testing (qui les trouve très bien) mais dans Security Requirements (aucune exigence d'autorisation écrite) et Secure Architecture (pas de composant d'autorisation central). Le score SAMM te donne un langage pour dire ça à une direction.
+
+<Callout kind="novafact">
+Première évaluation SAMM de Novafact (chiffres fictifs) :
+
+| Pratique | Score | Preuve observée | Cible à 12 mois |
+| --- | --- | --- | --- |
+| Security Testing | 1,5 | Pentest annuel, SAST installé mais non configuré | 1,75 |
+| Threat Assessment | 0,5 | Deux schémas d'architecture commentés, pas de profil de risque | 1 |
+| Security Requirements | 0 | Aucune exigence écrite | 1 |
+| Secure Build | 1 | CI unique, dépendances non épinglées | 1,5 |
+| Incident Management | 1 | Astreinte, mais aucun scénario applicatif | 1,25 |
+
+La roadmap détaillée arrive en fin de module.
+</Callout>
+
+## Faire vivre l'évaluation
+
+Une évaluation SAMM n'a de valeur que répétée. Refais-la tous les 6 à 12 mois avec les mêmes interlocuteurs et la même méthode, sinon l'écart mesure le changement d'évaluateur plutôt que celui du programme. Garde les preuves dans un dossier versionné : à la réévaluation suivante, tu repars de ce qui existait et tu vérifies que ça existe toujours. Enfin, présente toujours le score avec sa cible et sa tendance ; un chiffre isolé invite aux comparaisons que tu veux éviter.
+
+<Recap items={[
+  "SAMM est un modèle prescriptif de maturité de la sécurité logicielle ; la v2 (janvier 2020) a ajouté la fonction Implementation.",
+  "5 fonctions, 15 pratiques, 2 streams par pratique, 3 niveaux.",
+  "Chaque réponse vaut 0, 0,25, 0,5 ou 1 ; moyenne des streams par niveau, somme des niveaux : un score de 0 à 3.",
+  "Une évaluation vaut par ses preuves et ses critères de qualité, pas par ses déclarations.",
+  "On fixe une cible par pratique selon le risque ; 3 partout n'est pas un objectif, et le benchmark place la moyenne autour de 1,4.",
+  "SAMM pousse à investir en amont (exigences, conception), là où un pentester regarde rarement.",
+]} />
+
+<Sources items={[
+  { title: "OWASP SAMM : le modèle", url: "https://owaspsamm.org/model/" },
+  { title: "OWASP SAMM : évaluation et toolbox", url: "https://owaspsamm.org/assessment/" },
+  { title: "OWASP SAMM : pratique Threat Assessment", url: "https://owaspsamm.org/model/design/threat-assessment/" },
+  { title: "OWASP SAMM version 2, publication", url: "https://owaspsamm.org/blog/samm2-release/" },
+  { title: "OWASP SAMM Benchmark Report", url: "https://owaspsamm.org/benchmark/benchmark-report/" },
+  { title: "Dépôt GitHub OWASP SAMM", url: "https://github.com/OWASP/samm" },
+]} />

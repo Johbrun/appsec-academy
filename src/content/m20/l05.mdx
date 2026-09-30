@@ -1,0 +1,80 @@
+export const questions = [];
+
+<YouKnow>
+La page de paiement est la plus exposée de Novafact : elle est publique, elle touche à l’argent, et elle est dans le périmètre PCI. Cette étape en fait la revue côté client, avec les modules 4 et 7.
+</YouKnow>
+
+## Étape 5 : sécuriser la page de paiement
+
+Une page qui manipule un paiement attire les scripts d’écrémage (skimming, formjacking). Ton livrable : un **inventaire des scripts tiers**, une **CSP stricte** adaptée, et le rattachement aux exigences **PCI DSS** applicables.
+
+## Inventorier les scripts
+
+On ne protège que ce qu’on connaît (M4). Dresse la liste de tout ce qui s’exécute sur la page de paiement :
+
+<Steps items={[
+  { title: "Lister", text: "Scripts de Novafact, SDK du prestataire de paiement, analytics, tags marketing, polices, widgets. Note l’origine et le rôle de chacun." },
+  { title: "Éliminer", text: "Une page de paiement n’a pas besoin d’analytics marketing ni de widget de chat. Retire tout ce qui n’est pas indispensable à l’encaissement." },
+  { title: "Isoler le paiement", text: "Le champ de carte vit dans un composant du prestataire (iframe ou éléments hébergés), pour que les données de carte ne touchent jamais le DOM de Novafact (SAQ A)." },
+  { title: "Verrouiller ce qui reste", text: "Pour chaque script tiers conservé, décide s’il peut être auto-hébergé, épinglé par intégrité (SRI) ou au moins encadré par la CSP." },
+]} />
+
+## Une CSP stricte pour cette page
+
+La page de paiement mérite une CSP plus stricte que le reste du site (M4) : peu d’origines, pas de `unsafe-inline`, nonces sur les scripts, et une directive de report.
+
+<Code file="apps/web/src/payment/csp.ts" hl="3,6">
+
+```ts
+// CSP dédiée à la page de paiement, plus stricte que la politique globale.
+export const paymentCsp = [
+  "default-src 'none'",
+  "script-src 'nonce-{NONCE}' 'strict-dynamic' https://js.stripe.com",
+  "frame-src https://js.stripe.com https://hooks.stripe.com",
+  "connect-src 'self' https://api.stripe.com",
+  "img-src 'self' data:",
+  "style-src 'self'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "report-uri /csp-report",
+].join('; ');
+```
+
+</Code>
+
+Vérifie cette politique avec le raisonnement du jeu CSP Builder : `default-src 'none'` ferme tout par défaut, chaque directive rouvre le strict nécessaire, `base-uri` et `frame-ancestors` bloquent l’injection de balise `<base>` et le clickjacking.
+
+## Rattacher aux exigences PCI
+
+Le PCI DSS 4.0.1 a renforcé, depuis le 31 mars 2025, deux exigences directement liées à cette page :
+
+| Exigence | Ce qu’elle impose | Comment Novafact y répond |
+| --- | --- | --- |
+| **6.4.3** | Gérer et autoriser tous les scripts de la page de paiement, garantir leur intégrité | Inventaire, suppression du superflu, SRI ou auto-hébergement |
+| **11.6.1** | Détecter les modifications non autorisées des en-têtes et du contenu de la page de paiement | Surveillance des en-têtes et du DOM, alerte sur changement |
+
+Comme Novafact n’expose que des composants hébergés par le prestataire et ne touche jamais les données de carte, il vise le questionnaire **SAQ A**, le plus léger, mais 6.4.3 et 11.6.1 s’y appliquent quand même.
+
+<Callout kind="case">
+Les attaques Magecart et l’affaire polyfill.io (M14) ont montré qu’un seul script tiers compromis suffit à écrémer des milliers de pages de paiement. C’est précisément ce que 6.4.3 et 11.6.1 visent à rendre détectable : la page de paiement ne doit charger que du connu, et toute dérive doit lever une alerte.
+</Callout>
+
+## Livrable de l’étape
+
+- L’**inventaire des scripts** de la page de paiement, avec ce qui est retiré et pourquoi.
+- La **CSP dédiée** à la page, justifiée directive par directive.
+- Le **rattachement PCI** (6.4.3, 11.6.1, SAQ A) documenté.
+
+<Recap items={[
+  "Une page de paiement est la cible privilégiée des skimmers : on n’y garde que l’indispensable.",
+  "Isoler le champ de carte dans un composant du prestataire pour rester en SAQ A.",
+  "Une CSP dédiée, plus stricte : default-src 'none', nonces, origines minimales, report-uri.",
+  "PCI DSS 6.4.3 (gérer les scripts) et 11.6.1 (détecter les modifications) s’appliquent même en SAQ A.",
+]} />
+
+<Sources items={[
+  { title: "PCI DSS 4.0.1", url: "https://www.pcisecuritystandards.org/document_library/" },
+  { title: "MDN : Content-Security-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy" },
+  { title: "Stripe : sécurité de l’intégration", url: "https://docs.stripe.com/security/guide" },
+]} />

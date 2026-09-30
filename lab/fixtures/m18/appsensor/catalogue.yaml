@@ -1,0 +1,26 @@
+_note: Extrait du catalogue de points de détection d’OWASP AppSensor, réduit aux six points que le challenge demande.
+points:
+  - id: AE1
+    family: Authentication Exception
+    name: Use of Multiple Usernames
+    description: Une même source tente plusieurs identifiants différents en peu de temps.
+  - id: ACE3
+    family: Access Control Exception
+    name: Force Browsing Attempt
+    description: Un compte demande en série des ressources qui lui sont refusées.
+  - id: RE2
+    family: Request Exception
+    name: Attempt to Invoke Unsupported HTTP Method
+    description: Une méthode que l’application n’implémente pas est invoquée.
+  - id: SE5
+    family: Session Exception
+    name: Source Location Changes During Session
+    description: Une même session est utilisée depuis plusieurs adresses source.
+  - id: HT2
+    family: Honey Trap
+    name: Honey Trap Resource Requested
+    description: Une ressource leurre, qu’aucun usage légitime n’atteint, a été demandée.
+  - id: IE5
+    family: Input Exception
+    name: Violation of Stored Business Data Integrity
+    description: L’intégrité d’une donnée métier stockée est rompue — ici, la chaîne d’empreintes du journal d’audit.

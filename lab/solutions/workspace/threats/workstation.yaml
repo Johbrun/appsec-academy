@@ -1,0 +1,28 @@
+# Modèle de menaces nº 3 — le poste de développement — livrable de référence.
+#
+# Kohnfelder insiste sur celui-ci — le code source est l'actif principal, et le
+# poste y accède. L'inventaire des secrets se lit dans les workflows et dans la
+# configuration npm du dépôt.
+
+secrets:
+  - NOVAFACT_CANARY
+  - GITHUB_TOKEN
+  - NOVAFACT_API_KEY
+  - NPM_TOKEN
+
+threats:
+  - threat: Un script d'installation de dépendance s'exécute au premier `npm install` et lit tout ce que l'utilisateur du poste peut lire.
+    boundary: Registre de paquets → session de l'utilisateur du poste
+    control: novafact/.npmrc
+  - threat: Une extension d'éditeur accède au dossier de travail et au trousseau, sans qu'aucune revue n'ait porté sur elle.
+    boundary: Extension d'éditeur → dépôt de travail
+    control: novafact/.dockerignore
+  - threat: Le jeton de la forge, stocké en clair par l'outil en ligne de commande, permet de pousser sur toutes les branches accessibles au développeur.
+    boundary: Poste → forge
+    control: novafact/.github/CODEOWNERS
+  - threat: Un conteneur de développement monte le socket du démon Docker, ce qui équivaut à donner la machine hôte au code qui tourne dedans.
+    boundary: Conteneur de développement → hôte
+    control: novafact/docker-compose.yml
+  - threat: Une copie du dépôt reste sur un poste après le départ de son porteur, avec son historique et les secrets qu'il contient.
+    boundary: Poste retiré du parc → code source
+    control: novafact/infra/iam/users.json

@@ -1,0 +1,31 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "Bucket": "novafact-invoices",
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "LectureParLeCdn",
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": ["s3:GetObject", "s3:ListBucket"],
+        "Resource": [
+          "arn:aws:s3:::novafact-invoices",
+          "arn:aws:s3:::novafact-invoices/*"
+        ]
+      },
+      {
+        "Sid": "EcritureReserveeAuRoleDeTache",
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": ["s3:PutObject"],
+        "Resource": "arn:aws:s3:::novafact-invoices/factures/*",
+        "Condition": {
+          "ForAllValues:StringEquals": {
+            "aws:PrincipalArn": ["arn:aws:iam::123456789012:role/novafact-task-role"]
+          }
+        }
+      }
+    ]
+  }
+}

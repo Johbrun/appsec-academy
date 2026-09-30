@@ -1,0 +1,59 @@
+export const questions = [];
+
+<YouKnow>
+Novafact ajoute une fonctionnalité : le paiement d’une facture en un clic depuis l’e-mail du client, via un lien signé. Cette étape te fait rédiger le design doc puis le passer en revue de conception (Security Design Review), comme au module 8.
+</YouKnow>
+
+## Étape 2 : design doc et revue de conception
+
+La sécurité la moins chère est celle qu’on décide avant d’écrire le code (M8). Ton livrable : un **design doc** court de la nouvelle fonctionnalité, puis une **revue de conception** qui le passe au crible.
+
+## Rédiger le design doc
+
+Un bon design doc de sécurité tient en deux pages et répond à des questions précises :
+
+<Steps items={[
+  { title: "But et périmètre", text: "Payer une facture depuis un lien reçu par e-mail, sans se connecter, pour réduire les impayés. Ce qui est hors périmètre : la gestion des litiges." },
+  { title: "Flux de données", text: "Qui envoie quoi à qui : génération du lien signé côté API, e-mail via le prestataire, page de paiement, webhook du prestataire de paiement, mise à jour de la facture." },
+  { title: "Frontières de confiance", text: "Le lien voyage hors du système (boîte mail, proxys). Le client n’est pas authentifié sur cette page. Le webhook vient de l’extérieur." },
+  { title: "Décisions de sécurité", text: "Durée de vie et portée du lien signé ; ce que la page expose (le minimum : montant, référence) ; vérification de la signature du webhook ; idempotence." },
+  { title: "Hypothèses et dépendances", text: "On fait confiance au prestataire de paiement pour l’encaissement, pas pour l’autorisation métier. On ne stocke aucune donnée de carte (SAQ A)." },
+]} />
+
+## Passer la revue
+
+Applique la méthode de Kohnfelder (M8) : lire, questionner, identifier, puis prioriser en Must / Ought / Should. Quelques questions qui font surface les vrais risques ici :
+
+| Question | Risque si mal traité |
+| --- | --- |
+| Le lien signé donne-t-il accès à autre chose que cette facture ? | BOLA via un jeton trop large |
+| Que contient le lien ? Un identifiant devinable ? | Énumération d’autres factures |
+| Quelle est sa durée de vie, et est-il à usage unique ? | Rejeu, partage involontaire |
+| La page de paiement expose-t-elle des données personnelles à un non-authentifié ? | Fuite (M7) |
+| Le webhook est-il signé, horodaté, idempotent ? | Faux paiement, double traitement (M10) |
+| Que se passe-t-il si le service d’autorisation tombe ? | Doit échouer fermé (M8) |
+
+## Le compte rendu de revue
+
+Rédige le rapport comme au module 8 : par **changement recommandé**, priorisé, avec pour chacun le risque, la recommandation et un renvoi vers l’exigence de l’étape 1. Mentionne aussi ce qui est **bien conçu** (par exemple : aucune donnée de carte ne transite par Novafact), pour le protéger lors des évolutions.
+
+<Callout kind="novafact">
+Décision retenue pour Novafact : lien signé (JWT court, 30 minutes, à usage unique, portée limitée à `pay:invoice:<id>`), page qui n’expose que le montant et la référence, webhook Stripe vérifié par signature et horodatage avec déduplication sur l’identifiant d’événement, et repli en « refus » si la vérification échoue.
+</Callout>
+
+## Livrable de l’étape
+
+- Le **design doc** de la fonctionnalité de paiement (deux pages).
+- Le **compte rendu de revue de conception**, priorisé en Must / Ought / Should, relié aux exigences.
+
+<Recap items={[
+  "Décider la sécurité au niveau de la conception coûte bien moins cher qu’un correctif tardif.",
+  "Un design doc de sécurité dit : but, flux, frontières de confiance, décisions, hypothèses.",
+  "La revue lit, questionne, identifie et priorise en Must / Ought / Should.",
+  "Le rapport se relie aux exigences de l’étape 1 et souligne aussi ce qui est bien conçu.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 6 et 7" },
+  { title: "OWASP Threat Modeling Process", url: "https://owasp.org/www-community/Threat_Modeling_Process" },
+]} />

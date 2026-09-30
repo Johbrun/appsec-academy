@@ -1,0 +1,55 @@
+# Pile de développement Novafact.
+
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://novafact:novafact@db:5432/novafact
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    # CORRIGÉ : la base n'est plus publiée que sur la boucle locale. Les autres
+    # services de la pile la joignent par le réseau interne de compose (« db »),
+    # qui ne passe pas par la publication de ports — celle-ci ne sert qu'au
+    # client psql de la machine de développement.
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: novafact
+      POSTGRES_PASSWORD: novafact
+      POSTGRES_DB: novafact
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  builder:
+    image: novafact/ci-runner:latest
+    # CORRIGÉ : plus de socket du démon, plus de mode privilégié. Le socket
+    # équivaut à un accès root sur l'hôte : un conteneur qui l'a peut en
+    # démarrer un autre en privilégié et monter le système de fichiers de
+    # l'hôte. C'est le scénario d'évasion le plus fréquent.
+    #
+    # Les tests d'intégration parlent à un démon rootless dédié, joint par le
+    # réseau, avec TLS client — jamais au démon de la machine.
+    environment:
+      DOCKER_HOST: tcp://dockerd:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+    # CORRIGÉ : plus aucun privilège ajouté, et l'élévation est interdite.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - .:/workspace
+      - dockercerts:/certs/client:ro
+    working_dir: /workspace
+    command: npm run test:integration
+
+volumes:
+  pgdata:
+  dockercerts:

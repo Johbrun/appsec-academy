@@ -1,0 +1,11 @@
+{
+  "_": "Les quinze pratiques d'OWASP SAMM v2, et la capacité de l'équipe. Quatre personnes, un an : soixante jours-homme utilisables par trimestre une fois retirés le support, les astreintes et les congés.",
+  "capacity_days_per_quarter": 60,
+  "practices": [
+    "strategy-metrics", "policy-compliance", "education-guidance",
+    "threat-assessment", "security-requirements", "security-architecture",
+    "secure-build", "secure-deployment", "defect-management",
+    "architecture-assessment", "requirements-testing", "security-testing",
+    "incident-management", "environment-management", "operational-management"
+  ]
+}

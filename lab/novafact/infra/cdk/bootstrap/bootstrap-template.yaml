@@ -1,0 +1,48 @@
+# VULNÉRABLE — fixture du lab, ne pas réutiliser
+#
+# Extrait du template de bootstrap CDK déployé sur le compte de production.
+# Seul le rôle de publication d'artefacts est reproduit ici.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Novafact — bootstrap CDK (extrait)
+
+Parameters:
+  Qualifier:
+    Type: String
+    Default: hnb659fds
+  TrustedAccounts:
+    Type: CommaDelimitedList
+    Default: ''
+
+Resources:
+  StagingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'cdk-${Qualifier}-assets-${AWS::AccountId}-${AWS::Region}'
+
+  FilePublishingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'cdk-${Qualifier}-file-publishing-role-${AWS::AccountId}-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              AWS: !Ref TrustedAccounts
+      Policies:
+        - PolicyName: file-publishing
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Rien ne dit que le bucket visé appartient au compte. Si le
+              # bucket de staging disparaît et qu'un tiers reprend le nom, ce
+              # rôle publiera chez lui.
+              - Effect: Allow
+                Action:
+                  - s3:GetObject*
+                  - s3:PutObject*
+                  - s3:Abort*
+                  - s3:ListBucket
+                Resource: '*'

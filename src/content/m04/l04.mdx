@@ -1,0 +1,210 @@
+export const questions = [
+  {
+    q: "Avec script-src 'nonce-…' 'strict-dynamic', que devient une liste de domaines ajoutée dans la même directive ?",
+    options: [
+      "Elle couvre ce que strict-dynamic ne couvre pas, comme les scripts inline",
+      "Elle borne encore les scripts chargés dynamiquement par un script de confiance",
+      "Elle invalide la politique : nonce et liste de domaines sont incompatibles",
+      "Elle est ignorée dès que le navigateur comprend strict-dynamic",
+    ],
+    answer: 3,
+    explain: "strict-dynamic déplace la confiance sur le nonce, et la propage aux scripts que les scripts de confiance chargent. Les navigateurs qui le comprennent ignorent 'self', https: et toute source par domaine de la même directive : c'est ce qui rend fausse l'idée que la liste bornerait encore les chargements dynamiques. On ne la garde que comme repli pour les navigateurs anciens.",
+  },
+  {
+    q: "Pourquoi déployer d'abord la CSP en Content-Security-Policy-Report-Only ?",
+    options: [
+      "Parce que le mode bloquant n'accepte pas de directive de rapport",
+      "Pour mesurer ce qu'elle bloquerait, sans casser la production",
+      "Pour que les navigateurs anciens l'ignorent pendant la migration",
+      "Parce qu'une CSP bloquante impose un rendu dynamique de toutes les pages",
+    ],
+    answer: 1,
+    explain: "Le mode Report-Only signale sans bloquer : on trie les vraies violations et les simples oublis (un script légitime sans nonce), on corrige, puis on bascule. Le piège est de croire que le rapport serait réservé à ce mode : les deux acceptent report-to et report-uri, et c'est justement ce qui rend Report-Only utile. Quant au rendu dynamique, il découle du nonce, pas du mode bloquant — une politique par empreintes reste statique.",
+  },
+  {
+    q: "Le back-office génère un nonce par requête, mais CloudFront met en cache les pages HTML pendant 5 minutes. Quel est le problème ?",
+    options: [
+      "Aucun : CloudFront varie son cache sur l'en-tête Content-Security-Policy",
+      "Les scripts cassent : le nonce du HTML ne correspond plus à celui de l'en-tête",
+      "Tous les visiteurs reçoivent le même nonce : une injection peut le rejouer",
+      "Le nonce expire au bout des 5 minutes et les scripts cessent de s'exécuter",
+    ],
+    answer: 2,
+    explain: "L'en-tête et le HTML viennent du même cache : ils restent cohérents, donc rien ne casse — d'où les deux faux diagnostics tentants, « rien ne casse » et « les scripts cassent ». Le problème est ailleurs : un nonce ne vaut que s'il est imprévisible et propre à chaque réponse, or quiconque a chargé la page connaît celui des 5 prochaines minutes et peut le placer dans une charge injectée. Les réponses HTML porteuses d'un nonce partent en Cache-Control: private, no-store.",
+  },
+  {
+    q: "Pourquoi une CSP stricte recommandée contient-elle souvent 'unsafe-inline' et https: en plus du nonce et de strict-dynamic ?",
+    options: [
+      "Ce sont des replis, désactivés par le nonce et par strict-dynamic",
+      "Ils autorisent les scripts inline des tiers, qu'un nonce ne peut pas marquer",
+      "Ils sont nécessaires : le nonce seul ne couvre pas les scripts chargés en https",
+      "C'est une faiblesse courante, qu'il faut retirer de la politique recommandée",
+    ],
+    answer: 0,
+    explain: "Chaque mot-clé est neutralisé par le plus récent : un navigateur qui connaît les nonces ignore 'unsafe-inline', un navigateur qui connaît strict-dynamic ignore https:. Lire ces jetons comme une permission effective, c'est ignorer cet ordre de priorité ; les retirer, c'est casser la politique sur les navigateurs anciens sans rien durcir sur les récents.",
+  },
+];
+
+<YouKnow>
+Tu contournes des CSP à liste de domaines grâce à un JSONP ou à une bibliothèque hébergée sur un CDN autorisé. Cette leçon construit la CSP que tu aimerais rencontrer : stricte, sans liste de domaines.
+</YouKnow>
+
+## Pourquoi les CSP « à domaines » échouent
+
+Une CSP qui autorise `https://cdn.jsdelivr.net` ou `https://www.google.com` autorise **tout** ce que ces domaines servent : des milliers de bibliothèques, dont certaines offrent des gadgets ou des points JSONP. Une étude de Google (2016) avait montré que la grande majorité des CSP déployées étaient contournables pour cette raison. La recommandation actuelle : une **CSP stricte**, fondée sur des nonces ou des empreintes, sans liste de domaines.
+
+Les chiffres de l'étude (*CSP Is Dead, Long Live CSP!*, ACM CCS 2016) restent parlants : sur plus de 26 000 politiques distinctes, 94,72 % étaient contournables, et 14 des 15 domaines les plus souvent autorisés pour les scripts hébergeaient des points de terminaison exploitables. Le problème n'était pas la rigueur des équipes, mais le modèle lui-même : une liste de domaines décrit **où** le code est hébergé, alors que la question de sécurité est **quel** code tu as voulu exécuter. Le nonce répond directement à cette question. C'est d'ailleurs cette étude qui a proposé le mot-clé `'strict-dynamic'`.
+
+## La CSP stricte
+
+```text
+Content-Security-Policy:
+  script-src 'nonce-{aléatoire}' 'strict-dynamic';
+  object-src 'none';
+  base-uri 'none';
+  frame-ancestors 'none';
+  form-action 'self';
+  require-trusted-types-for 'script';
+```
+
+| Directive | Rôle |
+| --- | --- |
+| `'nonce-…'` | Seuls les scripts portant ce nonce, **nouveau à chaque réponse**, s'exécutent |
+| `'strict-dynamic'` | Les scripts chargés par un script de confiance le deviennent aussi (utile pour les chargeurs) ; les listes de domaines sont ignorées |
+| `object-src 'none'` | Pas de plugins |
+| `base-uri 'none'` | Pas d'injection de `<base>` pour détourner les scripts relatifs |
+| `frame-ancestors 'none'` | Pas d'intégration par un autre site (clickjacking) |
+| `form-action 'self'` | Les formulaires ne partent que vers Novafact |
+| `require-trusted-types-for 'script'` | Les sinks DOM refusent les chaînes brutes (leçon 5) |
+
+La politique est courte parce qu'elle ne décrit pas l'application : elle décrit **une règle** (seul le code marqué par le serveur s'exécute). Elle ne change donc pas quand l'équipe ajoute une page ou une bibliothèque, ce qui explique qu'elle survive dans le temps là où une liste de domaines grossit jusqu'à devenir inutile.
+
+Pour les navigateurs anciens, la forme recommandée ajoute des replis qui s'annulent d'eux-mêmes dans les navigateurs récents : `script-src 'nonce-…' 'strict-dynamic' 'unsafe-inline' https:`. Un navigateur qui connaît les nonces ignore `'unsafe-inline'` ; un navigateur qui connaît `'strict-dynamic'` ignore `https:`. La politique reste stricte partout où elle peut l'être.
+
+## Ce qu'un nonce exige
+
+Un nonce ne protège que s'il est **imprévisible** et **propre à chaque réponse**. La spécification CSP recommande au moins 128 bits d'aléa avant encodage. Trois erreurs reviennent souvent :
+
+- **un nonce fixe** dans la configuration, ou calculé une fois au démarrage du serveur : il ne vaut pas mieux que `'unsafe-inline'` ;
+- **une page mise en cache** par le CDN avec son nonce : tous les visiteurs reçoivent le même, et une injection peut le réutiliser. Les réponses HTML porteuses d'un nonce partent avec `Cache-Control: private, no-store` ;
+- **un nonce recopié** dans un script injecté par du HTML dynamique côté serveur : si un template insère du contenu utilisateur dans la page, le nonce ne protège plus ce qui est au même niveau que lui. La CSP est une deuxième ligne, pas un substitut à l'encodage.
+
+## Dans l'écosystème JS
+
+**Next.js (App Router)** : le fichier `proxy.ts` (nommé `middleware.ts` avant Next.js 16) génère un nonce par requête et le place dans l'en-tête CSP, **sur la requête et sur la réponse**. Pendant le rendu, Next.js lit la politique de la requête, en extrait le nonce et l'applique à ses propres scripts. Cela impose un rendu dynamique des pages concernées.
+
+<Code file="apps/admin/proxy.ts" hl="4,5,12,15">
+
+```ts
+import { NextResponse, type NextRequest } from 'next/server';
+
+export function proxy(req: NextRequest) {
+  const bytes = crypto.getRandomValues(new Uint8Array(16)); // 128 bits
+  const nonce = btoa(String.fromCharCode(...bytes));
+  const csp = [
+    `script-src 'nonce-${nonce}' 'strict-dynamic'`,
+    "object-src 'none'", "base-uri 'none'", "frame-ancestors 'none'", "form-action 'self'",
+    'report-to csp',
+  ].join('; ');
+  const headers = new Headers(req.headers);
+  headers.set('x-nonce', nonce);
+  headers.set('Content-Security-Policy', csp); // lu par Next.js pendant le rendu
+  const res = NextResponse.next({ request: { headers } });
+  res.headers.set('Content-Security-Policy', csp);
+  res.headers.set('Reporting-Endpoints', 'csp="https://admin.novafact.example/api/csp-reports"');
+  return res;
+}
+```
+
+</Code>
+
+Un Server Component récupère le nonce avec `(await headers()).get('x-nonce')` pour le passer au composant `Script` d'un script tiers. En développement, Next.js a besoin de `'unsafe-eval'` pour ses outils de débogage : ajoute-le seulement quand `NODE_ENV` vaut `development`. La documentation de Next.js propose aussi une voie à base d'empreintes (SRI expérimental) qui garde la génération statique.
+
+**SPA Vite servie en statique** : pas de serveur pour générer un nonce. Le build de Vite ne produit pas de script inline, donc une politique à base d'empreintes (hashes) ou `script-src 'self'` est réaliste, à condition que le domaine ne serve **aucun contenu contrôlé par les utilisateurs** (fichiers déposés, JSONP). Les fichiers des clients vont sur un domaine séparé. Si le `index.html` contient un petit script inline (initialisation du thème, par exemple), son empreinte `'sha256-…'` s'ajoute à la politique et doit être recalculée à chaque modification : automatise ce calcul dans le build. Si la SPA est un jour servie par un serveur, l'option `html.cspNonce` de Vite ajoute un emplacement de nonce aux balises générées, que le serveur remplace à chaque réponse.
+
+## Déployer sans casser
+
+<Steps items={[
+  { title: "Report-Only", text: "Envoyer Content-Security-Policy-Report-Only avec un point de collecte (report-to et l'en-tête Reporting-Endpoints, ou report-uri pour les anciens navigateurs)." },
+  { title: "Analyser les rapports", text: "Distinguer les vraies violations (scripts inconnus) des oublis (un script légitime sans nonce)." },
+  { title: "Corriger", text: "Ajouter le nonce aux scripts légitimes, retirer les scripts inutiles." },
+  { title: "Bloquer", text: "Passer en Content-Security-Policy, en gardant le reporting." },
+]} />
+
+Les deux en-têtes peuvent coexister : une politique bloquante (celle qui est déjà validée) et une politique **Report-Only plus stricte**, en test. C'est la façon de durcir une CSP en production sans jamais revenir à zéro : ajouter `require-trusted-types-for 'script'` en Report-Only pendant deux semaines, lire les rapports, puis basculer.
+
+<Callout kind="warn">
+Une CSP placée dans une balise `<meta http-equiv>` ne prend pas en charge `frame-ancestors`, ni le reporting, ni `sandbox`. Pour Novafact, la politique vit dans l'en-tête HTTP, posé par le serveur ou par CloudFront (politique d'en-têtes de réponse).
+</Callout>
+
+## Recevoir les rapports
+
+Les navigateurs envoient deux formats : l'ancien (`report-uri`, type `application/csp-report`, un objet `csp-report`) et celui de la Reporting API (`report-to`, type `application/reports+json`, un tableau de rapports de type `csp-violation`). Le point de collecte accepte les deux et les normalise avant de les envoyer vers les logs.
+
+<Code file="apps/api/src/routes/cspReports.ts" hl="5,9,15">
+
+```ts
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+
+export const cspReports = express.Router();
+cspReports.use(rateLimit({ windowMs: 60_000, limit: 120 }));
+cspReports.post('/csp-reports',
+  express.json({ type: ['application/csp-report', 'application/reports+json'], limit: '32kb' }),
+  (req, res) => {
+    const items = Array.isArray(req.body) ? req.body.map((r) => r.body) : [req.body?.['csp-report']];
+    for (const r of items.filter(Boolean)) {
+      req.log.warn({
+        event: 'csp.violation',
+        documentUrl: r.documentURL ?? r['document-uri'],
+        blockedUrl: r.blockedURL ?? r['blocked-uri'],
+        directive: r.effectiveDirective ?? r['effective-directive'],
+        disposition: r.disposition, // enforce ou report
+      });
+    }
+    res.status(204).end();
+  });
+```
+
+</Code>
+
+Ce point de collecte est public par nature et reçoit du contenu contrôlé par n'importe qui : limite la taille, le débit, et ne fais jamais confiance aux champs (ils finissent dans un tableau de bord, où ils pourraient eux-mêmes devenir une injection).
+
+## Et les styles ?
+
+La politique ci-dessus ne dit rien de `style-src`, et c'est volontaire pour une première étape : une injection de CSS est moins grave qu'une exécution de script. Elle n'est pas anodine pour autant (fuite de valeurs d'attributs par sélecteurs, maquillage d'un formulaire, M3). Une fois les scripts sous contrôle, `style-src` suit la même logique de nonce. Bonne nouvelle pour React : la prop `style` passe par l'API CSSOM du navigateur, que la CSP ne bloque pas ; ce sont surtout les balises `<style>` inline et les bibliothèques CSS-in-JS qui demandent le nonce.
+
+## En pratique chez toi
+
+- Passe ta politique actuelle dans CSP Evaluator : chaque domaine autorisé dans `script-src` est une question à poser.
+- Vérifie qu'un nonce change bien à chaque rechargement, et que la page n'est pas servie depuis un cache partagé (en-têtes `Age` ou `X-Cache` de CloudFront).
+- Cherche les politiques posées dans des balises `<meta>` : `frame-ancestors` y est ignoré sans bruit.
+- Compte les rapports reçus par jour et par directive avant de basculer en mode bloquant : un volume stable et compris est le signal du passage.
+
+## La CSP comme capteur
+
+Une fois bloquante, la CSP continue de **rapporter** : un script inconnu qui tente de s'exécuter sur la page de paiement, c'est peut-être un skimmer. Les rapports envoyés vers Elastic (M18) deviennent une détection de sécurité à part entière, et un élément de preuve pour l'exigence PCI 11.6.1 (leçon 7).
+
+<Callout kind="tip">
+Le jeu **CSP Builder** te fait composer la politique de la page de paiement de Novafact : un banc de tests montre en direct quelles attaques passent et quelles fonctionnalités cassent. Pour une politique existante, **CSP Evaluator** (Google) signale les directives contournables.
+</Callout>
+
+<Recap items={[
+  "Une CSP à liste de domaines autorise tout ce que ces domaines servent : elle se contourne (94,72 % des politiques en 2016).",
+  "CSP stricte : nonce par réponse et strict-dynamic, object-src, base-uri, frame-ancestors, form-action ; replis pour les vieux navigateurs.",
+  "Un nonce : 128 bits d'aléa, nouveau à chaque réponse, jamais dans une page en cache partagé.",
+  "Next.js lit le nonce dans l'en-tête CSP de la requête ; une SPA statique s'appuie sur des empreintes ou 'self' sans contenu utilisateur.",
+  "Report-Only, analyse, correction, puis blocage ; une politique Report-Only plus stricte peut coexister avec la bloquante.",
+  "Le point de collecte accepte les deux formats, limite taille et débit, et alimente une détection utile pour PCI 11.6.1.",
+]} />
+
+<Sources items={[
+  { title: "web.dev : Mitigate XSS with a strict CSP", url: "https://web.dev/articles/strict-csp" },
+  { title: "Google Research : CSP Is Dead, Long Live CSP! (CCS 2016)", url: "https://research.google/pubs/csp-is-dead-long-live-csp-on-the-insecurity-of-whitelists-and-the-future-of-content-security-policy/" },
+  { title: "Next.js : Content Security Policy", url: "https://nextjs.org/docs/app/guides/content-security-policy" },
+  { title: "Vite : html.cspNonce", url: "https://vite.dev/config/shared-options" },
+  { title: "MDN : Content-Security-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy" },
+  { title: "MDN : Reporting API", url: "https://developer.mozilla.org/en-US/docs/Web/API/Reporting_API" },
+  { title: "CSP Evaluator", url: "https://csp-evaluator.withgoogle.com/" },
+  { title: "OWASP Cheat Sheet : Content Security Policy", url: "https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html" },
+]} />

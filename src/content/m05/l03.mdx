@@ -1,0 +1,180 @@
+export const questions = [
+  {
+    q: "Que mesure l'EPSS ?",
+    options: [
+      "Le rang d'une CVE par rapport à toutes les autres, de 0 à 100",
+      "La probabilité qu'une CVE soit exploitée dans les 30 prochains jours",
+      "La gravité technique d'une CVE, sur une échelle continue de 0 à 1",
+      "La proportion de systèmes vulnérables déjà attaqués sur Internet",
+    ],
+    answer: 1,
+    explain: "L'EPSS (FIRST, version 4 depuis mars 2025) estime une probabilité d'exploitation à 30 jours, recalculée chaque jour à partir de données d'activité réelles. Le piège est le percentile, publié à côté de la probabilité : une CVE au 95e percentile peut n'avoir que quelques pour cent de probabilité, puisque l'immense majorité des CVE ne sont jamais exploitées. Et l'EPSS ne dit rien de la gravité, qui reste le rôle de CVSS.",
+  },
+  {
+    q: "Une dépendance présente une CVE critique, mais la fonction vulnérable n'est jamais appelée par Novafact. Comment le déclarer à un client ?",
+    options: [
+      "Un VEX affected, accompagné d'une mesure compensatoire documentée",
+      "Une mise à jour de la dépendance, seule réponse opposable à un client",
+      "Un VEX not_affected justifié par vulnerable_code_not_in_execute_path",
+      "Un VEX under_investigation, tant qu'un audit externe ne l'a pas confirmé",
+    ],
+    answer: 2,
+    explain: "VEX permet de déclarer qu'un produit n'est pas affecté, à condition de motiver par une justification normalisée : ici, code vulnérable hors du chemin d'exécution. C'est un engagement envers le client, pas un moyen de faire taire un scanner — il devient faux le jour où quelqu'un appelle la fonction, d'où le contrôle en CI qui le maintient vrai. Rester en under_investigation ou se déclarer affected repousse la question, et mettre à jour la dépendance est souhaitable mais ne fournit pas le statut que le client demande.",
+  },
+  {
+    q: "Quelles sont les quatre décisions possibles de l'arbre SSVC de la CISA ?",
+    options: [
+      "Defer, Scheduled, Out-of-cycle, Immediate",
+      "Ignore, Monitor, Mitigate, Remediate",
+      "Track, Track*, Attend, Act",
+      "Low, Medium, High, Critical",
+    ],
+    answer: 2,
+    explain: "SSVC produit une décision plutôt qu'un score : suivre, suivre de près, traiter rapidement, agir immédiatement. Le distracteur sérieux est « Defer, Scheduled, Out-of-cycle, Immediate » : ce vocabulaire existe réellement, mais c'est celui de l'arbre déployeur du CERT/CC. Le rappel est utile — SSVC est une famille d'arbres, et il faut toujours dire lequel on applique.",
+  },
+  {
+    q: "Selon la grille de Novafact : une CVE inscrite au KEV touche l'outil de support interne (non exposé sur Internet), atteignabilité inconnue. Quelle décision ?",
+    options: [
+      "VEX not_affected, puisque l'atteignabilité n'est pas démontrée",
+      "Act : une CVE inscrite au KEV impose la correction sous 72 heures",
+      "Track : l'outil n'est pas exposé sur Internet",
+      "Attend : exploitée activement, mais actif interne",
+    ],
+    answer: 3,
+    explain: "Une atteignabilité inconnue compte comme atteignable : la règle 1 ne s'applique pas, et un VEX not_affected serait un engagement invérifiable. La règle 2 exige KEV et exposition Internet, ce que l'outil de support n'est pas — d'où la tentation de déclencher Act sur le seul KEV. C'est la règle 3 qui couvre « KEV mais interne » : Attend, sept jours. Et Track sous-estime le signal, puisque l'exploitation est bien active : seule l'exposition est réduite.",
+  },
+];
+
+<YouKnow>
+Tu sais qu'une vulnérabilité « critique » sur le papier peut être inexploitable en pratique, et l'inverse. Cette leçon donne les outils pour le démontrer à grande échelle.
+</YouKnow>
+
+## Les signaux qui manquent à CVSS
+
+| Signal | Question | Source |
+| --- | --- | --- |
+| **KEV** | Est-elle exploitée aujourd'hui ? | Catalogue *Known Exploited Vulnerabilities* de la CISA |
+| **EPSS** | Quelle probabilité d'exploitation dans les 30 prochains jours ? | FIRST, version 4 depuis mars 2025 |
+| **Atteignabilité** | Le code vulnérable est-il appelé par l'application ? | Analyse de l'outil SCA ou revue |
+| **Exposition** | L'actif est-il exposé sur Internet, ou interne ? | Inventaire, architecture |
+| **Impact métier** | Que touche l'actif : données de facturation, service critique ? | Classification des données (M7) |
+
+Chaque signal a son mode d'emploi et ses pièges.
+
+**KEV** est un catalogue restreint et exigeant : une entrée demande un identifiant CVE, des preuves fiables d'exploitation active et une mesure de correction claire. Il sert d'abord aux agences fédérales américaines, tenues par la directive BOD 22-01 de corriger dans des délais fixés, mais c'est devenu une référence pour tout le monde. Chaque entrée indique aussi si la vulnérabilité est connue pour avoir servi dans des campagnes de rançongiciel. Sa limite est structurelle : le KEV est une **borne basse**. Une CVE absente du catalogue n'est pas une CVE non exploitée, seulement une CVE dont l'exploitation n'a pas été établie publiquement.
+
+**EPSS** fournit deux nombres pour chaque CVE : une **probabilité** (entre 0 et 1) et un **percentile** (le rang par rapport aux autres CVE). Ne les confonds pas : une CVE au 95e percentile peut avoir une probabilité de quelques pour cent seulement, parce que la plupart des CVE ne sont jamais exploitées. Le seuil choisi est un compromis entre **couverture** (attraper la plupart des vulnérabilités qui seront exploitées) et **efficacité** (ne pas mobiliser les équipes sur celles qui ne le seront pas). Le modèle est recalculé chaque jour : un score qui bondit est un événement. Et l'EPSS ne couvre que les CVE publiées : il ne dit rien de tes propres findings.
+
+**L'atteignabilité** se décline en niveaux : le paquet est présent dans l'arbre, il est importé par le code, la fonction vulnérable est appelée sur un chemin exécuté. Les outils SCA qui l'analysent construisent un graphe d'appels ; en JavaScript, ce graphe est imparfait (`require` dynamique, appels par réflexion, code généré). D'où la règle : une atteignabilité **inconnue** compte comme atteignable.
+
+**L'exposition** paraît binaire, mais « interne » ne veut pas dire « inaccessible » : une SSRF dans un service exposé rend le réseau interne joignable, et c'est tout le principe des chaînes de vulnérabilités (M3, leçon 4).
+
+## SSVC : une décision plutôt qu'un score
+
+**SSVC** (Stakeholder-Specific Vulnerability Categorization), développé par le CERT/CC et adapté par la CISA, remplace le score par un **arbre de décision**. La version CISA utilise quatre points de décision :
+
+- **Exploitation** : aucune, preuve de concept publique, active ;
+- **Automatable** : l'exploitation peut-elle être automatisée à grande échelle ?
+- **Technical Impact** : partiel ou total ;
+- **Mission & Well-being** : impact sur la mission et les personnes, faible, moyen ou élevé.
+
+L'arbre produit quatre décisions : **Track** (suivre dans le cycle normal), **Track\*** (suivre de près), **Attend** (traiter rapidement, avec l'encadrement) et **Act** (agir immédiatement).
+
+L'intérêt de SSVC n'est pas l'arbre de la CISA en lui-même : c'est l'idée qu'une organisation **écrit** ses critères de décision, avec ses propres points de décision, et qu'elle les applique de façon reproductible. Le CERT/CC propose d'ailleurs des arbres différents selon le rôle : celui qui **déploie** un logiciel ne se pose pas les mêmes questions que celui qui le **fournit**. Novafact est dans les deux situations : elle déploie des dépendances, et elle fournit un SDK npm à ses clients.
+
+## VEX : dire « non affecté »
+
+Un inventaire de composants (SBOM, M13) fait apparaître toutes les CVE des dépendances, y compris celles qui ne touchent pas le produit. **VEX** (Vulnerability Exploitability eXchange) permet de déclarer, pour une CVE et un produit, un **statut** :
+
+| Statut | Sens |
+| --- | --- |
+| `not_affected` | Le produit n'est pas affecté (avec une justification obligatoire) |
+| `affected` | Le produit est affecté (avec une action recommandée) |
+| `fixed` | Corrigé dans cette version |
+| `under_investigation` | En cours d'analyse |
+
+Les justifications de `not_affected` sont normalisées : composant absent, code vulnérable absent, **code vulnérable jamais exécuté**, code vulnérable non contrôlable par un attaquant, mesures compensatoires déjà en place. Les formats les plus courants sont OpenVEX, CSAF VEX et CycloneDX VEX.
+
+<Code file="security/vex/2026-09-api.openvex.json">
+
+```json
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://novafact.example/security/vex/2026-09-api",
+  "author": "Novafact AppSec <security@novafact.example>",
+  "timestamp": "2026-09-21T09:30:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": { "name": "CVE-2026-XXXXX" },
+      "products": [{ "@id": "pkg:npm/%40novafact/api@4.12.0" }],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Seul le parseur JSON du paquet est utilisé ; la fonction vulnérable (import XML) n'est jamais appelée. Vérifié par une règle Semgrep en CI."
+    }
+  ]
+}
+```
+
+</Code>
+
+Un VEX est un **engagement** envers les clients, pas une manière de faire taire un scanner. Il se maintient : la déclaration ci-dessus devient fausse le jour où quelqu'un ajoute l'import XML. Chez Novafact, chaque `not_affected` s'accompagne d'un contrôle automatique qui échoue si l'hypothèse cesse d'être vraie (ici, une règle qui interdit l'appel à la fonction vulnérable), et d'une revue à chaque version majeure.
+
+## La grille de Novafact
+
+Les règles s'appliquent dans l'ordre ; la première qui correspond donne la décision. Une atteignabilité **inconnue** compte comme atteignable.
+
+| # | Situation | Décision | SLA |
+| --- | --- | --- | --- |
+| 1 | Code vulnérable non atteignable (justifié) | VEX `not_affected` | Revue à chaque changement majeur |
+| 2 | Exploitée activement (KEV) et exposée sur Internet | Act | 24 à 72 h, virtual patching immédiat si possible |
+| 3 | KEV mais interne, ou PoC publique ou EPSS ≥ 10 % et exposée | Attend | 7 jours |
+| 4 | PoC ou EPSS ≥ 10 % mais interne, ou gravité haute sur un actif critique exposé | Track* | 30 jours |
+| 5 | Le reste | Track | Cycle normal de mise à jour |
+
+La grille est volontairement simple : cinq règles, lisibles par un développeur en une minute, appliquées dans le même ordre par l'agrégateur (leçon 5) et par les humains. Voici comment elle tranche quatre findings réels du backlog.
+
+| Finding | Signaux | Règle | Décision |
+| --- | --- | --- | --- |
+| Contournement de signature SAML dans la bibliothèque du SSO | KEV, API exposée | 2 | Act |
+| Prototype pollution dans une fonction de fusion, outil de support interne | PoC publique, EPSS 35 %, atteignable | 4 (signal mais interne) | Track* |
+| ReDoS dans le parseur de dates de l'API de facturation | Aucune PoC, EPSS 0,4 %, gravité haute, actif critique exposé | 4 (seconde condition) | Track* |
+| CVE du module XML d'une dépendance | Fonction jamais appelée, démontré | 1 | VEX `not_affected` |
+
+<Callout kind="tip">
+Le jeu **Triage Room** entraîne exactement cette grille : une file de findings avec leurs signaux, un budget de sprint, et une décision attendue pour chacun.
+</Callout>
+
+## Les règles de bon sens de Kohnfelder
+
+La grille couvre les cas outillés. Pour les findings qui ne rentrent dans aucune case (un défaut de logique trouvé en revue, un bug sans CVE), Kohnfelder (K13) propose des repères simples, qui complètent bien une grille :
+
+- un bug dans du code **privilégié** ou proche d'un actif de valeur se corrige, puis se teste soigneusement ;
+- un bug **isolé** de toute surface d'attaque et d'apparence inoffensive peut attendre ;
+- une affirmation « c'est inoffensif » se vérifie avec soin : corriger coûte parfois moins cher qu'évaluer l'impact complet ;
+- un bug qui pourrait servir de **maillon dans une chaîne** se corrige sans tarder ;
+- en cas de doute, on corrige. Il rappelle qu'on sous-estime une menace bien plus facilement qu'on ne la surestime.
+
+<Callout kind="debate">
+**DREAD, CVSS ou SSVC ?** DREAD (K13) pose de bonnes questions mais produit des notes subjectives ; Kohnfelder lui-même déconseille d'additionner ses cinq notes et préfère des tailles de t-shirt. CVSS est reproductible et partagé par toute l'industrie, mais mesure une sévérité sans probabilité ni contexte. SSVC produit une décision, mais demande de maintenir ses propres arbres et de renseigner des points de décision parfois flous (« Mission & Well-being »). En pratique, les programmes matures combinent : CVSS pour décrire, EPSS et KEV pour la menace, une grille de type SSVC pour décider, et les questions de DREAD pour animer une discussion quand la grille ne suffit pas.
+</Callout>
+
+<Recap items={[
+  "CVSS dit la gravité ; KEV, EPSS, atteignabilité, exposition et impact métier disent l'urgence.",
+  "Le KEV est une borne basse ; l'EPSS est une probabilité à 30 jours (v4 depuis mars 2025), à ne pas confondre avec son percentile.",
+  "Une atteignabilité inconnue compte comme atteignable ; « interne » n'est pas « inaccessible ».",
+  "SSVC produit une décision : Track, Track*, Attend, Act ; l'idée clé est d'écrire ses critères.",
+  "VEX déclare qu'un produit n'est pas affecté, avec une justification normalisée et un contrôle qui la maintient vraie.",
+  "Une grille simple, écrite et connue, vaut mieux qu'un score trié par ordre décroissant ; en cas de doute, on corrige.",
+]} />
+
+<Sources items={[
+  { title: "CISA : Known Exploited Vulnerabilities Catalog", url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog" },
+  { title: "CISA : BOD 22-01", url: "https://www.cisa.gov/news-events/directives/bod-22-01-reducing-significant-risk-known-exploited-vulnerabilities" },
+  { title: "FIRST : EPSS", url: "https://www.first.org/epss/" },
+  { title: "FIRST : probabilités et percentiles EPSS", url: "https://www.first.org/epss/articles/prob_percentile_bins" },
+  { title: "CISA : Stakeholder-Specific Vulnerability Categorization", url: "https://www.cisa.gov/stakeholder-specific-vulnerability-categorization-ssvc" },
+  { title: "CERT/CC : SSVC", url: "https://certcc.github.io/SSVC/" },
+  { title: "OpenVEX", url: "https://github.com/openvex/spec" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 13, Vulnerability Triage" },
+]} />

@@ -1,0 +1,17 @@
+id: idor-probing
+_note: La règle telle qu’elle a été écrite avant le correctif. Elle lève encore après.
+window: 5m
+where:
+  - field: url.path
+    op: starts_with
+    value: /api/invoices/
+  - field: novafact.tenant.match
+    op: eq
+    value: false
+group_by:
+  - user.name
+having:
+  - metric: distinct
+    field: url.path
+    op: gte
+    value: 8

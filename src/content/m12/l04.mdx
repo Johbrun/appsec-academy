@@ -1,0 +1,178 @@
+export const questions = [
+  {
+    q: "Pourquoi lire le diff d'un correctif de CVE ?",
+    options: [
+      "Pour vérifier que la version que tu installes contient bien le correctif annoncé",
+      "Pour évaluer si ton usage de la bibliothèque rend la vulnérabilité atteignable",
+      "Pour comprendre la cause racine, puis la chercher ailleurs dans ton code",
+      "Pour rédiger le test de régression qui reproduit l'exploitation de la CVE",
+    ],
+    answer: 2,
+    explain: "Les trois autres raisons sont bonnes, et on les poursuit souvent aussi. Mais elles s'arrêtent à cette CVE-là : confirmer la version, juger l'atteignabilité, écrire le test. Lire le diff sert d'abord à nommer la cause racine, parce que c'est elle — et non la CVE — qui se cherche ensuite ailleurs.",
+  },
+  {
+    q: "Qu'est-ce que la variant analysis ?",
+    options: [
+      "Partir d'une vulnérabilité connue pour chercher ses variantes ailleurs",
+      "Comparer deux versions d'une bibliothèque pour isoler le commit vulnérable",
+      "Générer des variantes d'une charge utile jusqu'à contourner le filtre en place",
+      "Vérifier si les variantes d'un même paquet publiées par des forks sont affectées",
+    ],
+    answer: 0,
+    explain: "La confusion la plus fréquente, chez un pentesteur, est avec la variation de charge utile : là, on fait varier l'attaque contre un même point. La variant analysis fait l'inverse — la cause reste fixe, c'est l'endroit qui varie, en traduisant cette cause en requête CodeQL ou en règle Semgrep passée sur toute la base.",
+  },
+  {
+    q: "Après React2Shell (décembre 2025), l'équipe React a publié d'autres CVE sur les Server Components en quelques semaines. Qu'en retenir pour Novafact ?",
+    options: [
+      "Que le premier correctif publié doit être considéré comme incomplet par défaut",
+      "Qu'il faut attendre la fin de la série de correctifs avant de mettre à jour la production",
+      "Que les Server Components sont à éviter tant que la série de CVE n'est pas close",
+      "Qu'un correctif critique attire l'examen du code voisin : prévoir plusieurs mises à jour",
+    ],
+    answer: 3,
+    explain: "Attendre la fin de la série est le piège : pendant ce temps, la faille d'origine reste exploitable et publiquement documentée. Et un correctif n'est pas incomplet par principe — celui du déni de service l'était, pas les autres. Ce qui se prévoit, c'est le rythme : une vulnérabilité critique attire les chercheurs sur le code voisin et sur le correctif lui-même, donc plusieurs versions rapprochées, et une recherche de variantes après chaque correctif maison.",
+  },
+  {
+    q: "Tu généralises CVE-2025-29927 en motif pour le code de Novafact. Quelle formulation est la plus utile ?",
+    options: [
+      "« Chercher toutes les occurrences de x-middleware-subrequest dans le code »",
+      "« Une décision de sécurité fondée sur un en-tête que le client peut envoyer »",
+      "« Vérifier que Next.js est à jour dans tous les dépôts de Novafact »",
+      "« Un middleware qui s'exécute avant l'authentification dans la chaîne Express »",
+    ],
+    answer: 1,
+    explain: "Chercher l'en-tête par son nom ne trouvera rien hors de Next.js : c'est le symptôme, pas la cause. Et le motif n'est pas « un middleware mal ordonné » — la chaîne était correcte, c'est la valeur de confiance qui venait du client. Formulé en cause racine, le motif se cherche dans les middlewares maison, les proxys et les services internes.",
+  },
+];
+
+<YouKnow>
+Tu as sûrement déjà lu des correctifs pour reproduire une vulnérabilité. Côté AppSec, on les lit pour autre chose : trouver les variantes avant qu'elles soient exploitées.
+</YouKnow>
+
+## Le correctif raconte la cause
+
+Un avis de sécurité dit ce qui est vulnérable ; le **diff du correctif** dit **pourquoi**. On y lit précisément la condition manquante, la vérification ajoutée, l'hypothèse corrigée. C'est la meilleure formation qui soit, et elle est gratuite.
+
+Trouver le bon diff demande un peu de méthode :
+
+- la **GitHub Advisory Database** relie la plupart des avis à leurs commits ou PR de correction, dans la rubrique des références ;
+- la vue **compare** de GitHub entre deux tags (`compare/v15.2.2...v15.2.3`) montre tout ce qui a changé entre la version vulnérable et la version corrigée, quand le commit n'est pas cité ;
+- en local, `git log -p v15.2.2..v15.2.3 -- packages/next/src/server` restreint la lecture au répertoire concerné.
+
+Méfie-toi des correctifs noyés dans une grosse version, ou publiés sans le dire (*silent fix*) : la vue compare te montre alors des centaines de fichiers, et l'avis devient ton guide pour savoir où regarder.
+
+## Une méthode en quatre temps
+
+<Steps items={[
+  { title: "Comprendre", text: "Lire l'avis, puis le diff : quelle entrée, quel chemin, quelle vérification manquait ? Écrire la cause racine en une phrase." },
+  { title: "Généraliser", text: "Formuler le motif sans le nom du produit : « une valeur de la requête décide si le middleware s'exécute », « la valeur vérifiée n'est pas la valeur utilisée »." },
+  { title: "Chercher les variantes", text: "Dans la bibliothèque (autres fonctions, autres versions), puis dans le code de Novafact : même motif, autres endroits." },
+  { title: "Juger le correctif", text: "Traite-t-il la cause, ou seulement le chemin démontré ? Un correctif qui interdit une valeur précise au lieu de supprimer la confiance mal placée annonce la prochaine CVE." },
+]} />
+
+Le quatrième temps n'est pas théorique. En 2021, Project Zero a analysé les 0-days exploités en 2020 : un quart étaient étroitement liés à des vulnérabilités déjà divulguées, souvent parce que le correctif n'avait bloqué que le chemin de la preuve de concept. Sa recommandation tient en trois mots : correctifs **corrects**, **complets**, et suivis d'une **variant analysis**.
+
+## Des cas d'école de l'écosystème JS
+
+| CVE | Cause racine | Motif à chercher chez toi |
+| --- | --- | --- |
+| **CVE-2025-29927** (Next.js) | Un en-tête interne contrôlable par le client décidait de sauter le middleware | Une décision de sécurité fondée sur un en-tête que le client peut envoyer |
+| **CVE-2025-29775** et **CVE-2025-29774** (xml-crypto) | La valeur vérifiée et la valeur utilisée pouvaient différer (commentaire XML glissé dans la valeur de condensat, plusieurs éléments SignedInfo) | Vérifier une représentation, en utiliser une autre (M3, parser differentials) |
+| **CVE-2024-34351** (Next.js) | Une redirection de Server Action construisait une URL absolue à partir de l'en-tête Host | Des URL absolues dérivées de la requête |
+| **CVE-2024-45590** (body-parser) | Profondeur de récursion non bornée lors du parsing « extended » des corps URL-encodés | Un parseur sans limite de profondeur ou de taille (M13, leçon 5) |
+| **CVE-2022-29078** (EJS) | Des options du moteur contrôlables via l'objet passé au rendu | Un objet de requête passé tel quel à une bibliothèque |
+
+Chaque ligne donne une **règle Semgrep** potentielle pour le code de Novafact (M13).
+
+## Un exemple complet : du correctif de Next.js au code de Novafact
+
+**Comprendre.** Next.js utilisait l'en-tête `x-middleware-subrequest` pour éviter qu'un middleware se rappelle lui-même en boucle. Rien n'empêchait un client d'envoyer cet en-tête : le framework concluait alors que le middleware avait déjà tourné, et le sautait, contrôles d'authentification compris. Signalée le 27 février 2025, la faille a été corrigée le 17 et le 18 mars dans les versions 14.2.25 et 15.2.3, puis rétroportée en 13.5.9 et 12.3.5. Le correctif valide l'en-tête et l'ignore s'il ne vient pas du framework.
+
+**Généraliser.** « Un signal interne transporté dans un canal que le client contrôle aussi. »
+
+**Chercher chez soi.** La revue de l'API Express de Novafact trouve exactement ce motif, écrit trois ans plus tôt pour les appels du worker de facturation :
+
+<Diff file="apps/api/src/middleware/session.ts" hlBefore="2" hlAfter="2,3">
+
+```ts
+export function requireSession(req: Request, res: Response, next: NextFunction) {
+  if (req.headers['x-internal-call'] === '1') return next();      // appels du worker
+  if (!req.session?.userId) return res.status(401).end();
+  next();
+}
+```
+
+```ts
+export function requireSession(req: Request, res: Response, next: NextFunction) {
+  // Plus de passe-droit par en-tête : le worker s'authentifie avec un jeton de service
+  // (client credentials Cognito, M9) vérifié par requireServiceToken sur ses propres routes.
+  if (!req.session?.userId) return res.status(401).end();
+  next();
+}
+```
+
+</Diff>
+
+**Outiller.** Une règle transforme la découverte en surveillance continue. Elle ne prouve rien à elle seule : elle liste les endroits à relire.
+
+<Code file="rules/novafact-security-decision-from-header.yml">
+
+```yaml
+rules:
+  - id: novafact-security-decision-from-header
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      Un middleware prend une décision à partir d'un en-tête de la requête. Le client peut l'envoyer :
+      vérifie qu'il est retiré par le proxy ou authentifié (signature, mTLS) avant d'y croire.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              function $F($REQ, $RES, $NEXT) { ... }
+          - pattern-inside: |
+              ($REQ, $RES, $NEXT) => { ... }
+      - pattern-either:
+          - pattern: if (<... $REQ.headers[$H] ...>) $BODY
+          - pattern: if (<... $REQ.get($H) ...>) $BODY
+          - pattern: if (<... $REQ.header($H) ...>) $BODY
+```
+
+</Code>
+
+Et côté back-office Next.js, la leçon de conception demeure : le middleware (ou `proxy.ts`) n'est qu'un premier filtre. L'autorisation se vérifie aussi dans la couche d'accès aux données, pour qu'un contournement du middleware ne suffise pas (M8).
+
+<Callout kind="case">
+Le 3 décembre 2025, React a publié CVE-2025-55182 (« React2Shell ») : une exécution de code à distance sans authentification, due au décodage des requêtes envoyées aux Server Functions. Une semaine plus tard, l'équipe annonçait deux nouvelles vulnérabilités, un déni de service (CVE-2025-55184) et une exposition du code source des Server Functions (CVE-2025-55183), trouvées par des chercheurs **en tentant de contourner le correctif**. Le premier correctif du déni de service s'est ensuite révélé incomplet (CVE-2025-67779), et d'autres cas de déni de service ont été publiés le 26 janvier 2026 (CVE-2026-23864). Quatre séries de mises à jour pour une même zone de code : c'est la variant analysis faite en public, par d'autres.
+</Callout>
+
+## La variant analysis outillée
+
+Le **GitHub Security Lab** a popularisé la variant analysis avec CodeQL : une vulnérabilité trouvée devient une requête, qui retrouve toutes ses variantes dans une base de code ou dans des milliers de dépôts. Côté Novafact, Semgrep suffit souvent : une règle écrite après chaque finding de pentest, et le finding devient une classe surveillée en continu. C'est probablement la compétence qui valorise le plus ton passé de pentester.
+
+Deux pièges guettent la règle née d'une CVE. Trop précise (le nom exact de l'en-tête), elle ne trouve que le cas d'origine. Trop large (tout accès à `req.headers`), elle noie l'équipe et finit désactivée. Le bon niveau décrit la **cause** : ici, un en-tête qui influence une condition dans un middleware.
+
+<Callout kind="novafact">
+Chez Novafact, chaque CVE critique touchant la stack (Next.js, React, Express, Prisma, bibliothèques d'authentification) déclenche une « lecture de correctif » de trente minutes par un champion : fiche d'une page (cause racine, motif, variantes cherchées, règle créée ou non), rangée dans `docs/security/cve-notes/`. Sur l'année fictive écoulée, 14 fiches, 3 règles Semgrep, et une variante réelle trouvée dans le code maison : le passe-droit `x-internal-call` ci-dessus.
+</Callout>
+
+<Recap items={[
+  "Le diff du correctif révèle la cause racine précise d'une CVE ; l'avis GitHub, la vue compare et git log -p aident à le trouver.",
+  "Comprendre, généraliser en motif sans nom de produit, chercher les variantes, juger si le correctif traite la cause.",
+  "Un correctif qui ne bloque que le chemin démontré appelle la CVE suivante : un quart des 0-days de 2020 étaient des variantes.",
+  "Next.js, xml-crypto, body-parser et EJS fournissent des motifs directement transposables.",
+  "Chaque finding devient une règle au bon niveau de généralité : la variant analysis transforme un bug en classe surveillée.",
+]} />
+
+<Lab id="gh-securitylab" note="Lis un article de variant analysis du GitHub Security Lab, puis applique la démarche à une CVE Node de ton choix." />
+
+<Sources items={[
+  { title: "GitHub Advisory Database", url: "https://github.com/advisories" },
+  { title: "GitHub Security Lab", url: "https://securitylab.github.com/" },
+  { title: "Vercel : postmortem CVE-2025-29927", url: "https://vercel.com/blog/postmortem-on-next-js-middleware-bypass" },
+  { title: "GitHub Advisory : CVE-2025-29775 (xml-crypto)", url: "https://github.com/advisories/GHSA-x3m8-899r-f7c3" },
+  { title: "GitHub Advisory : CVE-2025-29774 (xml-crypto)", url: "https://github.com/advisories/GHSA-9p8x-f768-wp2g" },
+  { title: "GitHub Advisory : CVE-2024-45590 (body-parser)", url: "https://github.com/advisories/GHSA-qwcr-r2fm-qrc7" },
+  { title: "React : vulnérabilité critique dans les Server Components (CVE-2025-55182)", url: "https://react.dev/blog/2025/12/03/critical-security-vulnerability-in-react-server-components" },
+  { title: "React : déni de service et exposition du code source dans les Server Components", url: "https://react.dev/blog/2025/12/11/denial-of-service-and-source-code-exposure-in-react-server-components" },
+  { title: "Project Zero : Déjà vu-lnerability", url: "https://projectzero.google/2021/02/deja-vu-lnerability.html" },
+]} />

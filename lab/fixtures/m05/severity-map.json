@@ -1,0 +1,27 @@
+{
+  "_a_propos": "Échelle commune de sévérité, et correspondance depuis chaque outil. Sert à la normalisation avant dédoublonnage.",
+  "echelle": [
+    "low",
+    "medium",
+    "high",
+    "critical"
+  ],
+  "correspondances": {
+    "semgrep": {
+      "INFO": "low",
+      "WARNING": "medium",
+      "ERROR": "high"
+    },
+    "njsscan": {
+      "INFO": "low",
+      "WARNING": "medium",
+      "ERROR": "high"
+    },
+    "snyk": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high",
+      "critical": "critical"
+    }
+  }
+}

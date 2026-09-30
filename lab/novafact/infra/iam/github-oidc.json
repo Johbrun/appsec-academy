@@ -1,0 +1,51 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "Provider": {
+    "Url": "https://token.actions.githubusercontent.com",
+    "ClientIdList": ["sts.amazonaws.com"]
+  },
+  "Roles": [
+    {
+      "RoleName": "novafact-ci",
+      "Description": "Rôle assumé par les workflows d'intégration continue.",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "GitHubActionsCi",
+            "Effect": "Allow",
+            "Principal": {
+              "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity"
+          }
+        ]
+      }
+    },
+    {
+      "RoleName": "novafact-deploy-prod",
+      "Description": "Rôle assumé par le workflow de déploiement en production.",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "GitHubActionsOrganisation",
+            "Effect": "Allow",
+            "Principal": {
+              "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+              "StringEquals": {
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              },
+              "StringLike": {
+                "token.actions.githubusercontent.com:sub": "repo:novafact/*:*"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

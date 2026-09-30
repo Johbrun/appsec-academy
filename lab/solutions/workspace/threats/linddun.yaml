@@ -1,0 +1,72 @@
+# LINDDUN sur le parcours de facturation — livrable de référence.
+#
+# Le périmètre n'est pas choisi : ce sont les routes dont le gestionnaire touche
+# une collection du parcours. Les données personnelles listées sont celles que
+# la classification attache aux collections que la route manipule.
+flows:
+  - route: "DELETE /api/invoices/:id"
+    personal_data: [client, note]
+    categories: [L, I, DD]
+    measure: >-
+      Cloisonner la lecture par locataire au niveau du dépôt de données, pour qu’aucune route ne puisse relier deux clients entre eux.
+    control: solutions/server/routes/invoices.ts
+  - route: "GET /api/admin/exports/ledger"
+    personal_data: [client, note]
+    categories: [I, DD, NC]
+    measure: >-
+      Restreindre les champs renvoyés à ce que l’écran affiche, et journaliser l’accès à la note libre.
+    control: solutions/server/routes/invoices.ts
+  - route: "GET /api/export"
+    personal_data: [client, note]
+    categories: [DD, U]
+    measure: >-
+      Prévenir le client que la note de facture est lisible par tout son tenant, et proposer un champ privé séparé.
+    control: solutions/src/pages/InvoiceDetail.tsx
+  - route: "GET /api/invoices/:id"
+    personal_data: [client, note]
+    categories: [L, NR]
+    measure: >-
+      Cesser d’indexer la référence sur le nom du client, pour qu’une recherche ne relie pas deux factures d’un même destinataire.
+    control: solutions/server/routes/invoices.ts
+  - route: "GET /api/invoices/:id/share"
+    personal_data: [client, note]
+    categories: [D, DD]
+    measure: >-
+      Répondre en temps constant quelle que soit l’existence de la facture, pour que la route ne serve pas d’oracle.
+    control: solutions/server/routes/invoices.ts
+  - route: "GET /api/invoices/:id/view"
+    personal_data: [client, note]
+    categories: [NC, DD]
+    measure: >-
+      Borner la durée de conservation des factures et purger les pièces jointes associées à l’échéance.
+    control: solutions/server/routes/attachments.ts
+  - route: "GET /api/invoices/lookup"
+    personal_data: [client, note]
+    categories: [I, NC]
+    measure: >-
+      Minimiser le contenu du message sortant : un lien opaque, sans nom ni référence.
+    control: solutions/server/routes/auth.ts
+  - route: "GET /api/invoices/search"
+    personal_data: [client, note]
+    categories: [L, I]
+    measure: >-
+      Remplacer l’identifiant séquentiel par un identifiant opaque, pour qu’un tiers ne puisse ni énumérer ni recouper.
+    control: solutions/server/routes/invoices.ts
+  - route: "PATCH /api/invoices/:id"
+    personal_data: [client, note]
+    categories: [NR, NC]
+    measure: >-
+      Documenter la base légale de la trace d’audit et en limiter la rétention.
+    control: solutions/server/routes/settings.ts
+  - route: "POST /api/invoices"
+    personal_data: [client, note]
+    categories: [DD, U]
+    measure: >-
+      Retirer la note libre des exports, où elle quitte le périmètre sans que personne ne l’ait relue.
+    control: solutions/server/routes/settings.ts
+  - route: "POST /api/invoices/query"
+    personal_data: [client, email, name, note]
+    categories: [D, U]
+    measure: >-
+      Ne pas révéler par le code de statut qu’une facture existe chez un autre locataire.
+    control: solutions/server/routes/invoices.ts

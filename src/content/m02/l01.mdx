@@ -1,0 +1,191 @@
+export const questions = [
+  {
+    q: "Dans l'OWASP Top 10:2025, où se trouve désormais la SSRF ?",
+    options: [
+      "Elle reste une catégorie à part entière, en A10",
+      "Elle est intégrée à A01 Broken Access Control",
+      "Elle est intégrée à A05 Injection",
+      "Elle est rattachée à A02 Security Misconfiguration",
+    ],
+    answer: 1,
+    explain: "La rattacher à Injection est le raisonnement le plus naturel — on injecte bien une URL — mais l'OWASP classe sur la faiblesse sous-jacente, et CWE-918 décrit un serveur qui atteint une ressource qu'il ne devrait pas joindre : c'est un défaut de contrôle d'accès. A10 existe toujours dans l'édition 2025, mais il accueille désormais Mishandling of Exceptional Conditions.",
+  },
+  {
+    q: "Quelles sont les deux nouvelles catégories du Top 10:2025 ?",
+    options: [
+      "A03 Supply Chain Failures et A10 Exceptional Conditions",
+      "A03 Supply Chain Failures et A09 Security Logging & Alerting Failures",
+      "A02 Security Misconfiguration et A09 Security Logging & Alerting Failures",
+      "A06 Insecure Design et A08 Software or Data Integrity Failures",
+    ],
+    answer: 0,
+    explain: "Le couple A03 + A09 est le piège sérieux : ce sont bien les deux catégories issues de l'enquête communautaire plutôt que des données de tests, mais A09 n'est pas nouvelle — elle a été renommée pour mettre l'alerte au même niveau que la journalisation. A02 monte de trois places sans changer de nature, et A06 et A08 datent de 2021.",
+  },
+  {
+    q: "Une route renvoie la facture 1042 à n'importe quel utilisateur authentifié qui en connaît l'identifiant. Quel risque de l'API Security Top 10 2023 ?",
+    options: [
+      "API3 · Broken Object Property Level Authorization",
+      "API5 · Broken Function Level Authorization",
+      "API1 · Broken Object Level Authorization",
+      "API2 · Broken Authentication",
+    ],
+    answer: 2,
+    explain: "Les trois autres sont les voisins qu'on confond. API5 (BFLA) porte sur une action interdite à ce rôle : ici, lire une facture est une action permise, c'est l'objet qui n'est pas le bon. API3 porte sur les champs d'un objet auquel on a bien droit. API2 supposerait l'authentification contournable, or l'utilisateur est authentifié. Le défaut est au niveau de l'objet : rien ne vérifie que la facture 1042 appartient à son tenant.",
+  },
+  {
+    q: "Un client grand compte exige par contrat que Novafact soit « conforme au Top 10 OWASP ». Quelle réponse est la plus solide ?",
+    options: [
+      "Accepter, en annexant la correspondance entre chaque catégorie et les CWE couvertes",
+      "Accepter, en précisant que l'engagement porte sur l'édition 2025 de la liste",
+      "Fournir le rapport du pentest annuel, qui couvre les dix catégories",
+      "Proposer un niveau ASVS comme référentiel d'exigences vérifiables",
+    ],
+    answer: 3,
+    explain: "Annexer la correspondance vers les CWE est la tentative la plus sérieuse, et c'est là qu'on se piège : les dix catégories couvrent 248 CWE, jusqu'à 40 pour la seule A01, sans aucun critère disant à partir de quand on est « conforme ». Épingler l'édition fixe une cible mouvante sans la rendre vérifiable. Le pentest prouve qu'on a cherché, pas qu'on respecte une exigence. ASVS donne ce qui manque : des exigences numérotées, testables, rangées en niveaux.",
+  },
+];
+
+<YouKnow>
+Tu connais le Top 10 par cœur et tu as exploité chaque catégorie. Ici, on regarde ce qui a changé en 2025, comment ces listes sont construites, et à quoi chacune sert quand tu es du côté de ceux qui corrigent.
+</YouKnow>
+
+## OWASP Top 10:2025
+
+Annoncée en novembre 2025 et finalisée en janvier 2026, cette édition repose sur des données de tests et une enquête auprès de la communauté.
+
+| Rang | Catégorie | Évolution |
+| --- | --- | --- |
+| A01 | Broken Access Control | Toujours en tête, absorbe la SSRF |
+| A02 | Security Misconfiguration | Monte de trois places |
+| A03 | **Software Supply Chain Failures** | Nouvelle, élargit l'ancienne catégorie des composants vulnérables |
+| A04 | Cryptographic Failures | Descend de deux places |
+| A05 | Injection | Descend |
+| A06 | Insecure Design | Descend |
+| A07 | Authentication Failures | Stable |
+| A08 | Software or Data Integrity Failures | Stable |
+| A09 | Security Logging & Alerting Failures | Renommée : l'alerte compte autant que la journalisation |
+| A10 | **Mishandling of Exceptional Conditions** | Nouvelle : erreurs, exceptions et états inattendus |
+
+<Callout kind="tip">
+Deux signaux à retenir pour l'écosystème JS. A03 reconnaît que la chaîne d'approvisionnement (npm, CI, builds) est devenue un vecteur majeur. A10 vise un défaut très courant en Node : promesses rejetées non gérées, erreurs qui laissent un état incohérent ou qui fuient des détails. On les traite en M2 (leçon 5), M13 et M14.
+</Callout>
+
+## Comment la liste est construite
+
+Savoir d'où vient le classement évite de lui faire dire ce qu'il ne dit pas. Trois points de méthode, tirés de l'introduction de l'édition 2025.
+
+**Huit catégories viennent des données, deux de l'enquête.** Les contributeurs ont fourni des résultats de tests portant sur environ 2,8 millions d'applications. Mais ces données sont incomplètes par nature : un outil automatique voit mal l'absence d'alerte ou une compromission de la chaîne de build. L'équipe OWASP réserve donc deux places à l'enquête communautaire, et ce sont **A03 Software Supply Chain Failures** (plébiscitée) et **A09 Security Logging & Alerting Failures** (toujours sous-représentée dans les données).
+
+**Une catégorie est un sac de CWE.** Les dix catégories regroupent 248 CWE au total, de 5 à 40 par catégorie. A01 en compte 40 et mélange des choses que tu ne rangerais pas ensemble : IDOR (CWE-639), CSRF (CWE-352), path traversal (CWE-22) et SSRF (CWE-918). Dire « on a un problème A01 » ne dit presque rien : c'est la CWE qui porte la cause racine.
+
+**Le rang n'est pas ton risque.** Le classement croise le taux d'incidence (part des applications testées qui présentent au moins une CWE de la catégorie) avec des scores d'exploitabilité et d'impact tirés du CVSS des CVE associées. C'est une moyenne sur des millions d'applications, pas une mesure de ton exposition. Une catégorie en bas de liste peut être la plus grave chez toi : pour une API de facturation, A10 (un contrôle qui échoue en ouvert) pèse plus lourd que son rang.
+
+<Callout kind="warn">
+Le piège le plus courant : utiliser le Top 10 comme référentiel de conformité. « Conforme au Top 10 » ne se vérifie pas, parce qu'une catégorie n'est pas une exigence. Pour exiger, contractualiser ou auditer, on prend **ASVS**, dont la version 5.0 est sortie en mai 2025 : des exigences testables, rangées en trois niveaux. Le Top 10 reste un excellent outil de sensibilisation et de structuration.
+</Callout>
+
+<Callout kind="case">
+A03 cite parmi ses scénarios **Shai-Hulud** (2025), un ver npm auto-propagateur : il volait les jetons présents sur les machines de développeurs, puis publiait des versions piégées des autres paquets que ces jetons permettaient de modifier. Pour Novafact, qui publie `@novafact/sdk`, le risque est double : consommer un paquet compromis, et devenir soi-même le vecteur. Le module 14 traite la réponse (publication depuis la CI avec provenance, jetons à portée réduite, délai avant adoption des nouvelles versions).
+</Callout>
+
+## OWASP API Security Top 10 2023
+
+Pour une application comme Novafact, qui est surtout une API, cette liste est souvent plus utile que le Top 10 généraliste.
+
+| Code | Risque |
+| --- | --- |
+| API1 | Broken Object Level Authorization (BOLA) |
+| API2 | Broken Authentication |
+| API3 | Broken Object Property Level Authorization (mass assignment et exposition excessive) |
+| API4 | Unrestricted Resource Consumption |
+| API5 | Broken Function Level Authorization (BFLA) |
+| API6 | Unrestricted Access to Sensitive Business Flows |
+| API7 | Server Side Request Forgery |
+| API8 | Security Misconfiguration |
+| API9 | Improper Inventory Management |
+| API10 | Unsafe Consumption of APIs |
+
+Trois de ces risques (API1, API3, API5) sont des problèmes d'**autorisation**. Aucun scanner ne les trouve de façon fiable, parce qu'ils dépendent des règles métier : un outil ne sait pas que la facture 1042 appartient au tenant `acme` et pas au tenant `globex`. C'est pour ça que la revue de code (M12) et l'autorisation centralisée (M8) comptent autant.
+
+Trois autres méritent une attention particulière parce qu'on les sous-estime :
+
+- **API6, flux métier sensibles** : rien n'est techniquement cassé, mais un flux légitime devient nuisible à grande échelle. Chez Novafact, l'envoi de factures par e-mail depuis le domaine de l'entreprise est un canal de spam ou de phishing tout trouvé si un compte d'essai peut envoyer 10 000 factures en une heure. La réponse est métier (quotas par plan, vérification du domaine, détection d'abus) : c'est le module 10.
+- **API9, inventaire** : l'ancienne `/v1/invoices` que plus personne ne maintient, l'environnement de préproduction exposé avec des données réelles, la route de debug oubliée. Tu ne protèges pas ce que tu ne sais pas exposer. Une spécification OpenAPI générée depuis le code et comparée à ce que voit le WAF est un bon contrôle.
+- **API10, consommation d'API tierces** : les webhooks du prestataire de paiement et les réponses de l'API d'enrichissement d'entreprises sont des entrées non fiables, même s'ils viennent d'un partenaire. On vérifie la signature, on valide le schéma, on borne la taille et le délai, exactement comme pour un client.
+
+## CWE Top 25
+
+La liste CWE Top 25 de MITRE classe les **faiblesses** (causes racines) les plus dangereuses, à partir des CVE publiées. Elle sert à autre chose que le Top 10 : c'est le vocabulaire des outils (SAST, SCA) et des CVE. Quand Semgrep ou CodeQL signale un problème, il le rattache à une CWE ; quand tu écris une règle maison, rattache-la aussi.
+
+L'édition 2025, publiée en décembre 2025, analyse 39 080 enregistrements CVE publiés entre juin 2024 et juin 2025. Le score combine la **fréquence** d'une CWE comme cause racine et la **sévérité** moyenne (CVSS) des vulnérabilités associées. Le trio de tête : XSS (CWE-79), injection SQL (CWE-89) et CSRF (CWE-352), suivis de l'absence d'autorisation (CWE-862).
+
+Lue avec des yeux de développeur JS, la liste se trie en trois groupes :
+
+| Groupe | Exemples dans le Top 25 2025 | Pertinence pour Novafact |
+| --- | --- | --- |
+| Web et autorisation | CWE-79, 89, 352, 862, 863, 639, 918 | Cœur du sujet : c'est ce module et M8 |
+| Exécution et fichiers | CWE-22, 78, 94, 434, 502 | Réelle dès qu'on touche au disque, aux sous-processus ou à la désérialisation (leçons 4 et 5) |
+| Mémoire | CWE-787, 416, 125, 120 à 122, 476 | Quasi nulle en JS pur, sauf modules natifs et dépendances système |
+
+<Callout kind="info">
+Deux biais à garder en tête. D'abord, la liste reflète les **CVE publiées**, donc surtout des produits distribués : les failles d'un SaaS corrigées en interne reçoivent rarement une CVE, et les problèmes d'autorisation propres à une application y sont sous-représentés. Ensuite, des classes typiques de JS comme la prototype pollution (CWE-1321) n'y figurent pas : ce n'est pas un signe qu'elles sont rares chez toi.
+</Callout>
+
+## Une même faille, trois étiquettes
+
+Les trois listes découpent le monde différemment, et c'est normal. Le mass assignment en donne un bon exemple : l'API Security Top 10 le range dans l'**autorisation** (API3), alors que le Top 10:2025 place sa CWE (CWE-915) dans **A08 Software or Data Integrity Failures**. Aucune des deux n'a tort : l'une parle du contrôle qui manque, l'autre de ce qui est altéré.
+
+La règle pratique chez Novafact : **la CWE est l'identifiant de référence** d'un finding, et les catégories Top 10 ou API sont des vues calculées à partir d'elle.
+
+| Finding Novafact | CWE | Top 10:2025 | API Top 10 |
+| --- | --- | --- | --- |
+| `GET /invoices/:id` sans filtre par tenant | CWE-639 | A01 | API1 |
+| `PATCH /me` accepte le champ `role` | CWE-915 | A08 | API3 |
+| Import de logo par URL qui atteint l'IMDS | CWE-918 | A01 | API7 |
+| Tri dynamique dans `$queryRawUnsafe` | CWE-89 | A05 | (hors liste) |
+| Trace de pile renvoyée au client | CWE-209 | A10 | API8 |
+
+Ce choix a des conséquences concrètes : les tableaux de bord (M1 leçon 6) agrègent par CWE pour mesurer la récurrence d'une classe, les règles Semgrep maison déclarent leur CWE dans leurs métadonnées, et DefectDojo (M5) déduplique des findings venus d'outils différents grâce à elle.
+
+## Quelle liste pour quel usage
+
+| Besoin | Liste |
+| --- | --- |
+| Former des développeurs, structurer une présentation | OWASP Top 10 |
+| Relire ou tester une API | API Security Top 10 |
+| Classer des findings, écrire des règles, lire des CVE | CWE |
+| Définir des exigences vérifiables | ASVS (pas une liste de risques, mais un catalogue d'exigences) |
+
+<Callout kind="debate">
+Faut-il bâtir sa formation développeurs sur le Top 10 ? Pour : tout le monde le connaît, et il donne un vocabulaire commun. Contre : il est générique, et un développeur Express passe du temps sur des catégories qui le concernent peu. Beaucoup d'équipes AppSec gardent le Top 10 comme table des matières, puis remplissent chaque chapitre avec **les vrais findings de l'entreprise**, classés par CWE. C'est l'approche du module 6 (leçon 6).
+</Callout>
+
+## En pratique chez toi
+
+<Steps items={[
+  { title: "Choisir l'identifiant", text: "Impose une CWE sur chaque finding (pentest, SAST, bug bounty), même approximative au début. Sans elle, pas de mesure par classe." },
+  { title: "Relire l'API avec la bonne liste", text: "Passe l'inventaire des routes au crible de l'API Security Top 10, en commençant par API1, API5 et API9." },
+  { title: "Exiger avec ASVS", text: "Fixe un niveau ASVS cible par application (le niveau 2 est souvent retenu pour un SaaS qui traite des données clients) et traduis-le en exigences de ton backlog." },
+  { title: "Sensibiliser avec le Top 10", text: "Garde-le pour la formation et la communication, illustré par tes propres cas." },
+]} />
+
+<Recap items={[
+  "Top 10:2025 : deux nouveautés, A03 Supply Chain et A10 Exceptional Conditions ; la SSRF passe dans A01.",
+  "Huit catégories viennent des données, deux de l'enquête (A03 et A09) ; chaque catégorie regroupe de 5 à 40 CWE.",
+  "Le Top 10 sensibilise ; pour exiger et vérifier, on utilise ASVS.",
+  "L'API Security Top 10 2023 est souvent plus pertinent pour une API comme Novafact ; API1, API3 et API5 sont des problèmes d'autorisation que les scanners trouvent mal.",
+  "Le CWE Top 25 reflète les CVE publiées : utile pour le vocabulaire, biaisé pour un SaaS.",
+  "La CWE est l'identifiant de référence d'un finding ; les catégories des listes en sont des vues.",
+]} />
+
+<Lab id="juice-shop" note="Parcours les défis de Juice Shop en te demandant, pour chacun, quelle CWE, quelle catégorie du Top 10:2025 et quel risque API il illustre." />
+
+<Sources items={[
+  { title: "OWASP Top 10:2025", url: "https://owasp.org/Top10/2025/" },
+  { title: "OWASP Top 10:2025 : introduction et méthodologie", url: "https://top10.owasp.org/2025/0x00_2025-Introduction/" },
+  { title: "OWASP Top 10:2025 : A03 Software Supply Chain Failures", url: "https://top10.owasp.org/2025/A03_2025-Software_Supply_Chain_Failures/" },
+  { title: "OWASP API Security Top 10 2023", url: "https://owasp.org/API-Security/editions/2023/en/0x11-t10/" },
+  { title: "CWE Top 25", url: "https://cwe.mitre.org/top25/" },
+  { title: "2025 CWE Top 25 : méthodologie", url: "https://cwe.mitre.org/top25/archive/2025/2025_methodology.html" },
+  { title: "OWASP ASVS", url: "https://github.com/OWASP/ASVS" },
+]} />

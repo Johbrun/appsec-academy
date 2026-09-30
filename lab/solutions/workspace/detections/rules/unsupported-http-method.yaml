@@ -1,0 +1,23 @@
+id: unsupported-http-method
+name: Méthode HTTP non supportée
+description: Une méthode que l’application n’implémente pas a été invoquée.
+severity: low
+risk_score: 15
+tags:
+  - 'Domaine: Application'
+  - 'Tactique: Discovery'
+  - 'Technique: T1190'
+interval: 10m
+from: now-30m
+note: |-
+  ## Triage
+
+  1. Regarder si la source enchaîne d’autres anomalies.
+query:
+  where:
+    - field: http.request.method
+      op: in
+      value:
+        - TRACE
+        - CONNECT
+        - TRACK

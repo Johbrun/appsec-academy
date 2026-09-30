@@ -1,0 +1,28 @@
+# Modèle de menaces nº 1 — l'assistant et ses outils — livrable de référence.
+#
+# L'inventaire n'est pas au choix — ce sont les outils que le code de
+# l'assistant expose réellement. Les menaces d'ici ne doivent pas réapparaître
+# dans les deux autres modèles — chaque surface porte ce que les autres ne
+# voient pas.
+
+tools:
+  - send_email
+  - create_credit_note
+  - suggest_package
+
+threats:
+  - threat: Le contenu d'une facture entre dans le contexte du modèle au même rang que la question de l'utilisateur, et une instruction qui y est écrite est exécutée.
+    boundary: Données récupérées (RAG) → contexte du modèle
+    control: solutions/server/routes/assistant.ts
+  - threat: L'outil d'envoi de courriel a un effet de bord irréversible et se déclenche sans qu'un humain ait validé le destinataire.
+    boundary: Sortie du modèle → outils à effet de bord
+    control: solutions/server/routes/assistant.ts
+  - threat: L'outil de création d'avoir agit avec les droits du compte connecté alors que la demande vient d'un document, pas de la personne.
+    boundary: Identité de l'appelant → périmètre de l'agent
+    control: solutions/server/routes/assistant.ts
+  - threat: L'outil qui suggère un paquet propose un nom que personne ne vérifie, et ce nom finit dans un fichier de dépendances.
+    boundary: Sortie du modèle → dépôt de code
+    control: novafact/package.json
+  - threat: La réponse du modèle est réinjectée dans une page sans être traitée comme une entrée non fiable.
+    boundary: Sortie du modèle → navigateur de l'utilisateur
+    control: solutions/src/pages/InvoiceDetail.tsx

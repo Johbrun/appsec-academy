@@ -1,0 +1,17 @@
+id: credential-stuffing
+_note: La règle que l’atomique doit faire lever — et seulement pendant la détonation.
+window: 5m
+where:
+  - field: event.action
+    op: eq
+    value: authn_login_fail
+group_by:
+  - source.ip
+having:
+  - metric: count
+    op: gte
+    value: 10
+  - metric: distinct
+    field: user.name
+    op: gte
+    value: 8

@@ -1,0 +1,95 @@
+{
+  "njsscan_version": "0.4.7",
+  "nodejs": [
+    {
+      "rule_id": "node_cwe_915",
+      "severity": "WARNING",
+      "description": "mass assignment possible sur req.body",
+      "cwe": "CWE-915",
+      "files": [
+        {
+          "file_path": "server/routes/profile.ts",
+          "match_lines": [
+            31,
+            31
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "node_cwe_918",
+      "severity": "ERROR",
+      "description": "server side request forgery",
+      "cwe": "CWE-918",
+      "files": [
+        {
+          "file_path": "server/routes/webhooks.ts",
+          "match_lines": [
+            42,
+            42
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "node_cwe_22",
+      "severity": "ERROR",
+      "description": "path.join avec une entrée utilisateur",
+      "cwe": "CWE-22",
+      "files": [
+        {
+          "file_path": "server/routes/attachments.ts",
+          "match_lines": [
+            26,
+            26
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "node_cwe_347",
+      "severity": "ERROR",
+      "description": "jwt algorithm taken from token",
+      "cwe": "CWE-347",
+      "files": [
+        {
+          "file_path": "server/lib/jwt.ts",
+          "match_lines": [
+            65,
+            65
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "node_cwe_798",
+      "severity": "WARNING",
+      "description": "secret codé en dur",
+      "cwe": "CWE-798",
+      "files": [
+        {
+          "file_path": "server/lib/jwt.ts",
+          "match_lines": [
+            7,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "node_cwe_400",
+      "severity": "INFO",
+      "description": "lecture puis écriture non atomiques",
+      "cwe": "CWE-400",
+      "files": [
+        {
+          "file_path": "server/routes/credits.ts",
+          "match_lines": [
+            38,
+            38
+          ]
+        }
+      ]
+    }
+  ]
+}

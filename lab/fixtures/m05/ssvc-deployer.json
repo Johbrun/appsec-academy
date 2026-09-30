@@ -1,0 +1,792 @@
+{
+  "_a_propos": "Table de décision de l’arbre « Deployer », transcrite pour le lab. C’est CETTE table que le harnais interroge : la décision que tu écris doit être celle qu’elle rend pour les points que tu as retenus. Le format vectoriel « SSVCv2/… » n’est pas normatif, il n’est pas utilisé ici.",
+  "tree": "Deployer",
+  "version": "2.0.0",
+  "decision_points": {
+    "exploitation": [
+      "none",
+      "poc",
+      "active"
+    ],
+    "exposure": [
+      "small",
+      "controlled",
+      "open"
+    ],
+    "utility": [
+      "laborious",
+      "efficient",
+      "super effective"
+    ],
+    "human_impact": [
+      "low",
+      "medium",
+      "high",
+      "very high"
+    ]
+  },
+  "outcomes": [
+    "defer",
+    "scheduled",
+    "out-of-cycle",
+    "immediate"
+  ],
+  "rows": [
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "none",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "defer"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "small",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "scheduled"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "high",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "laborious",
+      "human_impact": "very high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "low",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "low",
+      "decision": "out-of-cycle"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "medium",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "high",
+      "decision": "immediate"
+    },
+    {
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "immediate"
+    }
+  ]
+}

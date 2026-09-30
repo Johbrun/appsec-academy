@@ -1,0 +1,74 @@
+{
+  "_comment": "CORRIGÉ : deux défauts vivaient dans ce fichier — un refus écrit en négation qui ne refusait rien d'utile, et l'absence de tout périmètre de données. Note de lecture : dans un vrai compte, le périmètre d'identité vit dans une RCP ou dans les politiques de ressource, et le périmètre de ressource dans la SCP. Ils sont réunis ici pour se lire ensemble.",
+  "PolicyName": "novafact-garde-fous",
+  "PolicyType": "SERVICE_CONTROL_POLICY",
+  "Targets": ["ou-prod-1a2b3c"],
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "_comment": "CORRIGÉ : le refus énumère ce qu'il refuse. L'ancienne version refusait « tout sauf treize services » — c'est-à-dire rien d'utile, tout en donnant l'impression d'un garde-fou. Une politique en négation se lit à l'envers et se trompe de sens dès qu'on l'édite ; un refus explicite se relit, se teste, et se compare d'une revue à l'autre.",
+        "Sid": "RefuserLesActionsSensibles",
+        "Effect": "Deny",
+        "Action": [
+          "cloudtrail:StopLogging",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:UpdateTrail",
+          "guardduty:DeleteDetector",
+          "guardduty:UpdateDetector",
+          "config:DeleteConfigurationRecorder",
+          "config:StopConfigurationRecorder",
+          "iam:CreateUser",
+          "iam:CreateAccessKey",
+          "iam:DeleteRolePermissionsBoundary",
+          "iam:DeleteUserPermissionsBoundary",
+          "s3:PutAccountPublicAccessBlock",
+          "kms:ScheduleKeyDeletion",
+          "kms:DisableKey"
+        ],
+        "Resource": "*"
+      },
+      {
+        "_comment": "CORRIGÉ — périmètre d'IDENTITÉ : seules les identités de notre organisation touchent nos ressources. Les appels faits par les services AWS eux-mêmes sont exemptés, sinon rien ne fonctionne plus.",
+        "Sid": "PerimetreIdentite",
+        "Effect": "Deny",
+        "Action": "*",
+        "Resource": "*",
+        "Condition": {
+          "StringNotEqualsIfExists": { "aws:PrincipalOrgID": "o-novafact42" },
+          "BoolIfExists": { "aws:PrincipalIsAWSService": "false" }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ — périmètre de RESSOURCE : nos identités n'écrivent que dans des ressources de notre organisation. C'est ce qui empêche l'exfiltration vers un bucket personnel, même si une politique individuelle l'autorisait.",
+        "Sid": "PerimetreRessource",
+        "Effect": "Deny",
+        "Action": "*",
+        "Resource": "*",
+        "Condition": {
+          "StringNotEqualsIfExists": { "aws:ResourceOrgID": "o-novafact42" },
+          "BoolIfExists": {
+            "aws:PrincipalIsAWSService": "false",
+            "aws:ViaAWSService": "false"
+          }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ — périmètre RÉSEAU : nos identités n'atteignent nos ressources que depuis notre réseau. L'exemption aws:ViaAWSService / aws:PrincipalIsAWSService n'est pas un détail : sans elle le périmètre casse la production, et un périmètre qui casse la production est un périmètre qu'on retire au premier incident.",
+        "Sid": "PerimetreReseau",
+        "Effect": "Deny",
+        "Action": "*",
+        "Resource": "*",
+        "Condition": {
+          "StringNotEqualsIfExists": {
+            "aws:SourceVpce": ["vpce-0a1b2c3d4e5f60718", "vpce-0f1e2d3c4b5a69807"]
+          },
+          "BoolIfExists": {
+            "aws:PrincipalIsAWSService": "false",
+            "aws:ViaAWSService": "false"
+          }
+        }
+      }
+    ]
+  }
+}

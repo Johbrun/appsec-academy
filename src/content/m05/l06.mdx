@@ -1,0 +1,180 @@
+export const questions = [
+  {
+    q: "Quels champs du fichier security.txt (RFC 9116) sont obligatoires ?",
+    options: [
+      "Contact et Canonical, pour éviter qu'un fichier soit recopié ailleurs",
+      "Contact et Expires, pour qu'un fichier abandonné cesse d'être opposable",
+      "Contact et Policy, pour que le chercheur connaisse les règles du jeu",
+      "Contact seul ; tous les autres champs sont seulement recommandés",
+    ],
+    answer: 1,
+    explain: "La RFC 9116 rend obligatoires au moins un Contact et un Expires, avec une date à moins d'un an : un fichier oublié qui désigne une boîte que plus personne ne lit vaut moins que pas de fichier du tout. Policy, Canonical, Encryption, Acknowledgments et Preferred-Languages sont recommandés mais facultatifs — d'où l'erreur courante de croire que Contact se suffit, alors que c'est justement la péremption qui manque le plus souvent.",
+  },
+  {
+    q: "Depuis le 15/04/2026, quelles CVE le NVD enrichit-il en priorité (score, produits, CWE) ?",
+    options: [
+      "Celles du KEV, des logiciels fédéraux et des logiciels jugés critiques",
+      "Celles dont l'éditeur n'a pas fourni de score CVSS à la publication",
+      "Celles publiées par une autorité de numérotation (CNA) américaine",
+      "Celles dont le score CVSS de base dépasse 7,0",
+    ],
+    answer: 0,
+    explain: "Devant la croissance du volume, le NIST a restreint l'enrichissement à trois catégories : KEV, logiciels fédéraux, logiciels jugés critiques. Le critère n'est donc ni le score — qui est précisément ce que l'enrichissement produit, d'où la circularité — ni l'origine de la CVE. Conséquence directe : une CVE sans score au NVD n'est pas une CVE sans gravité, et ta grille doit savoir décider sans CVSS fourni.",
+  },
+  {
+    q: "Novafact reçoit une dizaine de signalements par mois via sa VDP, dont la moitié hors périmètre, et met trois semaines à répondre. Le produit veut lancer un bug bounty public. Qu'en penses-tu ?",
+    options: [
+      "Lancer le bounty : la plateforme assure le premier tri et absorbera le volume",
+      "Lancer le bounty, mais en restreignant le périmètre aux seuls actifs exposés",
+      "Fermer la VDP et rediriger tous les signalements vers la plateforme",
+      "Tenir d'abord les délais de la VDP, puis ouvrir un programme privé",
+    ],
+    answer: 3,
+    explain: "Un programme public multiplie le volume de rapports. Si l'équipe met déjà trois semaines à répondre sur dix signalements mensuels, la prime achète surtout de la frustration et une réputation durable chez les chercheurs. Le tri de la plateforme ne règle pas cela : il filtre le bruit évident, mais c'est toujours ton équipe qui juge l'impact sur ton produit. Restreindre le périmètre est juste en soi — c'est d'ailleurs ce que permet un programme privé, une fois la capacité de triage démontrée.",
+  },
+  {
+    q: "Le Cyber Resilience Act s'applique-t-il à Novafact, SaaS de facturation ?",
+    options: [
+      "Oui : le CRA vise tout logiciel mis sur le marché de l'Union",
+      "Non : un service géré à distance relève de NIS2, jamais du CRA",
+      "À qualifier : le SaaS relève de NIS2, mais le SDK distribué peut entrer",
+      "Seulement au-delà des seuils d'effectif et de chiffre d'affaires de NIS2",
+    ],
+    answer: 2,
+    explain: "Le CRA vise les produits comportant des éléments numériques, mis sur le marché ; un service pur relève plutôt de NIS2. Mais la frontière est fine : le SDK npm que Novafact distribue, une application installée chez un client ou un traitement à distance indispensable au fonctionnement d'un produit peuvent entrer dans le champ. Le CRA ignore les seuils d'effectif de NIS2 : il raisonne par produit. Et cette qualification se fait avec le juridique avant la première vulnérabilité exploitée, pas pendant.",
+  },
+];
+
+<YouKnow>
+Tu connais la divulgation côté chercheur : trouver l'adresse de contact, négocier un délai, publier. Cette leçon passe de l'autre côté : organiser la réception, et suivre un écosystème CVE qui a beaucoup bougé depuis 2024.
+</YouKnow>
+
+## Recevoir les signalements
+
+<Steps items={[
+  { title: "Une politique de divulgation (VDP)", text: "Ce qui est dans le périmètre, comment signaler, les délais de réponse, et un engagement de ne pas poursuivre les chercheurs de bonne foi (safe harbor)." },
+  { title: "Un fichier security.txt", text: "À /.well-known/security.txt, selon la RFC 9116 : Contact et Expires obligatoires, Policy, Encryption et Preferred-Languages recommandés." },
+  { title: "Une capacité de triage", text: "Accuser réception vite, qualifier, tenir le chercheur informé, corriger, créditer." },
+]} />
+
+```text
+Contact: mailto:security@novafact.example
+Expires: 2027-09-30T00:00:00.000Z
+Policy: https://novafact.example/security/policy
+Preferred-Languages: fr, en
+Canonical: https://novafact.example/.well-known/security.txt
+```
+
+## Écrire une VDP que les chercheurs respectent
+
+Tu as lu assez de politiques de divulgation pour savoir lesquelles inspirent confiance. Une bonne VDP répond sans ambiguïté à ce que le chercheur se demande avant d'envoyer son rapport :
+
+| Question du chercheur | Réponse attendue dans la politique |
+| --- | --- |
+| Qu'ai-je le droit de tester ? | Périmètre explicite (domaines, applications, API), et ce qui en est exclu |
+| Comment tester sans nuire ? | Pas de déni de service, pas d'accès aux données d'autres clients au-delà du strict nécessaire, comptes de test |
+| Suis-je protégé ? | Engagement de ne pas poursuivre une recherche de bonne foi dans le cadre défini (*safe harbor*) |
+| Quand aurai-je une réponse ? | Délais d'accusé de réception, de qualification et d'information |
+| Quand pourrai-je publier ? | Délai de divulgation coordonnée, et conditions de prolongation |
+| Serai-je crédité ? payé ? | Remerciements publics, et absence (ou existence) de récompense |
+
+Pour le délai de divulgation, la pratique de l'industrie gravite autour de **90 jours**, popularisés par Google Project Zero. Le projet disclose.io fournit des modèles de politique et de clause *safe harbor* réutilisables, et deux normes décrivent le processus : ISO/IEC 29147 pour la divulgation, ISO/IEC 30111 pour le traitement interne des vulnérabilités.
+
+Le fichier `security.txt` a un piège discret : le champ `Expires`. La RFC recommande une date à moins d'un an, pour qu'un fichier abandonné ne continue pas d'indiquer une adresse que plus personne ne lit. Il faut donc le renouveler, et le plus simple est qu'un test s'en charge :
+
+<Code file="apps/web/test/securityTxt.test.ts">
+
+```ts
+import { readFileSync } from 'node:fs';
+import { expect, test } from 'vitest';
+
+test('security.txt conforme et valable encore au moins 30 jours', () => {
+  const txt = readFileSync('public/.well-known/security.txt', 'utf8');
+  expect(txt).toMatch(/^Contact: (mailto:|https:\/\/)/m);
+  const expires = txt.match(/^Expires: (.+)$/m)?.[1];
+  expect(expires).toBeDefined();
+  const days = (Date.parse(expires!) - Date.now()) / 86_400_000;
+  expect(days).toBeGreaterThan(30);
+  expect(days).toBeLessThan(366);
+});
+```
+
+</Code>
+
+## Traiter un signalement
+
+La relation avec le chercheur se joue sur les premiers jours. Chez Novafact, le circuit est le suivant : accusé de réception humain sous deux jours ouvrés ; qualification sous dix jours (reproduction, décision de la grille de la leçon 3, propriétaire désigné) ; information du chercheur à chaque changement d'état ; correctif, puis vérification avec le chercheur s'il le souhaite ; crédit public et, pour le SDK `@novafact/sdk`, publication d'un avis de sécurité avec CVE. GitHub est une autorité de numérotation (CNA) : un avis de sécurité rédigé dans le dépôt peut obtenir directement un identifiant CVE.
+
+<Callout kind="warn">
+Le chercheur qui n'a pas de réponse finit par publier, ou par écrire sur les réseaux sociaux. La plupart des divulgations conflictuelles commencent par un silence, pas par une mauvaise intention. La boîte `security@` a un propriétaire nommé, une astreinte, et un suivi des délais comme n'importe quelle file de support.
+</Callout>
+
+## Bug bounty
+
+Un bug bounty ajoute une **récompense** et, souvent, une plateforme qui gère les chercheurs. Avant de le lancer :
+
+- le programme de base doit être solide : sinon, la prime paie des findings que ton SAST aurait trouvés ;
+- la **capacité de triage** doit suivre : un programme public peut générer des dizaines de rapports par semaine ;
+- commence **privé**, avec un périmètre restreint et une grille de récompenses claire, puis élargis.
+
+Tu connais ce monde de l'intérieur : c'est un vrai avantage pour écrire un périmètre et des règles que les chercheurs respecteront.
+
+Les choix qui font la réputation d'un programme se jouent dans le détail :
+
+- **la grille de récompenses** se fonde sur l'impact démontré sur tes actifs, pas seulement sur un score CVSS ; une BOLA inter-tenants sur l'API de facturation vaut plus qu'une XSS sur une page marketing ;
+- **les exclusions** sont publiées d'avance (déni de service, ingénierie sociale, en-têtes manquants sans impact démontré, self-XSS) : elles évitent des centaines d'échanges stériles ;
+- **les doublons** : premier arrivé, premier récompensé, avec une règle claire sur les findings déjà connus en interne ;
+- **le moment du paiement** : payer au triage plutôt qu'à la correction montre que le délai de correction est ton problème, pas celui du chercheur ;
+- **la plateforme** : HackerOne, Bugcrowd, Intigriti ou YesWeHack (française) fournissent la communauté, le cadre juridique et souvent un premier tri. Le tri de la plateforme ne remplace pas le tien : c'est toujours ton équipe qui décide de l'impact sur ton produit.
+
+## Un écosystème CVE en mouvement
+
+| Date | Événement |
+| --- | --- |
+| Février 2024 | Le NVD (NIST) accumule un retard d'enrichissement des CVE qui ne sera jamais résorbé |
+| Avril 2025 | Le contrat de MITRE pour le programme CVE est prolongé de 11 mois in extremis ; la CVE Foundation est créée pour en garantir l'indépendance |
+| Mai 2025 | ENISA lance l'**EUVD**, la base européenne de vulnérabilités prévue par NIS2 |
+| Janvier 2026 | Lancement de la base **GCVE**, un système d'identification compatible avec CVE et distribué |
+| Avril 2026 | Le NIST n'enrichit plus que les CVE du KEV, des logiciels fédéraux et des logiciels critiques ; les autres restent sans score ni mapping produit |
+
+Conséquences pour toi :
+
+- ne dépends pas d'**une seule** source de données de vulnérabilités : GHSA et OSV pour l'écosystème npm, EUVD, avis des éditeurs ;
+- une CVE **sans score** dans le NVD n'est pas une CVE sans gravité : ta grille (leçon 3) doit fonctionner sans CVSS fourni ;
+- vérifie régulièrement l'état du programme CVE, dont le financement a été fragilisé.
+
+Pour l'outillage, la conséquence est concrète. Un scanner qui ne s'appuie que sur le NVD verra une CVE récente sans produit associé, donc ne la rattachera à aucun de tes composants. Pour l'écosystème npm, les avis GHSA et la base OSV identifient directement les paquets et les plages de versions, ce qui les rend plus fiables pour un SBOM que la correspondance par CPE du NVD. Vérifie quelles sources utilisent tes outils (Dependency-Track permet d'en activer plusieurs).
+
+## Le CRA, côté divulgation
+
+Le Cyber Resilience Act (M1, leçon 8) fait de la gestion des vulnérabilités une **obligation** pour les fabricants : une politique de divulgation coordonnée, un contact pour les signalements, des correctifs gratuits pendant la période de support, et le signalement des vulnérabilités activement exploitées depuis le 11/09/2026.
+
+Le signalement suit un calendrier en trois temps, via la plateforme unique gérée par l'ENISA et le CSIRT coordinateur : une **alerte précoce sous 24 heures**, une **notification sous 72 heures**, puis un **rapport final** au plus tard 14 jours après la mise à disposition d'un correctif ou d'une mesure d'atténuation pour une vulnérabilité, ou dans le mois qui suit la notification pour un incident grave.
+
+Reste à savoir si le texte s'applique. Le CRA vise les **produits comportant des éléments numériques** : logiciels et matériels mis sur le marché. Un SaaS pur relève plutôt de NIS2. Mais la frontière est fine : le SDK npm que Novafact distribue, une application installée chez les clients, ou un traitement à distance indispensable au fonctionnement d'un produit peuvent entrer dans le champ. La qualification se fait au cas par cas, avec le juridique, et elle doit être faite **avant** la première vulnérabilité exploitée, pas pendant.
+
+<Callout kind="novafact">
+Décision de Novafact après analyse avec le juridique : la plateforme SaaS relève de NIS2, le SDK `@novafact/sdk` est traité comme un produit au sens du CRA par prudence. Conséquences : VDP publiée et liée depuis `security.txt`, avis de sécurité GHSA avec CVE pour chaque vulnérabilité du SDK, période de support documentée par version majeure, et un modèle d'alerte précoce CRA prêt dans le runbook de crise (leçon 7).
+</Callout>
+
+<Recap items={[
+  "Une VDP qui répond aux questions du chercheur, un security.txt conforme à la RFC 9116 (et renouvelé automatiquement), une capacité de triage d'abord.",
+  "Le silence déclenche les divulgations conflictuelles : accusé de réception rapide, information régulière, crédit.",
+  "Le bug bounty vient ensuite : privé, périmètre restreint, grille fondée sur l'impact, exclusions publiées, puis élargi.",
+  "Le NVD n'enrichit plus que les CVE prioritaires depuis avril 2026 ; GHSA et OSV sont plus fiables pour npm.",
+  "EUVD et GCVE complètent l'écosystème ; ne dépends pas d'une seule source.",
+  "Le CRA impose divulgation coordonnée et signalement (24 h, 72 h, rapport final) ; le périmètre d'un SaaS se qualifie au cas par cas.",
+]} />
+
+<Sources items={[
+  { title: "RFC 9116 : security.txt", url: "https://www.rfc-editor.org/rfc/rfc9116" },
+  { title: "OWASP Cheat Sheet : Vulnerability Disclosure", url: "https://cheatsheetseries.owasp.org/cheatsheets/Vulnerability_Disclosure_Cheat_Sheet.html" },
+  { title: "disclose.io : modèles de politique et safe harbor", url: "https://disclose.io/" },
+  { title: "Google Project Zero : politique de divulgation", url: "https://googleprojectzero.blogspot.com/p/vulnerability-disclosure-policy.html" },
+  { title: "GitHub : demander un identifiant CVE pour un avis de sécurité", url: "https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/publishing-a-repository-security-advisory" },
+  { title: "NIST : mise à jour du fonctionnement du NVD (avril 2026)", url: "https://www.nist.gov/news-events/news/2026/04/nist-updates-nvd-operations-address-record-cve-growth" },
+  { title: "ENISA : EUVD", url: "https://euvd.enisa.europa.eu/" },
+  { title: "GCVE", url: "https://gcve.eu/" },
+  { title: "Commission européenne : obligations de signalement du CRA", url: "https://digital-strategy.ec.europa.eu/en/policies/cra-reporting" },
+  { title: "Commission européenne : Cyber Resilience Act", url: "https://digital-strategy.ec.europa.eu/en/policies/cyber-resilience-act" },
+]} />

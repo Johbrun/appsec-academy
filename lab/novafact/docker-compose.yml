@@ -1,0 +1,44 @@
+# VULNÉRABLE — fixture du lab, ne pas réutiliser
+#
+# Pile de développement Novafact. Le service de construction monte le socket du
+# démon « pour que les tests d'intégration puissent démarrer des conteneurs »,
+# et la base de données est publiée sur toutes les interfaces de la machine.
+
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://novafact:novafact@db:5432/novafact
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    # Publié sur 0.0.0.0 : la base est joignable depuis tout le réseau local,
+    # café et hôtel compris.
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: novafact
+      POSTGRES_PASSWORD: novafact
+      POSTGRES_DB: novafact
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  builder:
+    image: novafact/ci-runner:latest
+    # « Il faut Docker dans le conteneur pour testcontainers. » Le socket du
+    # démon équivaut à un accès root sur l'hôte, et le mode privilégié retire
+    # ce qu'il restait d'isolation.
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace
+    working_dir: /workspace
+    command: npm run test:integration
+
+volumes:
+  pgdata:

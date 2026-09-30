@@ -1,0 +1,252 @@
+export const questions = [
+  {
+    q: "Pourquoi un verrou en mémoire (mutex JavaScript) ne protège-t-il pas l'utilisation unique d'un coupon chez Novafact ?",
+    options: [
+      "Parce que l'API tourne sur plusieurs instances, chacune avec son verrou",
+      "Parce que chaque await rend la main : deux requêtes s'entrelacent dans le processus",
+      "Parce que Node exécute le JavaScript sur un seul thread, sans verrou possible",
+      "Parce que le verrou est perdu si le processus redémarre au milieu de l'opération",
+    ],
+    answer: 0,
+    explain: "« Chaque await rend la main » décrit bien le mécanisme, et c'est justement ce qu'un mutex en mémoire saurait régler : il sérialiserait les requêtes du même processus. Le mono-thread n'interdit pas les verrous, il en crée le besoin. Ce qui condamne le mutex, c'est la topologie : plusieurs tâches ECS derrière le load balancer, chacune avec son propre objet en mémoire. Seule la donnée partagée peut porter l'invariant.",
+  },
+  {
+    q: "Quel correctif garantit qu'un coupon limité à 100 utilisations ne dépasse jamais 100 ?",
+    options: [
+      "Lire le compteur dans une transaction, puis l'incrémenter avant de valider",
+      "Une limitation de débit à une requête par seconde et par utilisateur",
+      "Un UPDATE conditionnel : SET used = used + 1 WHERE used < max",
+      "Un SELECT … FOR UPDATE, puis l'incrément dans une seconde transaction",
+    ],
+    answer: 2,
+    explain: "Le SELECT … FOR UPDATE demande le plus d'attention : le verrou de ligne fonctionne, mais il est relâché à la validation de sa transaction, si bien que l'incrément fait ensuite s'exécute sans protection. Dans la même transaction, il aurait suffi. Lire puis incrémenter ne change rien non plus : en READ COMMITTED, deux transactions lisent le même compteur. La condition et l'écriture doivent être évaluées ensemble.",
+  },
+  {
+    q: "Un développeur enveloppe le code « lire le solde, vérifier, débiter » dans une transaction Prisma, sans autre changement, sur PostgreSQL. La race est-elle corrigée ?",
+    options: [
+      "Oui : une transaction sérialise les accès à toutes les lignes qu'elle touche",
+      "Non : en READ COMMITTED, deux transactions lisent le même solde avant d'écrire",
+      "Oui, si Prisma est configuré en isolation Serializable, ce qui est son défaut",
+      "Non, mais uniquement parce que l'API tourne sur plusieurs instances",
+    ],
+    answer: 1,
+    explain: "« Non, à cause des instances multiples » a le bon verdict pour la mauvaise raison : ramener l'API à un seul processus ne corrigerait rien, puisque deux requêtes s'entrelacent déjà à chaque await. Et l'isolation par défaut n'est Serializable ni côté PostgreSQL ni côté Prisma : c'est READ COMMITTED, où chaque instruction voit les données validées à son démarrage. Une transaction garantit le tout ou rien, jamais l'exclusion mutuelle.",
+  },
+  {
+    q: "Après le correctif, le test de concurrence de la CI envoie 50 remboursements simultanés du même coupon et obtient exactement un succès. Qu'est-ce que ce test prouve ?",
+    options: [
+      "Que l'invariant tient sous la charge de production, à laquelle 50 requêtes suffisent",
+      "Que le motif lire-vérifier-écrire a bien disparu de cette route",
+      "Que la contrainte CHECK en base est correctement déclarée",
+      "Qu'une régression grossière serait vue ; la garantie vient de la base",
+    ],
+    answer: 3,
+    explain: "« Le motif a disparu » est le plus tentant, et c'est un abus : le test montre qu'on n'a pas déclenché la race avec cinquante requêtes, pas que le motif n'est plus écrit quelque part — un chemin moins fréquenté peut très bien le contenir encore. Il ne dit pas non plus lequel des mécanismes a tenu, entre l'écriture conditionnelle, la contrainte unique et le CHECK. Sa valeur est d'être un garde-fou de régression.",
+  },
+];
+
+<YouKnow>
+Tu connais la single-packet attack et les labs Race conditions de l'Academy : dépasser une limite, exploiter un état intermédiaire, jouer sur plusieurs endpoints. On regarde ici pourquoi le code Node y est exposé, pourquoi une transaction ne suffit pas toujours, et quel contrôle tient vraiment.
+</YouKnow>
+
+## Pourquoi c'est devenu exploitable
+
+Les race conditions web étaient longtemps jugées théoriques : la gigue du réseau rendait les fenêtres trop difficiles à viser. La recherche *Smashing the state machine* (James Kettle, PortSwigger, 2023) a changé la donne avec la **single-packet attack** : on pré-envoie l'essentiel de 20 à 30 requêtes HTTP/2, puis on les complète toutes dans un seul paquet TCP. Dans ses mesures, 20 requêtes envoyées de Melbourne à Dublin arrivaient avec un écart médian d'environ 1 ms. Des fenêtres de quelques millisecondes deviennent donc atteignables de façon fiable, depuis n'importe où, avec des outils grand public (Turbo Intruder, et l'option « Send group in parallel » de Repeater).
+
+La recherche a aussi changé le modèle mental : une requête ne fait pas passer l'application d'un état à un autre d'un coup, elle traverse des **sous-états** éphémères. Kettle a classé les variantes qui les exploitent :
+
+| Variante | Mécanisme | Exemple plausible chez Novafact |
+| --- | --- | --- |
+| **Dépassement de limite** | Plusieurs requêtes passent la vérification avant que la première n'écrive | Coupon de remise, crédits d'essai gratuits, quota d'envoi de factures |
+| **Plusieurs endpoints** | Deux routes différentes touchent le même état, dans le mauvais ordre | Payer une facture pendant qu'on en modifie le montant |
+| **Construction partielle** | Un objet est visible avant d'être complet (champ encore nul) | Utilisateur invité créé, rattaché au tenant, mais dont le rôle n'est pas encore écrit |
+| **Collision d'état** | Deux requêtes écrivent le même état partagé (session, ligne) avec des valeurs différentes | Deux changements d'adresse e-mail simultanés sur un même compte |
+| **Dépendance au temps** | Une valeur « unique » dérivée de l'horloge | Jeton de réinitialisation construit à partir d'un horodatage |
+
+<Callout kind="case">
+Dans la même recherche, Kettle a montré sur GitLab que changer deux fois son adresse e-mail en même temps pouvait produire un message de confirmation envoyé à une adresse, mais contenant un jeton valide pour l'autre. Il a ainsi obtenu comme adresse « vérifiée » une adresse qu'il ne possédait pas. Le défaut n'était pas un test manquant : le jeton et l'adresse étaient écrits par des étapes distinctes, lues ensuite par un autre thread qui envoyait l'e-mail.
+</Callout>
+
+## Pourquoi Node y est exposé
+
+Node exécute le JavaScript sur un seul thread, ce qui donne une fausse impression de sécurité. Chaque `await` rend la main : entre la vérification et l'écriture, d'autres requêtes s'exécutent. Et en production, l'API tourne sur **plusieurs instances** : un verrou en mémoire ne voit qu'une instance.
+
+<Diff file="apps/api/src/routes/coupons.ts" hlBefore="2-4" hlAfter="3-7,11-12" stack>
+
+```ts
+router.post('/coupons/:code/redeem', async (req, res) => {
+  const coupon = await prisma.coupon.findUnique({ where: { code: req.params.code } });
+  if (!coupon || coupon.used >= coupon.max) return res.status(409).end();
+  await prisma.coupon.update({ where: { id: coupon.id }, data: { used: { increment: 1 } } });
+  await applyDiscount(req.user, coupon);
+  res.status(204).end();
+});
+```
+
+```ts
+router.post('/coupons/:code/redeem', async (req, res) => {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const n = await tx.$executeRaw`UPDATE coupon SET used = used + 1 WHERE code = ${req.params.code} AND used < max`;
+      if (n === 0) throw new CouponExhausted();          // limite atteinte, décidé par la base
+      await tx.redemption.create({ data: { couponCode: req.params.code, userId: req.user.id } });
+      await applyDiscount(tx, req.user, req.params.code);  // même transaction
+    });
+    res.status(204).end();
+  } catch (e) {
+    if (e instanceof CouponExhausted) return res.status(409).json({ error: 'coupon_exhausted' });
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') return res.status(409).json({ error: 'already_redeemed' });
+    throw e;
+  }
+});
+```
+
+</Diff>
+
+Deux détails comptent. L'incrément conditionnel est **la** vérification : il n'y a plus de lecture préalable dont le résultat pourrait être périmé. Et l'insertion dans `redemption` est soumise à une contrainte d'unicité : si elle échoue (erreur Prisma `P2002`), l'exception annule toute la transaction, y compris l'incrément. L'ordre des opérations dans la transaction n'est pas un détail de style.
+
+<Code file="prisma/schema.prisma">
+
+```prisma
+model Redemption {
+  id         String   @id @default(uuid())
+  couponCode String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  @@unique([couponCode, userId])   // « une fois par utilisateur », garanti par la base
+}
+```
+
+</Code>
+
+<Code file="prisma/migrations/20260915_coupon_check/migration.sql">
+
+```sql
+-- Ajouté à la main dans la migration : Prisma ne génère pas les contraintes CHECK.
+ALTER TABLE coupon ADD CONSTRAINT coupon_used_le_max CHECK (used <= max);
+```
+
+</Code>
+
+La contrainte `CHECK` est une ceinture de sécurité : même si un futur développeur réintroduit le motif « lire, vérifier, écrire » dans un autre endpoint, la base refusera de dépasser la limite. C'est la réponse à la question posée par l'Academy : **quelle contrainte garantit l'atomicité, peu importe le code ?**
+
+## Une transaction n'est pas un verrou
+
+C'est l'idée reçue la plus répandue chez les développeurs, et celle qui produit les correctifs incomplets. Une transaction garantit le **tout ou rien**, pas l'**exclusion mutuelle**. Sur PostgreSQL, le niveau d'isolation par défaut est `READ COMMITTED` : chaque instruction voit les données validées au moment où elle démarre. Deux transactions peuvent donc lire le même solde, conclure toutes les deux qu'il suffit, et débiter chacune.
+
+| Approche | Ce qu'elle garantit | Coût et pièges |
+| --- | --- | --- |
+| Écriture conditionnelle (`WHERE used < max`) | La condition et l'écriture sont évaluées ensemble, ligne verrouillée pendant l'`UPDATE` | Idéale pour un compteur ou un solde ; moins lisible pour une logique complexe |
+| Contrainte `UNIQUE` ou `CHECK` | L'invariant est refusé par la base, quel que soit le code | Il faut transformer l'erreur en réponse métier (409) |
+| `SELECT … FOR UPDATE` dans une transaction | Les lecteurs concurrents de la même ligne attendent | Risque d'interblocage si l'ordre de verrouillage varie ; en Prisma, passe par `$queryRaw` |
+| Isolation `Serializable` | La base détecte les exécutions non sérialisables et en annule une | Il faut réessayer : Prisma renvoie `P2034`, PostgreSQL le code `40001` |
+
+En Prisma ORM 7, l'isolation se choisit par transaction :
+
+<Code file="apps/api/src/lib/serializable.ts">
+
+```ts
+import { Prisma } from '@prisma/client';
+
+export async function serializable<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await prisma.$transaction(fn, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (e) {
+      const retryable = e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034';
+      if (!retryable || i === attempts) throw e;
+    }
+  }
+}
+```
+
+</Code>
+
+<Callout kind="warn">
+Prisma ORM 8 est sorti et sa documentation par défaut décrit une nouvelle API : `db.transaction()` ne prend plus d'option d'isolation, il faut exécuter `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE` en première instruction, et les erreurs de conflit se reconnaissent à leur `sqlState`. Si tu migres, relis chaque transaction qui portait un invariant : un réglage d'isolation perdu en route ne casse aucun test fonctionnel.
+</Callout>
+
+Côté Mongo, le même principe s'écrit avec un filtre conditionnel et un opérateur atomique. Le document n'est modifié que si la condition est vraie au moment de l'écriture :
+
+<Code file="apps/api/src/repos/coupons.mongo.ts">
+
+```ts
+const updated = await coupons.findOneAndUpdate(
+  { code, tenantId, $expr: { $lt: ['$used', '$max'] } }, // condition évaluée avec l'écriture
+  { $inc: { used: 1 } },
+  { returnDocument: 'after' },
+);
+if (!updated) throw new CouponExhausted(); // driver v6 : le document, ou null
+```
+
+</Code>
+
+## Idempotence : le cas des paiements
+
+Pour un paiement ou l'émission d'une facture, la question n'est pas « combien de fois au maximum » mais « exactement une fois, même si le client réessaie ». Le client génère une **clé d'idempotence** et l'envoie dans l'en-tête `Idempotency-Key` ; le serveur l'enregistre avec une contrainte d'unicité **avant** d'exécuter l'opération. Un brouillon de l'IETF (aujourd'hui expiré, mais qui décrit bien la pratique) fixe les réponses : 400 si la clé manque, 422 si elle est réutilisée avec un contenu différent, 409 si la requête d'origine est encore en cours.
+
+<Steps items={[
+  { title: "Réserver la clé", text: "INSERT de (tenantId, key, empreinte du corps, statut « en cours ») : la contrainte unique fait échouer les doublons concurrents, pas un test applicatif." },
+  { title: "Comparer l'empreinte", text: "Même clé, corps différent : 422. Même clé, statut « en cours » : 409. Même clé terminée : renvoyer la réponse enregistrée." },
+  { title: "Exécuter puis figer", text: "L'opération et l'enregistrement de la réponse se font dans la même transaction, pour qu'un crash ne laisse pas une clé « terminée » sans effet." },
+  { title: "Expirer", text: "Documenter la durée de validité des clés (24 h chez Novafact) et purger au-delà." },
+]} />
+
+<Callout kind="debate">
+Faut-il un verrou distribué (Redis, Redlock) ? Martin Kleppmann a soutenu en 2016 qu'un verrou fondé sur des délais d'expiration ne garantit pas l'exclusion si un processus est suspendu (pause GC, réseau) au-delà de son bail, et qu'il faut alors un jeton de clôture (*fencing token*) vérifié par la ressource. Salvatore Sanfilippo (auteur de Redis) a contesté ces hypothèses. Pour une AppSec, la conclusion pratique est plus simple : si la ressource protégée est une base de données, c'est **elle** qui doit porter l'invariant. Le verrou distribué reste un dernier recours, pour protéger un effet externe (un appel à un prestataire) qui n'a pas de contrainte native.
+</Callout>
+
+<Callout kind="case">
+Rachid Allam (zhero) a montré dans *Eclipse on Next.js* qu'une race condition **voulue** dans un framework (la revalidation de cache) pouvait être exploitée sous conditions. Les races ne sont pas que dans ton code métier.
+</Callout>
+
+## Tester sans se mentir
+
+Un test de concurrence est utile comme **garde-fou de régression**, pas comme preuve. Lance-le contre une vraie base (conteneur PostgreSQL en CI), jamais contre un mock qui sérialise tout.
+
+<Code file="apps/api/test/coupons.race.test.ts">
+
+```ts
+it('un coupon à 1 utilisation ne sert qu’une fois sous concurrence', async () => {
+  await seedCoupon({ code: 'RACE1', max: 1 });
+  const users = await Promise.all(Array.from({ length: 50 }, () => seedUser()));
+  const results = await Promise.all(users.map((u) =>
+    request(app).post('/coupons/RACE1/redeem').set('authorization', tokenFor(u))));
+  expect(results.filter((r) => r.status === 204)).toHaveLength(1);
+  expect((await prisma.coupon.findUnique({ where: { code: 'RACE1' } }))!.used).toBe(1);
+});
+```
+
+</Code>
+
+Pour la revue de code, cherche le motif plutôt que les endpoints : un `findUnique` ou un `findFirst` suivi d'une condition, puis d'un `update` sur la même entité, sans écriture conditionnelle ni contrainte. C'est un bon candidat de règle Semgrep maison (M12) et une question systématique en revue de conception : « quel invariant cette route protège-t-elle, et qui le garantit ? ».
+
+## Détecter
+
+Une attaque par race laisse une trace caractéristique : une rafale de requêtes identiques, du même utilisateur, dans la même milliseconde, suivie de plusieurs succès sur une ressource limitée. Deux signaux sont exploitables dans Elastic (M18) :
+
+- **les succès multiples** par ressource et par fenêtre très courte, si le correctif n'est pas encore en place ;
+- **les violations de contrainte** (`P2002`, `23505` côté PostgreSQL) et les réponses `409 already_redeemed` en rafale : une fois la base protégée, chaque tentative se transforme en erreur journalisée. C'est un bénéfice sous-estimé des contraintes : elles bloquent **et** signalent.
+
+<Recap items={[
+  "La single-packet attack rend exploitables des fenêtres de l'ordre de la milliseconde, depuis n'importe où.",
+  "Chaque await rend la main, et l'API tourne sur plusieurs instances : un verrou en mémoire ne protège rien.",
+  "Une transaction n'est pas un verrou : en READ COMMITTED, deux transactions lisent le même état.",
+  "Les invariants se garantissent en base : écriture conditionnelle, contrainte UNIQUE ou CHECK, verrou de ligne, ou Serializable avec réessai.",
+  "Les paiements s'appuient sur des clés d'idempotence réservées avant l'exécution.",
+  "Les tests de concurrence protègent contre la régression ; les violations de contrainte sont un signal de détection.",
+]} />
+
+<Lab id="ps-race" />
+
+<Sources items={[
+  { title: "PortSwigger Research : Smashing the state machine", url: "https://portswigger.net/research/smashing-the-state-machine" },
+  { title: "Web Security Academy : Race conditions", url: "https://portswigger.net/web-security/race-conditions" },
+  { title: "zhero : Eclipse on Next.js", url: "https://zhero-web-sec.github.io/research-and-things/eclipse-on-nextjs-conditioned-exploitation-of-an-intended-race-condition" },
+  { title: "PostgreSQL : verrouillage explicite", url: "https://www.postgresql.org/docs/current/explicit-locking.html" },
+  { title: "PostgreSQL : niveaux d'isolation des transactions", url: "https://www.postgresql.org/docs/current/transaction-iso.html" },
+  { title: "Prisma ORM 7 : transactions et niveaux d'isolation", url: "https://www.prisma.io/docs/orm/v7/prisma-client/queries/transactions", note: "P2034 et réessai" },
+  { title: "IETF : The Idempotency-Key HTTP Header Field (brouillon)", url: "https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/" },
+  { title: "Martin Kleppmann : How to do distributed locking", url: "https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html" },
+]} />

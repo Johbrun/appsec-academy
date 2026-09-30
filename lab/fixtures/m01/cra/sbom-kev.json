@@ -1,0 +1,15 @@
+{
+  "_comment": "SBOM d'essai du challenge cra-notification : un composant de la nomenclature est affecté par une vulnérabilité présente au catalogue d'exploitation connue. L'obligation de signalement est déclenchée.",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "metadata": { "component": { "name": "novafact-api", "version": "4.2.0", "type": "application" } },
+  "components": [
+    { "name": "express", "version": "4.21.2", "purl": "pkg:npm/express@4.21.2" },
+    { "name": "xlsx-lite", "version": "0.18.5", "purl": "pkg:npm/xlsx-lite@0.18.5" },
+    { "name": "color-name-map", "version": "1.1.3", "purl": "pkg:npm/color-name-map@1.1.3" }
+  ],
+  "vulnerabilities": [
+    { "id": "CVE-2026-3310", "affects": [{ "ref": "pkg:npm/xlsx-lite@0.18.5" }] },
+    { "id": "CVE-2025-9901", "affects": [{ "ref": "pkg:npm/color-name-map@1.1.3" }] }
+  ]
+}

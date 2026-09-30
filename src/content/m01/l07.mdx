@@ -1,0 +1,177 @@
+export const questions = [
+  {
+    q: "Qui doit signer l'acceptation d'un risque élevé sur l'API de facturation ?",
+    options: [
+      "L'ingénieur AppSec, seul à savoir évaluer correctement le risque",
+      "Le lead technique de l'équipe propriétaire du service de facturation",
+      "Le comité de sécurité trimestriel, par une décision collective",
+      "Celui qui porte le risque métier au bon niveau, sur la base de ton analyse",
+    ],
+    answer: 3,
+    explain: "Le lead technique est le piège : il possède le service, et la matrice de sign-off lui confie effectivement les risques faibles. Mais un risque élevé sur la facturation engage le chiffre d'affaires et la conformité, pas seulement du code. L'AppSec, de son côté, instruit le dossier — analyse, options, coût du correctif ; signer sa propre recommandation supprimerait le contradictoire. Et un comité trimestriel décide trop tard, sans que personne ne porte la décision.",
+  },
+  {
+    q: "Combien de groupes de pratiques compte le NIST SSDF (SP 800-218) ?",
+    options: ["Cinq", "Quatre", "Douze", "Quinze"],
+    answer: 1,
+    explain: "Prepare the Organization (PO), Protect the Software (PS), Produce Well-Secured Software (PW) et Respond to Vulnerabilities (RV). Les autres nombres viennent des modèles voisins, et c'est là qu'on se mélange : cinq et quinze sont les fonctions et les pratiques de SAMM, douze les pratiques de BSIMM. Le SSDF est volontairement plus court, parce qu'il sert de grille de preuve et non de modèle de maturité.",
+  },
+  {
+    q: "Une vulnérabilité a un score CVSS de base de 9,8, mais le composant n'est joignable que depuis un réseau d'administration isolé et ne traite aucune donnée client. Que vaut ce 9,8 dans ta décision ?",
+    options: [
+      "Une mesure de gravité, à combiner avec l'exposition, l'actif et la menace",
+      "Un point de départ à corriger avec les métriques environnementales de CVSS",
+      "Une gravité qui impose le SLA « critique » quel que soit le contexte",
+      "Un score sans intérêt ici : seule l'exploitabilité réelle (EPSS, KEV) compte",
+    ],
+    answer: 0,
+    explain: "Les métriques environnementales sont la fausse bonne réponse : elles existent, et elles feraient effectivement baisser ce 9,8. Mais le résultat reste une gravité ajustée, pas un risque — il y manquera toujours la valeur de l'actif et la menace réelle. À l'inverse, remplacer CVSS par EPSS ou KEV échange une mesure partielle contre une autre : l'exploitabilité observée ne dit rien de ce que tu perds. FIRST l'écrit noir sur blanc : CVSS mesure la gravité, pas le risque.",
+  },
+  {
+    q: "Un risque a été accepté pour trois mois. Quel événement doit déclencher une réévaluation avant l'échéance ?",
+    options: [
+      "La sortie du pentest trimestriel suivant, quelle que soit sa conclusion",
+      "La mise à disposition d'un correctif amont par l'éditeur du framework",
+      "Une exploitation constatée, ou un changement d'exposition du composant",
+      "Une réévaluation à la hausse du CVSS de base par le CERT qui l'a publié",
+    ],
+    answer: 2,
+    explain: "Le correctif amont est le distracteur sérieux : il change bien quelque chose, mais il déclenche le plan de sortie, pas une réévaluation — l'acceptation reste valide, elle devient simplement inutile. Une hausse du CVSS modifie une gravité, or l'acceptation ne reposait pas sur elle. Le pentest suivant est une date, pas un événement. Ce qui doit rouvrir la décision, ce sont les hypothèses écrites dans l'acceptation elle-même : vraisemblance et exposition.",
+  },
+];
+
+<YouKnow>
+Dans un rapport de pentest, la criticité est technique. Côté AppSec, tu dois la traduire en risque pour l'entreprise, et laisser la bonne personne décider.
+</YouKnow>
+
+## Risque technique, risque métier
+
+Un **risque technique** décrit ce qu'un attaquant peut faire : lire les factures d'un autre tenant, exécuter du code sur un conteneur. Un **risque métier** décrit ce que ça coûte à l'entreprise : perte d'un client grand compte, notification à la CNIL, amende, arrêt de service. La même faille peut être critique dans un produit et mineure dans un autre.
+
+Pour passer de l'un à l'autre, tu as besoin de trois informations : **l'actif** touché (données, service, réputation), **la vraisemblance** (exposition, exploitabilité, menace réelle) et **l'impact** (financier, légal, opérationnel, image).
+
+<Callout kind="warn">
+Un score CVSS n'est pas un niveau de risque. FIRST, qui maintient la norme, le dit explicitement : CVSS mesure la **gravité** d'une vulnérabilité. Le même 9,8 peut concerner un service exposé qui traite des données de paiement, ou un outil interne joignable depuis un seul poste d'administration. Utilise-le comme une entrée de ton analyse, jamais comme sa conclusion.
+</Callout>
+
+Traduire un finding, c'est répondre à des questions que le rapport de pentest laisse souvent ouvertes. Exemple avec une BOLA sur la route d'export de Novafact :
+
+| Question | Réponse pour la BOLA d'export |
+| --- | --- |
+| Quel actif ? | Factures d'autres tenants : données personnelles des clients finaux et données commerciales |
+| Qui peut l'exploiter ? | Tout utilisateur authentifié de n'importe quel tenant, donc n'importe quel client ou essai gratuit |
+| Quelle difficulté ? | Faible : les identifiants d'export sont prévisibles |
+| Qu'est-ce qui limite ? | Limite de débit sur la route, journalisation des exports |
+| Conséquences légales ? | Violation de données personnelles : notification à la CNIL sous 72 h si elle présente un risque pour les personnes (RGPD, article 33) |
+| Conséquences commerciales ? | Clauses de sécurité des contrats grands comptes, risque de résiliation |
+
+Présentée ainsi, la décision devient évidente pour quelqu'un qui ne sait pas ce qu'est une BOLA. C'est tout l'enjeu.
+
+## Qualitatif ou quantitatif
+
+La plupart des organisations notent le risque avec une **matrice** : vraisemblance et impact sur trois à cinq niveaux, et une couleur au croisement. C'est rapide et compréhensible, mais grossier : deux risques « élevés » peuvent différer d'un facteur cent, et la note dépend beaucoup de qui la donne.
+
+L'approche **quantitative**, dont FAIR est la méthode la plus connue, décompose le risque en fréquence des événements de perte et ampleur des pertes, exprimées en fourchettes chiffrées. Elle permet de comparer un risque au coût de sa réduction, en euros.
+
+<Callout kind="debate">
+Les partisans du quantitatif reprochent aux matrices de donner une fausse précision à des intuitions. Leurs contradicteurs répondent qu'une estimation chiffrée sans données historiques n'est qu'une intuition avec plus de décimales, et que le temps passé à calibrer serait mieux employé à corriger. En pratique, beaucoup d'équipes AppSec gardent une matrice pour le quotidien et réservent le quantitatif aux décisions lourdes (un gros investissement, un risque qu'on envisage d'accepter longtemps).
+</Callout>
+
+Un conseil de Kohnfelder (chapitre 13 de *Designing Secure Software*) vaut pour les deux approches : il est bien plus facile de sous-estimer un risque que de le surestimer. Il déconseille aussi d'exiger un exploit complet avant de décider de corriger ; en revanche, un test de régression qui déclenche le bug est toujours utile. Ne laisse pas « on n'a pas de PoC » devenir un argument pour ne rien faire.
+
+## Traiter un risque
+
+Quatre options, toujours les mêmes :
+
+<Steps items={[
+  { title: "Réduire", text: "Corriger, ajouter un contrôle compensatoire, réduire l'exposition. Le cas par défaut." },
+  { title: "Éviter", text: "Supprimer la fonctionnalité ou le composant à risque." },
+  { title: "Transférer", text: "Assurance, sous-traitance avec engagement contractuel. Le risque d'image reste chez toi." },
+  { title: "Accepter", text: "Décision explicite de vivre avec le risque, pour une durée donnée, par la bonne personne." },
+]} />
+
+La réduction partielle est souvent la meilleure option à court terme : on ne corrige pas tout de suite, mais on réduit la vraisemblance (désactiver la fonction pour les comptes d'essai, limiter le débit) ou l'impact (journaliser et alerter pour détecter vite). Ce qui reste s'appelle le **risque résiduel**, et c'est lui qu'on accepte, pas le risque initial.
+
+## Le sign-off au bon niveau
+
+Une acceptation de risque est une **décision métier**. L'AppSec l'instruit (analyse, options, coût du correctif), mais ne la prend pas. Une matrice simple évite les débats :
+
+| Niveau de risque | Qui peut accepter | Durée maximale |
+| --- | --- | --- |
+| Faible | Lead technique de l'équipe | 12 mois |
+| Moyen | Responsable produit | 6 mois |
+| Élevé | CTO | 3 mois |
+| Critique | Direction générale, avec plan de réduction immédiat | 1 mois |
+
+<Callout kind="novafact">
+La route d'export comptable de Novafact expose une BOLA partielle, corrigeable en deux semaines, mais le PO veut livrer vendredi pour un gros client. Risque élevé : c'est au CTO de signer, pour un mois maximum, avec une mesure compensatoire immédiate (journalisation et alerte sur les accès inter-tenants).
+</Callout>
+
+Une acceptation se documente comme une décision, avec ses hypothèses. Si l'une d'elles tombe, la décision tombe aussi.
+
+<Code file="risk-register/RISK-2026-007.yml">
+
+```yaml
+id: RISK-2026-007
+title: BOLA partielle sur l'export comptable (/v1/exports/:id)
+finding: SEC-398
+inherentRisk: high
+compensatingControls:
+  - Alerte Elastic sur tout export dont le tenant diffère de celui de la session
+  - Export désactivé pour les comptes d'essai
+residualRisk: medium
+decision: accept
+acceptedBy: cto
+acceptedOn: 2026-09-25
+expires: 2026-10-25
+assumptions:
+  - Les identifiants d'export ne sont exposés à aucun tiers
+  - L'alerte est testée et routée vers l'astreinte
+reviewTriggers:
+  - Exploitation constatée ou tentative détectée
+  - Ouverture de l'export aux comptes d'essai
+exitPlan: SEC-412, correction dans le middleware d'autorisation central
+```
+
+</Code>
+
+Le registre des risques acceptés se revoit chaque trimestre avec les signataires. Deux signaux d'alerte : une acceptation renouvelée plusieurs fois sans progrès sur le plan de sortie, et un même composant qui accumule les acceptations. Le premier dit que « accepter » est devenu « ignorer » ; le second, que le composant mérite une décision plus radicale (le réécrire ou le retirer).
+
+Un cas où le niveau de signature se discute. Le pentest relève que la `redirect_uri` du flux OAuth est validée par préfixe (M9). Pris isolément, le finding est classé faible : il faut une redirection ouverte pour l'exploiter. Sauf qu'une redirection ouverte existe sur `/logout`, également classée faible — et les deux ensemble donnent le vol du compte d'un administrateur de tenant. Le risque ne se signe donc pas au niveau de l'équipe qui porte le finding : il se signe au niveau de celui qui accepterait qu'un client perde le contrôle de son espace.
+
+## NIST SSDF
+
+Le **Secure Software Development Framework** (NIST SP 800-218, version 1.1, février 2022) est la référence américaine des pratiques de développement sécurisé. Une version 1.2 a été publiée en projet en décembre 2025 (SP 800-218r1). Le SSDF est court et organisé en quatre groupes :
+
+| Groupe | Contenu |
+| --- | --- |
+| **PO** · Prepare the Organization | Rôles, exigences, outillage, critères de vérification |
+| **PS** · Protect the Software | Protéger le code, l'intégrité des releases, l'archivage |
+| **PW** · Produce Well-Secured Software | Conception, revue, tests, configuration sûre par défaut |
+| **RV** · Respond to Vulnerabilities | Identifier, analyser, corriger, prévenir la récurrence |
+
+Il sert surtout de **grille de preuve** : beaucoup de questionnaires clients s'y réfèrent, et les autorités américaines l'exigent de leurs fournisseurs. Deux pratiques rejoignent directement cette leçon et la première du module. RV.2 (*Assess, Prioritize, and Remediate Vulnerabilities*) demande de planifier une réponse à chaque vulnérabilité, en citant explicitement l'acceptation et le transfert comme options. RV.3 (*Analyze Vulnerabilities to Identify Their Root Causes*) demande d'analyser les causes racines, d'en suivre les tendances et de chercher les vulnérabilités similaires pour **éradiquer une classe** plutôt qu'attendre les signalements externes. C'est le raisonnement en classes de bugs, écrit par le NIST.
+
+## CISA Secure by Design
+
+L'agence américaine CISA pousse les éditeurs à prendre la responsabilité de la sécurité de leurs produits. Son **Secure by Design Pledge**, lancé en mai 2024 avec 68 éditeurs et signé depuis par plusieurs centaines d'entreprises, liste sept engagements mesurables : généraliser la MFA, supprimer les mots de passe par défaut, réduire des classes entières de vulnérabilités, faciliter les mises à jour, publier une politique de divulgation, renseigner les CWE dans les CVE, fournir les journaux utiles à l'investigation. Les signataires s'engagent à montrer des progrès mesurables dans l'année. C'est une bonne liste de contrôle pour un SaaS comme Novafact, même sans signer.
+
+<Recap items={[
+  "Un risque technique devient un risque métier via l'actif, la vraisemblance et l'impact ; CVSS mesure la gravité, pas le risque.",
+  "Matrice pour le quotidien, quantitatif pour les décisions lourdes ; et on ne subordonne pas une correction à un exploit complet.",
+  "Quatre traitements : réduire, éviter, transférer, accepter ; on accepte le risque résiduel, après mesures compensatoires.",
+  "L'AppSec instruit, mais l'acceptation est signée par qui porte le risque, au bon niveau, pour une durée limitée, avec ses hypothèses et ses déclencheurs.",
+  "Le NIST SSDF compte quatre groupes (PO, PS, PW, RV) ; RV.2 et RV.3 couvrent la décision de risque et l'éradication des classes.",
+  "Le pledge Secure by Design de la CISA donne sept engagements concrets pour un éditeur.",
+]} />
+
+<Sources items={[
+  { title: "NIST SP 800-218, SSDF v1.1", url: "https://csrc.nist.gov/pubs/sp/800/218/final" },
+  { title: "NIST, SSDF version 1.2 en consultation (décembre 2025)", url: "https://www.nist.gov/news-events/news/2025/12/secure-software-development-framework-ssdf-version-12-available-public" },
+  { title: "FIRST, CVSS v3.1 User Guide", url: "https://www.first.org/cvss/v3-1/cvss-v31-user-guide_r1.pdf", note: "section 2.1, « CVSS Measures Severity, not Risk »" },
+  { title: "FIRST, CVSS v4.0", url: "https://www.first.org/cvss/v4-0/" },
+  { title: "FAIR Institute", url: "https://www.fairinstitute.org/" },
+  { title: "CISA Secure by Design", url: "https://www.cisa.gov/securebydesign" },
+  { title: "CISA Secure by Design Pledge", url: "https://www.cisa.gov/securebydesign/pledge" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 13, triage" },
+]} />

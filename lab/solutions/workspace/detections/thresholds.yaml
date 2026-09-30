@@ -1,0 +1,13 @@
+# Réglage du seuil sur le corpus difficile.
+#
+# La séparation parfaite n'existe pas : le test d'intrusion autorisé se
+# comporte exactement comme une attaque, et restera un faux positif quoi qu'on
+# fasse. On vise donc les cibles, pas la perfection.
+#
+#   en dessous de 16 échecs, la suite d'intégration rentre dans le filet
+#   au-delà de 22, les trois attaques discrètes en sortent
+rule: credential-stuffing
+window: 10m
+thresholds:
+  failures: 18
+  distinct_users: 10

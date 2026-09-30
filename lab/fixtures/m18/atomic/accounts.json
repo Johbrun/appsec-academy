@@ -1,0 +1,8 @@
+{
+  "_note": "L’état initial de l’environnement simulé sur lequel l’atomique s’exécute.",
+  "accounts": {
+    "marie.dupont@acme.example": "Vp8!rt2Qz",
+    "lucas.martin@globex.example": "Kd4#nw9Lm",
+    "admin@novafact.example": "Zt7!q4vR-x2Lm9_pB0wK"
+  }
+}

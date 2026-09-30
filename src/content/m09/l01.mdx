@@ -1,0 +1,170 @@
+export const questions = [
+  {
+    q: "Quels flux OAuth 2.1 supprime-t-il par rapport à OAuth 2.0 ?",
+    options: [
+      "Implicit et Device Authorization Grant",
+      "Implicit et Resource Owner Password Credentials",
+      "Resource Owner Password Credentials et Client Credentials",
+      "Refresh Token sans rotation et Authorization Code sans PKCE",
+    ],
+    answer: 1,
+    explain: "Le flux implicite (jetons renvoyés dans le fragment d'URL) et le flux par mot de passe (le client voit les identifiants de l'utilisateur) disparaissent ; Authorization Code avec PKCE devient le flux de référence. Le Device Authorization Grant, lui, est conservé et intégré à la spécification. Quant aux refresh tokens, 2.1 ne les supprime pas : il exige qu'ils soient liés au client ou tournés à chaque usage.",
+  },
+  {
+    q: "À quoi sert PKCE ?",
+    options: [
+      "À lier le code d'autorisation au client qui a démarré le flux",
+      "À éviter de stocker un secret client dans une application publique",
+      "À prouver au serveur que l'utilisateur a consenti sur la bonne page",
+      "À remplacer le paramètre state pour la protection contre le CSRF",
+    ],
+    answer: 0,
+    explain: "Le client envoie l'empreinte d'un secret éphémère au départ (code_challenge), puis le secret lui-même à l'échange (code_verifier) : un code intercepté sans le verifier ne s'échange pas. PKCE ne remplace pas le secret client — une application publique n'en a pas et n'en aura pas davantage avec PKCE, il protège le code, pas l'identité du client. Sur le CSRF, il peut effectivement se substituer à state, mais c'est un effet de bord, et seulement si le serveur applique vraiment PKCE.",
+  },
+  {
+    q: "Selon la RFC 9700, à quelle condition un client peut-il s'appuyer sur PKCE plutôt que sur state pour se protéger du CSRF sur le callback ?",
+    options: [
+      "Jamais : le paramètre state reste obligatoire dans tous les cas",
+      "S'il s'est assuré que le serveur d'autorisation applique bien PKCE",
+      "Si le client est une application publique, où state n'est pas vérifiable",
+      "Si le redirect_uri est enregistré en comparaison exacte et servi en HTTPS",
+    ],
+    answer: 1,
+    explain: "Le code_verifier est lié à la session du client : un code injecté par un attaquant échoue à l'échange, ce qui couvre le CSRF du callback — mais seulement si le serveur applique réellement PKCE, sinon la protection est imaginaire. La comparaison exacte du redirect_uri protège d'autre chose, la fuite du code vers un chemin contrôlé, pas du code injecté. En OIDC, le nonce joue le même rôle ; state reste utile et ne coûte rien.",
+  },
+  {
+    q: "Le serveur d'autorisation accepte tout redirect_uri qui commence par https://app.novafact.example/. Pourquoi est-ce dangereux ?",
+    options: [
+      "Parce qu'un chemin quelconque du domaine peut recevoir le code d'autorisation",
+      "Parce que le préfixe n'empêche pas d'ajouter un paramètre de requête arbitraire",
+      "Parce que le sous-domaine n'est pas vérifié et qu'un attaquant peut le revendiquer",
+      "Parce qu'un redirect_uri dynamique est incompatible avec l'usage de PKCE",
+    ],
+    answer: 0,
+    explain: "Il suffit d'un open redirect, d'une page qui reflète son URL ou d'un contenu déposé par un utilisateur sous ce domaine pour capter le code. La RFC 9700 impose donc la comparaison exacte des chaînes, avec une seule exception : le port des URI localhost des applications natives. Le paramètre de requête arbitraire est un symptôme du même défaut, mais il ne suffit pas à détourner le code : c'est la liberté sur le chemin qui le permet.",
+  },
+];
+
+<YouKnow>
+Tu as joué avec des redirect_uri, des codes interceptés et des flux implicites sur des dizaines d'applications. Ce module part du flux sûr et remonte vers les pièges, avec les RFC récentes.
+</YouKnow>
+
+## OAuth 2.1 : faire le ménage
+
+OAuth 2.0 (RFC 6749, 2012) a accumulé les options dangereuses. **OAuth 2.1**, encore à l'état de draft à l'IETF (version 16, septembre 2026), consolide plus de dix ans de bonnes pratiques, dont celles de la RFC 9700 (leçon 5) :
+
+| Supprimé ou imposé | Pourquoi |
+| --- | --- |
+| **Implicit** supprimé | Le jeton voyageait dans l'URL : historique, Referer, logs |
+| **Password** (ROPC) supprimé | Le client voyait les identifiants de l'utilisateur, et le flux interdit toute MFA moderne |
+| **PKCE** obligatoire pour tous les clients | Un code intercepté devient inutilisable |
+| **redirect_uri** comparé exactement | Plus de préfixe ni de joker |
+| Jetons **jamais dans l'URL** | Pas de `access_token` en paramètre de requête |
+| **Refresh tokens** liés à l'émetteur ou à usage unique pour les clients publics | Un refresh token volé ne sert qu'une fois |
+
+Le flux implicite n'avait pas qu'un problème de fuite : le jeton arrivait directement dans le navigateur sans que le client puisse prouver qu'il l'avait demandé, ce qui ouvrait la porte à l'injection de jetons. Le flux par mot de passe, lui, habituait les utilisateurs à saisir leur mot de passe dans une application tierce, exactement le réflexe que le phishing exploite, et rendait impossibles les passkeys, la MFA du fournisseur et la fédération.
+
+On distingue deux types de clients. Un client **confidentiel** peut garder un secret (un serveur, comme le BFF de Novafact) et s'authentifie auprès du serveur d'autorisation. Un client **public** ne le peut pas (une SPA, une application mobile) : tout secret embarqué est extractible. PKCE protège les deux, mais c'est pour les clients publics qu'il est vital.
+
+## Authorization Code + PKCE, pas à pas
+
+<Steps items={[
+  { title: "Préparer", text: "Le client génère un code_verifier aléatoire, calcule code_challenge = BASE64URL(SHA-256(code_verifier)), et un state (et un nonce pour OIDC)." },
+  { title: "Rediriger", text: "Vers le serveur d'autorisation avec client_id, redirect_uri exact, scope, state, code_challenge et code_challenge_method=S256." },
+  { title: "Authentifier", text: "L'utilisateur se connecte et consent chez le fournisseur d'identité (Cognito pour Novafact)." },
+  { title: "Revenir", text: "Le navigateur revient sur le redirect_uri avec code et state. Le client vérifie que state correspond à celui qu'il a émis." },
+  { title: "Échanger", text: "Le client envoie code et code_verifier au point de terminaison token, côté serveur. Il reçoit access token, refresh token et, en OIDC, un ID token." },
+  { title: "Vérifier", text: "En OIDC, le client valide l'ID token : signature, iss, aud, exp, et nonce." },
+]} />
+
+Dans le BFF de Novafact, la bibliothèque `openid-client` (panva) fait ces vérifications ; le code applicatif se limite à conserver les valeurs de l'aller dans la session et à les fournir au retour.
+
+<Code file="apps/bff/src/auth/oidc.ts" hl="6,7,8,9,24,25,28,29,30">
+
+```ts
+import * as client from 'openid-client';
+
+const config = await client.discovery(new URL(env.COGNITO_ISSUER), env.CLIENT_ID, env.CLIENT_SECRET);
+
+router.get('/auth/login', async (req, res) => {
+  const codeVerifier = client.randomPKCECodeVerifier();
+  const state = client.randomState();
+  const nonce = client.randomNonce();
+  req.session.oauth = { ...req.session.oauth, [state]: { codeVerifier, nonce, exp: Date.now() + 600_000 } }; // un flux par onglet
+  const url = client.buildAuthorizationUrl(config, {
+    redirect_uri: `${env.APP_URL}/auth/callback`,    // depuis la configuration, pas depuis Host
+    scope: 'openid email',
+    code_challenge: await client.calculatePKCECodeChallenge(codeVerifier),
+    code_challenge_method: 'S256',
+    state,
+    nonce,
+  });
+  res.redirect(url.href);
+});
+
+router.get('/auth/callback', async (req, res) => {
+  const currentUrl = new URL(req.originalUrl, env.APP_URL);
+  const state = currentUrl.searchParams.get('state') ?? '';
+  const pending = req.session.oauth?.[state];          // seul un state émis pour CETTE session est retrouvé
+  if (req.session.oauth) delete req.session.oauth[state]; // usage unique, même en cas d'échec
+  if (!pending || pending.exp < Date.now()) return res.sendStatus(400);
+  const tokens = await client.authorizationCodeGrant(config, currentUrl, {
+    pkceCodeVerifier: pending.codeVerifier,
+    expectedState: state,
+    expectedNonce: pending.nonce,
+  });
+  const claims = tokens.claims()!;                     // ID token déjà vérifié par la bibliothèque
+  await establishSession(req, { iss: claims.iss, sub: claims.sub }, tokens); // M8, leçon 6
+  res.redirect('/');
+});
+```
+
+</Code>
+
+<Callout kind="warn">
+Trois erreurs d'implémentation reviennent en revue de code. **Un seul flux en attente par session** : si l'utilisateur ouvre deux onglets de connexion, le second écrase les valeurs du premier, qui échoue ; les équipes « corrigent » alors en désactivant la vérification de state. Mieux vaut indexer les flux en attente par `state`, avec une expiration de quelques minutes. **Des valeurs réutilisables** : le verifier, le state et le nonce sont supprimés dès le retour, même en cas d'échec. **Des valeurs exposées** : dans une SPA sans BFF, le code_verifier finit souvent dans `localStorage`, où la moindre XSS le lit (leçon 2).
+</Callout>
+
+## Les trois paramètres qui comptent
+
+- **state** : protège contre le CSRF de connexion (un attaquant qui ferait se connecter la victime avec **son** compte). Imprévisible, lié à la session, vérifié au retour.
+- **nonce** (OIDC) : lie l'ID token à la demande, contre le rejeu.
+- **code_verifier** (PKCE) : lie le code au client.
+
+Les trois sont des valeurs **imprévisibles** (CSPRNG, M8), à usage unique, conservées côté serveur. Leurs rôles se recouvrent en partie : la RFC 9700 admet qu'un client qui s'est assuré que le serveur d'autorisation applique PKCE s'appuie sur lui contre le CSRF, et qu'en OIDC le nonce joue ce rôle. Novafact garde les trois : ils ne coûtent rien et couvrent des erreurs de configuration différentes.
+
+Deux détails de PKCE que les revues oublient. La méthode `plain` envoie le verifier lui-même dans la demande d'autorisation : quiconque lit cette URL (logs, historique) peut échanger le code. Seule `S256` ne l'expose pas. Et le serveur d'autorisation doit refuser un `code_verifier` à l'échange si aucun `code_challenge` n'a été envoyé au départ : sinon, un attaquant qui démarre un flux sans PKCE neutralise la protection (attaque par **rétrogradation** de PKCE).
+
+## Le redirect_uri, au caractère près
+
+La RFC 9700 impose la **comparaison exacte des chaînes** entre le `redirect_uri` reçu et une URL enregistrée, avec une seule exception : le numéro de port des URI `localhost` pour les applications natives, qui ouvrent un port éphémère. Tout le reste (préfixe, joker de sous-domaine, normalisation « intelligente ») donne à l'attaquant une chance de faire atterrir le code sur une page qu'il influence : une page avec redirection ouverte, un sous-domaine abandonné, un chemin qui sert du contenu utilisateur (leçon 4).
+
+Côté Novafact, la liste des URL de callback enregistrées dans Cognito fait partie de l'infrastructure versionnée : une URL de préproduction ou de test ne doit jamais figurer sur le client de production.
+
+## OpenID Connect, identité fédérée et SSO
+
+**OAuth** délègue une **autorisation** : il dit à une API ce qu'un client a le droit de faire. **OpenID Connect** ajoute l'**authentification** : l'ID token dit **qui** est l'utilisateur, à destination du client. OIDC apporte aussi un point de découverte (`/.well-known/openid-configuration`) qui publie les points de terminaison et l'URL des clés, et un point `userinfo`. Confondre OAuth et OIDC est à l'origine de nombreuses failles (leçon 3).
+
+L'**identité fédérée** consiste à confier l'authentification à un fournisseur d'identité externe. Chez Novafact, Cognito sert de courtier : il authentifie les utilisateurs locaux, et fédère ceux qui arrivent par Google ou par le SSO de leur entreprise (OIDC ou SAML, leçon 6). Le **SSO** apporte beaucoup à la sécurité : MFA et politiques centralisées chez le client, et surtout un départ d'employé qui coupe l'accès partout à la fois. Il concentre aussi le risque : faire confiance à un fournisseur d'identité, c'est accepter tout ce qu'il affirme. Deux conséquences de conception :
+
+- un fournisseur d'identité d'entreprise ne peut connecter que les comptes **du tenant** qui l'a configuré ;
+- un utilisateur fédéré est identifié par le couple **(`iss`, `sub`)**, jamais par son adresse e-mail seule (leçon 4).
+
+<Recap items={[
+  "OAuth 2.1 (draft 16, septembre 2026) supprime Implicit et ROPC, impose PKCE et la comparaison exacte des redirect_uri.",
+  "Authorization Code + PKCE (S256) est le flux de référence ; le serveur refuse un code_verifier sans code_challenge initial.",
+  "state contre le CSRF de connexion, nonce contre le rejeu de l'ID token, code_verifier contre l'interception du code : tous conservés côté serveur, à usage unique.",
+  "Le redirect_uri se compare au caractère près ; seule exception, le port localhost des applications natives.",
+  "OAuth autorise l'accès à une API ; OpenID Connect authentifie l'utilisateur auprès du client ; la fédération se borne au tenant et identifie par (iss, sub).",
+]} />
+
+<Lab id="ps-oauth" />
+
+<Sources items={[
+  { title: "OAuth 2.1 (draft IETF)", url: "https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/" },
+  { title: "oauth.net : OAuth 2.1", url: "https://oauth.net/2.1/" },
+  { title: "RFC 7636 : PKCE", url: "https://www.rfc-editor.org/rfc/rfc7636" },
+  { title: "RFC 9700 : OAuth 2.0 Security Best Current Practice", url: "https://www.rfc-editor.org/rfc/rfc9700" },
+  { title: "OpenID Connect Core", url: "https://openid.net/specs/openid-connect-core-1_0.html" },
+  { title: "openid-client (panva)", url: "https://github.com/panva/openid-client" },
+]} />

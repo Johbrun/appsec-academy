@@ -1,0 +1,71 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://novafact.example/vex/2026-09-22-sdk",
+  "author": "AppSec Novafact <appsec@novafact.example>",
+  "role": "Document Creator",
+  "timestamp": "2026-09-22T08:30:00.000Z",
+  "version": 1,
+  "tooling": "rédigé à la main",
+  "statements": [
+    {
+      "vulnerability": { "name": "CVE-2026-13044" },
+      "products": [{ "@id": "pkg:npm/lodash@4.17.19" }],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "La fonction merge() n’est pas incluse dans le sous-ensemble embarqué.",
+      "timestamp": "2026-09-22T08:30:00.000Z"
+    },
+    {
+      "vulnerability": { "name": "CVE-2026-22014" },
+      "products": [{ "@id": "pkg:npm/semver@7.3.5" }],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Le comparateur de plages n’est appelé qu’au build, jamais à l’exécution.",
+      "timestamp": "2026-09-22T08:30:00.000Z"
+    },
+    {
+      "vulnerability": { "name": "CVE-2026-27718" },
+      "products": [{ "@id": "pkg:npm/qs@6.5.2" }],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "Le paquet a été retiré de l’arbre de dépendances en 3.6.0.",
+      "timestamp": "2026-09-22T08:30:00.000Z"
+    },
+    {
+      "vulnerability": { "name": "CVE-2026-15873" },
+      "products": [{ "@id": "pkg:npm/ip@1.1.5" }],
+      "status": "not_affected",
+      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+      "impact_statement": "Les adresses testées viennent d’une liste de configuration, jamais du réseau.",
+      "timestamp": "2026-09-22T08:30:00.000Z"
+    },
+    {
+      "vulnerability": { "name": "CVE-2026-33420" },
+      "products": [{ "@id": "pkg:npm/glob-parent@5.1.1" }],
+      "status": "not_affected",
+      "justification": "inline_mitigations_already_exist",
+      "impact_statement": "La longueur du chemin est bornée avant l’appel.",
+      "timestamp": "2026-09-22T08:30:00.000Z"
+    },
+    {
+      "vulnerability": { "name": "CVE-2026-50188" },
+      "products": [{ "@id": "pkg:npm/vm2@3.9.11" }],
+      "status": "affected",
+      "action_statement": "Retirer vm2 et évaluer les expressions clientes hors processus.",
+      "action_statement_timestamp": "2026-09-22T08:30:00.000Z",
+      "timestamp": "2026-09-22T08:30:00.000Z"
+    },
+    {
+      "vulnerability": { "name": "CVE-2026-21801" },
+      "products": [{ "@id": "pkg:npm/express@4.17.1" }],
+      "status": "fixed",
+      "timestamp": "2026-09-22T08:30:00.000Z"
+    },
+    {
+      "vulnerability": { "name": "CVE-2026-29334" },
+      "products": [{ "@id": "pkg:npm/xml2js@0.4.23" }],
+      "status": "under_investigation",
+      "timestamp": "2026-09-22T08:30:00.000Z"
+    }
+  ]
+}

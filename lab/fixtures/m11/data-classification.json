@@ -1,0 +1,19 @@
+{
+  "_": "Classification des données de Novafact. DONNÉE D'ENTRÉE du challenge LINDDUN : elle dit quelles collections portent quelles données personnelles, et rien de plus. Le périmètre à analyser — quelles routes du parcours de facturation touchent ces collections, et lesquelles — se déduit du code, pas d'ici.",
+  "journey": ["db.invoices", "db.mails"],
+  "collections": {
+    "db.users": ["email", "name"],
+    "db.invoices": ["client", "note"],
+    "db.mails": ["to", "body"],
+    "db.tenants": [],
+    "db.credits": []
+  },
+  "fields": {
+    "email": "identifiant direct — adresse professionnelle d'une personne physique",
+    "name": "identifiant direct — nom de la personne qui utilise le compte",
+    "client": "identifiant indirect — raison sociale ou nom du client facturé, souvent une personne physique chez un indépendant",
+    "note": "donnée à texte libre — peut contenir n'importe quoi, y compris une donnée sensible au sens de l'article 9",
+    "to": "identifiant direct — destinataire d'un message sortant",
+    "body": "donnée à texte libre — corps du message, contient le nom et le lien de réinitialisation"
+  }
+}

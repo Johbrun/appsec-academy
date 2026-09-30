@@ -1,0 +1,18 @@
+# VULNÉRABLE — fixture du lab. Ne pas réutiliser.
+name: Triage des issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Journaliser l'issue
+        run: |
+          echo "Nouvelle issue : ${{ github.event.issue.title }}"
+          echo "Auteur : ${{ github.event.issue.user.login }}"

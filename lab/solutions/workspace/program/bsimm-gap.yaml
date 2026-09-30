@@ -1,0 +1,51 @@
+# Livrable de référence — challenge bsimm-compare (M1).
+#
+# Les seize activités que l'étude observe chez au moins 60 % des organisations,
+# confrontées à ce que Novafact fait réellement. Quatre sont faites, avec une
+# preuve dans le dépôt ; douze ne le sont pas, et c'est l'écart.
+#
+# L'écart n'est pas déclaré : il se calcule à partir des réponses ci-dessus.
+# Le choix des trois priorités, lui, est un arbitrage — il n'est pas noté, et
+# c'est justement la conversation qu'on veut avoir avec le produit.
+
+seuil-frequence: 60
+
+activites:
+  - { id: SM1.1, faite: non }
+  - { id: SM1.4, faite: non }
+  - { id: CP1.2, faite: non }
+  - { id: T1.1, faite: non }
+  - { id: AM1.2, faite: non }
+  - { id: SFD1.1, faite: oui, preuve: server/lib/auth.ts }
+  - { id: SR1.1, faite: non }
+  - { id: SR1.3, faite: non }
+  - { id: AA1.1, faite: non }
+  - { id: CR1.4, faite: non }
+  - { id: ST1.1, faite: oui, preuve: verify/security.test.ts }
+  - { id: PT1.1, faite: oui, preuve: fixtures/m01/pentest-report.json }
+  - { id: PT1.2, faite: non }
+  - { id: SE1.2, faite: oui, preuve: novafact/package-lock.json }
+  - { id: CMVM1.2, faite: non }
+  - { id: CMVM2.1, faite: non }
+
+ecart:
+  nombre: 12
+  activites:
+    - AA1.1
+    - AM1.2
+    - CMVM1.2
+    - CMVM2.1
+    - CP1.2
+    - CR1.4
+    - PT1.2
+    - SM1.1
+    - SM1.4
+    - SR1.1
+    - SR1.3
+    - T1.1
+
+# Les trois qui comptent : l'analyse automatique à chaque changement parce
+# qu'elle rattrape seule une partie des constats du dernier pentest ; les
+# exigences rendues vérifiables parce que sans elles rien ne se teste ; les
+# délais de correction parce qu'un constat sans délai ne se ferme jamais.
+priorites: [CR1.4, SR1.3, CMVM2.1]

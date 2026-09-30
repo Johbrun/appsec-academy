@@ -1,0 +1,13 @@
+{
+  "//": "CORRIGÉ : qualificatif propre à Novafact. Le qualificatif par défaut « hnb659fds » est le même pour tout le monde : il rend les noms des ressources de bootstrap prévisibles à l'échelle de tout le cloud (cdk-hnb659fds-assets-<compte>-<région>). Une recherche de 2024 a montré qu'un bucket de bootstrap supprimé pouvait être repris par un tiers, qui contrôlait alors les déploiements. Le qualificatif doit être repassé à `cdk bootstrap --qualifier nova1` et à `DefaultStackSynthesizer` : il fait partie des noms, pas de la configuration décorative.",
+  "app": "npx tsx bin/app.ts",
+  "watch": {
+    "include": ["**"],
+    "exclude": ["README.md", "cdk*.json", "node_modules"]
+  },
+  "context": {
+    "@aws-cdk/core:bootstrapQualifier": "nova1",
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/core:checkSecretUsage": true
+  }
+}

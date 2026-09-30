@@ -1,0 +1,151 @@
+export const questions = [
+  {
+    q: "Dans l'architecture BFF recommandée par la RFC 10017, où vivent les jetons OAuth ?",
+    options: [
+      "En mémoire de la SPA, jamais dans localStorage ni dans un cookie",
+      "Dans un cookie chiffré posé par le BFF, déchiffré à chaque appel d'API",
+      "Côté serveur, dans le BFF ; le navigateur n'a qu'un cookie de session HttpOnly",
+      "Dans un Service Worker, hors de portée du JavaScript de la page",
+    ],
+    answer: 2,
+    explain: "Le BFF est un client confidentiel : il obtient les jetons, les garde et relaie les appels à l'API, si bien qu'une XSS ne peut plus voler de jeton réutilisable. La conservation en mémoire de la SPA est l'autre architecture décrite par la RFC, et c'est celle qu'elle juge plus faible : une XSS peut alors relancer un flux silencieux. Un Service Worker ne fait pas mieux, la page pouvant toujours lui demander d'émettre des requêtes authentifiées.",
+  },
+  {
+    q: "Qu'apporte la rotation des refresh tokens ?",
+    options: [
+      "Le refresh token est lié à la clé du client, donc inutilisable ailleurs",
+      "La durée de vie du refresh token est ramenée à celle de l'access token",
+      "Le serveur chiffre le refresh token avec une clé propre au navigateur",
+      "Chaque usage émet un nouveau jeton et invalide l'ancien, ce qui révèle un vol",
+    ],
+    answer: 3,
+    explain: "Si le voleur et l'utilisateur légitime se servent du même jeton, le second usage présente un jeton déjà consommé : le serveur détecte la réutilisation et peut révoquer toute la chaîne. La rotation ne lie pas le jeton au client — c'est le rôle de DPoP ou de mTLS, et les deux se combinent très bien ; OAuth 2.1 demande d'ailleurs l'un ou l'autre.",
+  },
+  {
+    q: "Une SPA garde des access tokens de 5 minutes en mémoire, jamais dans localStorage. Quelle capacité d'une XSS reste intacte selon la RFC 10017 ?",
+    options: [
+      "Relancer un flux d'autorisation silencieux et obtenir des jetons neufs",
+      "Lire le refresh token dans le cookie HttpOnly posé par le serveur",
+      "Exfiltrer le code_verifier, qui reste dans le sessionStorage après le flux",
+      "Déchiffrer le jeton pour en extraire les claims d'identité de l'utilisateur",
+    ],
+    answer: 0,
+    explain: "La durée de vie courte et le stockage en mémoire limitent le vol ponctuel ; ils ne font rien contre l'obtention de jetons neufs par un flux silencieux dans une iframe, ni contre l'usage direct de la session depuis la page. Lire un cookie HttpOnly reste hors de portée du JavaScript — c'est précisément pour cela que le BFF l'utilise. Le code_verifier, lui, est consommé à l'échange du code : récupéré après coup, il ne sert plus à rien.",
+  },
+  {
+    q: "Pourquoi le BFF de Novafact exige-t-il un en-tête personnalisé (par exemple X-Novafact-CSRF: 1) sur ses routes d'API ?",
+    options: [
+      "Pour router la requête vers la bonne version de l'API selon le client",
+      "Parce qu'un en-tête personnalisé force un preflight CORS qu'un formulaire ne peut pas faire",
+      "Parce que le navigateur refuse d'envoyer un cookie SameSite=Strict sans cet en-tête",
+      "Parce que l'en-tête transporte un jeton anti-CSRF signé, vérifié par le BFF",
+    ],
+    answer: 1,
+    explain: "Une requête cross-site portant un en-tête non standard déclenche un preflight CORS, que le BFF ne valide pas : le navigateur n'envoie donc jamais la vraie requête, et un formulaire HTML forgé ne peut pas ajouter d'en-tête. Ce n'est pas un jeton anti-CSRF : la valeur n'a aucune importance, seule sa présence compte — d'où l'intérêt, ni état serveur ni synchronisation. La RFC 10017 la cite avec SameSite et CORS parmi les protections du BFF, l'authentification par cookie restant exposée au CSRF.",
+  },
+];
+
+<YouKnow>
+Tu as vu des SPA stocker leurs jetons dans localStorage et tu sais qu'une seule XSS suffit à les exfiltrer. Depuis août 2026, une RFC dit enfin clairement comment faire autrement.
+</YouKnow>
+
+## RFC 10017 : OAuth pour les applications navigateur
+
+La **RFC 10017** (*OAuth 2.0 for Browser-Based Applications*, publiée en août 2026 comme meilleure pratique, BCP 212) décrit trois architectures, de la plus sûre à la moins sûre :
+
+| Architecture | Principe | Exposition des jetons |
+| --- | --- | --- |
+| **BFF** (Backend for Frontend) | Un composant serveur est le client OAuth. Il garde tous les jetons et relaie les appels à l'API. Le navigateur n'a qu'un cookie de session | Aucune dans le navigateur |
+| **Token-mediating backend** | Un composant serveur obtient les jetons, mais transmet l'access token au navigateur, qui appelle l'API directement | Access token dans le navigateur, refresh token côté serveur |
+| **Client navigateur pur** | L'application JavaScript est elle-même le client OAuth public | Tous les jetons dans le navigateur |
+
+La RFC **recommande fortement** le BFF pour les applications métier, les applications sensibles et celles qui traitent des données personnelles. C'est le choix de Novafact.
+
+## Ce qu'une XSS peut faire, architecture par architecture
+
+La force de la RFC est de raisonner à partir des **capacités de l'attaquant** qui exécute du JavaScript dans la page, plutôt qu'à partir d'un emplacement de stockage « sûr ». Elle en distingue quatre :
+
+| Capacité de l'attaquant | Client pur | Token-mediating | BFF |
+| --- | --- | --- | --- |
+| **Vol ponctuel** des jetons présents | Oui | Access token seulement | Non |
+| **Vol persistant** (un script qui récupère les jetons à intervalle régulier) | Oui | Access tokens seulement | Non |
+| **Obtention de nouveaux jetons** (flux d'autorisation silencieux dans une iframe cachée) | Oui | Oui, via le backend | Non |
+| **Relais de requêtes** depuis le navigateur de la victime | Oui | Oui | Oui, tant que la page est ouverte |
+
+Le tableau explique pourquoi les mesures habituelles des SPA déçoivent : des access tokens très courts et un stockage en mémoire ne gênent que la première ligne. Le vol persistant rattrape chaque nouveau jeton ; le flux silencieux en obtient d'indépendants, sans toucher à ceux de l'application. Seul le BFF ferme les trois premières lignes. La quatrième reste ouverte dans toutes les architectures : une XSS peut **agir** au nom de l'utilisateur tant qu'il a la page ouverte. C'est pourquoi la RFC exige aussi des mesures proactives contre l'exécution de JavaScript malveillant : encodage des sorties, CSP, Subresource Integrity (M4).
+
+## Le BFF de Novafact
+
+<Steps items={[
+  { title: "Connexion", text: "Le BFF (Express, ou les route handlers de Next.js) démarre le flux Authorization Code + PKCE auprès de Cognito, en tant que client confidentiel." },
+  { title: "Session", text: "Il stocke access et refresh tokens côté serveur (Redis chiffré), et pose un cookie de session __Host-, HttpOnly, Secure, SameSite." },
+  { title: "Appels", text: "Le front appelle le BFF avec le cookie ; le BFF ajoute l'access token et relaie vers l'API." },
+  { title: "Renouvellement", text: "Le BFF renouvelle l'access token avec le refresh token, sans que le navigateur ne voie jamais l'un ou l'autre." },
+  { title: "Protection CSRF", text: "Comme toute application à cookie : SameSite, en-tête requis et Fetch Metadata (M2, M4)." },
+]} />
+
+Le relais tient en quelques lignes, à condition de ne relayer **que** vers l'API prévue (sinon le BFF devient un proxy ouvert, donc un vecteur de SSRF) et de ne jamais renvoyer le jeton au navigateur :
+
+<Code file="apps/bff/src/proxy.ts" hl="3,4,9,13">
+
+```ts
+router.use('/api', async (req, res) => {
+  // CSRF : un formulaire cross-site ne peut pas poser cet en-tête, et un fetch cross-site déclencherait un preflight refusé
+  if (req.get('X-Novafact-CSRF') !== '1') return res.sendStatus(403);
+  if (req.get('Sec-Fetch-Site') && req.get('Sec-Fetch-Site') !== 'same-origin') return res.sendStatus(403);
+  const session = await sessions.get(req);
+  if (!session) return res.sendStatus(401);
+  const accessToken = await tokens.getFreshAccessToken(session); // renouvelle si besoin, côté serveur
+  const upstream = await fetch(new URL(req.url, env.API_ORIGIN), { // origine fixe : pas de proxy ouvert
+    method: req.method,
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': req.get('content-type') ?? 'application/json' },
+    body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.body,
+  });
+  res.status(upstream.status).type(upstream.headers.get('content-type') ?? 'application/json');
+  res.send(Buffer.from(await upstream.arrayBuffer()));
+});
+```
+
+</Code>
+
+Sur le cookie, la RFC est précise : `Secure` et `HttpOnly` obligatoires ; `SameSite=Strict` recommandé ; préfixe `__Host-` recommandé, sans attribut `Domain`, pour qu'aucun sous-domaine ne puisse le lire ou l'écraser. Un détail pratique : avec une connexion fédérée (Google, SSO d'entreprise), le retour vers le callback passe par un site tiers, et un cookie `Strict` n'est pas envoyé sur cette navigation. La solution courante sépare les deux usages : un petit cookie de **transaction de connexion**, `Lax` et valable quelques minutes, pour le callback ; le cookie de **session**, `Strict`, pour tout le reste.
+
+## Ce que ça change face à une XSS
+
+Une XSS reste grave : elle peut agir **depuis la page** tant que la victime l'a ouverte. Mais elle ne peut plus **voler un jeton réutilisable** ailleurs, pendant des heures. La fenêtre d'exploitation se réduit à la session ouverte, et la CSP stricte (M4) complète la défense. Le BFF a un coût : un composant serveur de plus, une latence supplémentaire, un stockage de session à protéger (les jetons de tous les utilisateurs sont désormais au même endroit). C'est un compromis explicite : on concentre les jetons là où on sait les défendre.
+
+## Le token-mediating backend, un entre-deux
+
+L'architecture intermédiaire garde le refresh token côté serveur et ne confie au navigateur que l'access token. On la rencontre quand l'API est servie depuis une autre origine à fort trafic et que faire transiter chaque appel par un proxy coûte trop cher. Elle limite le vol persistant aux access tokens, courts par construction, mais laisse ouverte l'obtention de nouveaux jetons : le point du backend qui distribue les access tokens au navigateur répond à quiconque présente le cookie, y compris un script injecté. Si tu la choisis, écris-le comme un risque accepté dans le design doc (M8), avec une durée de vie d'access token mesurée en minutes et une audience limitée à cette API.
+
+## Si les jetons doivent être dans le navigateur
+
+Quand un BFF est impossible (application sans serveur, contraintes d'hébergement), la RFC détaille les exigences pour un client navigateur :
+
+- **PKCE obligatoire**, et aucun secret client partagé (il serait lisible dans le bundle) ;
+- **access tokens courts** (quelques minutes) ;
+- des **refresh tokens** avec rotation à chaque usage **ou** liés au client (DPoP, leçon 5), **et** une durée de vie maximale ou une expiration en cas d'inactivité ; un jeton issu d'une rotation ne prolonge jamais la durée de vie du jeton initial ;
+- stockage en **mémoire** plutôt que dans `localStorage`, en acceptant qu'aucun stockage navigateur ne résiste à une XSS ;
+- CSP stricte et Trusted Types.
+
+DPoP mérite une précision : une clé WebCrypto générée **non extractible** ne peut pas être exfiltrée par une XSS, qui ne peut donc pas utiliser le jeton **ailleurs**. Elle peut en revanche toujours s'en servir **depuis la page** : c'est la ligne « relais de requêtes » du tableau.
+
+<Callout kind="novafact">
+Côté Cognito, la **rotation des refresh tokens** existe depuis avril 2025 (plans Essentials et Plus). Quand elle est activée, chaque renouvellement renvoie un nouveau refresh token, valable pour la durée restante du précédent, et l'ancien est invalidé après un délai de grâce configurable jusqu'à 60 secondes (pour absorber les nouvelles tentatives réseau). Le BFF de Novafact l'active, et appelle la révocation du refresh token à la déconnexion : Cognito invalide alors aussi les access tokens émis à partir de lui.
+</Callout>
+
+<Recap items={[
+  "RFC 10017 (août 2026, BCP 212) : BFF, token-mediating backend ou client navigateur pur ; le BFF est fortement recommandé pour les applications sensibles.",
+  "Raisonner en capacités d'attaquant : vol ponctuel, vol persistant, nouveaux jetons par flux silencieux, relais de requêtes.",
+  "Le BFF garde tous les jetons côté serveur, relaie vers une origine fixe, et protège son cookie (__Host-, HttpOnly, Secure, SameSite) et ses routes contre le CSRF.",
+  "Une XSS peut encore agir depuis la page dans toutes les architectures : CSP, encodage et SRI restent indispensables.",
+  "Sans BFF : PKCE, jetons courts, rotation ou liaison DPoP des refresh tokens avec durée maximale, stockage en mémoire.",
+]} />
+
+<Sources items={[
+  { title: "RFC 10017 : OAuth 2.0 for Browser-Based Applications", url: "https://www.rfc-editor.org/info/rfc10017/" },
+  { title: "oauth.net : Browser-Based Apps", url: "https://oauth.net/2/browser-based-apps/" },
+  { title: "Pragmatic Web Security (Philippe De Ryck)", url: "https://pragmaticwebsecurity.com/" },
+  { title: "Amazon Cognito : refresh tokens et rotation", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-refresh-token.html" },
+  { title: "MDN : Sec-Fetch-Site", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Sec-Fetch-Site" },
+]} />

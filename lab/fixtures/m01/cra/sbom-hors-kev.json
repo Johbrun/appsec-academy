@@ -1,0 +1,15 @@
+{
+  "_comment": "SBOM d'essai du challenge cra-notification : des vulnérabilités, mais aucune au catalogue d'exploitation connue. Aucune obligation de signalement. C'est la décision qu'une implémentation paresseuse rate — signaler tout le temps revient à ne rien signaler.",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "metadata": { "component": { "name": "novafact-api", "version": "4.2.1", "type": "application" } },
+  "components": [
+    { "name": "express", "version": "4.21.2", "purl": "pkg:npm/express@4.21.2" },
+    { "name": "pdf-render", "version": "4.3.0", "purl": "pkg:npm/pdf-render@4.3.0" },
+    { "name": "node-ical", "version": "0.16.1", "purl": "pkg:npm/node-ical@0.16.1" }
+  ],
+  "vulnerabilities": [
+    { "id": "CVE-2026-2207", "affects": [{ "ref": "pkg:npm/pdf-render@4.3.0" }] },
+    { "id": "CVE-2026-5150", "affects": [{ "ref": "pkg:npm/node-ical@0.16.1" }] }
+  ]
+}

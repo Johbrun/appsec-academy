@@ -1,0 +1,53 @@
+# Droits du compte de service de l'API.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: novafact-api
+  namespace: novafact
+# CORRIGÉ : le jeton n'est plus monté automatiquement. Un jeton de compte de
+# service présent dans un pod est un identifiant lisible par toute exécution de
+# code dans ce pod — une SSRF, une désérialisation, un paquet npm malveillant.
+# Le couper quand il ne sert pas est le geste le plus rentable du durcissement.
+# Le pod qui en a réellement besoin le redemande, pod par pod.
+automountServiceAccountToken: false
+---
+# CORRIGÉ : un Role namespacé, pas un ClusterRole. L'API n'a rien à lire en
+# dehors de son propre namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: novafact-api
+  namespace: novafact
+# CORRIGÉ : plus aucun joker. Les droits sont ceux que l'API utilise vraiment —
+# relire sa configuration, et prendre le bail d'élection du leader pour les
+# tâches planifiées. Tout le reste a été retiré, et rien n'a cassé : les jokers
+# étaient là parce que personne n'avait pris le temps d'énumérer.
+#
+# La méthode : partir de zéro droit, lire les refus dans les journaux d'audit
+# de l'API server, ajouter le verbe manquant. Jamais l'inverse.
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["novafact-runtime-config"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    resourceNames: ["novafact-api-leader"]
+    verbs: ["get", "update"]
+---
+# CORRIGÉ : RoleBinding et non ClusterRoleBinding — la portée du lien compte
+# autant que celle du rôle.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: novafact-api
+  namespace: novafact
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: novafact-api
+subjects:
+  - kind: ServiceAccount
+    name: novafact-api
+    namespace: novafact

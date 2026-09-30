@@ -1,0 +1,208 @@
+export const questions = [
+  {
+    q: "Quel groupe de règles managées AWS WAF cible spécifiquement le credential stuffing sur la page de connexion ?",
+    options: [
+      "Fraud Control : Account Creation Fraud Prevention (ACFP)",
+      "Fraud Control : Account Takeover Prevention (ATP)",
+      "Bot Control, catégorie signals_automated_browser",
+      "AWSManagedRulesCommonRuleSet, qui couvre l'OWASP Top 10",
+    ],
+    answer: 1,
+    explain: "ATP inspecte les tentatives de connexion, compare les identifiants à une base d'identifiants volés et repère les comportements anormaux. ACFP est son jumeau et le piège le plus naturel : même famille Fraud Control, mais il protège la création de comptes, pas la connexion. Bot Control distingue les automates des humains, ce qui aide sans jamais regarder les identifiants.",
+  },
+  {
+    q: "Quel est l'inconvénient principal d'un CAPTCHA imposé à tous ?",
+    options: [
+      "Il ne fonctionne pas sur les clients d'API, qui n'exécutent pas de JavaScript",
+      "Il oblige à déposer un cookie tiers, incompatible avec le consentement RGPD",
+      "Il augmente sensiblement le temps de chargement de la page de connexion",
+      "Il gêne tous les utilisateurs, pose un problème d'accessibilité, et se contourne",
+    ],
+    answer: 3,
+    explain: "Un CAPTCHA pour tous coûte à tout le monde, lecteurs d'écran compris, et des services de résolution en font un simple péage pour l'attaquant : on paie la friction sans acheter la protection. L'incompatibilité avec les clients d'API est réelle, mais se règle par une autre voie d'authentification : c'est un problème d'intégration, pas la raison de réserver le défi aux situations à risque. Les alternatives invisibles comme Turnstile gênent beaucoup moins les humains.",
+  },
+  {
+    q: "Un développeur intègre le widget Turnstile sur le formulaire d'inscription, mais le serveur se contente de vérifier que le champ cf-turnstile-response n'est pas vide. Qu'est-ce qui ne va pas ?",
+    options: [
+      "Le widget doit être placé avant le champ de mot de passe pour s'exécuter",
+      "Il faut vérifier le jeton côté navigateur avant de soumettre le formulaire",
+      "Le jeton doit être validé auprès de Siteverify, avec contrôle du hostname et de l'action",
+      "Il faut vérifier en plus que ce jeton n'a pas déjà servi au cours des cinq dernières minutes",
+    ],
+    answer: 2,
+    explain: "Un robot envoie n'importe quelle chaîne non vide : seul l'appel serveur à Siteverify prouve qu'un défi a été résolu, et le hostname et l'action garantissent qu'il l'a été pour ce site et cette opération, pas récupéré ailleurs. L'idée de contrôler l'usage unique est juste sur le fond — un jeton Turnstile ne vaut qu'une fois, cinq minutes — mais c'est Siteverify qui l'applique : sans cet appel, il n'y a rien à dédupliquer. Et vérifier côté navigateur ne prouve rien, l'attaquant contrôlant le navigateur.",
+  },
+  {
+    q: "Novafact veut activer AWS WAF Fraud Control ATP. Pourquoi l'attacher à la route de connexion du BFF derrière CloudFront plutôt qu'au user pool Cognito ?",
+    options: [
+      "Parce qu'ATP n'est pas disponible pour les user pools Cognito",
+      "Parce que Cognito chiffre le corps des requêtes, que le WAF ne peut pas inspecter",
+      "Parce qu'un web ACL ne peut pas être associé à un user pool Cognito",
+      "Parce que le BFF connaît l'identifiant du tenant, contrairement à Cognito",
+    ],
+    answer: 0,
+    explain: "La documentation est explicite : ATP ne s'applique pas aux user pools, et l'inspection des réponses dont il a besoin ne fonctionne que devant CloudFront. Le piège est de croire qu'un web ACL ne peut pas protéger Cognito : il le peut, avec d'autres groupes de règles — c'est ATP en particulier qui manque. Pour Cognito lui-même, l'équivalent est la threat protection du plan Plus.",
+  },
+];
+
+<YouKnow>
+Tu as contourné des CAPTCHA et des protections anti-bot en test. Tu sais qu'aucune n'est infranchissable ; le but est de rendre l'abus plus cher que ce qu'il rapporte.
+</YouKnow>
+
+## L'économie de l'abus
+
+Aucune protection anti-bot n'est infranchissable. L'objectif est **économique** : rendre l'attaque plus coûteuse que ce qu'elle rapporte, tout en gênant le moins possible les vrais utilisateurs. Chaque couche ajoute du coût à l'attaquant.
+
+Ce coût se décompose, et chaque défense en vise une partie. Les **adresses** : un proxy résidentiel coûte plus cher qu'un serveur loué, et une réputation d'IP pousse l'attaquant vers les premiers. Le **client** : un script HTTP brut ne coûte presque rien, un vrai navigateur piloté consomme du CPU et de la mémoire à chaque session. Les **défis** : les services de résolution de CAPTCHA existent, mais facturent chaque résolution et ajoutent de la latence. Les **comptes** : si l'abus exige un compte vérifié avec un moyen de paiement, chaque tentative ratée coûte un compte. Un bon dispositif ne cherche pas l'imperméabilité, il fait grimper la somme de ces coûts au-dessus du gain attendu.
+
+Le corollaire est inconfortable : une protection qui coûte plus cher à tes clients qu'à l'attaquant est une mauvaise protection. Un CAPTCHA visuel sur chaque connexion taxe les humains à chaque fois, alors qu'un attaquant outillé le délègue pour une fraction de centime.
+
+## Les défis
+
+| Défi | Forces | Limites |
+| --- | --- | --- |
+| CAPTCHA visuel | Simple à intégrer | Pénible, peu accessible, résolu par des services payants |
+| **Turnstile** (Cloudflare) et défis invisibles | Quasiment transparents pour les humains | Reposent sur des signaux du navigateur |
+| MFA supplémentaire | Très efficace sur un compte | Uniquement pour les comptes existants |
+| Preuve de travail | Coûte du calcul à chaque essai | Pénalise aussi les appareils modestes |
+
+La règle : **des défis adaptatifs**, déclenchés quand le risque monte, pas imposés à tous. Et une limite structurelle à garder en tête : un défi ne s'applique qu'à un **navigateur**. L'API publique de Novafact, appelée par les logiciels comptables des clients, ne peut pas résoudre un Turnstile ; elle se protège par des clés d'API, des quotas par client et la révocation, pas par des défis.
+
+## Turnstile côté serveur
+
+L'erreur classique consiste à intégrer le widget et à considérer le travail terminé. Le widget produit un **jeton** ; tant que le serveur ne l'a pas validé auprès de l'API Siteverify, il ne prouve rien, puisqu'un robot peut envoyer n'importe quelle chaîne. Selon la documentation, un jeton fait au plus 2 048 caractères, reste valable cinq minutes et ne peut être validé qu'une fois.
+
+<Code file="apps/bff/src/antibot/turnstile.ts" hl="9,16,17">
+
+```ts
+import { randomUUID } from 'node:crypto';
+
+const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+
+type SiteverifyResult = { success: boolean; hostname?: string; action?: string; 'error-codes'?: string[] };
+
+export async function verifyTurnstile(token: unknown, remoteip: string, expectedAction: string): Promise<boolean> {
+  if (typeof token !== 'string' || token.length === 0 || token.length > 2048) return false;
+  const idempotency_key = randomUUID(); // permet de rejouer l'appel sans « consommer » deux fois le jeton
+  const res = await fetch(SITEVERIFY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret: process.env.TURNSTILE_SECRET, response: token, remoteip, idempotency_key }),
+    signal: AbortSignal.timeout(3_000),
+  });
+  const data = (await res.json()) as SiteverifyResult;
+  return data.success === true && data.hostname === 'app.novafact.example' && data.action === expectedAction;
+}
+```
+
+</Code>
+
+Le contrôle de `hostname` empêche de réutiliser un jeton obtenu sur un autre site configuré avec la même clé ; celui de `action` empêche qu'un jeton résolu pour une action peu sensible serve sur l'inscription. Côté produit, décide aussi du comportement si Siteverify ne répond pas : Novafact laisse passer la connexion d'un compte connu avec un appareil connu, mais refuse une inscription.
+
+## AWS WAF
+
+Devant Novafact, **AWS WAF** apporte plusieurs couches gérées par AWS :
+
+<Steps items={[
+  { title: "Règles managées de base", text: "Common Rule Set, Known Bad Inputs : filtrent les attaques les plus courantes." },
+  { title: "Règles de débit", text: "Des limites par IP ou par clé personnalisée, à la bordure, avant d'atteindre l'API (leçon 3)." },
+  { title: "Bot Control", text: "Niveau commun : étiquette les bots qui se déclarent, vérifie les bots utiles (moteurs de recherche), détecte les signatures connues. Niveau ciblé : ajoute interrogation du navigateur, empreinte et heuristiques de comportement contre les bots qui ne se déclarent pas." },
+  { title: "Fraud Control ATP", text: "Account Takeover Prevention : inspecte les tentatives de connexion, compare les couples e-mail et mot de passe à une base d'identifiants volés, agrège par IP et par session client." },
+  { title: "Fraud Control ACFP", text: "Account Creation Fraud Prevention : analyse les inscriptions et bloque les créations de comptes suspectes." },
+]} />
+
+Trois points de conception, qui se découvrent souvent trop tard :
+
+- **Où brancher ATP.** La documentation AWS indique qu'ATP n'est pas disponible pour les user pools Cognito. Chez Novafact, la connexion passe par le BFF, derrière CloudFront : c'est sur ce chemin qu'ATP se configure. L'inspection des **réponses** (pour compter les échecs de connexion) n'existe d'ailleurs que pour les web ACL associés à CloudFront. Côté Cognito, la protection équivalente est la *threat protection* du plan Plus (leçon 2).
+- **Le coût.** Bot Control, ATP et ACFP sont facturés en plus du WAF, selon les requêtes analysées. Une instruction de restriction (*scope-down*) qui limite l'inspection aux chemins concernés évite de payer l'analyse de chaque image.
+- **Les jetons.** Les niveaux avancés s'appuient sur des SDK d'intégration côté client qui posent un jeton ; sans eux, une partie de la détection est moins précise, et la SPA doit être adaptée.
+
+<Code file="infra/waf/atp.tf" hl="5,14,21,22">
+
+```hcl
+rule {
+  name     = "atp-login"
+  priority = 20
+
+  override_action {
+    count {} # observation d'abord, puis none {} pour appliquer les actions du groupe
+  }
+
+  statement {
+    managed_rule_group_statement {
+      name        = "AWSManagedRulesATPRuleSet"
+      vendor_name = "AWS"
+
+      managed_rule_group_configs {
+        aws_managed_rules_atp_rule_set {
+          login_path = "/auth/login"
+
+          request_inspection {
+            payload_type = "JSON"
+            username_field {
+              identifier = "/email"
+            }
+            password_field {
+              identifier = "/password"
+            }
+          }
+
+          response_inspection {
+            status_code {
+              success_codes = ["200"]
+              failure_codes = ["401"]
+            }
+          }
+        }
+      }
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "atp-login"
+    sampled_requests_enabled   = true
+  }
+}
+```
+
+</Code>
+
+Ces règles s'activent d'abord en mode **comptage**, le temps de mesurer les faux positifs, puis en blocage. « Mesurer » veut dire regarder, sur deux semaines au moins, combien de connexions **réussies** auraient été bloquées et à quels clients elles appartiennent : un gros cabinet comptable derrière une seule IP ressemble beaucoup à un bot.
+
+<Callout kind="debate">
+**Le CAPTCHA a-t-il encore un sens ?** Des travaux de recherche ont montré que des modèles de vision résolvent des CAPTCHA visuels courants, et les fermes de résolution humaines font le reste. Une partie des praticiens considère qu'ils ne servent plus qu'à gêner les humains ; d'autres rappellent qu'ils coûtent encore à l'attaquant à grande échelle, et qu'ils restent utiles comme *dernier* palier d'une réponse graduée. Le consensus pratique : jamais en première ligne, jamais seuls, et toujours mesurés à leur taux de résolution par de vrais clients.
+</Callout>
+
+## L'empreinte d'appareil et le RGPD
+
+Les solutions anti-bot collectent souvent une **empreinte** du navigateur ou de l'appareil. Deux textes s'appliquent, et on les confond souvent.
+
+La règle **ePrivacy** (en France, l'article 82 de la loi Informatique et Libertés) encadre la lecture et l'écriture d'informations sur le terminal, empreinte comprise. Elle exige le consentement, sauf pour ce qui est strictement nécessaire au service. La CNIL range explicitement dans les exemptions les traceurs destinés à l'authentification, y compris ceux qui assurent la sécurité du mécanisme d'authentification, « par exemple en limitant les tentatives d'accès robotisées ou inattendues ». Un signal anti-bot sur la page de connexion peut donc relever de l'exemption ; le même signal réutilisé pour de la mesure d'audience ou du marketing, non.
+
+Le **RGPD**, lui, s'applique dans tous les cas : base légale (l'intérêt légitime de prévention de la fraude est courant), information des utilisateurs, durée de conservation limitée, minimisation, et aucune réutilisation pour une autre finalité. À documenter avec le DPO dans le registre (M7).
+
+Toutes les empreintes ne se lisent pas sur le terminal : AWS WAF sait inspecter les empreintes TLS JA3 et JA4 de la connexion, calculées côté serveur. Elles restent des données techniques rattachables à une personne, donc à traiter avec la même prudence.
+
+## En pratique chez toi
+
+- Liste les endpoints exposés à des navigateurs et ceux exposés à des intégrations : les défis ne concernent que les premiers.
+- Pour chaque défi, vérifie la validation serveur, le contrôle de `hostname` et `action`, et le comportement en cas de panne du fournisseur.
+- Mesure deux choses en parallèle : l'abus bloqué et les clients gênés (tickets de support, abandon d'inscription).
+
+<Recap items={[
+  "L'objectif anti-bot est économique : faire monter le coût des adresses, du client, des défis et des comptes.",
+  "Des défis adaptatifs et invisibles (Turnstile) plutôt qu'un CAPTCHA pour tous ; jamais de défi sur une API machine.",
+  "Un jeton Turnstile ne vaut rien sans validation serveur, contrôle de hostname et d'action.",
+  "AWS WAF : règles managées, règles de débit, Bot Control, ATP (pas pour Cognito) et ACFP, en comptage d'abord.",
+  "Empreinte d'appareil : exemption ePrivacy possible pour la sécurité de l'authentification, RGPD toujours applicable.",
+]} />
+
+<Sources items={[
+  { title: "AWS WAF : Fraud Control Account Takeover Prevention", url: "https://docs.aws.amazon.com/waf/latest/developerguide/waf-atp.html" },
+  { title: "AWS WAF : Fraud Control Account Creation Fraud Prevention", url: "https://docs.aws.amazon.com/waf/latest/developerguide/waf-acfp.html" },
+  { title: "AWS WAF : Bot Control", url: "https://docs.aws.amazon.com/waf/latest/developerguide/waf-bot-control.html" },
+  { title: "Cloudflare Turnstile", url: "https://developers.cloudflare.com/turnstile/" },
+  { title: "Cloudflare Turnstile : validation côté serveur", url: "https://developers.cloudflare.com/turnstile/get-started/server-side-validation/" },
+  { title: "CNIL : cookies et traceurs, mise en conformité", url: "https://www.cnil.fr/fr/cookies-et-autres-traceurs/regles/cookies/comment-mettre-mon-site-web-en-conformite" },
+]} />

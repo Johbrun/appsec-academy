@@ -1,0 +1,28 @@
+id: honeytoken-access
+name: Accès à un leurre
+description: Une ressource leurre a été demandée. Aucun usage légitime ne l’atteint.
+severity: medium
+risk_score: 88
+tags:
+  - 'Domaine: Application'
+  - 'Tactique: Discovery'
+  - 'Technique: T1213'
+interval: 1m
+from: now-10m
+note: |-
+  ## Triage
+
+  1. Identifier le compte et la session qui ont touché le leurre.
+  2. Traiter comme une compromission jusqu’à preuve du contraire.
+query:
+  where:
+    - any_of:
+        - field: url.path
+          op: eq
+          value: /api/admin/export-all
+        - field: url.path
+          op: eq
+          value: /api/invoices/INV-9999
+        - field: novafact.api_key.id
+          op: eq
+          value: nvf_live_ht_7d2c91

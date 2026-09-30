@@ -1,0 +1,75 @@
+export const questions = [];
+
+<YouKnow>
+Novafact a une stack JS moderne : les vulnérabilités avancées du module 3 s’y appliquent directement. Cette étape corrige les sujets de M3 sur le code de Novafact.
+</YouKnow>
+
+## Étape 9 : vulnérabilités avancées
+
+Ton livrable : pour une sélection des sujets du module 3, le **point d’exposition** dans Novafact, la **cause racine** et la **correction**, avec un test ou une règle quand c’est possible. On reste défensif : on décrit le mécanisme et la parade, pas le pas-à-pas d’exploitation.
+
+## Sélectionner les sujets pertinents
+
+Tous les sujets de M3 ne concernent pas Novafact au même degré. Choisis-en quatre ou cinq parmi les plus exposés :
+
+| Sujet (M3) | Où, dans Novafact | Cause racine | Correction |
+| --- | --- | --- | --- |
+| Prototype pollution | Fusion d’objets de configuration, corps JSON | Clé `__proto__` atteinte par une fusion récursive | Schéma strict (zod), refus de `__proto__`/`constructor`, `Object.create(null)` |
+| Désynchronisation de requêtes | Chaîne CloudFront → ALB → Node | Interprétations divergentes de la longueur/du chunking | Aligner les modes, rejeter l’ambigu, mise à jour des composants |
+| Parser differential (SAML/XML) | SSO des grands comptes | Vérifier une représentation, en utiliser une autre | N’extraire que l’élément signé, bibliothèque à jour |
+| SSRF | Import de logo par URL, assistant IA | URL contrôlée atteignant le réseau interne / IMDS | Allowlist, résolution + filtrage d’IP, IMDSv2 |
+| Injection côté ORM | Filtres Prisma/Mongo construits dynamiquement | Opérateurs ou champs contrôlés par l’entrée | Validation stricte, pas de `$queryRawUnsafe`, `sanitizeFilter` |
+
+## Traiter un sujet de bout en bout
+
+Pour chaque sujet retenu, produis la même fiche courte. Exemple pour la prototype pollution, qui est aussi le premier maillon du boss final (jeu Red vs Blue) :
+
+<Steps items={[
+  { title: "Exposition", text: "La route PATCH /settings fusionne req.body dans les réglages du tenant via un deepMerge récursif." },
+  { title: "Cause racine", text: "JSON.parse crée une vraie clé __proto__ ; la fusion récursive écrit dans Object.prototype, pour tout le processus Node." },
+  { title: "Impact", text: "Selon le code en aval, d’un déni de service à une exécution de code. Le rayon dépend de ce qui lit ensuite des propriétés d’objets." },
+  { title: "Correction", text: "Valider le corps avec un schéma zod strict (clés connues seulement), refuser __proto__/constructor/prototype, fusionner vers un objet sans prototype." },
+  { title: "Verrou", text: "Une règle Semgrep sur les fusions récursives à partir d’une entrée, et un test qui envoie __proto__ et vérifie que Object.prototype n’est pas modifié." },
+]} />
+
+<Code file="apps/api/src/settings/merge.ts" hl="2,3">
+
+```ts
+const SettingsPatch = z.object({           // schéma strict : seules ces clés passent
+  locale: z.enum(['fr', 'en']).optional(),
+  invoicePrefix: z.string().max(8).optional(),
+}).strict();
+
+export function applySettings(current: Settings, body: unknown): Settings {
+  const patch = SettingsPatch.parse(body);  // rejette __proto__ et toute clé inconnue
+  return { ...current, ...patch };
+}
+```
+
+</Code>
+
+## Boucler avec le dossier
+
+Chaque sujet traité se rattache à une menace du threat model (étape 3) et à une exigence (étape 1). Les corrections qui produisent une règle réutilisable rejoignent le lot de l’étape 4. L’objectif n’est pas de « cocher M3 » mais de montrer, sujet par sujet, que Novafact est protégé et que la protection est vérifiée.
+
+<Callout kind="tip">
+Ces sujets sont la matière du jeu **Red vs Blue** du capstone : une chaîne prototype pollution → RCE → IMDS → escalade IAM → exfiltration S3, analysée côté attaquant puis défendue en profondeur. Chaque correction de cette étape casse un maillon de cette chaîne.
+</Callout>
+
+## Livrable de l’étape
+
+- Quatre à cinq **fiches** (exposition, cause racine, impact, correction, verrou) sur les sujets M3 pertinents.
+- Les **règles et tests** produits, ajoutés au lot de l’étape 4.
+- Le **rattachement** de chaque sujet à une menace et à une exigence.
+
+<Recap items={[
+  "Sélectionner les sujets M3 réellement exposés dans la stack de Novafact.",
+  "Pour chacun : exposition, cause racine, impact, correction, verrou (règle ou test).",
+  "Rester défensif : mécanisme et parade, pas de pas-à-pas d’exploitation.",
+  "Relier chaque correction au threat model, aux exigences et au boss final Red vs Blue.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Cheat Sheet Series", url: "https://cheatsheetseries.owasp.org/" },
+  { title: "PortSwigger Web Security Academy", url: "https://portswigger.net/web-security" },
+]} />

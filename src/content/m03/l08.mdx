@@ -1,0 +1,184 @@
+export const questions = [
+  {
+    q: "Pourquoi res.render('facture', req.query) est-il dangereux avec EJS ?",
+    options: [
+      "Parce que l'objet passé porte aussi les options du moteur",
+      "Parce que les valeurs de req.query ne sont pas échappées par EJS",
+      "Parce qu'un tableau dans la query fait échouer la compilation du template",
+      "Parce que le template devient dynamique, donc recompilé à chaque requête",
+    ],
+    answer: 0,
+    explain: "Le réflexe XSS est à écarter : EJS échappe bien ce qu'on interpole avec <%= %>, et ce n'est pas ce qui se joue ici. Le template reste le fichier du dépôt, il ne devient pas dynamique. Le vrai problème est que res.render utilise le même objet pour les données de vue et pour les options du moteur : le client fournit donc des options de compilation. CVE-2022-29078 a transformé exactement ce chemin en exécution de code.",
+  },
+  {
+    q: "Novafact veut laisser les clients personnaliser leurs modèles d'e-mail. Quelle approche est la plus sûre ?",
+    options: [
+      "Des templates EJS, rendus dans un worker_thread avec resourceLimits",
+      "Du JavaScript évalué dans un contexte node:vm dédié par tenant",
+      "Un langage sans logique, rendu dans un processus isolé et borné",
+      "Des templates Handlebars, dont le bac à sable bloque l'accès aux prototypes",
+    ],
+    answer: 2,
+    explain: "Le worker_thread avec resourceLimits est le piège le plus convaincant : il semble isoler, et il protège effectivement de l'épuisement mémoire — mais il partage le processus, donc ses secrets, son réseau et son rôle IAM. Handlebars bloque bien l'accès aux prototypes depuis sa version 4.6, et l'histoire des évasions dans ces moteurs reste longue. On empile plutôt les deux : un langage qui ne peut presque rien exprimer, dans un environnement qui ne peut presque rien atteindre.",
+  },
+  {
+    q: "Un développeur propose de rendre les templates clients dans un processus Node lancé avec --permission, sans accès fichiers ni réseau accordé. Est-ce une frontière de sécurité suffisante ?",
+    options: [
+      "Oui, tant qu'aucune permission fichier ni réseau n'est accordée",
+      "Non : Node le décrit comme une ceinture pour le code de confiance",
+      "Non, mais l'ajout d'isolated-vm en ferait une frontière suffisante",
+      "Oui, si le processus est lancé avec --frozen-intrinsics en plus",
+    ],
+    answer: 1,
+    explain: "Ajouter isolated-vm est la réponse la mieux informée, et elle rate encore : le projet est en mode maintenance et prévient lui-même qu'une référence qui fuit vers le code non fiable donne le contrôle du processus — son README conseille de le faire tourner dans un processus distinct. Geler les intrinsèques complique une exploitation sans la fermer. La documentation de Node est nette : c'est une ceinture de sécurité contre les erreurs du code de confiance. La frontière, c'est le système.",
+  },
+  {
+    q: "Le moteur LiquidJS est configuré avec ses valeurs par défaut pour rendre des templates clients. Quel réglage faut-il ajouter en priorité ?",
+    options: [
+      "Activer ownPropertyOnly, qui n'est pas actif par défaut",
+      "Activer strictFilters et strictVariables pour rejeter les entrées inconnues",
+      "Désactiver l'échappement HTML, que Liquid applique deux fois",
+      "Les limites anti-DoS, à Infinity par défaut, et une table de partials en mémoire",
+    ],
+    answer: 3,
+    explain: "ownPropertyOnly est le distracteur qui trompe les gens bien informés : le réglage existe, il compte — et il est déjà actif par défaut, on ne l'écrit que pour la revue. strictFilters mérite d'être activé, mais c'est une question de justesse, pas d'exposition. Ce qui est réellement ouvert par défaut, ce sont les limites de parsing, de rendu et de mémoire, toutes à Infinity, et les inclusions qui vont chercher des fichiers depuis le répertoire courant.",
+  },
+];
+
+<YouKnow>
+Tu sais repérer une SSTI, escalader dans différents moteurs et contourner leurs bacs à sable. Côté conception, la question est : pourquoi le template a-t-il le pouvoir d'exécuter du code, qui peut l'écrire, et où s'arrête réellement l'isolation ?
+</YouKnow>
+
+## Un template est du code
+
+Les moteurs populaires de l'écosystème Node (EJS, Pug, Handlebars, Nunjucks) **compilent les templates en JavaScript**. Deux situations mènent à l'exécution de code :
+
+- l'utilisateur contrôle **le template lui-même** (modèles d'e-mails ou de factures personnalisables : un cas très concret pour Novafact) ;
+- l'utilisateur contrôle **les options du moteur**, souvent parce que l'application passe un objet de requête entier au rendu.
+
+Les documentations le disent parfois sans détour. Celle de Nunjucks contient un avertissement dédié : le moteur ne met pas l'exécution en bac à sable, il n'est donc pas sûr d'y exécuter des templates définis par les utilisateurs. Si ton équipe choisit un moteur, cherche ce paragraphe dans sa documentation avant de choisir.
+
+C'est aussi pourquoi un template **avec logique** est une dette, même écrit par l'équipe. Chaque helper ajouté « pour dépanner » (formater une date, appeler une fonction, lire une propriété dynamique) élargit ce qu'un template peut faire, donc ce qu'une injection pourra faire le jour où une entrée atteindra le template. Garde la logique dans le code applicatif, testé et relu, et ne donne au template que des valeurs déjà calculées. Une règle pratique en revue : si un template a besoin d'un `if` imbriqué ou d'un appel de fonction, l'objet de vue est mal préparé.
+
+## Ne jamais passer la requête au rendu
+
+<Diff file="apps/web-legacy/src/routes/invoice.ts" hlBefore="2" hlAfter="2-6">
+
+```ts
+app.get('/invoice/preview', (req, res) => {
+  res.render('invoice', req.query);
+});
+```
+
+```ts
+app.get('/invoice/preview', async (req, res) => {
+  const { id } = z.object({ id: z.string().uuid() }).parse(req.query);
+  const invoice = await invoices.get(tenantOf(req.session), id);
+  res.render('invoice', { invoice: toInvoiceView(invoice) }); // données explicites, jamais d'options
+});
+```
+
+</Diff>
+
+L'objet passé à `res.render` sert à la fois de **données** et d'**options** du moteur. CVE-2022-29078 (EJS, corrigée en 3.1.7) exploitait précisément une option contrôlée via ce chemin, en combinaison avec une pollution de prototype. La règle est simple et vérifiable par une règle SAST : **on ne passe au rendu qu'un objet construit explicitement**.
+
+<Code file=".semgrep/express-render-request.yml">
+
+```yaml
+rules:
+  - id: express-render-request-object
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >
+      Objet de requête passé à res.render : il peut porter des options du moteur.
+      Construis l'objet de vue explicitement.
+    pattern-either:
+      - pattern: $RES.render($VIEW, req.query, ...)
+      - pattern: $RES.render($VIEW, req.body, ...)
+      - pattern: $RES.render($VIEW, req.params, ...)
+      - pattern: $RES.render($VIEW, req, ...)
+```
+
+</Code>
+
+## Aveugle ne veut pas dire sûr
+
+La recherche classée **1ʳᵉ** du Top 10 des techniques web de 2025, *Successful Errors* (Vladislav Korchagin), montre que les SSTI aveugles (sans sortie visible) se détectent et s'exploitent par les **erreurs**, comme les injections SQL aveugles. Une SSTI « non exploitable parce qu'aveugle » dans un rapport doit être traitée comme exploitable.
+
+Le revers est une opportunité de détection. Une exploitation par erreurs produit, par construction, une rafale d'**erreurs de compilation ou de rendu** de templates. Dans une application où les templates sont écrits par l'équipe, ces erreurs sont rarissimes en production. Journalise-les avec le tenant, la route et un hash du template, et alerte au-delà de quelques occurrences par heure : c'est un signal à faible bruit, qui détecte aussi les tentatives sur des moteurs que tu ne soupçonnais pas exposés.
+
+## Les bacs à sable ne tiennent pas
+
+Plusieurs moteurs ajoutent des restrictions (Handlebars bloque l'accès aux propriétés du prototype par défaut depuis sa version 4.6), mais l'histoire des évasions est longue. La conclusion est la même qu'en M2 : **l'isolation se fait au niveau du processus**, pas dans le langage. Encore faut-il savoir ce que chaque mécanisme promet vraiment :
+
+| Mécanisme | Ce qu'il est | Frontière de sécurité ? |
+| --- | --- | --- |
+| `node:vm` | Un autre contexte V8 dans le même processus | Non : la documentation de Node dit qu'il n'est pas un mécanisme de sécurité |
+| `vm2` | Un bac à sable construit sur des proxys | Non : projet abandonné en 2023 après des évasions critiques répétées ; son auteur renvoie vers `isolated-vm` |
+| `isolated-vm` | Un isolate V8 séparé, dans le même processus | Partielle : le projet est en mode maintenance, prévient qu'une référence qui fuit vers le code non fiable donne le contrôle du processus, et conseille de le faire tourner dans un processus distinct |
+| `worker_threads` avec `resourceLimits` | Un thread avec des limites de mémoire | Non : utile contre l'épuisement de mémoire, pas contre l'exécution de code |
+| Processus Node avec `--permission` | Restrictions fichiers, réseau, processus enfants | Non contre du code malveillant : la documentation parle d'une « ceinture de sécurité » pour le code de confiance |
+| Conteneur ou fonction sans droits ni réseau | Isolation du système d'exploitation, identité cloud minimale | Oui, c'est le niveau à viser pour du code non fiable |
+
+La bonne lecture de ce tableau n'est pas « choisis la dernière ligne et oublie le reste », mais **empile** : un langage de template qui ne peut presque rien exprimer, rendu dans un environnement qui ne peut presque rien atteindre. Une évasion du langage ne donne alors accès qu'à un processus sans secret, sans réseau et sans rôle.
+
+## Des templates personnalisables, sans danger
+
+<Steps items={[
+  { title: "Limiter l'expressivité", text: "Un langage sans logique (Mustache) ou conçu pour du contenu non fiable (Liquid via liquidjs), avec uniquement des variables et des filtres prévus." },
+  { title: "Isoler l'exécution", text: "Rendre les templates clients dans un worker ou un service séparé, sans secrets ni accès réseau, avec un délai et une mémoire maximum." },
+  { title: "Contrôler les données", text: "Le template ne reçoit qu'un objet de vue préparé (les champs de la facture), jamais d'objet métier complet." },
+  { title: "Échapper la sortie", text: "Le HTML produit par le template client est lui-même assaini avant envoi (e-mail ou page)." },
+]} />
+
+LiquidJS illustre bien l'écart entre « conçu pour du contenu non fiable » et « sûr avec les réglages par défaut ». Il limite déjà l'accès aux propriétés propres des objets (`ownPropertyOnly`, activé par défaut), mais ses limites anti-DoS valent `Infinity` par défaut, et les inclusions (`include`, `render`, `layout`) sont cherchées dans le système de fichiers à partir du répertoire courant :
+
+<Code file="services/template-render/src/engine.ts" hl="5-7,9">
+
+```ts
+import { Liquid } from 'liquidjs';
+
+export const engine = new Liquid({
+  strictFilters: true,        // un filtre inconnu est une erreur, pas une chaîne vide
+  parseLimit: 50_000,         // limites anti-DoS : désactivées par défaut
+  renderLimit: 500,
+  memoryLimit: 1_000_000,
+  ownPropertyOnly: true,      // déjà la valeur par défaut, écrite pour la revue
+  templates: APPROVED_PARTIALS, // table en mémoire : aucune inclusion de fichier
+});
+
+export const renderInvoice = (source: string, view: InvoiceView) =>
+  engine.parseAndRender(source, { invoice: view });
+```
+
+</Code>
+
+<Callout kind="novafact">
+Architecture retenue pour les modèles clients : le template est stocké en base après validation syntaxique (le parsing échoue à l'enregistrement, pas à l'envoi). Le rendu a lieu dans une fonction Lambda dédiée, placée dans un sous-réseau sans NAT, avec un groupe de sécurité sans règle sortante (donc sans accès réseau), avec un rôle IAM qui n'autorise que l'écriture de ses journaux, un délai de 5 secondes et 256 Mo de mémoire. Elle reçoit le template et l'objet de vue, renvoie du HTML, qui est ensuite assaini avec `sanitize-html` et une liste blanche de balises adaptée aux e-mails. Une évasion de LiquidJS donnerait accès à… un processus qui ne connaît ni secret, ni base, ni Internet.
+</Callout>
+
+<Callout kind="warn">
+Le HTML produit par un template client reste du contenu non fiable, même sans aucune exécution de code côté serveur. Dans un e-mail ou une page, il peut contenir du CSS ou des liens trompeurs : la recherche *CSS: the bomb inside your inbox* (leçon 12) montre ce que du CSS seul permet dans un webmail. L'assainissement de la sortie n'est pas une ceinture en plus, c'est une couche à part entière.
+</Callout>
+
+<Recap items={[
+  "Un template compilé en JavaScript est du code : qui l'écrit, et avec quelles options ?",
+  "Ne jamais passer req.query ou req.body à res.render ; construire l'objet de vue explicitement, et le vérifier par une règle Semgrep.",
+  "Les SSTI aveugles s'exploitent par les erreurs (Top 10 2025, n° 1) ; ces mêmes erreurs sont un bon signal de détection.",
+  "node:vm, vm2, worker_threads et --permission ne sont pas des frontières contre du code malveillant ; isolated-vm conseille lui-même un processus séparé.",
+  "Templates clients : langage limité et bien configuré, exécution isolée sans droits ni réseau, données préparées, sortie assainie.",
+]} />
+
+<Lab id="ps-ssti" />
+
+<Sources items={[
+  { title: "Web Security Academy : Server-side template injection", url: "https://portswigger.net/web-security/server-side-template-injection" },
+  { title: "GitHub Advisory : CVE-2022-29078 (EJS)", url: "https://github.com/advisories/GHSA-phwq-j96m-2c2q" },
+  { title: "PortSwigger : Top 10 web hacking techniques of 2025", url: "https://portswigger.net/research/top-10-web-hacking-techniques-of-2025" },
+  { title: "LiquidJS", url: "https://liquidjs.com/" },
+  { title: "Node.js : node:vm (not a security mechanism)", url: "https://nodejs.org/api/vm.html" },
+  { title: "Node.js : modèle de permissions", url: "https://nodejs.org/api/permissions.html" },
+  { title: "vm2 : annonce de fin du projet", url: "https://github.com/patriksimek/vm2" },
+  { title: "isolated-vm : section Security du README", url: "https://github.com/laverdet/isolated-vm" },
+  { title: "Nunjucks : User-Defined Templates Warning", url: "https://mozilla.github.io/nunjucks/api.html" },
+]} />

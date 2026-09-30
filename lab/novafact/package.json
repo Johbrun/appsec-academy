@@ -1,0 +1,17 @@
+{
+  "name": "@novafact/sdk",
+  "version": "2.4.0",
+  "description": "SDK client de Novafact — fixture volontairement défectueuse du lab.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@novafact/ui-kit": "^1.2.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

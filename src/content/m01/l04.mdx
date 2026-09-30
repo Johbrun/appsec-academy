@@ -1,0 +1,150 @@
+export const questions = [
+  {
+    q: "Quelle est la différence fondamentale entre BSIMM et SAMM ?",
+    options: [
+      "BSIMM décrit ce qui est observé ; SAMM prescrit ce qu'il faudrait faire",
+      "Les niveaux BSIMM mesurent une maturité croissante, ceux de SAMM une couverture",
+      "BSIMM mesure l'efficacité des activités, SAMM seulement leur présence",
+      "BSIMM couvre tout le cycle de développement, SAMM s'arrête à la conception",
+    ],
+    answer: 0,
+    explain: "La confusion sur les niveaux est la plus fréquente : les deux modèles numérotent de 1 à 3, mais chez SAMM le niveau décrit une pratique de plus en plus aboutie, chez BSIMM une fréquence d'observation décroissante. Et aucun des deux ne mesure l'efficacité : BSIMM compte qui fait quoi, et le dit lui-même. La vraie ligne de partage est de nature — descriptif d'un côté, prescriptif de l'autre.",
+  },
+  {
+    q: "Selon BSIMM16, quel facteur est devenu le premier moteur d'évolution des programmes ?",
+    options: [
+      "La conformité réglementaire (CRA, auto-attestation SSDF)",
+      "La migration vers le cloud et l'orchestration de conteneurs",
+      "Les exigences de SBOM des clients publics",
+      "L'IA",
+    ],
+    answer: 3,
+    explain: "La conformité réglementaire est le bon second, et c'est elle qui tire les SBOM : ils progressent de près de 30 % sous la pression de l'auto-attestation pour vendre au gouvernement américain. Mais BSIMM16 (janvier 2026) la fait passer derrière l'IA, qui devient pour la première fois le premier facteur de reconfiguration des priorités : sécuriser les applications qui intègrent des modèles, et encadrer le code généré.",
+  },
+  {
+    q: "Une activité BSIMM est classée au niveau 3. Qu'est-ce que ça signifie ?",
+    options: [
+      "Qu'elle suppose acquises les activités de niveau 1 et 2 de la même pratique",
+      "Qu'elle est la plus exigeante à mettre en œuvre dans sa pratique",
+      "Qu'elle est peu observée, ou qu'elle vient d'entrer dans le modèle",
+      "Qu'elle distingue les programmes les plus matures du pool de données",
+    ],
+    answer: 2,
+    explain: "« La plus exigeante » est presque vrai, et c'est ce qui trompe : les activités de niveau 3 sont souvent plus lourdes, mais le niveau ne mesure que la fréquence d'observation. D'où deux conséquences que les autres réponses ratent : une activité nouvelle entre au niveau 3 avec zéro observation, et une organisation peut pratiquer du niveau 3 sans aucune activité de niveau 2 dans la même pratique, sans que ce soit une anomalie.",
+  },
+  {
+    q: "Ta direction veut « faire comme les autres » et propose de copier les 12 activités les plus observées de BSIMM16. Quelle est la meilleure réponse ?",
+    options: [
+      "Accepter : ces douze activités sont pratiquées par trois participants sur quatre",
+      "Noter les écarts, puis les prioriser selon le risque propre à Novafact",
+      "Écarter BSIMM : son pool est fait de grandes organisations peu comparables à Novafact",
+      "Commencer par les activités de niveau 1 de cette liste, les moins coûteuses à mettre en place",
+    ],
+    answer: 1,
+    explain: "Copier la liste telle quelle, c'est du mimétisme : la fréquence d'une activité dit ce que font les autres, pas ce que ton risque exige — le pentest externe est dans le Top 10 sans que le modèle mesure ce qu'il évite. Commencer par le moins coûteux trie par effort et laisse les trous importants ouverts. Écarter BSIMM jette un signal utilisable. Le rapport recommande lui-même de comparer d'abord le scorecard aux attentes réalistes de l'organisation, puis au pool, et de prioriser les écarts importants ou longs à combler.",
+  },
+];
+
+<YouKnow>
+En mission, tu compares souvent une cible à « ce qu'on voit d'habitude ». BSIMM formalise ce réflexe à l'échelle de plus d'une centaine d'organisations.
+</YouKnow>
+
+## Un modèle descriptif
+
+BSIMM (Building Security In Maturity Model), publié par Black Duck, ne dit pas ce qu'il faudrait faire. Il décrit **ce que font réellement** les organisations évaluées, à partir d'entretiens et de preuves. Chaque édition recense des activités et indique quelle part des organisations les pratique.
+
+Le projet est né en 2008 : ses auteurs ont interrogé des organisations réputées efficaces pour savoir comment elles s'y prenaient, et ont publié BSIMM1 avec neuf entreprises. L'édition **BSIMM16**, publiée en janvier 2026, repose sur **111 organisations** (cloud, services financiers, fintech, santé, éditeurs de logiciels, assurance, IoT, technologie). Ensemble, elles comptent environ 10 200 professionnels de la sécurité qui accompagnent quelque 223 700 développeurs sur environ 91 200 applications.
+
+Quelques chiffres de contexte, utiles pour calibrer tes attentes : les équipes de sécurité logicielle des participants (les SSG, *software security groups*) réunissent environ 3 700 personnes, épaulées par près de 6 500 security champions, et l'âge moyen de leur programme est de 5,6 ans. Le pool change chaque année : 16 organisations ont été ajoutées pour BSIMM16 et 26 retirées faute de données récentes.
+
+## La structure
+
+BSIMM regroupe **128 activités** en **4 domaines** et **12 pratiques** :
+
+| Domaine | Pratiques |
+| --- | --- |
+| Governance | Strategy & Metrics · Compliance & Policy · Training |
+| Intelligence | Attack Models · Security Features & Design · Standards & Requirements |
+| SSDL Touchpoints | Architecture Analysis · Code Review · Security Testing |
+| Deployment | Penetration Testing · Software Environment · Configuration & Vulnerability Management |
+
+Chaque activité a un identifiant : l'abréviation de la pratique, le niveau, puis un numéro. `[SM1.4]` est donc une activité de niveau 1 de Strategy & Metrics, `[CMVM2.4]` une activité de niveau 2 de Configuration & Vulnerability Management.
+
+Le niveau (1 à 3) reflète la **fréquence d'observation**, pas la difficulté prescrite ni l'efficacité. Les activités de niveau 1, souvent simples et applicables partout, sont les plus observées ; celles de niveau 3, plus exigeantes et pas toujours pertinentes, sont rares. Une activité nouvelle entre au niveau 3 avec zéro observation, parce qu'on ne sait pas encore si elle se répandra.
+
+<Callout kind="warn">
+Ne lis pas les niveaux BSIMM comme ceux de SAMM. Chez SAMM, le niveau 3 décrit une pratique plus aboutie. Chez BSIMM, il décrit une activité peu répandue. Une organisation peut très bien pratiquer une activité de niveau 3 sans aucune de niveau 2 dans la même pratique, et ce n'est pas une anomalie.
+</Callout>
+
+## Ce que font presque tous les participants
+
+Le rapport publie un « Top 10 » des activités les plus observées ; à cause d'égalités, il en compte 12 cette année, toutes pratiquées par environ trois participants sur quatre ou plus (de 72,7 % à 87,6 % selon le rapport).
+
+| Activité | Ce que ça veut dire concrètement |
+| --- | --- |
+| `[CMVM1.1]` Créer ou s'interfacer avec la réponse à incident | L'équipe AppSec sait qui appeler, et qui l'appelle, en cas d'incident |
+| `[SM1.4]` Mettre en place des points de contrôle et leur gouvernance | Des portes de sécurité dans le cycle de livraison (leçon suivante) |
+| `[SE1.2]` Assurer les bases de sécurité hôte et réseau | Le socle d'infrastructure est tenu |
+| `[CR1.4]` Utiliser des outils de revue de code automatisée | Un SAST configuré, pas seulement installé |
+| `[PT1.1]` Faire appel à des pentesters externes | Ton ancien métier, au cœur du modèle |
+| `[CP1.2]` Identifier les obligations de vie privée | RGPD et contrats clients recensés |
+| `[ST1.1]` Tester les valeurs limites pendant la recette | Des cas de test aux bornes |
+| `[CP1.3]` Rédiger une politique | Une politique de sécurité logicielle écrite |
+| `[AA1.1]` Faire une revue des fonctions de sécurité | Revue de l'authentification, de l'autorisation, de la crypto |
+| `[CP1.1]` Unifier les pressions réglementaires | Une seule vue des exigences légales |
+| `[SR1.2]` Créer un portail de sécurité | Un point d'entrée unique pour la doc et les standards |
+| `[SR1.5]` Identifier l'open source | Savoir quels composants tiers sont utilisés |
+
+## Ce que dit BSIMM16
+
+Trois tendances ressortent de l'édition 2026 :
+
+- **L'IA** devient, pour la première fois, le premier facteur qui fait évoluer les programmes : sécuriser les applications qui intègrent des modèles, et encadrer l'usage de l'IA par les développeurs. Les participants qui suivent les nouvelles attaques contre l'IA (`[AM1.5]`) progressent de 10 %, et ceux qui écrivent des règles maison pour leurs outils de revue automatisée, notamment pour le code généré par IA, d'environ 10 % également.
+- **Les SBOM** progressent fortement (près de 30 % d'organisations en plus en produisent), portées par les exigences d'auto-attestation pour vendre au gouvernement américain.
+- **La formation change de forme** : l'expertise partagée via des canaux de collaboration ouverts (`[T2.12]`) progresse de 29 %, au détriment des longues sessions en salle.
+
+L'automatisation de la vérification de l'infrastructure progresse de plus de 50 %, et la divulgation responsable des vulnérabilités (`[CMVM2.4]`) de plus de 40 %. Autre signe notable : pour la première fois en seize éditions, le modèle n'a subi aucun changement de structure. Les auteurs ont préféré laisser mûrir les tendances plutôt que déplacer des activités sur des signaux fragiles.
+
+Un exemple de ce que cette lecture donne en pratique. L'inventaire des scripts tiers chargés par les pages sensibles est une activité très répandue chez les participants, et souvent absente des petites structures : chez Novafact, personne ne sait dire ce que la page de paiement charge (M4). Le modèle ne dit pas que c'est grave — il dit que la plupart des organisations comparables le font, ce qui est exactement l'argument qui manque quand on demande une demi-journée pour l'établir.
+
+## Comment s'en servir
+
+<Steps items={[
+  { title: "Argumenter", text: "« La grande majorité des organisations comparables font déjà X » est un argument budgétaire plus fort qu'un avis d'expert." },
+  { title: "Repérer les angles morts", text: "Une activité très répandue que Novafact ne pratique pas mérite une explication." },
+  { title: "Éviter le mimétisme", text: "Ce que tout le monde fait n'est pas forcément ce dont tu as besoin. Le risque reste le juge." },
+]} />
+
+Le rapport décrit aussi comment construire ton propre **scorecard** : lister les parties prenantes (SSG, champions, développement, QA, exploitation, tests), mener des entretiens courts centrés sur les activités qui les concernent, exiger les artefacts qui prouvent l'activité en profondeur et en largeur avant de l'accorder, puis noter en binaire (0 ou 1), en trois niveaux ou en pourcentage. On compare d'abord le résultat aux attentes réalistes de l'organisation, ensuite seulement au pool de données, et on refait l'exercice dans 12 à 18 mois.
+
+<Callout kind="novafact">
+Mini-scorecard de Novafact sur le Top 10 (évaluation fictive, faite par toi en une semaine) : `[PT1.1]` oui, un pentest externe annuel ; `[CMVM1.1]` partiel, l'astreinte existe mais l'AppSec n'y figure pas ; `[CR1.4]` non, le SAST tourne sans règles adaptées ni suivi ; `[SR1.5]` non, aucun inventaire des dépendances ; `[CP1.2]` oui, via le DPO. Trois écarts sur des activités que les trois quarts des participants pratiquent : c'est le message à porter en comité.
+</Callout>
+
+<Callout kind="debate">
+BSIMM a ses critiques. Les participants sont des organisations qui ont choisi de se faire évaluer, plutôt grandes et déjà engagées ; le « marché » qu'il décrit n'est pas la moyenne des entreprises. Et une activité fréquente n'est pas forcément efficace : le pentest externe figure dans le Top 10, sans que le modèle mesure ce qu'il évite. Ses défenseurs répondent que BSIMM ne prétend pas mesurer l'efficacité, seulement l'usage, et que c'est précisément ce qu'une direction demande quand elle veut savoir « ce que font les autres ».
+</Callout>
+
+## SAFECode, l'autre référence descriptive
+
+Autre référence utile : les *Fundamental Practices for Secure Software Development* de SAFECode (3e édition, mars 2018). Ce document, rédigé par des éditeurs membres de l'association, décrit les pratiques que ces entreprises ont éprouvées sur leur propre cycle de développement : conception, pratiques de codage, gestion des composants tiers, tests, réponse aux vulnérabilités. Il est plus court et plus opérationnel que BSIMM, mais ne donne pas de statistiques de fréquence. Utilise-le comme liste de départ quand tu écris la politique de développement sécurisé de Novafact.
+
+<Callout kind="tip">
+Utilise SAMM pour **décider où aller**, et BSIMM pour **vérifier que tu n'es pas seul à y aller**. Présenter les deux ensemble à une direction est très efficace : une cible argumentée, et une comparaison avec le marché.
+</Callout>
+
+<Recap items={[
+  "BSIMM est descriptif : il observe ce que font réellement les organisations, depuis 2008.",
+  "BSIMM16 (janvier 2026) repose sur 111 organisations et 128 activités, en 4 domaines et 12 pratiques.",
+  "Les niveaux BSIMM mesurent la fréquence d'observation, pas l'efficacité ni la maturité.",
+  "Le Top 10 regroupe des activités pratiquées par environ trois participants sur quatre : incident, portes de contrôle, revue automatisée, pentest externe, inventaire open source.",
+  "Tendances 2026 : l'IA en tête, forte progression des SBOM, de la divulgation responsable et de la formation « au fil de l'eau ».",
+  "SAMM pour décider, BSIMM pour se comparer et argumenter.",
+]} />
+
+<Sources items={[
+  { title: "BSIMM16 Report (Black Duck)", url: "https://www.blackduck.com/resources/analyst-reports/bsimm.html" },
+  { title: "BSIMM16, rapport complet (PDF)", url: "https://www.blackduck.com/content/dam/black-duck/en-us/reports/bsimm-report.pdf", note: "Top 10, tendances, construction d'un scorecard" },
+  { title: "Annonce de BSIMM16, février 2026", url: "https://news.blackduck.com/2026-02-04-Black-Duck-Releases-BSIMM16-Revealing-AI-and-Regulatory-Compliance-Reshaping-Application-Security-Processes" },
+  { title: "SAFECode, Fundamental Practices for Secure Software Development (3e éd.)", url: "https://safecode.org/wp-content/uploads/2018/03/SAFECode_Fundamental_Practices_for_Secure_Software_Development_March_2018.pdf" },
+]} />

@@ -1,0 +1,48 @@
+name: Release du SDK
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # CORRIGÉ : publication de confiance par OIDC — plus de jeton à voler.
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # CORRIGÉ : la clé ne dépend plus d'une valeur contrôlée par l'auteur
+      # d'une PR. Sans ça, un job peu privilégié écrit dans le cache que le job
+      # de publication restaure et exécute.
+      - uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.1.2
+        with:
+          path: node_modules
+          key: deps-${{ github.workflow }}-${{ hashFiles('package-lock.json') }}
+
+      - run: npm ci && npm run build
+
+      # CORRIGÉ : provenance attestée, et plus de NODE_AUTH_TOKEN.
+      - name: Publier sur npm
+        run: npm publish --provenance --access public
+
+      # CORRIGÉ : l'artefact est signé à la construction. La vérification a
+      # lieu à l'admission, dans deploy.yml.
+      - name: Signer l'image
+        run: cosign sign --yes "$IMAGE"
+        env:
+          IMAGE: ghcr.io/novafact/api:${{ github.ref_name }}
+
+  notify:
+    needs: publish
+    uses: ./.github/workflows/notify.yml
+    # CORRIGÉ : seul le secret réellement utilisé est transmis.
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

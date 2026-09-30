@@ -1,0 +1,75 @@
+# Livrable de référence du challenge « test-strategy ».
+#
+# Le principe : une technique coûte du temps là où on la met. Sur le chemin
+# critique, ce temps se paie à chaque commit et finit par se contourner ; hors
+# du chemin critique, il ne coûte rien mais arrive après. Chaque ligne dit donc
+# quatre choses : où, est-ce que ça bloque, combien de temps, et par quel
+# déclencheur — avec la mention de ce qui existe déjà dans le dépôt.
+
+version: 1
+
+techniques:
+  - technique: secrets
+    etape: pre-commit
+    bloquant: true
+    budget_minutes: 0.5
+    declencheur: local
+    workflow_existe: false
+    pourquoi: >-
+      Un secret poussé est un secret à révoquer. Le seul moment où le blocage
+      est encore gratuit, c'est avant le commit.
+
+  - technique: sast
+    etape: pull-request
+    bloquant: true
+    budget_minutes: 4
+    declencheur: pull_request
+    workflow_existe: true
+    pourquoi: >-
+      Ni build ni environnement nécessaires. Sur la PR, le retour arrive pendant
+      que l'auteur a encore le code en tête.
+
+  - technique: sca
+    etape: pull-request
+    bloquant: true
+    budget_minutes: 2
+    declencheur: pull_request
+    workflow_existe: true
+    pourquoi: >-
+      C'est la modification du lockfile qui pose la question : elle se relit
+      dans la PR, avec le reste du diff.
+
+  - technique: regression
+    etape: pull-request
+    bloquant: true
+    budget_minutes: 3
+    declencheur: pull_request
+    workflow_existe: true
+    pourquoi: >-
+      Le filet qui empêche un défaut corrigé de revenir. S'il ne bloque pas, il
+      ne sert à rien.
+
+  - technique: dast
+    etape: nightly
+    bloquant: false
+    budget_minutes: 25
+    declencheur: schedule
+    workflow_existe: false
+    pourquoi: >-
+      Il faut un environnement déployé et authentifié : rien de tout cela
+      n'existe au moment de la PR. Le dépôt n'a aucun déclencheur planifié —
+      ce workflow reste à créer.
+
+  - technique: fuzzing
+    etape: nightly
+    bloquant: false
+    budget_minutes: 120
+    declencheur: schedule
+    workflow_existe: false
+    pourquoi: >-
+      Une recherche dont on ne connaît pas la durée ne barre pas la route à une
+      livraison. Le corpus trouvé, lui, repart en régression sur la PR.
+
+note: >-
+  Total bloquant sur la pull request : neuf minutes. C'est le budget qui décide
+  de ce qui peut y entrer — pas l'inverse.

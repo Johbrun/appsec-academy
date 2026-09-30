@@ -1,0 +1,90 @@
+{
+  "_note": "Extrait de MITRE ATT&CK Enterprise, réduit à ce dont le lab a besoin.",
+  "techniques": [
+    {
+      "id": "T1110",
+      "name": "Brute Force",
+      "deprecated": false
+    },
+    {
+      "id": "T1110.003",
+      "name": "Password Spraying",
+      "deprecated": false
+    },
+    {
+      "id": "T1110.004",
+      "name": "Credential Stuffing",
+      "deprecated": false
+    },
+    {
+      "id": "T1078",
+      "name": "Valid Accounts",
+      "deprecated": false
+    },
+    {
+      "id": "T1098",
+      "name": "Account Manipulation",
+      "deprecated": false
+    },
+    {
+      "id": "T1136.001",
+      "name": "Create Account: Local Account",
+      "deprecated": false
+    },
+    {
+      "id": "T1190",
+      "name": "Exploit Public-Facing Application",
+      "deprecated": false
+    },
+    {
+      "id": "T1213",
+      "name": "Data from Information Repositories",
+      "deprecated": false
+    },
+    {
+      "id": "T1499",
+      "name": "Endpoint Denial of Service",
+      "deprecated": false
+    },
+    {
+      "id": "T1528",
+      "name": "Steal Application Access Token",
+      "deprecated": false
+    },
+    {
+      "id": "T1539",
+      "name": "Steal Web Session Cookie",
+      "deprecated": false
+    },
+    {
+      "id": "T1562.008",
+      "name": "Impair Defenses: Disable or Modify Cloud Logs",
+      "deprecated": false
+    },
+    {
+      "id": "T1567",
+      "name": "Exfiltration Over Web Service",
+      "deprecated": false
+    },
+    {
+      "id": "T1070",
+      "name": "Indicator Removal",
+      "deprecated": false
+    },
+    {
+      "id": "T1035",
+      "name": "Service Execution",
+      "deprecated": true
+    },
+    {
+      "id": "T1064",
+      "name": "Scripting",
+      "deprecated": true
+    },
+    {
+      "id": "T1086",
+      "name": "PowerShell",
+      "deprecated": true
+    }
+  ]
+}

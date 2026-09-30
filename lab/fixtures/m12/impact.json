@@ -1,0 +1,5 @@
+{
+  "_": "Le classement de référence par impact pour ce dépôt. C'est le RÉSULTAT attendu d'un audit de quelques heures — pas la manière d'y arriver, qui n'est pas observable et n'est donc pas notée. `direct_loss` désigne ce qui fait perdre de l'argent tout de suite, par opposition à ce qui coûte un contrat, une amende ou un client plus tard.",
+  "top": ["bola-invoice", "invoice-state", "race-credit", "nosql-auth", "proto-pollution"],
+  "direct_loss": ["invoice-state", "race-credit"]
+}

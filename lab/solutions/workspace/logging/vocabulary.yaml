@@ -1,0 +1,50 @@
+# Le vocabulaire imposé — corrigé de référence.
+#
+# Les identifiants sont ceux du vocabulaire de journalisation d'OWASP
+# (fixtures/m18/vocabulary/owasp-events.txt) : on n'en invente pas. Un journal
+# est une interface — il a un schéma, des consommateurs, et il se casse comme
+# une API. « Échec de connexion pour untel » n'est pas un schéma.
+#
+# `required_fields` déclare le socle sans lequel aucune règle ne peut
+# s'appuyer sur la ligne. Les champs de contexte au-delà du socle sont laissés
+# à l'appréciation : ils ne sont pas notés.
+events:
+  - scenario: S1
+    event: authn_login_fail
+    level: WARN
+    required_fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path]
+
+  - scenario: S2
+    event: authn_login_lock
+    level: WARN
+    required_fields: ["@timestamp", event.action, event.outcome, user.name, source.ip]
+
+  - scenario: S3
+    event: authz_fail
+    level: WARN
+    required_fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path]
+
+  - scenario: S4
+    event: malicious_direct_reference
+    level: CRITICAL
+    required_fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path]
+
+  - scenario: S5
+    event: excess_rate_limit_exceeded
+    level: WARN
+    required_fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path]
+
+  - scenario: S6
+    event: privilege_permissions_changed
+    level: CRITICAL
+    required_fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path]
+
+  - scenario: S7
+    event: sensitive_read
+    level: INFO
+    required_fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path]
+
+  - scenario: S8
+    event: user_created
+    level: INFO
+    required_fields: ["@timestamp", event.action, event.outcome, user.name, source.ip, url.path]

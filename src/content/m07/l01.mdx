@@ -1,0 +1,174 @@
+export const questions = [
+  {
+    q: "Selon Kohnfelder, comment réduire le risque lié aux composants implicitement fiables (OS, runtime, bibliothèques, cloud) ?",
+    options: [
+      "Vérifier soi-même le code de chaque composant avant de l'adopter",
+      "Savoir explicitement à qui l'on fait confiance, et réduire leur nombre",
+      "Remplacer les composants tiers par des implémentations internes",
+      "Exiger de chaque fournisseur une attestation de conformité annuelle",
+    ],
+    answer: 1,
+    explain: "On ne peut pas tout vérifier : ni lire le code de 1 400 paquets transitifs, ni auditer AWS. Ce qui reste possible, c'est de tenir la liste consciente de ce qu'on considère comme fiable et de limiter le nombre de fournisseurs, puisque chacun est une occasion de plus d'être déçu. Réécrire en interne ne supprime pas le problème, il le déplace vers ce qu'il faudra construire et sécuriser ; et une attestation annuelle documente la confiance sans la réduire.",
+  },
+  {
+    q: "Que signifie « faire confiance, mais vérifier » en logiciel ?",
+    options: [
+      "Refuser toute action qui n'a pas été validée à l'avance par un tiers",
+      "Faire confiance au fournisseur, en s'appuyant sur ses certifications",
+      "Autoriser l'action, et garder un audit fiable qui permet de la vérifier",
+      "Exiger une double approbation humaine sur chaque action sensible",
+    ],
+    answer: 2,
+    explain: "La confiance est un spectre : entre l'accès permanent et le refus pur et simple, l'autorisation bornée couplée à un audit fiable permet de vérifier après coup, automatiquement sur le volume et par échantillonnage à la main. La double approbation est un contrôle préventif — utile, mais coûteux, et il bloque le support au lieu de l'outiller. Quant à s'appuyer sur des certifications, c'est faire confiance sans rien vérifier chez soi.",
+  },
+  {
+    q: "Novafact ajoute un petit paquet npm de formatage de dates. À qui fait-elle confiance, en réalité ?",
+    options: [
+      "Au paquet, à ses dépendances, à leurs mainteneurs présents et futurs",
+      "Au code de ce paquet, tel qu'on l'a lu et figé dans le lockfile",
+      "Au registre npm, qui vérifie les paquets publiés par signature",
+      "À l'écosystème open source, dont la relecture publique fait la sécurité",
+    ],
+    answer: 0,
+    explain: "La confiance est transitive : elle s'étend à tout ce que le paquet importe, à toute personne capable d'en publier la prochaine version et à la sécurité de leurs comptes. Le lockfile fige bien ce qu'on a lu — c'est ce qui rend l'objection tentante —, mais il sera mis à jour, et c'est à ce moment-là que la décision de confiance se rejoue sans que personne la prenne. C'est exactement l'affaire event-stream, en 2018 : un changement de mainteneur que personne n'avait approuvé, et que la relecture publique n'a pas vu pendant plus de deux mois.",
+  },
+  {
+    q: "Que signifie « zero trust » dans le sens de NIST SP 800-207 ?",
+    options: [
+      "Ne faire confiance à aucun composant, y compris le système d'exploitation",
+      "Chiffrer et authentifier tous les flux, y compris entre services internes",
+      "Supprimer les dépendances externes et internaliser les composants critiques",
+      "Ne pas accorder de confiance implicite selon l'emplacement réseau",
+    ],
+    answer: 3,
+    explain: "Le modèle du NIST retire la confiance accordée parce qu'une requête « vient de l'intérieur » : chaque accès est authentifié et autorisé pour lui-même. Il ne supprime pas les décisions de confiance — un système zero trust fait toujours confiance à son fournisseur d'identité, à son moteur de politiques et à ses clés. Chiffrer et authentifier les flux internes en est une conséquence fréquente, pas la définition : on peut avoir du mTLS partout et continuer d'autoriser sur la seule foi du sous-réseau d'origine.",
+  },
+];
+
+<YouKnow>
+En pentest, tu cherches les endroits où un système fait confiance à ce qu'il ne devrait pas. Kohnfelder place la confiance au fondement même de la sécurité logicielle : c'est le point de départ du bloc Concevoir.
+</YouKnow>
+
+## Tout repose sur la confiance
+
+Aucun système ne se construit seul, du silicium à l'application. Novafact fait confiance à AWS, au système d'exploitation, au runtime Node, à des centaines de paquets npm, à GitHub, au prestataire de paiement. Kohnfelder (K1) en tire trois idées qui structurent la suite du parcours.
+
+Vu du côté offensif, presque toutes les vulnérabilités que tu as exploitées sont des **erreurs de confiance** : une entrée utilisateur traitée comme du code (injection), un identifiant fourni par le client traité comme une preuve de propriété (BOLA), un en-tête `Host` traité comme la vérité sur l'URL de l'application, un jeton dont on ne vérifie pas la signature. Concevoir, c'est d'abord décider consciemment à qui et à quoi on fait confiance, et pour quoi.
+
+## La confiance est un spectre
+
+On n'accorde jamais une confiance totale ou nulle : on l'accorde **dans une certaine mesure**. Une carte bancaire a un plafond, une clé de voiturier n'ouvre pas le coffre. En logiciel, l'outil qui comble l'écart entre confiance totale et défiance totale est le couple **autorisation + audit** : on permet une action, et on garde une trace fiable pour la vérifier après coup, automatiquement sur le volume et manuellement par échantillonnage.
+
+Un exemple concret chez Novafact : l'équipe support doit parfois voir les factures d'un client pour l'aider. Refuser tout accès bloque le support ; donner un accès permanent à toutes les données fait de chaque agent une cible de choix. La solution se place au milieu du spectre : un accès **accordé par ticket**, limité à un tenant, **borné dans le temps**, et **journalisé**, avec une revue par échantillonnage chaque semaine.
+
+<Code file="apps/backoffice/src/support/grant.ts" hl="11,12,13,14,15">
+
+```ts
+import { z } from 'zod';
+
+const SupportGrant = z.object({
+  agentId: z.string(),
+  tenantId: z.string(),
+  ticketId: z.string().regex(/^SUP-\d+$/),
+  expiresAt: z.coerce.date(),
+});
+
+export async function requireSupportGrant(agentId: string, tenantId: string) {
+  const raw = await grants.findActive(agentId, tenantId);
+  if (!raw) throw new ForbiddenError('aucun accès support pour ce tenant');
+  const grant = SupportGrant.parse(raw);
+  if (grant.expiresAt.getTime() <= Date.now()) throw new ForbiddenError('accès support expiré');
+  await audit.write({ action: 'support.access', actor: agentId, tenantId, ticketId: grant.ticketId });
+  return grant;
+}
+```
+
+</Code>
+
+Le client, lui, voit dans son propre journal d'audit que le support a consulté son compte, pour quel ticket et quand. Cette visibilité fait partie de la confiance qu'on lui demande.
+
+## Les composants implicitement fiables
+
+Une partie de la pile est **implicitement** fiable : on ne peut pas tout vérifier, donc on s'appuie sur la réputation du fournisseur. Kohnfelder recommande de :
+
+- **savoir** explicitement ce qui est considéré comme fiable, plutôt que de le découvrir lors d'un incident ;
+- **réduire le nombre de parties** à qui l'on fait confiance : chaque fournisseur supplémentaire est une occasion de plus d'être déçu ;
+- réfléchir avant d'**élargir** fortement ce périmètre (une nouvelle dépendance, un nouveau SaaS, un nouvel agent IA).
+
+<Callout kind="novafact">
+Exercice : lister les composants implicitement fiables de Novafact. Le résultat surprend l'équipe : 1 400 paquets npm transitifs, 11 scripts tiers sur le front, 6 SaaS avec un accès aux données de production, 3 GitHub Apps avec des droits en écriture. Chaque ligne devient un sujet des modules 4, 14 et 15.
+</Callout>
+
+L'exercice devient utile quand chaque ligne dit **pour quoi** on fait confiance et **ce qui arriverait** si cette confiance était trahie :
+
+| Composant | On lui fait confiance pour… | Si la confiance est trahie | Ce qui réduit la dépendance |
+| --- | --- | --- | --- |
+| AWS | Isoler nos comptes, garder nos clés KMS | Tout | Rien de réaliste : confiance assumée, documentée |
+| Paquets npm | Faire ce qu'annonce leur code, à chaque version | Exécution de code en CI et en production | Lockfile, revue des nouvelles dépendances, scripts d'installation bloqués (M14) |
+| Scripts tiers du front | Ne pas lire le DOM de la page de paiement | Vol de données saisies | Inventaire, CSP, iframe du prestataire (M4) |
+| GitHub Apps en écriture | Ne modifier que ce qu'on attend | Code malveillant poussé sur `main` | Droits minimaux, protection de branche, revue des installations |
+| Fournisseur d'IA | Ne pas conserver ni réutiliser les données envoyées | Fuite de factures | Contrat, minimisation des données envoyées (M19) |
+
+## La confiance est transitive
+
+Faire confiance à un paquet npm, ce n'est pas faire confiance au code que tu as lu : c'est faire confiance à **toute personne capable de publier la prochaine version**, à la sécurité de son compte, et à tout ce que ce paquet importe à son tour.
+
+<Callout kind="case">
+En 2018, le mainteneur du paquet npm `event-stream`, très utilisé, en a confié la maintenance à un contributeur qui s'était montré utile. Celui-ci a ajouté une dépendance, `flatmap-stream`, dont une version ultérieure contenait du code malveillant chiffré, ciblant les utilisateurs d'un portefeuille de cryptomonnaie (Copay). Le code est resté en circulation plus de deux mois avant d'être signalé. Aucune des applications touchées n'avait décidé de faire confiance à ce nouveau mainteneur : elles l'avaient fait implicitement, en acceptant les mises à jour.
+</Callout>
+
+Une manière concrète de réduire cette confiance : ne pas laisser les dépendances exécuter du code **au moment de l'installation**. Depuis pnpm 10, les scripts de cycle de vie (`preinstall`, `install`, `postinstall`) des dépendances ne s'exécutent plus par défaut ; seuls les paquets explicitement autorisés le peuvent. Le réglage `allowBuilds` (depuis pnpm 10.26, il remplace `onlyBuiltDependencies`) tient cette liste, et `strictDepBuilds` fait échouer l'installation quand une nouvelle dépendance demande à exécuter un script non encore examiné :
+
+<Code file="pnpm-workspace.yaml (extrait)">
+
+```yaml
+strictDepBuilds: true
+allowBuilds:
+  esbuild: true
+  "@prisma/engines": true
+  core-js: false   # script de promotion, inutile : refusé explicitement
+```
+
+</Code>
+
+Avec npm, l'équivalent grossier est `ignore-scripts=true` dans le `.npmrc`, avec l'inconvénient de devoir lancer à la main les scripts réellement nécessaires. Dans les deux cas, la liste des exceptions devient une **décision de confiance explicite**, relue en PR.
+
+## Décider de faire confiance
+
+Kohnfelder décrit les décisions de confiance comme un **arbre** : si aucun fournisseur de stockage n'est jugé fiable, il faut héberger soi-même, ce qui oblige à de nouvelles décisions (quel hébergement, quelle base de données). Refuser toute confiance ne supprime pas le problème, il le déplace vers ce qu'on devra construire et sécuriser soi-même.
+
+Pour les **entrées explicitement non fiables** (tout ce qui vient d'Internet ou d'un client), la règle est simple : suspicion et soin maximaux. C'est le pattern *Reluctance to Trust* (M8).
+
+Kohnfelder ajoute une nuance utile : même pour les entrées **jugées fiables**, ajouter un contrôle quand il ne coûte presque rien réduit la fragilité du système. Un message que l'API place dans une file pour un worker interne vient d'un composant de confiance ; le valider tout de même avec un schéma empêche un bug innocent (ou une compromission de l'API) de se propager en silence.
+
+<Callout kind="debate">
+« Zero trust » veut-il dire ne faire confiance à rien ? Non. Le modèle décrit par le NIST (SP 800-207) supprime la **confiance implicite accordée en fonction de l'emplacement réseau** : une requête venue du réseau interne n'est pas fiable pour autant, chaque accès est authentifié et autorisé. Mais un système zero trust fait toujours confiance à son fournisseur d'identité, à son moteur de politiques et à ses clés. Le slogan est utile contre le réflexe « c'est interne, donc c'est sûr » ; pris au pied de la lettre, il empêche de construire quoi que ce soit.
+</Callout>
+
+## Être digne de confiance
+
+L'autre face : Novafact est elle-même un composant implicitement fiable pour ses clients. Être digne de confiance, c'est être **transparent** (politique de sécurité publique, divulgation des incidents, sous-traitants listés) et **tenir ses engagements** : c'est aussi ce que demandent le CRA et les questionnaires de sécurité des clients.
+
+Kohnfelder insiste sur la différence entre **affirmer** et **montrer** : les déclarations vides érodent la confiance des clients avertis, les preuves la construisent. Concrètement pour Novafact :
+
+- un **journal d'audit visible par l'administrateur du tenant** (qui a exporté quoi, qui du support a consulté le compte) ;
+- des **audits indépendants** (pentest par un prestataire qualifié, M6, leçon 8) dont une synthèse est communicable aux clients ;
+- une **liste publique des sous-traitants** qui traitent des données, tenue à jour ;
+- après un incident, une **communication franche** : ce qui s'est passé, ce qui a été fait, ce qui empêchera la récidive.
+
+<Recap items={[
+  "Presque toutes les vulnérabilités sont des erreurs de confiance : concevoir, c'est décider consciemment à qui l'on fait confiance, et pour quoi.",
+  "La confiance est un spectre ; autorisation bornée et audit permettent de faire confiance en vérifiant.",
+  "Connaître explicitement les composants implicitement fiables, ce qu'on leur confie et ce qui arriverait s'ils trahissaient.",
+  "La confiance est transitive : un paquet, c'est aussi ses futurs mainteneurs ; bloquer les scripts d'installation rend la confiance explicite.",
+  "Refuser la confiance déplace le problème ; même les entrées fiables méritent un contrôle peu coûteux.",
+  "Zero trust supprime la confiance implicite liée au réseau, pas les décisions de confiance.",
+  "Novafact doit montrer, pas affirmer, qu'elle est digne de confiance.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 1, Trust" },
+  { title: "Snyk : post-mortem de la backdoor event-stream", url: "https://snyk.io/blog/a-post-mortem-of-the-malicious-event-stream-backdoor/" },
+  { title: "pnpm : réglages de build (strictDepBuilds, allowBuilds)", url: "https://pnpm.io/settings" },
+  { title: "NIST SP 800-207 : Zero Trust Architecture", url: "https://csrc.nist.gov/pubs/sp/800/207/final" },
+]} />

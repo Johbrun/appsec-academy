@@ -1,0 +1,57 @@
+export const questions = [];
+
+<YouKnow>
+Tu as le design doc de la fonctionnalité de paiement et la matrice d’exigences. Cette étape élève le regard au système entier : le threat model de Novafact, avec la méthode du module 11.
+</YouKnow>
+
+## Étape 3 : le threat model de Novafact
+
+Un design doc couvre une fonctionnalité ; le threat model couvre l’**architecture**. Ton livrable : un modèle de menaces structuré, avec un DFD, les menaces par STRIDE et les contre-mesures, priorisées.
+
+## Dessiner le DFD
+
+Reprends le diagramme de flux de données que tu connais (c’est celui du jeu STRIDE Cards) : les entités externes (utilisateur, Stripe), les processus (BFF, API, assistant IA, worker PDF), les stores (Postgres, S3, logs Elastic), et surtout la **frontière de confiance** autour de l’infrastructure AWS.
+
+<Steps items={[
+  { title: "Cartographier", text: "Points d’entrée, processus, stockages, flux. Marque les frontières de confiance : entre le navigateur et le BFF, entre l’API et l’assistant, entre Novafact et Stripe." },
+  { title: "Appliquer STRIDE par élément", text: "Pour chaque processus et chaque flux, parcours Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege." },
+  { title: "Retenir les menaces crédibles", text: "N’écris pas une menace par case : garde celles qui ont un sens pour Novafact, avec un scénario concret." },
+  { title: "Associer une contre-mesure", text: "Chaque menace retenue reçoit une parade, reliée à une exigence (étape 1) et à un module du parcours." },
+  { title: "Prioriser", text: "Trie par impact et vraisemblance (M11), sans additionner des notes arbitraires : des tailles de t-shirt suffisent." },
+]} />
+
+## Un extrait attendu
+
+| Élément | STRIDE | Menace | Contre-mesure | Priorité |
+| --- | --- | --- | --- | --- |
+| Webhook Stripe → API | Spoofing | Un faux webhook déclare une facture payée | Vérification de signature + horodatage + idempotence | Haute |
+| API → Postgres | Information disclosure | Un tenant lit les factures d’un autre | DAL par tenant + RLS | Haute |
+| Assistant IA | Elevation of privilege | L’agent agit au-delà des droits de l’utilisateur | Droits délégués + confirmation humaine (M19) | Haute |
+| Worker PDF | Denial of service | Un tenant sature la file | Quotas par tenant, file équitable | Moyenne |
+| Logs Elastic | Information disclosure | Secrets ou IBAN dans les journaux | Liste blanche des champs, masquage à la source | Moyenne |
+
+## Le threat model est vivant
+
+Note dans ton livrable **quand** ce modèle sera revu : à chaque changement d’architecture, à chaque nouvelle intégration tierce, et au minimum une fois par trimestre. Un threat model figé dans un document que personne ne rouvre ne vaut rien (M11). Rattache-le au dépôt, à côté de la matrice d’exigences.
+
+<Callout kind="tip">
+Fais le lien avec l’étape 2 : la fonctionnalité de paiement que tu viens de concevoir doit apparaître dans ce modèle. Un threat model qui ne connaît pas la dernière fonctionnalité livrée est déjà en retard.
+</Callout>
+
+## Livrable de l’étape
+
+- Le **DFD** de Novafact avec ses frontières de confiance.
+- La **table des menaces** par STRIDE, avec contre-mesures reliées aux exigences et priorités.
+- La **cadence de revue** du modèle.
+
+<Recap items={[
+  "Le threat model couvre l’architecture entière, là où le design doc couvre une fonctionnalité.",
+  "DFD, puis STRIDE par élément, puis menaces crédibles avec contre-mesures reliées aux exigences.",
+  "Prioriser par impact et vraisemblance, sans additionner des notes arbitraires.",
+  "Le modèle est vivant : il se revoit à chaque changement et se range dans le dépôt.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Threat Modeling", url: "https://owasp.org/www-community/Threat_Modeling" },
+  { title: "Microsoft : STRIDE", url: "https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats" },
+]} />

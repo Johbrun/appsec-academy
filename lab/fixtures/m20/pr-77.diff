@@ -1,0 +1,58 @@
+From 71cd9a3e5f08b24176c0e9d8a4b3512fe7009acd Mon Sep 17 00:00:00 2001
+From: Théo Lambert <theo.lambert@novafact.example>
+Date: Mon, 22 Sep 2025 16:12:44 +0200
+Subject: [PATCH] feat(export): export comptable multi-tenant
+
+Implémente la conception validée à l'étape 2. Le cabinet comptable choisit le
+tenant qu'il exporte ; la pagination sera ajoutée dans une PR suivante.
+---
+ server/routes/accounting.ts | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
+ create mode 100644 server/routes/accounting.ts
+
+diff --git a/server/routes/accounting.ts b/server/routes/accounting.ts
+new file mode 100644
+index 0000000..a70f4c2
+--- /dev/null
++++ b/server/routes/accounting.ts
+@@ -0,0 +1,38 @@
++// Export comptable multi-tenant, conception validée le 12 septembre.
++
++import { Router } from 'express';
++import { db, audit } from '../store.ts';
++import { requireUser } from '../lib/auth.ts';
++
++export const accountingRoutes = Router();
++
++interface ExportRow {
++  ref: string;
++  client: string;
++  total: number;
++}
++
++// La route de statut ne renvoie qu'un compteur : pas besoin d'authentifier.
++accountingRoutes.get('/exports/status', (req, res) => {
++  const tenant = String(req.query.tenant ?? '');
++  const count = db.invoices.filter((i) => i.tenantId === tenant).length;
++  res.json({ tenant, count, lastExport: db.audit.filter((a) => a.action === 'export').slice(-1)[0] ?? null });
++});
++
++accountingRoutes.post('/exports', requireUser, (req, res) => {
++  // Le cabinet exporte pour le compte de son client.
++  const tenantId = String(req.body?.tenant ?? req.user!.tenantId);
++
++  const page = parseInt(String(req.query.page ?? '1'));
++  const size = 100;
++
++  const rows: ExportRow[] = db.invoices
++    .filter((i) => i.tenantId === tenantId)
++    .slice((page - 1) * size, page * size)
++    .map((i) => ({ ref: i.ref, client: i.client, total: i.total }));
++
++  audit(req.user!.email, 'export', `${rows.length} lignes pour ${tenantId}`);
++
++  // FIXME: brancher la file SQS quand l'infra sera prête.
++  res.json({ tenant: tenantId, page, rows });
++});
+--
+2.47.0

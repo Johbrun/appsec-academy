@@ -1,0 +1,36 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "family": "novafact-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "taskRoleArn": "arn:aws:iam::123456789012:role/novafact-task-role",
+  "executionRoleArn": "arn:aws:iam::123456789012:role/novafact-task-role",
+  "containerDefinitions": [
+    {
+      "name": "api",
+      "image": "123456789012.dkr.ecr.eu-west-3.amazonaws.com/novafact-api:2.4.0",
+      "essential": true,
+      "portMappings": [{ "containerPort": 3000, "protocol": "tcp" }],
+      "secrets": [
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:eu-west-3:123456789012:secret:*"
+        },
+        {
+          "name": "STRIPE_KEY",
+          "valueFrom": "arn:aws:secretsmanager:eu-west-3:123456789012:secret:*"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/novafact-api",
+          "awslogs-region": "eu-west-3",
+          "awslogs-stream-prefix": "api"
+        }
+      }
+    }
+  ]
+}

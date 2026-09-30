@@ -1,0 +1,166 @@
+export const questions = [
+  {
+    q: "Depuis le 11/09/2026, dans quel délai faut-il envoyer une alerte précoce pour une vulnérabilité activement exploitée dans un produit couvert par le CRA ?",
+    options: ["72 heures", "24 heures", "14 jours", "1 mois"],
+    answer: 1,
+    explain: "72 heures est le piège : c'est le délai de la notification — et celui, bien connu, du RGPD — pas celui de l'alerte précoce. La séquence CRA enchaîne trois échéances : alerte précoce sous 24 h dès que tu as connaissance du fait, notification sous 72 h avec les informations disponibles, rapport final sous 14 jours après la mise à disposition d'une mesure corrective. Le mois, lui, concerne le rapport final d'un incident grave.",
+  },
+  {
+    q: "À qui s'adresse la notification prévue par le CRA ?",
+    options: [
+      "À l'ANSSI et à la CNIL, chacune par son propre formulaire",
+      "Au CSIRT national de chaque État membre où le produit est distribué",
+      "À l'autorité de surveillance du marché de l'État membre d'établissement",
+      "Au CSIRT coordinateur et à l'ENISA, via la plateforme unique",
+    ],
+    answer: 3,
+    explain: "Notifier un CSIRT par État membre est précisément ce que la plateforme unique d'ENISA a été créée pour éviter : le fabricant signale une fois, et la plateforme achemine vers le CSIRT désigné comme coordinateur et vers l'ENISA. L'autorité de surveillance du marché existe bien dans le CRA, mais pour le contrôle de conformité, pas pour ce signalement. Quant à la CNIL, elle relève du RGPD : une violation de données personnelles se notifie en plus, jamais à la place.",
+  },
+  {
+    q: "Le SDK npm @novafact/sdk est distribué depuis 2024. Les obligations de signalement du CRA s'appliquent-elles à ses versions déjà publiées ?",
+    options: [
+      "Oui : l'article 14 couvre aussi les produits déjà sur le marché",
+      "Non : seules les versions publiées après le 11/09/2026 sont concernées",
+      "Non : rien ne s'applique avant le 11/12/2027",
+      "Seulement si le SDK est encore dans sa période de support de cinq ans",
+    ],
+    answer: 0,
+    explain: "La période de support de cinq ans est le piège : elle existe bien, mais à l'article 13, et elle encadre la durée pendant laquelle tu dois fournir des correctifs, pas le champ du signalement. Les deux autres réponses inversent le calendrier : le 11/12/2027 marque l'entrée en vigueur des exigences essentielles, alors que l'article 69, paragraphe 3, applique dès le 11/09/2026 les obligations de l'article 14 à tous les produits couverts, y compris ceux mis sur le marché avant.",
+  },
+  {
+    q: "Une vulnérabilité du SDK est activement exploitée. En plus des autorités, qui le CRA t'oblige-t-il à informer ?",
+    options: [
+      "Les personnes concernées, si des données personnelles ont été touchées",
+      "Le CSIRT coordinateur seul, à charge pour lui d'informer le marché",
+      "Les utilisateurs touchés, avec les mesures qu'ils peuvent appliquer",
+      "Les intégrateurs sous contrat de support, les autres par l'avis publié",
+    ],
+    answer: 2,
+    explain: "Réserver l'information aux clients sous contrat est le réflexe commercial, et le CRA ne le permet pas : l'article 14, paragraphe 8, vise les utilisateurs touchés, sans condition contractuelle — pour un SDK npm, cela passe par un avis de sécurité public. Informer les personnes concernées relève du RGPD et peut s'ajouter, sans remplacer cette obligation. Et le CSIRT ne prévient personne à ta place : il coordonne, il ne communique pas pour toi.",
+  },
+];
+
+<YouKnow>
+Tu connais la divulgation coordonnée côté chercheur. Le CRA la rend obligatoire côté éditeur, avec des délais très courts pour les vulnérabilités activement exploitées.
+</YouKnow>
+
+## Le Cyber Resilience Act en bref
+
+Le règlement européen **Cyber Resilience Act** (CRA, règlement (UE) 2024/2847) impose des exigences de cybersécurité aux « produits comportant des éléments numériques » mis sur le marché européen. Il est entré en vigueur le 10 décembre 2024, avec une application progressive :
+
+| Date | Ce qui s'applique |
+| --- | --- |
+| 11/06/2026 | Dispositions sur les organismes d'évaluation de la conformité (notification des organismes tiers) |
+| 11/09/2026 | **Obligations de signalement** des vulnérabilités activement exploitées et des incidents graves |
+| 11/12/2027 | Ensemble des exigences essentielles (sécurité dès la conception, gestion des vulnérabilités, SBOM, mises à jour, documentation) |
+
+Les obligations de signalement s'appliquent aussi aux produits **déjà sur le marché** : l'article 69 prévoit explicitement que l'article 14 vaut pour tous les produits couverts, y compris ceux mis sur le marché avant décembre 2027. Les sanctions ne sont pas symboliques : le non-respect des exigences essentielles ou des obligations des articles 13 et 14 peut coûter jusqu'à 15 millions d'euros ou 2,5 % du chiffre d'affaires mondial annuel, le montant le plus élevé étant retenu.
+
+## Qu'est-ce qui est un « produit » chez Novafact ?
+
+<Callout kind="warn">
+Le périmètre exact des services purement SaaS relève d'une analyse juridique : le CRA vise les produits, et les services distants n'y entrent que dans certains cas. Pour Novafact, le SDK npm `@novafact/sdk`, distribué aux clients, est clairement un produit. Fais valider le périmètre par un juriste plutôt que de le deviner.
+</Callout>
+
+Les textes donnent tout de même des repères. Un considérant du règlement rappelle que les services cloud (SaaS, PaaS, IaaS) relèvent de la directive NIS2, et qu'un site web ou un service cloud qui ne soutient pas la fonction d'un produit est hors du champ du CRA. À l'inverse, le CRA couvre le « traitement de données à distance » quand il est conçu par le fabricant (ou sous sa responsabilité) et que son absence empêcherait le produit de remplir l'une de ses fonctions. Pour Novafact, la question devient : quelles parties de l'API sont indispensables au fonctionnement du SDK ? C'est exactement le genre de question à poser au juriste, schéma d'architecture à l'appui.
+
+## Les délais de signalement
+
+Le CRA définit une vulnérabilité activement exploitée comme une vulnérabilité pour laquelle il existe des **preuves fiables** qu'un acteur malveillant l'a exploitée sur un système sans l'autorisation de son propriétaire. Une preuve de concept publique ne suffit donc pas ; une exploitation constatée, chez toi ou chez un client, oui. Pour une telle vulnérabilité :
+
+<Steps items={[
+  { title: "24 heures", text: "Alerte précoce, dès que tu en as connaissance." },
+  { title: "72 heures", text: "Notification avec les informations disponibles : produit, nature générale de l'exploitation et de la vulnérabilité, mesures correctives ou d'atténuation prises." },
+  { title: "14 jours", text: "Rapport final au plus tard 14 jours après la disponibilité d'une mesure corrective : description de la vulnérabilité avec sa gravité et son impact, détails sur la mise à jour de sécurité." },
+]} />
+
+Pour un **incident grave** ayant un impact sur la sécurité du produit, le rapport final est dû sous un mois. La notification passe par la **plateforme unique de signalement** (Single Reporting Platform) d'ENISA, en service depuis le 11/09/2026, qui la transmet au CSIRT désigné comme coordinateur.
+
+Le fabricant doit aussi **informer les utilisateurs touchés** de la vulnérabilité ou de l'incident, avec si nécessaire les mesures d'atténuation ou de correction qu'ils peuvent appliquer eux-mêmes. Pour un SDK, ça veut dire un avis de sécurité publié (GitHub Security Advisory sur le dépôt du SDK, par exemple) et un message direct aux intégrateurs connus.
+
+## Ce que ça change pour l'AppSec
+
+- **Savoir vite** : il faut détecter qu'une vulnérabilité est exploitée. Veille, détection en production et canal de signalement externe deviennent obligatoires dans les faits.
+- **Savoir quoi** : sans inventaire (SBOM) ni cartographie des versions déployées, impossible de répondre en 72 h.
+- **Savoir qui** : une astreinte, un circuit de décision et un modèle de notification prêts à l'emploi.
+
+<Callout kind="case">
+L'affaire Equifax montre ce que coûte l'absence de « savoir quoi » et de « savoir qui ». Le 8 mars 2017, le US-CERT alerte Equifax sur la faille d'Apache Struts (CVE-2017-5638), corrigée la veille. Le lendemain, l'équipe de gestion des vulnérabilités diffuse l'alerte à environ 430 personnes et demande un correctif sous 48 heures. Mais la liste de diffusion n'était pas à jour, l'inventaire des actifs incomplet, et le portail de contestation qui utilisait Struts n'a pas été corrigé. L'attaque commence le 13 mai et dure 76 jours ; elle touche au final environ 148 millions de personnes (rapport du GAO de 2018 et rapport de la commission de contrôle de la Chambre des représentants, décembre 2018).
+</Callout>
+
+Pour tenir 24 heures, la procédure doit exister avant l'incident. Chez Novafact, elle tient en cinq étapes, avec un propriétaire nommé pour chacune :
+
+<Steps items={[
+  { title: "Qualifier", text: "L'AppSec confirme la vulnérabilité, identifie les versions et les clients touchés grâce au SBOM et à l'inventaire des déploiements, et documente les preuves d'exploitation." },
+  { title: "Décider", text: "Le responsable désigné (le CTO, suppléé par le RSSI) décide s'il s'agit d'une vulnérabilité activement exploitée au sens du CRA. La décision et son heure sont tracées." },
+  { title: "Alerter", text: "L'alerte précoce part via la plateforme unique, à partir d'un modèle prérempli. Mieux vaut une alerte courte à l'heure qu'une alerte complète en retard." },
+  { title: "Corriger et informer", text: "Publication du correctif et d'un avis de sécurité, message aux intégrateurs. La notification à 72 h reprend l'état du correctif." },
+  { title: "Clore", text: "Rapport final à 14 jours après le correctif, analyse de cause racine, et nouvelle règle ou test pour la classe concernée." },
+]} />
+
+## Et en décembre 2027
+
+L'essentiel des exigences arrive fin 2027, et beaucoup ne s'improvisent pas. La partie de l'annexe I consacrée à la gestion des vulnérabilités demande notamment de documenter les composants du produit dans un SBOM « dans un format couramment utilisé et lisible par machine », de corriger sans délai, de tester régulièrement, de publier les vulnérabilités corrigées, d'appliquer une politique de divulgation coordonnée avec une adresse de contact, et de diffuser les correctifs gratuitement. L'article 13 impose une période de support d'au moins cinq ans (sauf produit prévu pour une durée d'utilisation plus courte) et une diligence raisonnable sur les composants tiers, **y compris open source**.
+
+Le SBOM, au moins, ne coûte presque rien à produire dès maintenant. Pour le SDK, une étape de la release suffit :
+
+<Code file=".github/workflows/release-sdk.yml" hl="4">
+
+```yaml
+      - run: npm ci
+      - run: npm test
+      - run: npm pack
+      - run: npm sbom --sbom-format cyclonedx --sbom-type library --omit dev > sdk.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-sbom
+          path: sdk.cdx.json
+```
+
+</Code>
+
+Le fichier produit ne sert à rien s'il reste dans un artefact de CI : envoie-le dans un outil qui le confronte aux nouvelles vulnérabilités (Dependency-Track, par exemple, vu en M13), pour que la question « quelles versions sont touchées ? » ait une réponse en minutes.
+
+Une question que le CRA pose et qu'on n'anticipe pas : l'assistant conversationnel de Novafact est-il couvert ? Il est livré avec le produit, donc oui — et une injection de prompt indirecte qui déclenche une action au nom de l'utilisateur est une vulnérabilité du produit, pas un comportement de modèle (M19). Comme la surface bouge plus vite que les autres, c'est aussi celle où la veille doit être branchée sur la roadmap plutôt que relue une fois par an.
+
+## Construire la roadmap à 12 mois
+
+Le module se termine sur l'exercice clé : transformer l'évaluation SAMM, les indicateurs et les obligations en une feuille de route. Une structure qui fonctionne :
+
+| Trimestre | Thème | Exemples de livrables pour Novafact |
+| --- | --- | --- |
+| T1 | Voir | Inventaire des applications et dépendances (SBOM), SAST et SCA en mode information, circuit de signalement CRA |
+| T2 | Arrêter l'hémorragie | Règles bloquantes à faible bruit, secrets, SLA de correction, premier paved road |
+| T3 | Concevoir | Exigences ASVS, threat modeling des nouvelles fonctionnalités, security champions |
+| T4 | Mesurer et ajuster | Indicateurs de résultat, deuxième évaluation SAMM, roadmap suivante |
+
+Chaque ligne doit pouvoir se relier à une source : un écart SAMM (Security Requirements à 0), une activité BSIMM très répandue que Novafact ne pratique pas (`[SR1.5]`, identifier l'open source), une obligation (signalement CRA), ou un indicateur (taux d'échappement des injections). Une ligne qui ne se rattache à rien est une envie, pas une priorité.
+
+<Callout kind="debate">
+Faut-il écrire ce qu'on ne fera pas ? Oui, selon la plupart des responsables de programme : une ligne « hors périmètre cette année » (par exemple le bug bounty public, ou la revue de sécurité des applications internes) évite de promettre implicitement ce que l'équipe ne peut pas tenir. Certains y voient un aveu de faiblesse face à la direction ; c'est pourtant ce qui rend les engagements restants crédibles.
+</Callout>
+
+<Callout kind="tip">
+Une bonne roadmap tient sur une page, nomme un propriétaire par ligne, et explique pour chaque trimestre quel risque elle réduit. Le reste est du détail.
+</Callout>
+
+<Recap items={[
+  "Le CRA (règlement 2024/2847) impose le signalement des vulnérabilités activement exploitées depuis le 11/09/2026, y compris pour les produits déjà sur le marché.",
+  "Délais : alerte sous 24 h, notification sous 72 h, rapport final sous 14 jours après correctif ; les utilisateurs touchés doivent être informés.",
+  "La notification passe par la plateforme unique d'ENISA, vers le CSIRT coordinateur.",
+  "Le SaaS pur relève plutôt de NIS2 ; le traitement à distance indispensable à un produit entre dans le CRA : fais valider le périmètre.",
+  "Le reste des exigences essentielles s'applique au 11/12/2027 : SBOM, divulgation coordonnée, support d'au moins cinq ans, diligence sur l'open source.",
+  "Une roadmap à 12 mois tient sur une page : voir, arrêter l'hémorragie, concevoir, mesurer ; chaque ligne se rattache à un écart, une obligation ou un indicateur.",
+]} />
+
+<Sources items={[
+  { title: "Commission européenne, CRA : obligations de signalement", url: "https://digital-strategy.ec.europa.eu/en/policies/cra-reporting" },
+  { title: "Commission européenne, Cyber Resilience Act", url: "https://digital-strategy.ec.europa.eu/en/policies/cyber-resilience-act" },
+  { title: "ENISA, Single Reporting Platform", url: "https://www.enisa.europa.eu/topics/product-security-and-certification/single-reporting-platform-srp" },
+  { title: "Texte du CRA, article 14 (signalement)", url: "https://www.european-cyber-resilience-act.com/Cyber_Resilience_Act_Article_14.html" },
+  { title: "Texte du CRA, article 69 (dispositions transitoires)", url: "https://www.european-cyber-resilience-act.com/Cyber_Resilience_Act_Article_69.html" },
+  { title: "Texte du CRA, annexe I (exigences essentielles)", url: "https://www.european-cyber-resilience-act.com/Cyber_Resilience_Act_Annex_1.html" },
+  { title: "Crowell & Moring, le signalement CRA est en vigueur (11/09/2026)", url: "https://www.crowell.com/en/insights/client-alerts/its-live-the-cyber-resilience-act-reporting-is-mandatory-as-of-today-11-september-2026" },
+  { title: "Chambre des représentants des États-Unis, The Equifax Data Breach (2018)", url: "https://oversight.house.gov/wp-content/uploads/2018/12/Equifax-Report.pdf" },
+  { title: "npm, commande npm sbom", url: "https://docs.npmjs.com/cli/v11/commands/npm-sbom" },
+]} />

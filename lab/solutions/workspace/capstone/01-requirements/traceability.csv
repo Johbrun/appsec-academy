@@ -1,0 +1,13 @@
+exigence,actif,preuve
+V2.1.1,User.password,solutions/server/routes/auth.ts
+V2.1.7,User.password,server/store.ts
+V2.2.1,User.email,solutions/server/routes/auth.ts
+V3.5.2,User.role,solutions/server/lib/jwt.ts
+V4.1.3,Invoice.total,solutions/server/routes/invoices.ts
+V4.2.1,Invoice.total,server/store.ts
+V5.1.3,Invoice.client,server/lib/validate.ts
+V5.3.3,Invoice.note,solutions/src/pages/InvoiceDetail.tsx
+V8.3.4,User.name,fixtures/m11/data-classification.json
+V12.3.1,Invoice.attachment,solutions/server/routes/attachments.ts
+V13.1.4,User.role,server/lib/auth.ts
+V14.2.1,User.password,novafact/package-lock.json

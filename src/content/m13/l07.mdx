@@ -1,0 +1,198 @@
+export const questions = [
+  {
+    q: "Pourquoi un DAST non authentifié trouve-t-il peu de choses sur Novafact ?",
+    options: [
+      "Parce que le crawler ne suit pas les routes rendues côté client par React",
+      "Parce que les réponses d'erreur sont génériques et ne révèlent pas la pile technique",
+      "Parce que presque toute la surface est derrière la connexion",
+      "Parce que le scanner est bloqué par la limitation de débit dès les premières requêtes",
+    ],
+    answer: 2,
+    explain: "Les trois autres freins sont réels, et on les traite : rendu côté client, limitation de débit relevée pour le scanner. Mais tous levés, un scan non authentifié ne verrait encore que la page de connexion et deux ou trois routes publiques — l'essentiel de la surface d'un SaaS B2B n'existe qu'après authentification. Le scan doit donc s'authentifier, idéalement avec plusieurs rôles et deux tenants.",
+  },
+  {
+    q: "Un développeur a poussé une clé AWS dans un dépôt privé, puis l'a supprimée dans le commit suivant. Que faire en priorité ?",
+    options: [
+      "Réécrire l'historique Git et forcer la repousse sur toutes les branches concernées",
+      "Restreindre la politique IAM de la clé au strict nécessaire et surveiller son usage",
+      "Ouvrir un incident et attendre la confirmation d'un usage avant de la révoquer",
+      "Révoquer la clé, la remplacer, puis vérifier son usage dans CloudTrail",
+    ],
+    answer: 3,
+    explain: "Réécrire l'historique efface la trace, pas la clé : elle vit déjà dans les forks, les clones et les caches de la forge. Réduire ses droits ou attendre une preuve d'usage laisse pendant tout ce temps une clé valide entre des mains inconnues. Un secret exposé est compromis : on révoque d'abord, on enquête ensuite, et le nettoyage de l'historique vient en dernier.",
+  },
+  {
+    q: "Quel est l'intérêt principal d'un template Nuclei maison ?",
+    options: [
+      "Rejouer l'exploitation complète d'une vulnérabilité pour en prouver l'impact",
+      "Transformer un finding connu en vérification rapide et répétable",
+      "Découvrir des vulnérabilités inconnues sur les nouvelles routes déployées",
+      "Remplacer les règles Semgrep par un contrôle équivalent côté exécution",
+    ],
+    answer: 1,
+    explain: "Un template Nuclei ne découvre rien d'inédit : il vérifie ce qu'on lui a décrit, et sert mal de preuve d'exploitation complète. Il ne remplace pas non plus la règle statique, qui attrape la cause dans le code là où lui constate l'effet à l'exécution. Son intérêt est la répétabilité : une classe de problème surveillée sur chaque environnement, à chaque déploiement.",
+  },
+  {
+    q: "Qu'apporte l'IAST par rapport au DAST ?",
+    options: [
+      "Un agent instrumente l'application et relie chaque finding à sa ligne de code",
+      "Il analyse le code sans l'exécuter, en complément du scan dynamique",
+      "Il rejoue le trafic de production pour tester les chemins réellement utilisés",
+      "Il teste l'application depuis l'intérieur du réseau, sans passer par le WAF",
+    ],
+    answer: 0,
+    explain: "« De l'intérieur » ne désigne pas le réseau interne, et l'IAST n'analyse pas le code au repos : il a besoin que l'application tourne. Ce qui le distingue est l'instrumentation — l'agent observe l'exécution pendant les tests, ce qui réduit les faux positifs et rattache chaque finding dynamique à la ligne qui l'a produit.",
+  },
+];
+
+<YouKnow>
+Tu utilises Burp tous les jours. Le DAST automatisé fait moins bien qu'un humain, mais il le fait à chaque déploiement, sans jamais oublier. L'enjeu est de le rendre utile plutôt que bruyant.
+</YouKnow>
+
+## Ce que le DAST voit, et ce qu'il ne voit pas
+
+Le DAST attaque l'application en fonctionnement, sans lire son code. Il a les forces et les faiblesses d'un pentesteur pressé et très méthodique :
+
+| Il trouve bien | Il trouve mal |
+| --- | --- |
+| En-têtes manquants ou mal configurés (CSP, HSTS, cookies) | Les failles d'autorisation (BOLA, BFLA) : il ne connaît pas les règles métier |
+| Réflexions et injections classiques sur les paramètres | La logique métier (montants, états, courses) |
+| Pages d'erreur bavardes, fichiers exposés, versions visibles | Les chaînes qui demandent plusieurs étapes et du contexte |
+| Régressions de configuration entre deux déploiements | Ce qui n'est pas atteignable sans session ou sans l'état adéquat |
+
+Il ne remplace donc ni la revue (M12) ni le pentest ; il sert de **filet de régression** permanent sur la configuration et les classes de vulnérabilités simples.
+
+## ZAP, piloté par un plan
+
+**ZAP** (désormais maintenu par Checkmarx, toujours open source) se pilote en CI avec l'**automation framework** : un fichier YAML décrit le contexte, l'authentification et les tâches.
+
+<Code file="security/zap/plan.yaml">
+
+```yaml
+env:
+  contexts:
+    - name: novafact-preview
+      urls: ["https://pr-1234.preview.novafact.example"]
+      includePaths: ["https://pr-1234.preview.novafact.example/.*"]
+      excludePaths: [".*/logout.*", ".*/billing/stripe/.*"]
+      authentication:
+        method: browser
+        parameters:
+          loginPageUrl: "https://pr-1234.preview.novafact.example/login"
+        verification:
+          method: poll
+          loggedInRegex: "\\Q\"authenticated\":true\\E"
+          pollUrl: "https://pr-1234.preview.novafact.example/api/me"
+      users:
+        - name: accountant-acme
+          credentials:
+            username: "${ZAP_USER_ACME}"
+            password: "${ZAP_PASS_ACME}"
+jobs:
+  - type: openapi
+    parameters:
+      apiUrl: "https://pr-1234.preview.novafact.example/openapi.json"
+  - type: spiderAjax
+    parameters: { maxDuration: 5, user: accountant-acme }
+  - type: passiveScan-wait
+  - type: activeScan
+    parameters: { user: accountant-acme, maxScanDurationInMins: 30 }
+  - type: report
+    parameters: { template: sarif-json, reportDir: /zap/wrk/out }
+```
+
+</Code>
+
+Trois points font la différence :
+
+- **L'import OpenAPI** : une SPA React n'expose pas ses routes d'API par des liens ; le spider les rate. Le contrat OpenAPI de l'API Express donne au scanner la liste complète des endpoints et de leurs paramètres.
+- **L'authentification** : sans elle, le scan ne voit que la page de connexion. La méthode `browser` rejoue la connexion dans un vrai navigateur, ce qui fonctionne avec le BFF et ses cookies.
+- **Les exclusions** : la déconnexion (sinon le scan se déconnecte tout seul), les webhooks et tout ce qui déclenche des effets réels (envoi d'e-mails, paiements).
+
+<Callout kind="warn">
+Un scan actif **modifie des données** : il crée des factures, remplit des formulaires, tente des suppressions. Il ne tourne que sur un environnement éphémère ou de recette, jamais en production, et avec des comptes de test dédiés.
+</Callout>
+
+## Le DAST sur environnement éphémère
+
+Chez Novafact, chaque PR déploie un environnement de preview (M14). Le pipeline nocturne, lui, déploie la branche principale dans un environnement jetable, avec une base de données générée (leçon 8), lance ZAP avec deux comptes (un comptable d'Acme, un lecteur de Globex) et publie le SARIF dans GitHub code scanning. Les findings arrivent au même endroit que ceux du SAST, dédoublonnés (leçon 11).
+
+L'astuce des **deux tenants** : même sans comprendre les règles métier, un scanner peut rejouer les requêtes du premier compte avec la session du second. Les extensions d'autorisation de Burp (Autorize) ou de ZAP (Access Control Testing) exploitent ce principe. C'est grossier mais efficace pour détecter des BOLA évidentes.
+
+## Nuclei et les templates maison
+
+**Nuclei** (ProjectDiscovery) exécute des **templates** YAML : une requête, des conditions de correspondance. La bibliothèque communautaire couvre des milliers de CVE et d'erreurs de configuration, mais sa vraie valeur pour une équipe produit est le **template maison** : un finding de pentest devient une vérification répétable, comme une règle Semgrep côté code.
+
+<Code file="security/nuclei/novafact-debug-routes.yaml">
+
+```yaml
+id: novafact-debug-routes-exposed
+info:
+  name: Routes de debug Next.js exposées
+  author: novafact-appsec
+  severity: medium
+  description: Le pentest de mars a trouvé /api/debug/* accessible en production. Ce template vérifie qu'il ne revient pas.
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/api/debug/env"
+      - "{{BaseURL}}/api/debug/cache"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words: ["NODE_ENV", "DATABASE_URL"]
+        condition: or
+```
+
+</Code>
+
+Ces templates tournent après chaque déploiement, sur toutes les régions et tous les environnements. Ils ne cherchent pas l'inconnu : ils garantissent que le connu ne revient pas.
+
+## L'IAST en quelques mots
+
+L'**IAST** (Interactive Application Security Testing) place un agent dans le runtime Node pendant l'exécution des tests (fonctionnels, end-to-end ou DAST). L'agent voit la donnée entrer, traverser le code et atteindre un sink : il signale la vulnérabilité **avec la ligne de code**, et presque sans faux positifs puisqu'il observe un flux réel. En contrepartie : un agent à maintenir, un surcoût d'exécution, une couverture limitée à ce que les tests exercent, et peu d'offres open source. C'est un complément intéressant pour une équipe qui a déjà une bonne suite de tests end-to-end.
+
+## Les secrets
+
+La détection de secrets a sa place à **trois** endroits :
+
+| Où | Outil | Rôle |
+| --- | --- | --- |
+| **Poste du développeur** | Gitleaks en hook pre-commit | Empêcher le commit, au plus tôt |
+| **Serveur Git** | GitHub secret scanning et **push protection** | Refuser le push, même si le hook a été contourné |
+| **Historique et CI** | Gitleaks, **TruffleHog** | Rechercher dans tout l'historique et dans les artefacts |
+
+TruffleHog a une particularité utile : il **vérifie** si un secret trouvé est encore actif en interrogeant le fournisseur. Un secret vérifié actif devient immédiatement prioritaire.
+
+### Corriger, c'est révoquer
+
+Un secret poussé, même une seconde, même dans un dépôt privé, est **compromis** : il existe dans les clones, les forks, les caches CI, les sauvegardes, et peut-être dans les données d'un outil tiers. Supprimer le commit ne sert à rien.
+
+<Steps items={[
+  { title: "Révoquer", text: "Désactiver le secret chez le fournisseur et en émettre un nouveau, stocké dans le gestionnaire de secrets (M17)." },
+  { title: "Enquêter", text: "Qu'a fait ce secret depuis son exposition ? CloudTrail pour une clé AWS, journaux d'audit du fournisseur pour une clé d'API." },
+  { title: "Nettoyer", text: "Réécrire l'historique si le dépôt est public ou partagé, surtout pour éviter les fausses alertes futures ; c'est secondaire." },
+  { title: "Prévenir", text: "Pourquoi un secret long terme existait-il ? L'OIDC (M14) ou les rôles IAM (M15) le rendent souvent inutile." },
+]} />
+
+<Lab id="wrongsecrets" />
+
+<Recap items={[
+  "Le DAST est un filet de régression : bon sur la configuration et les classes simples, faible sur l'autorisation et la logique.",
+  "ZAP en CI : plan YAML, import OpenAPI, authentification, exclusions, environnement jetable.",
+  "Deux tenants et des outils de comparaison de sessions détectent les BOLA grossières.",
+  "Nuclei et des templates maison garantissent que les findings connus ne reviennent pas.",
+  "Les secrets se détectent sur le poste, au push et dans l'historique ; corriger, c'est révoquer puis enquêter.",
+]} />
+
+<Sources items={[
+  { title: "ZAP : Automation Framework", url: "https://www.zaproxy.org/docs/automate/automation-framework/" },
+  { title: "ZAP : authentification par navigateur", url: "https://www.zaproxy.org/docs/desktop/addons/authentication-helper/browser-auth/" },
+  { title: "Nuclei : templates", url: "https://docs.projectdiscovery.io/templates/introduction" },
+  { title: "Gitleaks", url: "https://github.com/gitleaks/gitleaks" },
+  { title: "TruffleHog", url: "https://github.com/trufflesecurity/trufflehog" },
+  { title: "GitHub : push protection", url: "https://docs.github.com/en/code-security/secret-scanning/introduction/about-push-protection" },
+]} />

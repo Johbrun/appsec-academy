@@ -1,0 +1,16 @@
+{
+  "_comment": "SBOM d'essai du challenge cra-notification : deux composants affectés par des vulnérabilités au catalogue d'exploitation connue, plus une vulnérabilité qui n'y figure pas. Deux obligations, triées par identifiant.",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "metadata": { "component": { "name": "novafact-api", "version": "4.3.0", "type": "application" } },
+  "components": [
+    { "name": "jsonwebtoken-compat", "version": "8.5.1", "purl": "pkg:npm/jsonwebtoken-compat@8.5.1" },
+    { "name": "img-resize-native", "version": "2.0.4", "purl": "pkg:npm/img-resize-native@2.0.4" },
+    { "name": "graphql-depth", "version": "1.1.0", "purl": "pkg:npm/graphql-depth@1.1.0" }
+  ],
+  "vulnerabilities": [
+    { "id": "CVE-2026-7742", "affects": [{ "ref": "pkg:npm/jsonwebtoken-compat@8.5.1" }] },
+    { "id": "CVE-2026-9004", "affects": [{ "ref": "pkg:npm/img-resize-native@2.0.4" }] },
+    { "id": "CVE-2026-6021", "affects": [{ "ref": "pkg:npm/graphql-depth@1.1.0" }] }
+  ]
+}

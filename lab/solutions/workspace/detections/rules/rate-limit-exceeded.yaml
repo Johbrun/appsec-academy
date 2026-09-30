@@ -1,0 +1,27 @@
+id: rate-limit-exceeded
+name: Limite de débit franchie de façon répétée
+description: Une source déclenche la limitation de débit plusieurs fois de suite.
+severity: medium
+risk_score: 30
+tags:
+  - 'Domaine: Application'
+  - 'Tactique: Impact'
+  - 'Technique: T1499'
+interval: 5m
+from: now-20m
+note: |-
+  ## Triage
+
+  1. Vérifier s’il s’agit d’un client mal configuré.
+query:
+  window: 15m
+  where:
+    - field: event.action
+      op: eq
+      value: excess_rate_limit_exceeded
+  group_by:
+    - source.ip
+  having:
+    - metric: count
+      op: gte
+      value: 5

@@ -1,0 +1,83 @@
+export const questions = [];
+
+<YouKnow>
+Une SSRF ou un secret volé ne devient une catastrophe que si le rôle atteint en fait trop. Cette étape applique le moindre privilège aux rôles IAM de Novafact, avec le module 15.
+</YouKnow>
+
+## Étape 8 : IAM au moindre privilège
+
+Ton livrable : la **revue des rôles** de Novafact, la **coupe** des chemins d’escalade, et les **garde-fous** de compte (SCP, boundaries) qui rendent les erreurs futures inoffensives.
+
+## Cartographier les rôles
+
+Liste les rôles de Novafact et, pour chacun, sa tâche réelle :
+
+| Rôle | Tâche | Ce dont il a besoin |
+| --- | --- | --- |
+| `novafact-api` (tâche ECS) | Servir l’API | Lecture/écriture S3 factures (préfixe), SQS, lecture d’un secret, KMS via S3 |
+| `pdf-worker` | Générer les PDF | Lecture S3 (préfixe pdf/), écriture du rendu |
+| `ci-deploy` | Déployer | Actions de déploiement précises, pas d’admin |
+| `terraform-ci` | Appliquer l’IaC | Gestion d’infrastructure, sous revue |
+
+## Réduire chaque politique
+
+<Steps items={[
+  { title: "Partir de l’usage réel", text: "IAM Access Analyzer génère une politique à partir de l’activité observée dans CloudTrail : le point de départ le plus honnête." },
+  { title: "Nommer les ressources", text: "Pas de Resource: \"*\" quand un ARN suffit. L’API accède au préfixe des factures, pas à tout S3." },
+  { title: "Conditionner", text: "kms:ViaService pour n’autoriser le déchiffrement que via S3 ; aws:SourceIp ou VPC endpoint quand c’est pertinent." },
+  { title: "Chercher les chemins d’escalade", text: "iam:PassRole trop large, création ou modification de politiques, création de clés, confiance trop ouverte. C’est l’exercice du jeu IAM Pathfinder." },
+]} />
+
+## Couper les chemins d’escalade
+
+Reprends les familles vues au module 15 et vérifie qu’aucune n’est ouverte :
+
+| Chemin | Signe | Correction |
+| --- | --- | --- |
+| PassRole large | `iam:PassRole` sur `*` | Limiter à l’ARN du rôle d’exécution + `iam:PassedToService` |
+| Auto-modification de politique | `iam:CreatePolicyVersion` sur sa propre politique | Retirer ; IAM ne change que par le pipeline |
+| Création de clés | `iam:CreateAccessKey` sur `*` | Limiter au périmètre géré |
+| Confiance ouverte | `Principal: { AWS: "*" }` dans une trust policy | Nommer les principaux, exiger la MFA |
+
+## Les garde-fous de compte
+
+Le moindre privilège par rôle ne suffit pas : il faut un plafond que personne ne peut dépasser (M15).
+
+<Code file="infra/org/guardrails.md">
+
+```text
+SCP (préventif, à l'échelle de l'organisation) :
+  - refuser les régions hors eu-west-3 / eu-west-1
+  - refuser la désactivation de CloudTrail, Config, GuardDuty
+  - refuser s3:PutBucketPublicAccessBlock à false
+  - refuser la modification d'IAM hors du rôle terraform-ci
+
+RCP : refuser l'accès aux ressources par des principaux hors de l'organisation.
+
+Permissions boundary : plafond obligatoire sur tout rôle créé par dev-team.
+```
+
+</Code>
+
+<Callout kind="novafact">
+Test de résilience du dossier : reprends la SSRF du threat model (étape 3). Si le rôle `novafact-api` était atteint via IMDSv2, que pourrait faire l’attaquant ? Avec un rôle au moindre privilège (préfixe S3, SQS, un secret), l’impact reste borné. C’est la mesure du travail de cette étape : réduire le rayon d’explosion.
+</Callout>
+
+## Livrable de l’étape
+
+- La **carte des rôles** de Novafact et leur tâche.
+- Les **politiques réduites**, ressources nommées et conditions posées.
+- Les **chemins d’escalade** coupés et les **garde-fous** de compte (SCP, RCP, boundaries).
+
+<Recap items={[
+  "Partir de l’usage réel (Access Analyzer), nommer les ressources, conditionner les accès.",
+  "Chercher et couper les chemins d’escalade : PassRole, auto-modification de politique, création de clés, confiance ouverte.",
+  "Poser des garde-fous de compte : SCP, RCP, permissions boundaries.",
+  "Mesurer le travail par le rayon d’explosion d’un rôle compromis, à partir du threat model.",
+]} />
+
+<Sources items={[
+  { title: "AWS : IAM Access Analyzer policy generation", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-policy-generation.html" },
+  { title: "AWS : politiques de contrôle des services (SCP)", url: "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html" },
+  { title: "AWS : permissions boundaries", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html" },
+]} />

@@ -1,0 +1,36 @@
+# Couverture des détections — corrigé de référence.
+#
+# Le harnais ne croit pas la déclaration : il rejoue chaque scénario contre la
+# bibliothèque et compare. Une règle citée qui ne lève pas au rejeu est un
+# faux sentiment de sécurité, exactement comme une carte de chaleur ATT&CK
+# coloriée à la main.
+#
+# `uncovered` est la rubrique qui compte : nommer le trou vaut mieux que le
+# peindre. Ici aucun scénario n'exerce la limitation de débit — la couverture
+# est donc de onze règles sur douze, et on le dit.
+rules:
+  - { id: credential-stuffing, technique: T1110.004 }
+  - { id: password-spray, technique: T1110.003 }
+  - { id: honeytoken-access, technique: T1213 }
+  - { id: admin-role-change, technique: T1098 }
+  - { id: audit-log-tampering, technique: T1562.008 }
+  - { id: idor-probing, technique: T1213 }
+  - { id: prompt-injection-external, technique: T1567 }
+  - { id: unsupported-http-method, technique: T1190 }
+  - { id: session-ip-change, technique: T1539 }
+  - { id: rate-limit-exceeded, technique: T1499 }
+  - { id: mass-export, technique: T1213 }
+  - { id: new-api-key, technique: T1098 }
+
+scenarios:
+  - { id: sc-01-bourrage, triggers: [credential-stuffing] }
+  - { id: sc-02-pulverisage, triggers: [password-spray] }
+  - { id: sc-03-prise-de-controle, triggers: [admin-role-change, mass-export, new-api-key] }
+  - { id: sc-04-effacement, triggers: [audit-log-tampering] }
+  - { id: sc-05-leurre, triggers: [honeytoken-access] }
+  - { id: sc-06-injection, triggers: [prompt-injection-external] }
+  - { id: sc-07-sondage, triggers: [idor-probing] }
+  - { id: sc-08-detournement-session, triggers: [session-ip-change, unsupported-http-method] }
+
+uncovered:
+  - rate-limit-exceeded

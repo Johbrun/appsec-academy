@@ -1,0 +1,43 @@
+{
+  "_comment": "CORRIGÉ : sans identifiant externe, tout client de Solvéo pouvait demander à Solvéo d'agir sur notre compte — il suffisait de connaître l'ARN du rôle, qui n'est pas un secret. C'est le député confus dans sa forme canonique, et AWS a créé sts:ExternalId exactement pour ça. L'identifiant externe est convenu avec le partenaire, unique par client, et non devinable.",
+  "RoleName": "novafact-partner-recouvrement",
+  "Description": "Rôle assumé par Solvéo (recouvrement) et par le cabinet d'audit.",
+  "AssumeRolePolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "_comment": "CORRIGÉ : identifiant externe exigé, et l'approbation vise le rôle du partenaire plutôt que la racine de son compte.",
+        "Sid": "Solveo",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::210987654321:role/solveo-integration-novafact" },
+        "Action": "sts:AssumeRole",
+        "Condition": {
+          "StringEquals": { "sts:ExternalId": "novafact-solveo-9d41c7b6f0e2" }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ : même condition pour le cabinet d'audit, plus l'exigence de MFA et une session courte. Un audit annuel n'a pas besoin d'un accès permanent.",
+        "Sid": "CabinetDAudit",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::345678901234:role/auditeur" },
+        "Action": "sts:AssumeRole",
+        "Condition": {
+          "StringEquals": { "sts:ExternalId": "novafact-audit-4b77e1a3c95d" },
+          "Bool": { "aws:MultiFactorAuthPresent": "true" },
+          "NumericLessThan": { "aws:MultiFactorAuthAge": "3600" }
+        }
+      }
+    ]
+  },
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "LireLesFacturesImpayees",
+        "Effect": "Allow",
+        "Action": ["s3:GetObject"],
+        "Resource": "arn:aws:s3:::novafact-invoices/impayees/*"
+      }
+    ]
+  }
+}

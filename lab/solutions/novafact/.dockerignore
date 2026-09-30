@@ -1,0 +1,32 @@
+# CORRIGÉ : liste d'exclusion complète. Elle est la seconde barrière — le
+# Dockerfile ne fait plus de « COPY . . », mais une exclusion explicite protège
+# aussi les constructions locales et tout COPY large qu'on réintroduirait.
+#
+# L'historique git embarqué dans une image contient très souvent des
+# identifiants : c'est le mécanisme d'ArtiPACKED, transposé au conteneur.
+
+.git
+.gitignore
+.github
+
+# Rien de ce qui porte un secret n'entre dans le contexte de construction.
+.env
+.env.*
+*.pem
+*.key
+.npmrc
+
+# Le state Terraform décrit toute l'infrastructure et contient ses secrets.
+infra/terraform/.terraform
+*.tfstate
+*.tfstate.*
+
+# Les dépendances du poste sont réinstallées dans l'image, pas copiées :
+# elles peuvent contenir des binaires compilés pour un autre système.
+node_modules
+dist
+coverage
+
+README.md
+docs/
+*.md

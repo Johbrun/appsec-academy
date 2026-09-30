@@ -1,0 +1,13 @@
+{
+  "_": "Le gabarit de design doc de Novafact. Les rubriques sont obligatoires : c'est ce qui rend une revue de conception faisable en une heure plutôt qu'en trois réunions. La rubrique « Éléments » déclare les composants, un par ligne, sous la forme « - identifiant — description » ; c'est à eux que la revue rattache ses constats.",
+  "headings": [
+    "Problème et périmètre",
+    "Éléments",
+    "Frontières de confiance",
+    "Données et classification",
+    "Authentification et autorisation",
+    "Alternatives écartées",
+    "Risques acceptés",
+    "Plan de vérification"
+  ]
+}

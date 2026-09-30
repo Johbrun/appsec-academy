@@ -1,0 +1,1 @@
+{ "name": "nova-deepset", "version": "2.1.0", "main": "lib/merge.js", "description": "Fusion profonde d'objets de configuration." }

@@ -1,0 +1,240 @@
+export const questions = [
+  {
+    q: "Novafact active la signature gérée d'ECR (managed signing) et considère que « toute image signée vient du pipeline ». Pourquoi ce raisonnement est-il incomplet ?",
+    options: [
+      "Parce que la signature ne couvre que le manifeste, pas le contenu réel des couches tirées",
+      "ECR signe à la poussée, avec l'identité de celui qui pousse, pas celle du workflow",
+      "Parce que la vérification n'a lieu qu'au `docker pull`, jamais au déploiement ECS",
+      "Parce que la clé de signature gérée est partagée entre tous les dépôts du compte",
+    ],
+    answer: 1,
+    explain: "La signature gérée prouve qu'un principal autorisé a poussé l'image, pas qu'elle a été construite par le workflow de release : si un développeur peut pousser depuis son poste, son image sera signée aussi. La valeur du contrôle tient donc entièrement à qui détient `ecr:PutImage` et `signer:SignPayload`. La signature couvre bien le manifeste, et par transitivité les empreintes des couches qu'il référence — ce point-là n'est pas le trou. Reste à vérifier la signature au moment du déploiement, pas seulement à la récupération.",
+  },
+  {
+    q: "Une fonction Lambda a une configuration de code signing, mais un paquet non signé a pu être déployé. Quelle est l'explication la plus probable ?",
+    options: [
+      "Le paquet a été déployé en image de conteneur, que la signature de code ne couvre pas",
+      "La configuration a été attachée à l'alias seulement, pas à la version publiée",
+      "Le profil AWS Signer a expiré, et Lambda ignore la vérification dans ce cas",
+      "`UntrustedArtifactOnDeployment` est resté à `Warn`, sa valeur par défaut : Lambda déploie",
+    ],
+    answer: 3,
+    explain: "Avec `Warn`, Lambda publie la métrique `SignatureValidationErrors` et une entrée CloudTrail, puis déploie quand même : c'est un contrôle qui paraît actif et ne l'est pas. Seul `Enforce` bloque. La piste de l'image de conteneur est la bonne intuition voisine — la signature de code Lambda ne couvre effectivement que les archives zip — mais dans ce cas la configuration n'aurait pas pu être attachée du tout à la fonction. Un profil de signature expiré, lui, produit un refus sous `Enforce`, pas un silence.",
+  },
+  {
+    q: "Pourquoi conditionner la politique de confiance du rôle IAM de déploiement en production au claim `sub` de la forme `repo:novafact/api:environment:production` ?",
+    options: [
+      "Parce que GitHub chiffre le jeton avec une clé propre à l'environnement de production",
+      "Parce que c'est la seule forme de `sub` acceptée par `StringEquals` sans joker",
+      "Le jeton ne porte ce `sub` que si le job cible l'environnement, donc après ses protections",
+      "Parce que l'environnement restreint les secrets du job, et donc les rôles qu'il peut endosser",
+    ],
+    answer: 2,
+    explain: "Le `sub` d'un jeton OIDC GitHub ne prend la forme `…:environment:production` que si le job déclare cet environnement ; or le déclarer, c'est se soumettre à ses règles de protection — relecteurs, branches autorisées, délai d'attente. L'approbation humaine devient ainsi une condition technique d'accès à AWS. Le raisonnement par les secrets d'environnement est voisin et faux : l'accès à AWS ne passe justement plus par un secret, il passe par le claim. Sans cette condition, n'importe quel workflow du dépôt endosserait le rôle de production.",
+  },
+  {
+    q: "Qu'est-ce qui distingue l'autorisation de mise en production (approval to operate) de l'approbation d'un déploiement ?",
+    options: [
+      "L'approbation de déploiement est humaine, l'approval to operate est automatisée par le pipeline",
+      "L'approval to operate vise la mise en service initiale, l'autre les déploiements suivants",
+      "L'approval to operate ne concerne que les systèmes des agences fédérales américaines",
+      "Une décision de risque prise par un responsable identifié, sur dossier, pour un système",
+    ],
+    answer: 3,
+    explain: "L'autorisation de mise en production est une acceptation formelle du risque résiduel par un responsable nommé, sur dossier : modèle de menaces, findings ouverts, exceptions, supervision en place. Ce n'est pas le clic d'approbation du pipeline, qui n'engage personne sur le risque. La réduire au seul go-live est l'approximation la plus tenace : elle est réexaminée à chaque changement significatif du système, sans quoi elle vieillit en silence. L'idée vient du Risk Management Framework du NIST, mais rien n'y est propre au secteur public.",
+  },
+];
+
+<YouKnow>
+En pentest, tu testes ce qui tourne sans te demander d'où ça vient. En production, la question est inverse : peux-tu **prouver** que l'image qui tourne est bien celle que le pipeline a construite à partir d'un code relu, et qu'une personne habilitée a accepté de la mettre en service ?
+</YouKnow>
+
+## La chaîne de confiance d'une mise en production
+
+Une mise en production traverse plusieurs maillons. Chacun répond à une question différente, et un seul maillon manquant suffit à casser la preuve :
+
+| Maillon | Question | Contrôle chez Novafact |
+| --- | --- | --- |
+| Source | Le code a-t-il été relu ? | Rulesets et revue obligatoire sur `main` (M14) |
+| Build | A-t-il été construit par le pipeline, et seulement par lui ? | Workflow de release unique, runners hébergés, provenance SLSA (M14) |
+| Artefact | Est-ce bien ce binaire-là ? | Référence par **digest** `sha256`, jamais par tag |
+| Signature | Qui garantit ce digest ? | cosign sans clé (keyless) ou AWS Signer |
+| Admission | La plateforme refuse-t-elle le reste ? | Kyverno sur EKS, hook de déploiement ECS, code signing Lambda |
+| Décision | Quelqu'un a-t-il accepté le risque ? | Environnement GitHub protégé, autorisation de mise en production |
+
+Le **digest** est le pivot de toute la chaîne. Un tag comme `api:1.42.0` ou `api:latest` est une étiquette mobile : quiconque peut pousser dans le dépôt ECR peut la déplacer. Un digest est l'empreinte du manifeste : changer un octet de l'image change le digest. On signe un digest, on vérifie un digest, on déploie un digest.
+
+## Signer : cosign sans clé et AWS Signer
+
+**cosign** (Sigstore) signe sans clé longue durée : le job GitHub Actions obtient un jeton OIDC, Fulcio émet un certificat de quelques minutes lié à l'**identité du workflow** (dépôt, fichier de workflow, branche), et la signature est inscrite dans le journal de transparence Rekor. Il n'y a aucune clé privée à stocker, donc aucune clé à voler dans un secret CI. Depuis cosign v3, le format de bundle standardisé est le format par défaut, et la signature d'une image est stockée comme artefact OCI référent à côté de l'image.
+
+<Code file=".github/workflows/release.yml (extrait)" hl="3,22">
+
+```yaml
+permissions:
+  contents: read
+  id-token: write # jeton OIDC : pour AWS et pour Fulcio
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@<SHA épinglé>
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/novafact-ci-push
+          aws-region: eu-west-3
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@<SHA épinglé>
+      - id: build
+        uses: docker/build-push-action@<SHA épinglé>
+        with:
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/novafact/api:${{ github.sha }}
+      - uses: sigstore/cosign-installer@<SHA épinglé>
+      - name: Signer le digest, pas le tag
+        run: cosign sign --yes "${REGISTRY}/novafact/api@${DIGEST}"
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+```
+
+</Code>
+
+La vérification précise **qui** doit avoir signé. Sans `--certificate-identity`, une signature valide de n'importe quel workflow GitHub au monde passerait :
+
+<Code file="scripts/verify-image.sh">
+
+```bash
+cosign verify \
+  --certificate-identity "https://github.com/novafact/api/.github/workflows/release.yml@refs/heads/main" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  "123456789012.dkr.ecr.eu-west-3.amazonaws.com/novafact/api@${DIGEST}"
+```
+
+</Code>
+
+**AWS Signer** est l'alternative native AWS. Pour les images, il signe au format Notation ; depuis novembre 2025, la **signature gérée d'ECR** (managed signing) signe automatiquement chaque image poussée dans les dépôts couverts par une règle, avec l'identité du principal qui pousse (qui doit avoir `signer:SignPayload` sur le profil). C'est simple à déployer, mais la signature atteste « un principal autorisé a poussé », pas « le workflow de release a construit ». Sa valeur dépend donc de la restriction de `ecr:PutImage` au seul rôle CI. Pour Lambda, AWS Signer signe les paquets `.zip` et les layers, et une **configuration de code signing** fait vérifier par Lambda l'intégrité, l'expiration, le profil et la révocation à chaque déploiement.
+
+<Callout kind="warn">
+Le paramètre `UntrustedArtifactOnDeployment` d'une configuration de code signing Lambda vaut **`Warn` par défaut** : Lambda publie la métrique `SignatureValidationErrors` et une entrée CloudTrail, puis déploie le paquet non signé. Seul `Enforce` bloque. Et une configuration ajoutée à une fonction existante ne concerne que les déploiements suivants : le code déjà en place continue de tourner.
+</Callout>
+
+## Vérifier à l'admission
+
+Signer ne sert à rien si la plateforme exécute aussi les images non signées. Le contrôle doit se placer **au dernier moment**, là où l'image est lancée.
+
+**Sur EKS**, Kyverno vérifie les signatures dans le webhook d'admission. Les règles `verifyImages` des `ClusterPolicy` sont dépréciées au profit du type `ImageValidatingPolicy`, qui exprime la vérification en CEL :
+
+<Code file="k8s/policies/signed-images.yaml" hl="6,8,23,24">
+
+```yaml
+apiVersion: policies.kyverno.io/v1
+kind: ImageValidatingPolicy
+metadata:
+  name: novafact-signed-images
+spec:
+  validationActions: [Deny]
+  webhookConfiguration:
+    failurePolicy: Fail # si Kyverno ne répond pas, on refuse
+    timeoutSeconds: 15
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ['']
+        apiVersions: ['v1']
+        resources: ['pods']
+        operations: ['CREATE', 'UPDATE']
+  matchImageReferences:
+    - glob: '123456789012.dkr.ecr.eu-west-3.amazonaws.com/novafact/*'
+  attestors:
+    - name: release
+      cosign:
+        keyless:
+          identities:
+            - subject: 'https://github.com/novafact/api/.github/workflows/release.yml@refs/heads/main'
+              issuer: 'https://token.actions.githubusercontent.com'
+        ctlog:
+          url: 'https://rekor.sigstore.dev'
+  validations:
+    - expression: >-
+        images.containers.map(image, verifyImageSignatures(image, [attestors.release])).all(e, e > 0)
+      message: 'Image non signée par le workflow de release de Novafact'
+```
+
+</Code>
+
+Deux compléments indispensables : une seconde politique qui **refuse les registres non approuvés** (sinon une image hors du glob échappe à la vérification), et un mode `Audit` de quelques jours avant de passer à `Deny`, pour trouver les images système oubliées.
+
+**Sur ECS**, il n'existe pas de contrôleur d'admission. Trois options, de la plus forte à la plus faible : vérifier la signature dans le pipeline **avant** d'enregistrer la task definition (qui référence le digest) et réserver `ecs:RegisterTaskDefinition` et `ecs:UpdateService` au rôle de déploiement ; avec les déploiements blue/green, linéaires ou canary natifs d'ECS, ajouter un **hook Lambda** de cycle de vie au stade `PRE_SCALE_UP` : il reçoit l'ARN de la nouvelle révision du service, vérifie les digests qu'elle référence et renvoie `FAILED` s'ils ne sont pas signés, ce qui ramène le service à la révision précédente avant qu'aucune tâche ne démarre ; enfin, les vérifications déclenchées par EventBridge au lancement des tâches, que l'exemple d'AWS décrit lui-même comme asynchrones et **incapables de bloquer** : elles détectent, elles ne préviennent pas.
+
+## Empreintes : vérifier tout ce qui entre
+
+La même discipline s'applique à tout artefact qui entre dans la chaîne, pas seulement aux images :
+
+| Artefact | Vérification |
+| --- | --- |
+| Paquets npm | Champ `integrity` du lockfile (vérifié par `npm ci`), `npm audit signatures` pour les signatures et attestations du registre |
+| Binaire téléchargé en CI (Trivy, kubectl…) | Empreinte `sha256sum -c` contre une valeur épinglée, ou vérification de signature de l'éditeur |
+| Action GitHub | Épinglage par SHA de commit complet |
+| Artefact interne avec provenance | `gh attestation verify` (attestations GitHub, M14) |
+| Image de base | `FROM` épinglé par digest |
+
+Le cas Codecov (leçon 1) l'illustre : les clients qui vérifiaient l'empreinte du script avant de l'exécuter n'ont pas exécuté la version modifiée.
+
+## Changements et autorisation de mise en production
+
+La **gestion des changements** n'a pas à être une réunion hebdomadaire. Elle classe les changements par risque : un changement **standard** (déploiement courant qui passe tous les contrôles automatiques) est pré-approuvé ; un changement **normal** qui modifie la surface d'attaque (nouvel endpoint public, nouveau flux de données, nouvelle dépendance critique) demande une revue ; un changement **d'urgence** (correctif d'une critique à J+0) passe vite, avec une revue a posteriori obligatoire.
+
+Dans GitHub, un **environnement** `production` porte les règles : relecteurs obligatoires, option *prevent self-review* (l'auteur du déploiement ne peut pas l'approuver), branches autorisées limitées à `main`. Pour que ces règles ne soient pas contournables, le rôle IAM de production ne fait confiance qu'aux jetons OIDC émis pour cet environnement :
+
+<Code file="infra/iam/deploy-prod-trust.json" hl="11,12">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+    },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+        "token.actions.githubusercontent.com:sub": "repo:novafact/api:environment:production"
+      }
+    }
+  }]
+}
+```
+
+</Code>
+
+Quand un job cible un environnement, le `sub` de son jeton prend la forme `environment:` et ne contient plus la branche. Pour les dépôts créés après le 15 juillet 2026, GitHub émet par défaut des `sub` immuables qui incluent les identifiants numériques du propriétaire et du dépôt (`repo:novafact@…/api@…:environment:production`) : adapte la condition, ou vérifie les claims `repository_id` et `repository_owner_id`, qui survivent aux renommages.
+
+L'**autorisation de mise en production** (*approval to operate*, notion issue du Risk Management Framework du NIST, SP 800-37) est d'une autre nature. Ce n'est pas un clic par déploiement : c'est une **décision de risque**, prise par un responsable identifié, pour un nouveau système ou un changement significatif, sur la base d'un dossier. Chez Novafact, ce dossier tient en une page : modèle de menaces à jour (M11), résultat de la revue ou du pentest, findings ouverts et exceptions signées (M5), SBOM, supervision et détections en place (M18), plan de reprise testé (leçon 6). L'autorisation est datée et revue à chaque changement significatif.
+
+<Callout kind="debate">
+Faut-il une approbation humaine à chaque déploiement ? Les équipes qui livrent plusieurs fois par jour répondent non : une approbation systématique devient un tampon que personne ne lit, et elle ralentit précisément les correctifs de sécurité. La position la plus défendable : des contrôles automatiques bloquants pour tous les changements standards (tests, SAST, scan, signature, politique d'admission), et un jugement humain réservé aux changements qui modifient le risque. La difficulté est de bien classer les changements, et c'est là que le threat modeling continu (M11) sert.
+</Callout>
+
+<Callout kind="novafact">
+Chaîne retenue pour l'API (EKS pour les workers, ECS en blue/green pour l'API) : build unique dans `release.yml`, signature cosign du digest, provenance GitHub ; `ecr:PutImage` réservé au rôle CI ; vérification `cosign verify` dans le job de déploiement, puis hook `PRE_SCALE_UP` ECS qui revérifie les digests de la nouvelle révision ; Kyverno en `Deny` sur EKS. Environnement `production` avec deux relecteurs de l'équipe plateforme pour les changements « normaux », et autorisation de mise en production signée par le CTO pour le lancement de l'assistant IA.
+</Callout>
+
+<Recap items={[
+  "La preuve de provenance est une chaîne : source relue, build unique, digest, signature, admission, décision.",
+  "On signe, vérifie et déploie un digest, jamais un tag ; la vérification précise l'identité attendue du signataire.",
+  "cosign keyless lie la signature au workflow ; la signature gérée d'ECR atteste le pousseur, à combiner avec des droits de push restreints.",
+  "Admission : Kyverno ImageValidatingPolicy sur EKS, contrôle en pipeline et hook de déploiement sur ECS, code signing Lambda en Enforce.",
+  "Environnement GitHub protégé et politique de confiance IAM sur le sub de l'environnement ; l'approval to operate est une décision de risque sur dossier.",
+]} />
+
+<Sources items={[
+  { title: "Sigstore : vérifier avec cosign", url: "https://docs.sigstore.dev/cosign/verifying/verify/" },
+  { title: "Kyverno : ImageValidatingPolicy", url: "https://kyverno.io/docs/policy-types/image-validating-policy/" },
+  { title: "Amazon ECR : managed signing", url: "https://docs.aws.amazon.com/AmazonECR/latest/userguide/managed-signing.html" },
+  { title: "AWS Lambda : code signing", url: "https://docs.aws.amazon.com/lambda/latest/dg/configuration-codesigning.html" },
+  { title: "Amazon ECS : lifecycle hooks des déploiements", url: "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-lifecycle-hooks.html" },
+  { title: "GitHub : référence OIDC (claims sub)", url: "https://docs.github.com/en/actions/reference/security/oidc" },
+  { title: "NIST SP 800-37 Rev. 2 : Risk Management Framework", url: "https://csrc.nist.gov/pubs/sp/800/37/r2/final" },
+]} />

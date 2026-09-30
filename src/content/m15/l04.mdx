@@ -1,0 +1,251 @@
+export const questions = [
+  {
+    q: "Un rôle de CI a `iam:PassRole` sur `*` et `lambda:CreateFunction`. Pourquoi est-ce une escalade potentielle ?",
+    options: [
+      "Parce que `iam:PassRole` accorde à lui seul les droits du rôle transmis",
+      "Parce que la fonction créée reste invocable publiquement tant qu'aucune politique de ressource ne la restreint",
+      "Il peut créer une fonction qui s'exécute sous n'importe quel rôle du compte, dont un rôle admin",
+      "Parce que CloudTrail attribue les appels au rôle passé et masque l'identité réelle de la CI",
+    ],
+    answer: 2,
+    explain: "`PassRole` n'accorde rien par lui-même, et c'est le contresens à éviter : il autorise à *confier* un rôle à un service. Couplé à une action qui crée une ressource exécutant du code (`lambda:CreateFunction`, `ecs:RunTask`, `ec2:RunInstances`), il donne indirectement les droits du rôle transmis, sans jamais toucher à IAM. Le correctif tient en deux conditions : `Resource` restreint aux rôles légitimes et `iam:PassedToService` sur le bon service.",
+  },
+  {
+    q: "Quelle trust policy expose le plus un rôle de déploiement GitHub Actions ?",
+    options: [
+      "`sub` = `repo:novafact/api:environment:production`",
+      "`sub` en `StringLike` sur `repo:novafact/*`",
+      "`sub` = `repo:novafact/api:ref:refs/heads/main`",
+      "`sub` en `StringLike` sur `repo:novafact/api:pull_request`",
+    ],
+    answer: 1,
+    explain: "IAM refuse un `sub` réduit à `*`, mais `repo:novafact/*` passe la validation : n'importe quel dépôt de l'organisation, n'importe quelle branche, n'importe quel workflow endosse le rôle — y compris un dépôt bac à sable ouvert à tous. Le `sub` en `pull_request` est le second choix tentant, et il est déjà trop large (toute PR du dépôt déclenche le workflow), mais il reste borné à un dépôt : c'est nettement moins grave.",
+  },
+  {
+    q: "Un éditeur de monitoring demande un rôle dans le compte de Novafact. Pourquoi exiger un `ExternalId` qu'il génère par client ?",
+    options: [
+      "Pour qu'un autre client de l'éditeur ne puisse pas lui faire endosser ton rôle",
+      "Parce qu'AWS l'exige sur tout `AssumeRole` entre deux comptes",
+      "Pour que l'éditeur chiffre les métriques avec une valeur propre au client",
+      "Pour prouver l'identité de l'éditeur, l'`ExternalId` étant un secret partagé",
+    ],
+    answer: 0,
+    explain: "L'éditeur est un adjoint partagé entre tous ses clients : sans condition, un autre client qui déclare ton ARN de rôle comme le sien fait agir l'éditeur chez toi. Le piège est d'y voir un secret d'authentification : l'`ExternalId` n'en est pas un — il circule dans les appels et dans les tickets, il ne protège rien s'il fuite. Il ne fait que lier une session au bon client, ce qui suffit, à condition que ce soit l'éditeur qui le génère et non toi.",
+  },
+  {
+    q: "Pourquoi une permission boundary est-elle utile quand les développeurs peuvent créer des rôles IAM ?",
+    options: [
+      "Elle accorde les permissions communes à tous les rôles créés par les développeurs",
+      "Elle remplace les SCP au niveau du compte, avec une portée plus fine",
+      "Elle bloque `iam:CreateRole` tant que l'équipe sécurité n'a pas validé la politique",
+      "Elle plafonne les rôles créés, si on exige sa présence et qu'on interdit de la retirer",
+    ],
+    answer: 3,
+    explain: "Une boundary ne donne aucun droit : elle définit le maximum d'un principal, les permissions venant toujours de la politique d'identité. La confondre avec une politique commune attachée d'office est l'erreur la plus fréquente. Et elle ne vaut que si `iam:CreateRole` est conditionné par `iam:PermissionsBoundary` sur la bonne politique et que `iam:DeleteRolePermissionsBoundary` est refusé : sans ces deux verrous, un développeur crée un rôle sans boundary, ou la détache aussitôt.",
+  },
+];
+
+<YouKnow>
+En pentest AWS, tu as déjà transformé une permission anodine en accès administrateur. Côté défense, la question change : quelles permissions sont **équivalentes à administrateur** sans en avoir l'air, comment les repérer avant un attaquant, et comment couper le chemin sans bloquer les équipes.
+</YouKnow>
+
+## Pourquoi IAM s'escalade
+
+Une permission IAM ne se lit pas seule. Certaines permettent de **modifier des permissions** (les siennes ou celles d'un autre), d'**agir sous une autre identité** ou de **faire exécuter du code** par un service qui porte un autre rôle. Un principal qui détient l'une d'elles détient, par transitivité, tout ce que ce chemin lui ouvre. Le modèle mental utile est un **graphe** : les nœuds sont des principals et des ressources, les arêtes sont « peut devenir » ou « peut agir comme ». L'escalade, c'est un chemin dans ce graphe ; la défense, c'est de supprimer des arêtes.
+
+## Les familles de chemins
+
+La bibliothèque communautaire **pathfinding.cloud** (Datadog, dans la lignée des travaux de Spencer Gietzen chez Rhino Security Labs) classe les chemins connus en cinq familles. Cette classification sert surtout à la défense : chaque famille a sa parade.
+
+| Famille | Exemples de permissions en cause | Mécanisme | Parade principale |
+| --- | --- | --- | --- |
+| **Auto-escalade** | `iam:CreatePolicyVersion`, `iam:SetDefaultPolicyVersion`, `iam:AttachRolePolicy`, `iam:PutRolePolicy`, `iam:AddUserToGroup` | Le principal modifie ses propres droits | Aucune écriture IAM hors du pipeline IaC ; Deny par SCP |
+| **Accès à un autre principal** | `iam:CreateAccessKey`, `iam:CreateLoginProfile`, `iam:UpdateLoginProfile`, `iam:UpdateAssumeRolePolicy`, `sts:AssumeRole` vers un rôle trop confiant | Le principal obtient des identifiants ou la confiance d'une identité plus puissante | Zéro utilisateur IAM (leçon 2), trust policies nominatives |
+| **Nouveau PassRole** | `iam:PassRole` + `lambda:CreateFunction`, `ec2:RunInstances`, `cloudformation:CreateStack`, `ecs:RunTask`, `glue:CreateJob`… | Créer une ressource qui exécute du code avec un rôle plus puissant | PassRole limité par ARN et par `iam:PassedToService` |
+| **PassRole existant** | `lambda:UpdateFunctionCode`, `ssm:SendCommand`, `ecs:RegisterTaskDefinition` + mise à jour de service… | Modifier le code d'une ressource qui porte déjà un rôle puissant | Séparer « déployer du code » et « détenir des droits » ; rôles de workload minimaux |
+| **Accès aux identifiants** | `ssm:GetParameter`, `secretsmanager:GetSecretValue`, lecture de variables Lambda ou de *user data* EC2 | Lire des secrets qui appartiennent à une autre identité | Secrets par service, politiques de ressource sur les secrets |
+
+Deux détails reviennent souvent en revue. `iam:CreatePolicyVersion` permet de publier une nouvelle version **et de la rendre par défaut** en une seule opération, sans détenir `iam:SetDefaultPolicyVersion` : c'est une auto-escalade complète dès que le principal peut modifier une politique qui lui est attachée. Et `iam:PassRole` n'est **pas** journalisé comme un événement CloudTrail à part (il est vérifié lors de l'appel qui transmet le rôle) : ni la génération de politiques d'Access Analyzer ni les données *last accessed* ne le voient (leçon 5). Il doit donc être écrit et revu à la main.
+
+## PassRole bien écrit
+
+<Diff file="infra/iam/ci-deployer-policy.json" hlBefore="5" hlAfter="5,6,7" stack>
+
+```json
+{
+  "Sid": "PassAnyRole",
+  "Effect": "Allow",
+  "Action": "iam:PassRole",
+  "Resource": "*"
+}
+```
+
+```json
+{
+  "Sid": "PassOnlyWorkloadRolesToLambda",
+  "Effect": "Allow",
+  "Action": "iam:PassRole",
+  "Resource": "arn:aws:iam::111122223333:role/workloads/novafact-*",
+  "Condition": {
+    "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" }
+  }
+}
+```
+
+</Diff>
+
+Le chemin `/workloads/` et le préfixe `novafact-` ne valent que si **personne d'autre** ne peut créer de rôle à cet emplacement avec plus de droits. C'est là qu'interviennent les permission boundaries.
+
+## Déléguer la création de rôles sans perdre le contrôle
+
+Les équipes veulent créer leurs rôles de fonctions sans attendre l'équipe plateforme. Le pattern documenté par AWS : autoriser `iam:CreateRole` **uniquement** si une boundary précise est attachée, et protéger cette boundary.
+
+<Code file="infra/iam/delegated-role-admin.json" hl="9,10,15,16">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CreateRolesOnlyWithBoundary",
+      "Effect": "Allow",
+      "Action": ["iam:CreateRole", "iam:PutRolePolicy", "iam:AttachRolePolicy"],
+      "Resource": "arn:aws:iam::111122223333:role/workloads/*",
+      "Condition": {
+        "StringEquals": { "iam:PermissionsBoundary": "arn:aws:iam::111122223333:policy/novafact-workload-boundary" }
+      }
+    },
+    {
+      "Sid": "ProtectBoundary",
+      "Effect": "Deny",
+      "Action": [
+        "iam:DeleteRolePermissionsBoundary",
+        "iam:CreatePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion"
+      ],
+      "Resource": [
+        "arn:aws:iam::111122223333:role/*",
+        "arn:aws:iam::111122223333:policy/novafact-workload-boundary"
+      ]
+    }
+  ]
+}
+```
+
+</Code>
+
+La boundary elle-même n'autorise jamais `iam:*` ni les actions d'organisation : un rôle créé par délégation ne peut pas, à son tour, créer un rôle plus puissant.
+
+## Trust policies trop larges et confused deputy
+
+Une trust policy est une politique de ressource : elle dit **qui peut devenir** ce rôle. Trois formes sont à relire à chaque revue :
+
+- `"Principal": { "AWS": "arn:aws:iam::444455556666:root" }` : ce n'est pas le compte racine, c'est **tout le compte** 444455556666. N'importe quel principal de ce compte qui détient `sts:AssumeRole` sur ton rôle peut l'endosser. Nomme le rôle précis ;
+- `"Principal": { "AWS": "*" }` avec une condition : acceptable seulement si la condition est solide (`aws:PrincipalOrgID` au minimum) ;
+- un principal de **service** sans condition de source.
+
+Le **confused deputy** est l'anti-pattern de Kohnfelder (M8, leçon 3) transposé à AWS : un adjoint légitime (un service AWS, un éditeur SaaS) agit pour plusieurs clients, et un client malveillant l'amène à agir sur **ta** ressource. Deux parades selon l'adjoint :
+
+- **service AWS** : conditions `aws:SourceArn` et `aws:SourceAccount` dans la politique de ressource ou la trust policy ;
+- **éditeur tiers** : un `ExternalId` **généré par l'éditeur, unique par client**, vérifié dans la trust policy.
+
+<Code file="infra/iam/monitoring-vendor-trust.json" hl="6,9">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::999988887777:role/vendor-integration" },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": { "sts:ExternalId": "nvf-7d1c9e0a-4b52-4f7e-9a51-2f3c8e6b1d44" }
+      }
+    }
+  ]
+}
+```
+
+</Code>
+
+## La trust policy OIDC de GitHub
+
+La fédération OIDC entre GitHub Actions et AWS (M14, leçon 2) repose entièrement sur la trust policy : le fournisseur `token.actions.githubusercontent.com` est **partagé par tous les dépôts de GitHub**. Sans condition sur le sujet (`sub`), n'importe quel workflow public pourrait endosser ton rôle. IAM refuse aujourd'hui d'enregistrer une telle trust policy si `sub` est absent ou réduit à un joker, mais `repo:novafact/*` passe la vérification, et il ouvre le rôle à tout dépôt, toute branche et tout workflow de l'organisation.
+
+<Diff file="infra/iam/gha-deploy-prod-trust.json" hlBefore="7,8" hlAfter="8,9,10" stack>
+
+```json
+{
+  "Effect": "Allow",
+  "Principal": { "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com" },
+  "Action": "sts:AssumeRoleWithWebIdentity",
+  "Condition": {
+    "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+    "StringLike": {
+      "token.actions.githubusercontent.com:sub": "repo:novafact/*"
+    }
+  }
+}
+```
+
+```json
+{
+  "Effect": "Allow",
+  "Principal": { "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com" },
+  "Action": "sts:AssumeRoleWithWebIdentity",
+  "Condition": {
+    "StringEquals": {
+      "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+      "token.actions.githubusercontent.com:sub": "repo:novafact/api:environment:production",
+      "token.actions.githubusercontent.com:repository_id": "812345678",
+      "token.actions.githubusercontent.com:repository_owner_id": "91234567"
+    }
+  }
+}
+```
+
+</Diff>
+
+Le sujet `environment:production` ne vaut que si l'environnement GitHub est **protégé** (branches autorisées, relecteurs requis) : sinon, n'importe quelle branche peut déclarer cet environnement. Les identifiants **numériques** (`repository_id`, `repository_owner_id`), utilisables comme clés de condition depuis février 2026, résistent au renommage et à la réutilisation d'un nom de dépôt. Pour la même raison, GitHub applique depuis le 15 juillet 2026 un format de `sub` qui inclut ces identifiants immuables (`repo:org@id/depot@id:…`) aux **nouveaux** dépôts et aux dépôts renommés : une trust policy écrite à l'ancien format ne correspondra plus pour eux, vérifie le format avant de créer un rôle.
+
+## Détecter et couper
+
+<Steps items={[
+  { title: "Cartographier", text: "PMapper construit le graphe « qui peut devenir qui » d'un compte et liste les principals équivalents à administrateur (projet peu actif depuis 2024, mais le modèle reste utile) ; CloudFox et Prowler repèrent aussi des chemins connus. Lance-les sur chaque compte, comparés dans le temps." },
+  { title: "Bloquer à l'écriture", text: "En CI, Checkov (CKV_AWS_286 : politique qui permet une escalade) et `aws accessanalyzer check-access-not-granted` sur une liste d'actions interdites (leçon 5)." },
+  { title: "Bloquer par l'organisation", text: "SCP : aucune écriture IAM hors des rôles du pipeline IaC ; aucune modification des trust policies des rôles de plateforme." },
+  { title: "Détecter à l'exécution", text: "Règles Elastic sur CloudTrail : CreatePolicyVersion, AttachRolePolicy, PutRolePolicy, UpdateAssumeRolePolicy, CreateAccessKey, CreateLoginProfile, UpdateFunctionCode20150331v2 hors du rôle de déploiement ; findings GuardDuty PrivilegeEscalation:IAMUser/AnomalousBehavior." },
+  { title: "S'entraîner", text: "IAM Vulnerable (Bishop Fox) et CloudGoat déploient des chemins réels dans un compte de test : vérifie que tes outils et tes règles les voient." },
+]} />
+
+<Callout kind="novafact">
+L'analyse PMapper du compte de production a trouvé un chemin de trois arêtes : le rôle de l'assistant IA pouvait appeler `lambda:UpdateFunctionCode` sur la fonction de maintenance, qui portait un rôle capable d'attacher des politiques. Correctif en deux temps : retrait de la permission au rôle de l'assistant (qui n'en avait jamais eu besoin), et découpage de la fonction de maintenance pour qu'aucune fonction dont le code est modifiable hors pipeline ne porte de droit IAM.
+</Callout>
+
+<Callout kind="tip">
+Le jeu **IAM Privesc Pathfinder** te donne un graphe de permissions : tu cherches le chemin vers administrateur, puis l'arête la moins coûteuse à couper.
+</Callout>
+
+<Recap items={[
+  "Certaines permissions valent administrateur par transitivité : penser en graphe « peut devenir ».",
+  "Cinq familles : auto-escalade, accès à un autre principal, nouveau PassRole, PassRole existant, accès aux identifiants.",
+  "PassRole se limite par ARN et par iam:PassedToService ; il n'apparaît ni dans la génération de politiques ni dans last accessed.",
+  "Déléguer la création de rôles avec une boundary obligatoire et protégée.",
+  "Trust policies nominatives, aws:SourceArn pour les services, ExternalId par client pour les tiers.",
+  "OIDC GitHub : sub précis, environnement protégé, identifiants numériques ; détecter les écritures IAM hors pipeline.",
+]} />
+
+<Lab id="iam-vulnerable" />
+
+<Sources items={[
+  { title: "pathfinding.cloud : bibliothèque des chemins d'escalade IAM", url: "https://pathfinding.cloud/" },
+  { title: "Rhino Security Labs : AWS IAM Privilege Escalation, Methods and Mitigation", url: "https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/" },
+  { title: "AWS IAM : The confused deputy problem", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html" },
+  { title: "AWS IAM : Access to AWS accounts owned by third parties", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_common-scenarios_third-party.html" },
+  { title: "AWS IAM : Create a role for OIDC federation (GitHub)", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html" },
+  { title: "GitHub : immutable subject claims for Actions OIDC tokens", url: "https://github.blog/changelog/2026-04-23-immutable-subject-claims-for-github-actions-oidc-tokens/" },
+  { title: "AWS : validation des claims des fournisseurs OIDC par STS (2026)", url: "https://aws.amazon.com/about-aws/whats-new/2026/01/aws-sts-supports-validation-identity-provider-claims/" },
+]} />

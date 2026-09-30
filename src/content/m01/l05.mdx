@@ -1,0 +1,227 @@
+export const questions = [
+  {
+    q: "Une nouvelle règle SAST produit encore 30 % de faux positifs. Que fais-tu ?",
+    options: [
+      "Tu la rends bloquante tout de suite, avec une exception préremplie pour les cas connus",
+      "Tu la laisses en mode Monitor jusqu'à ce que son taux de faux positifs tombe à zéro",
+      "Tu la passes en commentaire de PR, tu l'affines, puis tu la rends bloquante",
+      "Tu la rends bloquante sur les dépôts d'une seule équipe volontaire, en pilote",
+    ],
+    answer: 2,
+    explain: "Attendre le zéro faux positif en mode Monitor est le piège : le tableau de bord ne renvoie rien aux développeurs, donc personne ne te dit quels findings sont faux, et la règle n'atteindra jamais ce zéro. Le commentaire de PR est l'étape qui manque : il fait travailler la règle sans bloquer personne et te donne la matière pour l'affiner. Le pilote reporte le coût sur une équipe sans améliorer la règle, et l'exception préremplie apprend aux équipes à la remplir.",
+  },
+  {
+    q: "Qu'est-ce qu'une bonne exception de sécurité ?",
+    options: [
+      "Une entrée dans le backlog sécurité de l'équipe, priorisée par son lead",
+      "Une dérogation écrite, datée, avec un propriétaire du risque et un plan de sortie",
+      "Un // nosemgrep portant l'identifiant de la règle et un commentaire d'explication en clair",
+      "Une validation de l'ingénieur AppSec, consignée dans la revue de la PR",
+    ],
+    answer: 1,
+    explain: "Le // nosemgrep bien renseigné est le plus tentant, parce qu'il corrige déjà le mauvais réflexe (supprimer toutes les règles sur la ligne). Il reste une suppression : ni propriétaire, ni date, invisible du programme. La validation AppSec écrit la décision mais la fait prendre par quelqu'un qui ne porte pas le risque. Le backlog trace une intention, pas une acceptation. Une exception est une acceptation de risque : écrite, approuvée au bon niveau, datée, réexaminée à échéance.",
+  },
+  {
+    q: "Tu actives un SCA bloquant sur un monorepo qui compte déjà 40 vulnérabilités hautes connues. Comment éviter de bloquer toutes les PR dès le premier jour ?",
+    options: [
+      "Abaisser le seuil à « critique seulement » jusqu'à ce que le stock soit résorbé",
+      "Inscrire les 40 vulnérabilités au fichier d'exceptions, avec une date d'expiration",
+      "Bloquer la release plutôt que les PR, tant que le stock n'est pas résorbé",
+      "Ne bloquer que sur ce que la PR introduit, et traiter le stock à part",
+    ],
+    answer: 3,
+    explain: "Le fichier d'exceptions est le plus séduisant : le mécanisme existe, il est daté et versionné. Mais une exception est une décision instruite et signée, cas par cas ; quarante d'un coup en font une case à cocher et décrédibilisent l'outil. Abaisser le seuil laisse passer les nouvelles hautes tout en bloquant encore sur d'anciennes critiques. Déplacer la porte vers la release déplace juste le blocage sur ceux qui livrent. Une porte juge le changement ; le stock relève d'un plan de remédiation avec des SLA.",
+  },
+  {
+    q: "Un correctif de production urgent est bloqué par une porte de sécurité en panne. Quelle procédure est la plus saine ?",
+    options: [
+      "Une personne de la bypass list contourne la porte, et une revue a lieu sous 24 h",
+      "Le lead rend le job non obligatoire le temps de livrer, puis le remet ensuite",
+      "On passe par le pipeline de hotfix, qui n'a pas de porte de sécurité",
+      "On attend la réparation : aucune livraison ne doit sortir sans contrôle de sécurité",
+    ],
+    answer: 0,
+    explain: "Rendre le job non obligatoire « le temps de livrer » est ce que presque tout le monde fait, et c'est exactement le contournement par la configuration qu'il faut traquer : rien ne garantit qu'on le remette, et la trace ressemble à un commit anodin. Le pipeline de hotfix sans porte transforme l'exception en autoroute permanente. Attendre la réparation fait payer au client la panne d'un outil. Le bris de glace existe pour ce cas : restreint à quelques personnes, tracé, revu après coup.",
+  },
+];
+
+<YouKnow>
+Tu as vu des pipelines où « tout est rouge » et où personne ne regarde plus, et d'autres où rien ne bloque jamais. Le bon réglage se trouve entre les deux, et il se décide explicitement.
+</YouKnow>
+
+## Où placer les contrôles
+
+Chaque étape de la livraison peut porter un contrôle, avec un coût et un délai de retour différents :
+
+| Étape | Exemples de contrôles | Délai de retour |
+| --- | --- | --- |
+| Poste du développeur | Lint de sécurité, pre-commit (secrets), extension IDE | Secondes |
+| Pull request | SAST ciblé, SCA, revue de code, tests de sécurité | Minutes |
+| Build et release | SBOM, signature, scan d'image, vérification de provenance | Minutes |
+| Staging | DAST authentifié, tests d'intégration de sécurité | Heures |
+| Production | WAF, détection, bug bounty, pentest | Continu |
+
+Plus le contrôle est tôt, plus il doit être **rapide et précis**, car il touche chaque développeur à chaque commit. Un contrôle sur le poste ne peut pas être une porte : le développeur peut toujours le contourner (`git commit --no-verify`). Il sert au confort et au retour immédiat ; la vraie porte est côté serveur, dans la PR ou la release, là où le contournement laisse une trace.
+
+## Break/build : décider ce qui bloque
+
+Un critère *break/build* dit ce qui empêche une fusion ou une mise en production. Il doit être **écrit**, **connu** et **stable**. Un exemple de politique raisonnable pour Novafact :
+
+<Steps items={[
+  { title: "Bloquant", text: "Secret détecté dans le code ; dépendance avec vulnérabilité critique atteignable et correctif disponible ; règle SAST maison à très faible taux de faux positifs (ex. SQL brut hors module autorisé)." },
+  { title: "Bloquant avec délai", text: "Vulnérabilité haute atteignable : la PR passe, mais un ticket est créé avec un SLA ; au-delà du SLA, les releases sont bloquées." },
+  { title: "Informatif", text: "Tout le reste : commentaires dans la PR, tableau de bord, revue lors des rituels de sécurité." },
+]} />
+
+Deux principes rendent cette politique tenable.
+
+**Juger le changement, pas l'historique.** Une porte qui bloque sur les 40 vulnérabilités déjà présentes dans le dépôt punit un développeur qui n'y est pour rien. Les bons outils savent comparer à une référence : `semgrep ci` fait un scan « diff-aware » dans les pull requests et ne remonte que les findings introduits par le changement ; l'action `dependency-review-action` de GitHub ne regarde que les dépendances ajoutées ou modifiées par la PR. Le stock existant relève d'un plan de remédiation, pas de la porte.
+
+**Monter en puissance règle par règle.** Semgrep formalise très bien cette progression avec trois modes par règle : *Monitor* (le finding n'apparaît que dans le tableau de bord), *Comment* (un commentaire dans la PR, qui reste fusionnable) et *Block* (le check échoue). Une règle nouvelle commence en Monitor ; elle passe en Comment quand tu as vérifié ses résultats sur quelques semaines, et en Block quand son taux de faux positifs est quasi nul et que le correctif est évident.
+
+## Mettre la porte en place
+
+Chez Novafact, la porte de PR tient dans un workflow GitHub Actions et une règle de branche. Le workflow vérifie d'abord le fichier d'exceptions, puis les dépendances.
+
+<Code file=".github/workflows/security-gate.yml" hl="13,20,21,22">
+
+```yaml
+name: security-gate
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  exceptions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7          # à épingler par SHA en production (voir M14)
+      - run: npm ci
+      - run: node scripts/check-exceptions.mjs
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: critical
+          fail-on-scopes: runtime
+          comment-summary-in-pr: on-failure
+```
+
+</Code>
+
+Côté GitHub, un **ruleset** sur la branche principale rend ces deux jobs obligatoires (*required status checks*). Si le dépôt utilise le code scanning, le même ruleset peut exiger les résultats d'un outil et bloquer la fusion au-delà d'un seuil de gravité (par exemple « High or higher » pour les alertes de sécurité). Le ruleset porte aussi une **liste de contournement** (*bypass list*) limitée à quelques personnes : c'est le bris de glace, pour un correctif urgent quand un outil est en panne. Chaque contournement est tracé et donne lieu à une revue a posteriori.
+
+La porte de **release** est différente : elle ne juge plus un changement, mais l'état du produit au moment de livrer. C'est là que vit la catégorie « bloquant avec délai ». Chez Novafact, le job de release interroge le gestionnaire de vulnérabilités et refuse de publier si une vulnérabilité haute ou critique a dépassé son SLA sans exception valide. L'équipe a donc un délai pour corriger, mais le délai a une fin concrète.
+
+<Callout kind="debate">
+Faut-il bloquer du tout ? Certains praticiens défendent un modèle sans porte bloquante en PR : tout est informatif, et la pression passe par les SLA, les tableaux de bord et la revue de risque. L'argument : une porte bloquante crée un rapport de force et incite à tromper l'outil. D'autres répondent que certaines catégories (secret en clair, dépendance critique exploitée) ne se négocient pas, et qu'un blocage rare et prévisible est mieux accepté qu'une relance permanente. Le compromis habituel : très peu de règles bloquantes, choisies pour leur précision, et tout le reste en information.
+</Callout>
+
+<Callout kind="warn">
+La plupart des contournements ne passent pas par la liste prévue, mais par la configuration : un `// nosemgrep` sans identifiant de règle (qui ignore toutes les règles sur la ligne), une option `warn-only: true` ajoutée « temporairement », un job rendu non obligatoire. Surveille ces changements comme du code sensible : `CODEOWNERS` sur les fichiers de workflow et de configuration des outils, et un contrôle qui refuse un `nosemgrep` sans identifiant de règle.
+</Callout>
+
+La porte la plus économique n'est pas toujours dans la CI. Pour l'infrastructure, elle se place **à l'admission** : un contrôle de politique qui refuse une ressource exposée publiquement avant qu'elle n'existe (M16). La différence avec un scan périodique du compte est une fenêtre : le scan constate après coup, avec les minutes ou les heures d'exposition qui séparent la création de la détection. Même logique qu'une porte de PR, appliquée à un autre moment de la chaîne.
+
+## Les exceptions
+
+Un contrôle bloquant sans procédure d'exception pousse au contournement silencieux (désactiver la règle, `// nosemgrep`, merge forcé). Une bonne exception :
+
+- est **écrite** dans un outil traçable (ticket, fichier dans le dépôt) ;
+- est **justifiée** : pourquoi le risque est acceptable ou pourquoi le correctif ne peut pas attendre ;
+- a un **propriétaire du risque** du bon niveau (pas le développeur qui veut merger) ;
+- a une **date d'expiration** et un **plan de sortie** ;
+- est **revue** à échéance, automatiquement.
+
+Un fichier `security-exceptions.yml` versionné dans le dépôt, lu par la CI, est une solution simple et efficace : l'exception est revue en PR comme le code, et la CI refuse une exception expirée, trop longue ou auto-approuvée.
+
+<Code file="security-exceptions.yml">
+
+```yaml
+- id: EXC-2026-014
+  rule: novafact.raw-sql-outside-db-module
+  path: apps/api/src/exports/accounting.ts
+  reason: >
+    Requête d'agrégation comptable non exprimable avec le query builder ;
+    les paramètres sont des dates validées par schéma, jamais des chaînes libres.
+  requestedBy: equipe-facturation
+  riskOwner: responsable-produit-facturation
+  approvedBy: responsable-produit-facturation
+  expires: 2026-12-15
+  exitPlan: https://tickets.novafact.example/SEC-412
+```
+
+</Code>
+
+<Code file="scripts/check-exceptions.mjs" hl="5,16,22,23">
+
+```js
+import { readFileSync } from 'node:fs';
+import { parse } from 'yaml';
+import { z } from 'zod';
+
+const MAX_DAYS = 365; // plafond absolu ; la durée par niveau de risque est vérifiée en revue
+const Exception = z.object({
+  id: z.string().regex(/^EXC-\d{4}-\d{3}$/),
+  rule: z.string().min(1),
+  path: z.string().min(1),
+  reason: z.string().min(40),
+  requestedBy: z.string(),
+  riskOwner: z.string(),
+  approvedBy: z.string(),
+  expires: z.coerce.date(),
+  exitPlan: z.string().url(),
+}).refine((e) => e.approvedBy !== e.requestedBy, 'le demandeur ne peut pas approuver sa propre exception');
+
+const list = z.array(Exception).parse(parse(readFileSync('security-exceptions.yml', 'utf8')) ?? []);
+const errors = [];
+for (const e of list) {
+  const daysLeft = (e.expires.getTime() - Date.now()) / 86_400_000;
+  if (daysLeft < 0) errors.push(`${e.id} a expiré : renouvelle-la en PR ou corrige le code`);
+  if (daysLeft > MAX_DAYS) errors.push(`${e.id} dépasse ${MAX_DAYS} jours`);
+}
+if (errors.length) {
+  console.error(errors.join('\n'));
+  process.exit(1);
+}
+```
+
+</Code>
+
+Le script n'applique qu'un plafond absolu d'un an : la durée réelle dépend du niveau de risque, et la leçon sur le risque propose une matrice (qui peut signer, pour combien de temps). Pour les dépendances, l'équivalent existe dans `dependency-review-action` : l'option `allow-ghsas` accepte une liste d'identifiants d'advisories à ignorer, que tu peux générer à partir du même fichier d'exceptions pour garder une seule source de vérité.
+
+<Callout kind="novafact">
+Premier trimestre de la porte chez Novafact (chiffres fictifs) : 212 PR analysées, 9 bloquées, dont 7 corrigées dans l'heure (secrets et une dépendance critique), 2 passées par une exception signée. Un seul bris de glace, lors d'une panne de l'API d'advisories. Ce sont ces chiffres, plus que la politique elle-même, qui ont convaincu les équipes que la porte était raisonnable.
+</Callout>
+
+## Documenter et rendre compte
+
+Les jalons et exceptions n'ont de valeur que s'ils sont visibles. Trois supports suffisent au début :
+
+- une **page de politique** courte (ce qui bloque, qui décide, comment demander une exception) ;
+- un **tableau de bord** par équipe (findings ouverts, âge, exceptions actives) ;
+- une **boucle de retour** : chaque incident ou faux positif récurrent fait évoluer les règles.
+
+Dans le rapport mensuel, quatre lignes suffisent : nombre de PR bloquées et motif, délai médian de déblocage, exceptions actives (et celles qui expirent dans le mois), contournements utilisés. Le délai de déblocage est l'indicateur à surveiller : s'il monte, la porte coûte trop cher aux équipes et le contournement n'est pas loin.
+
+<Recap items={[
+  "Chaque étape de la livraison peut porter un contrôle ; plus il est tôt, plus il doit être rapide et précis. La vraie porte est côté serveur.",
+  "Les critères break/build sont écrits, connus et stables ; une porte juge le changement, pas l'historique.",
+  "On monte en puissance règle par règle : surveiller, commenter, puis bloquer quand la règle est fiable.",
+  "Une exception est écrite, justifiée, approuvée par quelqu'un d'autre que le demandeur, datée et vérifiée par la CI.",
+  "Un bris de glace prévu, restreint et tracé vaut mieux qu'un contournement improvisé.",
+  "Politique courte, tableau de bord par équipe et boucle de retour rendent le système vivant.",
+]} />
+
+<Sources items={[
+  { title: "OWASP SAMM : Secure Build et Defect Management", url: "https://owaspsamm.org/model/" },
+  { title: "Semgrep, modes de règles (Monitor, Comment, Block)", url: "https://semgrep.dev/docs/semgrep-code/policies" },
+  { title: "Semgrep, ignorer du code avec nosemgrep", url: "https://docs.semgrep.dev/ignoring-files-folders-code" },
+  { title: "GitHub, dependency-review-action", url: "https://github.com/actions/dependency-review-action" },
+  { title: "GitHub Docs, code scanning merge protection", url: "https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection" },
+  { title: "OWASP DevSecOps Guideline", url: "https://owasp.org/www-project-devsecops-guideline/" },
+  { title: "NIST SSDF SP 800-218", url: "https://csrc.nist.gov/pubs/sp/800/218/final" },
+]} />

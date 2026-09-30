@@ -1,0 +1,237 @@
+export const questions = [
+  {
+    q: "Novafact a un helper maison db.raw(sql) qui exécute du SQL brut. Pourquoi les règles publiques ne le voient-elles pas ?",
+    options: [
+      "Parce qu'elles ne connaissent que les API publiques : déclare db.raw comme sink",
+      "Parce que le helper passe par un template string, que les règles ne savent pas analyser",
+      "Parce que le SQL est construit dans un autre fichier que celui où il est exécuté",
+      "Parce que les règles publiques ne couvrent que les ORM, pas les pilotes bas niveau",
+    ],
+    answer: 0,
+    explain: "Les règles publiques lisent très bien un template string, suivent un flux entre fichiers et couvrent aussi les pilotes bas niveau. Le point aveugle est ailleurs : elles reconnaissent `pool.query` ou `prisma.$queryRawUnsafe`, pas `db.raw`, parce que personne ne leur a dit ce qu'est ce helper. Déclarer ses sources, sinks et sanitizers maison est ce qui multiplie leur efficacité.",
+  },
+  {
+    q: "Que fait une règle Semgrep en mode taint ?",
+    options: [
+      "Elle signale tout appel à un sink dont un argument n'est pas une constante littérale",
+      "Elle signale un chemin d'une source vers un sink, sauf s'il passe par un sanitizer",
+      "Elle marque les variables issues d'une entrée utilisateur pour les suivre à l'exécution",
+      "Elle calcule la liste des sinks atteignables depuis les routes exposées de l'application",
+    ],
+    answer: 1,
+    explain: "La confusion la plus fréquente est avec le marquage à l'exécution, à la manière d'un RASP : Semgrep n'exécute rien, il raisonne sur le code au repos. Et il ne signale pas tout sink non littéral — ce serait une règle purement syntaxique, et le bruit la rendrait inutilisable. Sources, sinks, sanitizers : c'est le modèle de la revue manuelle de M12, rendu automatique.",
+  },
+  {
+    q: "Ta règle de taint sur db.raw signale aussi `db.raw('… WHERE id = $1', [req.params.id])`, où la valeur est passée en paramètre lié. Comment corriger la règle ?",
+    options: [
+      "Ajouter req.params aux sanitizers de la règle",
+      "Déclarer le tableau de paramètres comme sanitizer de la règle",
+      "Exclure du sink les appels à db.raw qui reçoivent un second argument",
+      "Restreindre le sink au premier argument avec focus-metavariable",
+    ],
+    answer: 3,
+    explain: "Exclure les appels à deux arguments supprime bien ce faux positif — et rate du même coup un appel dont le texte SQL est concaténé alors que le tableau de paramètres est vide. Sanitiser req.params est pire encore : on aveugle la règle sur tout le reste du code. Le danger est dans le texte SQL, pas dans les paramètres liés : c'est cet argument précis qu'il faut viser.",
+  },
+  {
+    q: "Pourquoi une règle Semgrep doit-elle avoir des fichiers de test avec des annotations `ruleid:` et `ok:` ?",
+    options: [
+      "Pour mesurer son taux de faux positifs sur l'ensemble de la base de code",
+      "Pour que semgrep --validate accepte la règle avant sa publication",
+      "Pour garantir qu'elle détecte le cas d'origine et ignore les formes sûres connues",
+      "Pour documenter par l'exemple ce que la règle attend, à destination des développeurs",
+    ],
+    answer: 2,
+    explain: "Documenter par l'exemple et mesurer le bruit sont des bénéfices réels, mais ce n'est pas ce que ces annotations garantissent. Une règle est du code : elle a des régressions. Les cas `ok:` comptent autant que les `ruleid:`, car ce sont eux qui empêchent un faux positif déjà corrigé de revenir à la prochaine retouche du motif.",
+  },
+];
+
+<YouKnow>
+Écrire une règle, c'est transformer un finding en classe surveillée. C'est l'endroit où ton expérience offensive rapporte le plus à une équipe.
+</YouKnow>
+
+## Pourquoi écrire ses propres règles
+
+Les règles publiques connaissent Express, Prisma et React. Elles ne connaissent pas **tes** abstractions : `db.raw`, `defineRoute`, `tenantOf`, `SafeMarkdown`. Pire, une bonne abstraction maison **cache** le sink aux règles publiques : `db.raw(sql)` appelle en interne `pg.query`, mais l'outil ne relie pas l'appel à la règle SQL s'il ne voit pas au travers du helper. Trois catégories de règles maison sont très rentables :
+
+- les **règles de taint** : une donnée de la requête atteint un helper dangereux sans passer par un sanitizer ;
+- les **règles d'interdiction** : « pas de `$queryRawUnsafe` », « pas de `dangerouslySetInnerHTML` hors de `SafeMarkdown` » ;
+- les **règles de conformité** : « toute route passe par `defineRoute` », « tout accès aux factures passe par la DAL ».
+
+## Une règle de taint Semgrep
+
+Le helper de Novafact a la signature `db.raw(sql: string, params?: unknown[])`. Le danger est dans le texte SQL, pas dans les paramètres liés : la règle cible donc précisément le premier argument.
+
+<Code file="rules/novafact-raw-sql.yml" hl="18,19,22,23">
+
+```yaml
+rules:
+  - id: novafact-raw-sql-from-request
+    mode: taint
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >
+      Une donnée de la requête atteint le premier argument de db.raw (le texte SQL).
+      Passe la valeur en paramètre (db.raw(sql, [valeur])), ou utilise la DAL.
+      Voir docs/secure-coding/sql.md
+    metadata:
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+      owner: appsec
+    pattern-sources:
+      - pattern: $REQ.body
+      - pattern: $REQ.query
+      - pattern: $REQ.params
+    pattern-sanitizers:
+      - pattern: Number(...)
+      - pattern: sqlIdent(...)                 # liste blanche d'identifiants (tri, colonnes)
+    pattern-sinks:
+      - patterns:
+          - pattern: db.raw($SQL, ...)
+          - focus-metavariable: $SQL
+```
+
+</Code>
+
+Chaque règle bloquante a un **message qui dit comment corriger** et un lien vers la documentation de l'équipe. Et chaque règle a des **tests** : Semgrep lit les annotations `// ruleid:` et `// ok:` dans un fichier d'exemples de même nom, et `semgrep --test rules/` vérifie que chaque ligne attendue est signalée, et elle seule.
+
+<Code file="rules/novafact-raw-sql.ts">
+
+```ts
+export const list = defineRoute({ permission: 'invoices:read' }, async (req, res) => {
+  const { sort } = req.query;
+  // ruleid: novafact-raw-sql-from-request
+  await db.raw(`SELECT * FROM invoices ORDER BY ${sort}`);
+
+  // ok: novafact-raw-sql-from-request
+  await db.raw('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+
+  // ok: novafact-raw-sql-from-request
+  await db.raw(`SELECT * FROM invoices ORDER BY ${sqlIdent(sort, ['issued_at', 'total'])}`);
+
+  const limit = Number(req.query.limit);
+  // ok: novafact-raw-sql-from-request
+  await db.raw(`SELECT * FROM invoices LIMIT ${limit}`);
+});
+```
+
+</Code>
+
+Les cas `ok` comptent autant que les `ruleid` : ce sont eux qui empêchent le retour d'un faux positif quand quelqu'un « améliore » la règle dans six mois.
+
+## Des règles de conformité
+
+Une règle de conformité ne cherche pas un flux, mais l'**absence** du chemin prévu. Ici, deux règles se complètent : aucune route n'est déclarée directement sur un routeur (seul le module qui implémente `defineRoute` a le droit de le faire), et une route volontairement publique doit dire pourquoi.
+
+<Code file="rules/novafact-routes.yml" hl="9,15,17,18,25">
+
+```yaml
+rules:
+  - id: novafact-route-outside-defineRoute
+    languages: [typescript]
+    severity: ERROR
+    message: >
+      Déclare les routes avec defineRoute (authentification, schéma et autorisation par défaut),
+      ou definePublicRoute avec une raison si la route est volontairement publique.
+    patterns:
+      - pattern: $ROUTER.$METHOD($PATH, $HANDLER, ...)
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(get|post|put|patch|delete|all)$
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: ^['"`]/
+    paths:
+      exclude:
+        - "apps/api/src/lib/define-route.ts"
+  - id: novafact-public-route-without-reason
+    languages: [typescript]
+    severity: ERROR
+    message: Une route publique doit dire pourquoi elle l'est (champ reason).
+    patterns:
+      - pattern: definePublicRoute($OPTS, ...)
+      - pattern-not: 'definePublicRoute({ ..., reason: $R, ... }, ...)'
+```
+
+</Code>
+
+Le filtre sur `$PATH` (une chaîne qui commence par `/`) et l'exigence d'un second argument évitent de signaler `cache.get(key)` ou `req.get('x-request-id')`. C'est typiquement le genre d'ajustement que les tests `ok:` révèlent dès la première exécution.
+
+<Callout kind="warn">
+Connais les limites de ce que tu écris. La **Community Edition** de Semgrep suit le taint à l'intérieur d'une fonction : si `req.query.sort` est passé à un helper `buildOrderBy(sort)` défini dans un autre fichier, qui appelle `db.raw`, la règle ne voit pas le flux. Deux parades : déclarer aussi les helpers intermédiaires comme sinks, ou confier ces flux à un moteur inter-fichiers (Semgrep Pro, CodeQL). Et aucun motif ne résiste à tout : un alias (`const run = db.raw`) ou un appel dynamique échappe à la règle. La revue (M12) garde sa place.
+</Callout>
+
+## CodeQL : models as data
+
+CodeQL permet de décrire tes API maison dans des **extensions de modèles** en YAML, sans écrire de requête : le taint tracking existant, inter-fichiers, les prend alors en compte. On décrit l'accès par un chemin : `Member[db].Member[raw].Argument[0]` désigne le premier argument de `db.raw`, pour `import { db } from '@novafact/db'`.
+
+<Code file=".github/codeql/extensions/novafact-models/models/novafact.model.yml">
+
+```yaml
+extensions:
+  - addsTo:
+      pack: codeql/javascript-all
+      extensible: sinkModel
+    data:
+      - ["@novafact/db", "Member[db].Member[raw].Argument[0]", "sql-injection"]
+  - addsTo:
+      pack: codeql/javascript-all
+      extensible: sourceModel
+    data:
+      # le message reçu d'une file SQS par queue.consume(nom, (message) => …)
+      - ["@novafact/queue", "Member[queue].Member[consume].Argument[1].Parameter[0]", "remote"]
+```
+
+</Code>
+
+Le second modèle est aussi utile que le premier : il déclare que les messages de file sont des **entrées non fiables**, ce que M12 (leçon 5) recommande pour les workers. Le dossier devient un *model pack* avec un fichier `codeql-pack.yml` qui déclare `library: true`, la cible `codeql/javascript-all` dans `extensionTargets`, et le chemin des fichiers dans `dataExtensions`. Vérifie dans la documentation de GitHub quels langages le default setup charge automatiquement : en septembre 2026, cette détection automatique (en préversion) ne liste pas JavaScript, et Novafact passe donc par l'advanced setup ou la CLI (option `--model-packs`).
+
+## Semgrep ou CodeQL pour ta règle ?
+
+Les deux outils se recouvrent, mais ne se remplacent pas. Le choix dépend de la question posée :
+
+| Critère | Semgrep | CodeQL |
+| --- | --- | --- |
+| Temps d'écriture d'une première règle | Minutes : la règle ressemble au code | Heures : un langage de requêtes à apprendre, sauf models as data |
+| Interdictions et conformité (« pas de X », « toujours Y ») | Très adapté | Possible, mais lourd pour ce besoin |
+| Flux inter-fichiers à travers des helpers | Moteur Pro seulement | Natif, c'est sa force |
+| Exécution en PR | Secondes, sans compilation | Minutes : il faut construire la base de données du code |
+| Lisibilité pour les développeurs | Élevée, ils peuvent proposer des règles | Faible hors de l'équipe AppSec |
+
+Chez Novafact, la règle par défaut est simple : Semgrep pour tout ce qui s'exprime comme un motif ou une absence de motif, models as data pour apprendre les abstractions maison à CodeQL, et une vraie requête CodeQL seulement quand un flux complexe le justifie.
+
+Un jeu de règles vieillit comme du code. Mesure pour chacune le nombre de résultats et la part de faux positifs, et retire celles qui ne se déclenchent plus depuis que la classe a été éliminée par un contrôle de classe (M2) : elles ralentissent l'analyse sans rien protéger, sauf si tu les gardes volontairement comme garde-fou contre un retour en arrière.
+
+## La variant analysis au quotidien
+
+<Steps items={[
+  { title: "Un finding arrive", text: "Pentest, bug bounty, revue, incident, lecture d'un correctif de CVE (M12, leçon 4)." },
+  { title: "On écrit la règle", text: "Elle doit détecter le cas d'origine : c'est son premier test ruleid. Les formes sûres voisines deviennent des tests ok." },
+  { title: "On la lance sur tout le code", text: "Elle trouve souvent deux ou trois variantes. On trie, et on ajuste la règle sur les faux positifs." },
+  { title: "On corrige et on garde la règle", text: "En informatif le temps de résorber l'existant, puis en bloquant : la classe est désormais surveillée." },
+]} />
+
+À plus grande échelle, la **multi-repository variant analysis** de CodeQL, depuis l'extension VS Code, exécute une requête sur jusqu'à 1 000 dépôts GitHub via GitHub Actions : utile pour vérifier en une fois si le motif trouvé dans l'API existe aussi dans les autres dépôts de l'organisation.
+
+<Callout kind="novafact">
+Les règles maison de Novafact vivent dans `security/rules/`, avec leurs tests, et suivent le même cycle que du code : PR, revue par l'AppSec, `semgrep --test` en CI. Chaque règle porte un propriétaire et un lien vers le finding qui l'a fait naître. Une règle sans finding d'origine ni test n'entre pas dans le jeu bloquant.
+</Callout>
+
+Le **Trail of Bits Testing Handbook** détaille cette démarche pour Semgrep et CodeQL, avec des conseils d'écriture et de test des règles.
+
+<Recap items={[
+  "Les outils ne connaissent pas tes abstractions : déclare tes sources, sinks et sanitizers, y compris les files et les helpers.",
+  "Règles de taint, d'interdiction et de conformité ; cibler l'argument dangereux avec focus-metavariable.",
+  "Chaque règle a un message de correction, une documentation et des tests ruleid et ok, lancés avec semgrep --test.",
+  "La Community Edition reste intra-fonction : helpers intermédiaires en sinks, ou moteur inter-fichiers.",
+  "CodeQL models as data décrit les API maison en YAML ; un finding devient une règle, qui trouve ses variantes puis surveille la classe.",
+]} />
+
+<Lab id="semgrep-academy" note="Le cours sur le taint mode, puis écris la règle db.raw sur un petit projet Express, avec ses tests." />
+
+<Sources items={[
+  { title: "Semgrep : taint mode", url: "https://semgrep.dev/docs/writing-rules/data-flow/taint-mode/overview" },
+  { title: "Semgrep : tester les règles", url: "https://semgrep.dev/docs/writing-rules/testing-rules" },
+  { title: "CodeQL : customizing library models for JavaScript", url: "https://codeql.github.com/docs/codeql-language-guides/customizing-library-models-for-javascript/" },
+  { title: "GitHub : créer et utiliser des packs CodeQL (model packs)", url: "https://docs.github.com/en/code-security/tutorials/customize-code-scanning/create-and-work-with-codeql-packs" },
+  { title: "GitHub : multi-repository variant analysis", url: "https://docs.github.com/en/code-security/concepts/code-scanning/multi-repository-variant-analysis" },
+  { title: "Trail of Bits Testing Handbook", url: "https://appsec.guide/" },
+]} />

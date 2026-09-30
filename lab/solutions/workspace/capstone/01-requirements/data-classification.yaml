@@ -1,0 +1,27 @@
+# Étape 1 — classification des données de Novafact.
+#
+# Les champs ne sont pas choisis : ce sont ceux que `server/store.ts` déclare
+# pour chaque entité. Tout ce qui est classé confidentiel, personnel ou secret
+# doit être couvert par au moins une exigence — et réapparaîtra à l'étape 3.
+
+fields:
+  - { name: id, entity: User, classification: interne }
+  - { name: email, entity: User, classification: personnel }
+  - { name: password, entity: User, classification: secret }
+  - { name: name, entity: User, classification: personnel }
+  - { name: tenantId, entity: User, classification: interne }
+  - { name: role, entity: User, classification: confidentiel }
+  - { name: mfa, entity: User, classification: interne }
+
+  - { name: id, entity: Invoice, classification: interne }
+  - { name: tenantId, entity: Invoice, classification: interne }
+  - { name: ref, entity: Invoice, classification: interne }
+  - { name: client, entity: Invoice, classification: personnel }
+  - { name: status, entity: Invoice, classification: interne }
+  - { name: lines, entity: Invoice, classification: confidentiel }
+  - { name: total, entity: Invoice, classification: confidentiel }
+  - { name: note, entity: Invoice, classification: confidentiel }
+  - { name: attachment, entity: Invoice, classification: confidentiel }
+  - { name: clientId, entity: Invoice, classification: interne }
+  - { name: paid, entity: Invoice, classification: interne }
+  - { name: refunded, entity: Invoice, classification: interne }

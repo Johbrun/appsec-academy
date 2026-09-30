@@ -1,0 +1,19 @@
+{
+  "name": "novafact-api",
+  "version": "3.7.0",
+  "description": "API de facturation Novafact — arbre de dépendances dont il faut produire le SBOM.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@novafact/ui-kit": "1.2.0",
+    "@novafact/telemetry": "0.4.3",
+    "express": "4.21.2",
+    "node-fetch": "3.3.2",
+    "ajv": "8.20.0",
+    "js-yaml": "4.1.0",
+    "pino": "9.5.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "tsx": "4.19.2"
+  }
+}

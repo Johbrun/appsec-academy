@@ -1,0 +1,9 @@
+# VULNÉRABLE — fixture du lab, ne pas réutiliser
+#
+# Cette liste a été écrite pour que l'image soit « plus propre » : elle ne
+# retire que la documentation. L'historique git, les fichiers d'environnement,
+# le state Terraform et les node_modules du poste entrent toujours dans l'image.
+
+README.md
+docs/
+*.md

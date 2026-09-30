@@ -1,0 +1,211 @@
+# La carte des sources et des sinks — livrable de référence.
+#
+# Deux erreurs sont mesurées, pas une : ce qui est manqué et ce qui est inventé.
+# Les seuils sont annoncés dans l'énoncé — 90 % des routes, 80 % des sinks, au
+# plus une entrée inventée de chaque côté.
+
+entrypoints:
+  - route: "DELETE /api/invoices/:id"
+    auth: required
+  - route: "GET /api/admin/audit"
+    auth: admin
+  - route: "GET /api/admin/exports/ledger"
+    auth: none
+  - route: "GET /api/admin/users"
+    auth: admin
+  - route: "GET /api/assistant/pending"
+    auth: required
+  - route: "GET /api/assistant/tools"
+    auth: required
+  - route: "GET /api/attachments/*"
+    auth: required
+  - route: "GET /api/attachments/logo/:tenantId"
+    auth: required
+  - route: "GET /api/attachments/u/:id"
+    auth: required
+  - route: "GET /api/auth/deployment/:tenantId/whoami"
+    auth: required
+  - route: "GET /api/auth/directory"
+    auth: none
+  - route: "GET /api/auth/prefs"
+    auth: none
+  - route: "GET /api/branding"
+    auth: none
+  - route: "GET /api/credits"
+    auth: required
+  - route: "GET /api/debug/config"
+    auth: none
+  - route: "GET /api/export"
+    auth: required
+  - route: "GET /api/health"
+    auth: none
+  - route: "GET /api/invoices"
+    auth: required
+  - route: "GET /api/invoices/:id"
+    auth: required
+  - route: "GET /api/invoices/:id/share"
+    auth: required
+  - route: "GET /api/invoices/:id/view"
+    auth: required
+  - route: "GET /api/invoices/lookup"
+    auth: required
+  - route: "GET /api/invoices/search"
+    auth: required
+  - route: "GET /api/invoices/track.gif"
+    auth: required
+  - route: "GET /api/me"
+    auth: required
+  - route: "GET /api/platform"
+    auth: required
+  - route: "GET /api/settings"
+    auth: required
+  - route: "PATCH /api/invoices/:id"
+    auth: required
+  - route: "PATCH /api/me"
+    auth: required
+  - route: "POST /api/assistant"
+    auth: required
+  - route: "POST /api/assistant/approve"
+    auth: required
+  - route: "POST /api/assistant/review"
+    auth: required
+  - route: "POST /api/attachments"
+    auth: required
+  - route: "POST /api/attachments/logo"
+    auth: required
+  - route: "POST /api/auth/forgot"
+    auth: none
+  - route: "POST /api/auth/login"
+    auth: none
+  - route: "POST /api/auth/logout"
+    auth: none
+  - route: "POST /api/auth/prefs"
+    auth: none
+  - route: "POST /api/auth/register"
+    auth: none
+  - route: "POST /api/auth/register/partner"
+    auth: none
+  - route: "POST /api/auth/reset"
+    auth: none
+  - route: "POST /api/credits/apply"
+    auth: required
+  - route: "POST /api/credits/drafts"
+    auth: required
+  - route: "POST /api/credits/drafts/:id/issue"
+    auth: required
+  - route: "POST /api/credits/drafts/:id/lines"
+    auth: required
+  - route: "POST /api/internal/rotate-keys"
+    auth: none
+  - route: "POST /api/invoices"
+    auth: required
+  - route: "POST /api/invoices/:id/pay"
+    auth: required
+  - route: "POST /api/invoices/:id/refund"
+    auth: required
+  - route: "POST /api/invoices/:id/reissue"
+    auth: required
+  - route: "POST /api/invoices/:id/send"
+    auth: required
+  - route: "POST /api/invoices/query"
+    auth: required
+  - route: "POST /api/settings/penalty"
+    auth: required
+  - route: "POST /api/webhooks/deliver"
+    auth: required
+  - route: "POST /api/webhooks/test"
+    auth: required
+  - route: "PUT /api/settings"
+    auth: required
+
+sinks:
+  - file: server/routes/assistant.ts
+    line: 1171
+    kind: requete-sortante
+  - file: server/routes/assistant.ts
+    line: 1215
+    kind: mail
+  - file: server/routes/assistant.ts
+    line: 1620
+    kind: chemin
+  - file: server/routes/assistant.ts
+    line: 1621
+    kind: fichier
+  - file: server/routes/assistant.ts
+    line: 1628
+    kind: fichier
+  - file: server/routes/attachments.ts
+    line: 184
+    kind: chemin
+  - file: server/routes/attachments.ts
+    line: 192
+    kind: fichier
+  - file: server/routes/attachments.ts
+    line: 197
+    kind: fichier
+  - file: server/routes/auth.ts
+    line: 130
+    kind: regex
+  - file: server/routes/auth.ts
+    line: 238
+    kind: mail
+  - file: server/routes/auth.ts
+    line: 337
+    kind: requete-donnees
+  - file: server/routes/auth.ts
+    line: 498
+    kind: mail
+  - file: server/routes/export.ts
+    line: 126
+    kind: chemin
+  - file: server/routes/export.ts
+    line: 137
+    kind: fichier
+  - file: server/routes/export.ts
+    line: 241
+    kind: fichier
+  - file: server/routes/export.ts
+    line: 243
+    kind: requete-sortante
+  - file: server/routes/import.ts
+    line: 42
+    kind: fichier
+  - file: server/routes/import.ts
+    line: 43
+    kind: fichier
+  - file: server/routes/import.ts
+    line: 82
+    kind: chemin
+  - file: server/routes/import.ts
+    line: 95
+    kind: fichier
+  - file: server/routes/import.ts
+    line: 157
+    kind: fichier
+  - file: server/routes/invoices.ts
+    line: 127
+    kind: regex
+  - file: server/routes/invoices.ts
+    line: 583
+    kind: mail
+  - file: server/routes/profile.ts
+    line: 37
+    kind: fusion-objet
+  - file: server/routes/webhooks.ts
+    line: 61
+    kind: requete-sortante
+  - file: server/routes/webhooks.ts
+    line: 129
+    kind: requete-sortante
+  - file: src/pages/Assistant.tsx
+    line: 164
+    kind: html
+  - file: src/pages/Checkout.tsx
+    line: 33
+    kind: script-tiers
+  - file: src/pages/InvoiceDetail.tsx
+    line: 65
+    kind: html
+  - file: src/pages/InvoiceDetail.tsx
+    line: 140
+    kind: html

@@ -1,0 +1,84 @@
+export const questions = [];
+
+<YouKnow>
+Le code peut être parfait et la livraison compromise. Cette étape durcit la chaîne de livraison de Novafact, de GitHub Actions à la publication, avec le module 14.
+</YouKnow>
+
+## Étape 7 : pipeline et supply chain
+
+Ton livrable : un **audit des workflows** GitHub Actions de Novafact, un **plan de durcissement** de la chaîne npm, et la mise en place de la **provenance** sur les artefacts publiés.
+
+## Auditer les workflows
+
+Reprends l’œil du jeu Workflow Audit et de M14. Pour chaque workflow, vérifie :
+
+<Steps items={[
+  { title: "Déclencheurs", text: "Aucun pull_request_target qui construit du code externe ; aucune donnée contrôlée par l’auteur d’une PR interpolée dans un run." },
+  { title: "Permissions", text: "permissions minimales par workflow (contents: read par défaut), jamais write-all." },
+  { title: "Actions tierces", text: "Épinglées par SHA de commit complet, pas par tag mutable." },
+  { title: "Secrets et identité", text: "OIDC vers un rôle IAM restreint au dépôt et à la branche, plutôt que des clés AWS longue durée en secrets." },
+  { title: "Runners", text: "Éphémères, sans secrets inutiles ; surveillance du réseau sortant (harden-runner)." },
+]} />
+
+## Durcir npm
+
+<Steps items={[
+  { title: "Installations reproductibles", text: "npm ci avec lockfile committé ; scripts d’installation désactivés par défaut, autorisés au cas par cas." },
+  { title: "Délai d’adoption", text: "Attendre quelques jours avant d’adopter une nouvelle version (minimumReleaseAge de Renovate) : la plupart des paquets malveillants sont retirés en quelques heures." },
+  { title: "Analyse", text: "SCA (atteignabilité), analyse comportementale des paquets (Socket, GuardDog), SBOM CycloneDX généré à chaque build et surveillé (Dependency-Track)." },
+  { title: "Publication", text: "Trusted publishing (OIDC) pour le SDK, sans jeton long terme, avec provenance automatique." },
+]} />
+
+## Mettre en place la provenance
+
+Le but : pouvoir prouver **quel workflow a produit quel artefact, depuis quel commit** (SLSA, M14). Pour l’image de l’API et le paquet SDK :
+
+<Code file=".github/workflows/release.yml" hl="4,10">
+
+```yaml
+permissions:
+  contents: read
+  id-token: write        # OIDC : pour l'attestation et le rôle AWS
+  attestations: write    # pour l'attestation de provenance GitHub
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<sha>
+      - run: npm ci && npm run build
+      - run: npm publish --provenance --access public   # provenance npm via OIDC
+      - uses: actions/attest-build-provenance@<sha>
+        with:
+          subject-path: dist/api-image.tar
+```
+
+</Code>
+
+Au déploiement, la provenance est **vérifiée** : on refuse un artefact dont on ne peut pas prouver l’origine (`npm audit signatures`, vérification de l’attestation).
+
+## Le plan de réponse
+
+Ajoute au livrable un **mini-playbook** d’incident supply chain (M14) : que faire le jour où une dépendance de Novafact est compromise. Versions touchées (via le SBOM et Dependency-Track), rotation des secrets exposés aux runners, nettoyage des caches et runners, chasse dans Elastic. C’est le scénario que le jeu Supply Chain Kill Chain et le jeu Crise J+0 font vivre.
+
+<Callout kind="novafact">
+Priorités de durcissement retenues pour Novafact, dans l’ordre : épinglage SHA de toutes les actions, OIDC à la place des clés AWS, désactivation des scripts d’installation par défaut, délai d’adoption des dépendances, puis provenance sur les publications. Chaque point renvoie à une exigence de l’étape 1 (catégorie supply chain).
+</Callout>
+
+## Livrable de l’étape
+
+- L’**audit des workflows** avec les corrections, rattachées aux risques CICD-SEC.
+- Le **plan de durcissement npm** (installations, délai, analyse, publication).
+- La **provenance** configurée et vérifiée, plus le **playbook** d’incident supply chain.
+
+<Recap items={[
+  "Auditer les workflows : déclencheurs, permissions minimales, actions épinglées par SHA, OIDC, runners éphémères.",
+  "Durcir npm : npm ci, scripts désactivés, délai d’adoption, SCA et SBOM, trusted publishing.",
+  "Mettre en place la provenance (SLSA) et la vérifier au déploiement.",
+  "Préparer le playbook d’incident supply chain avant d’en avoir besoin.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Top 10 CI/CD Security Risks", url: "https://owasp.org/www-project-top-10-ci-cd-security-risks/" },
+  { title: "SLSA", url: "https://slsa.dev/" },
+  { title: "npm : generating provenance", url: "https://docs.npmjs.com/generating-provenance-statements" },
+]} />

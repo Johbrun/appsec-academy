@@ -1,0 +1,9 @@
+{
+  "_": "L'inventaire des scripts que charge la page de paiement — donnée d'entrée. Ce qui est noté : le propriétaire et l'empreinte de chacun (PCI DSS 4.0.1, exigences 6.4.3 et 11.6.1), et une CSP qui laisse passer exactement ceux-là. L'origine de la page est https://pay.novafact.example.",
+  "scripts": [
+    { "url": "https://pay.novafact.example/assets/checkout.js", "role": "bundle de première partie" },
+    { "url": "https://cdn.novafact.example/tagmanager/v3/loader.js", "role": "tag manager, auto-hébergé sur le CDN du groupe" },
+    { "url": "https://widget.supportly.example/chat.js", "role": "widget de chat d'un prestataire" }
+  ],
+  "psp_frame": "https://checkout.paylane.example"
+}

@@ -1,0 +1,220 @@
+export const questions = [
+  {
+    q: "D'où doit venir le domaine utilisé dans le lien de réinitialisation de mot de passe envoyé par e-mail ?",
+    options: [
+      "De l'en-tête Host, qui porte le domaine réellement demandé",
+      "De X-Forwarded-Host, renseigné par le proxy et non par le client",
+      "D'une configuration serveur (APP_URL), jamais de la requête",
+      "Du domaine de l'adresse e-mail du destinataire",
+    ],
+    answer: 2,
+    explain: "X-Forwarded-Host est le piège : son nom laisse croire que le proxy le produit, alors qu'il recopie le plus souvent ce que le client a envoyé — et Express le lit dès que le pair direct est de confiance. Host est directement sous le contrôle du client. Le domaine du destinataire n'a aucun rapport avec l'endroit où ton application est servie. L'URL publique est une donnée de configuration, validée au démarrage.",
+  },
+  {
+    q: "Que change app.set('trust proxy', true) dans Express ?",
+    options: [
+      "Express ne fait confiance aux X-Forwarded-* que s'ils viennent d'une adresse privée",
+      "Express fait confiance aux X-Forwarded-* de n'importe quel émetteur",
+      "Express retient la dernière valeur de X-Forwarded-For comme adresse du client",
+      "Express refuse les requêtes qui n'ont pas traversé un proxy connu",
+    ],
+    answer: 1,
+    explain: "Deux des distracteurs supposent que ce réglage filtre quelque chose — une plage d'adresses, un proxy connu. C'est l'inverse : true est le réglage le plus permissif, il accepte les X-Forwarded-* de qui les envoie. N'importe quel client peut alors forger son adresse IP et contourner une limitation de débit, ou changer req.hostname. On indique le nombre exact de sauts, ou les plages de ses propres proxys.",
+  },
+  {
+    q: "L'API Novafact est réglée avec trust proxy à 2 (CloudFront puis l'ALB). Un client envoie X-Forwarded-Host: autre.example, et la politique CloudFront transmet tous les en-têtes du viewer. Que vaut req.hostname ?",
+    options: [
+      "api.novafact.example : le nombre de sauts protège tous les X-Forwarded-*",
+      "api.novafact.example : l'ALB réécrit X-Forwarded-Host avec l'hôte de sa règle",
+      "La valeur de Host, car req.hostname ne lit jamais X-Forwarded-Host",
+      "autre.example : le pair direct suffit, et personne ne réécrit cet en-tête",
+    ],
+    answer: 3,
+    explain: "Croire que l'ALB normalise X-Forwarded-Host est l'erreur la plus répandue et la plus coûteuse : il n'ajoute que X-Forwarded-For, -Proto et -Port, et laisse le reste tel quel. Le nombre de sauts ne sert qu'à retrouver la bonne entrée dans X-Forwarded-For ; pour X-Forwarded-Host, Express vérifie seulement que le pair direct est de confiance, puis prend la première valeur. D'où la règle : req.hostname ne construit jamais une URL.",
+  },
+  {
+    q: "Novafact veut permettre aux clients d'afficher leur portail de factures sous leur propre domaine. Comment construire les liens absolus envoyés par e-mail ?",
+    options: [
+      "Lire le domaine vérifié enregistré sur le tenant, et n'accepter que ceux-là",
+      "Reprendre l'en-tête Host, après l'avoir comparé à la liste des domaines vérifiés",
+      "Construire les liens avec APP_URL et laisser le client rediriger vers son domaine",
+      "Déduire le domaine du sous-domaine par lequel l'utilisateur s'est connecté",
+    ],
+    answer: 0,
+    explain: "Comparer Host à la liste des domaines vérifiés est le distracteur le plus solide : il ferme bien l'injection d'un domaine arbitraire. Mais cette liste couvre tous les tenants, donc rien n'empêche un lien destiné au tenant A de partir vers le domaine vérifié du tenant B — le contrôle valide l'hôte, pas son appartenance. Renvoyer vers APP_URL puis rediriger annule la fonctionnalité et ajoute un redirecteur. L'URL vient de l'enregistrement du tenant.",
+  },
+];
+
+<YouKnow>
+Tu as déjà empoisonné un lien de réinitialisation via l'en-tête Host ou atteint un backend interne par routage sur Host. La cause racine est toujours la même : l'application prend une donnée de la requête pour une donnée de configuration.
+</YouKnow>
+
+## La cause racine
+
+L'en-tête `Host`, et ses variantes ajoutées par les proxys (`X-Forwarded-Host`, `X-Forwarded-Proto`, `Forwarded`), sont **fournis par le client**, ou par un proxy qui les recopie depuis le client. Une application qui s'en sert pour construire une URL absolue, choisir un tenant ou router une requête fait confiance à une entrée non fiable.
+
+Pourquoi les développeurs le font-ils quand même ? Rarement par négligence pure. L'hôte de la requête est une solution commode à de vrais problèmes : faire fonctionner le même code en local, en préproduction et sur les déploiements de prévisualisation sans configurer d'URL, ou servir plusieurs marques et domaines depuis une seule application. Le correctif doit donc répondre à ces besoins, sinon il sera contourné.
+
+## Empoisonnement de réinitialisation
+
+<Diff file="apps/api/src/routes/password.ts" hlBefore="3" hlAfter="1,4" stack>
+
+```ts
+router.post('/password/forgot', async (req, res) => {
+  const token = await createResetToken(req.body.email);
+  const link = `${req.protocol}://${req.get('host')}/reset?token=${token}`;
+  await mailer.send(req.body.email, resetTemplate(link));
+  res.status(204).end();
+});
+```
+
+```ts
+const APP_URL = new URL(process.env.APP_URL!); // https://app.novafact.example
+
+router.post('/password/forgot', async (req, res) => {
+  const token = await createResetToken(req.body.email);
+  const link = new URL(`/reset?token=${encodeURIComponent(token)}`, APP_URL).href;
+  await mailer.send(req.body.email, resetTemplate(link));
+  res.status(204).end();
+});
+```
+
+</Diff>
+
+Même logique pour les liens de validation d'e-mail, les URL de callback OAuth, les liens de téléchargement de factures ou les URL absolues dans les réponses d'API : **l'origine vient de la configuration**. Valide `APP_URL` au démarrage (schéma `https:`, pas de chemin inattendu) et fais échouer le démarrage si elle manque : une valeur par défaut tirée de la requête « en attendant » finit toujours en production.
+
+<Callout kind="case">
+CVE-2017-8295 : jusqu'à la version 4.7.4, WordPress construisait l'adresse d'expédition de l'e-mail de réinitialisation à partir de `SERVER_NAME`, dérivé de l'en-tête Host dans beaucoup de configurations. Le lien lui-même n'était pas en cause : c'est un rebond ou une réponse automatique qui pouvait renvoyer le message, avec la clé, vers un serveur contrôlé par l'attaquant. L'exploitation exigeait des conditions particulières, mais la leçon est générale : **tout** ce qui entre dans un e-mail sortant (lien, expéditeur, `Return-Path`, images) doit venir de la configuration.
+</Callout>
+
+Le correctif sur l'origine ne dispense pas du reste du flux : jeton aléatoire à usage unique, stocké haché, expirant en quelques dizaines de minutes, et invalidé dès qu'un nouveau est émis. Si un lien empoisonné passe malgré tout, ces propriétés limitent la fenêtre d'exploitation.
+
+## trust proxy dans Express
+
+Derrière CloudFront et l'ALB, Express doit connaître l'adresse réelle du client et le protocole d'origine. Le réglage `trust proxy` lui dit à qui faire confiance pour les en-têtes `X-Forwarded-*`. Avec `true`, il fait confiance à **n'importe quel émetteur** : un client peut forger son adresse IP (et contourner une limitation de débit par IP) ou le nom d'hôte vu par `req.hostname`.
+
+```ts
+// Novafact : CloudFront puis l'ALB, soit deux sauts de confiance.
+app.set('trust proxy', 2);
+```
+
+Indique le **nombre exact de sauts**, ou les plages d'adresses de tes proxys. Deux pièges subsistent, que la documentation ne met pas en avant :
+
+| Piège | Pourquoi | Conséquence chez Novafact |
+| --- | --- | --- |
+| `X-Forwarded-Host` n'est pas protégé par le nombre de sauts | Le code d'Express lit cet en-tête dès que le pair **direct** est de confiance, et prend sa première valeur. L'ALB n'ajoute que `X-Forwarded-For`, `-Proto` et `-Port` | Si CloudFront transmet tous les en-têtes du viewer (politique `AllViewer`), `req.hostname` vaut ce que le client a envoyé |
+| Le nombre de sauts suppose que tout le trafic suit le même chemin | Une requête qui atteint l'ALB directement n'a qu'un saut réel : Express prend alors une valeur forgée pour l'adresse du client | L'ALB doit n'accepter que CloudFront (liste de préfixes gérée `com.amazonaws.global.cloudfront.origin-facing` dans le groupe de sécurité, plus un en-tête secret ajouté par CloudFront) |
+
+La conclusion pratique : utilise `req.ip` pour la journalisation et la limitation de débit, mais **n'utilise jamais `req.hostname` ni `req.protocol` pour construire une URL**. Côté CloudFront, préfère une politique de requête d'origine qui liste les en-têtes utiles plutôt que `AllViewer`.
+
+## Valider l'hôte à la bordure
+
+La défense en profondeur consiste à refuser les requêtes dont l'hôte n'est pas attendu, **avant** qu'elles n'atteignent l'application. Sur l'ALB, l'action par défaut de l'écouteur renvoie une réponse fixe, et seules les règles qui correspondent à un hôte connu (et à l'en-tête secret posé par CloudFront) transmettent aux cibles :
+
+<Code file="infra/alb.tf">
+
+```hcl
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.api.arn
+  port              = 443
+  protocol          = "HTTPS"
+  certificate_arn   = aws_acm_certificate.api.arn
+
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      status_code  = "404"
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "api" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
+  }
+
+  condition {
+    host_header { values = ["api.novafact.example"] }
+  }
+
+  condition {
+    http_header {
+      http_header_name = "X-Origin-Verify"
+      values           = [var.cloudfront_origin_secret]
+    }
+  }
+}
+```
+
+</Code>
+
+Dans l'application, un middleware placé tout en haut répète le contrôle. Il coûte une ligne, et il protège aussi les environnements où l'infrastructure est différente (poste de dev, préproduction montée à la main) :
+
+<Code file="apps/api/src/middleware/allowedHosts.ts">
+
+```ts
+const ALLOWED = new Set((process.env.ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim().toLowerCase()));
+
+export function allowedHosts(req: Request, res: Response, next: NextFunction) {
+  const host = (req.headers.host ?? '').toLowerCase().replace(/:\d+$/, '');
+  if (!ALLOWED.has(host)) {
+    logger.warn({ host, xfh: req.get('x-forwarded-host') }, 'host.rejected');
+    return res.status(400).end();
+  }
+  next();
+}
+```
+
+</Code>
+
+On lit ici `req.headers.host`, pas `req.hostname`, précisément pour ne pas dépendre de `X-Forwarded-Host`. Django a intégré ce contrôle dans le framework (`ALLOWED_HOSTS`, liste vide par défaut, qui refuse tout hôte non déclaré hors mode debug) ; Express ne fournit rien d'équivalent, c'est à toi de l'ajouter.
+
+## Routage et multi-tenant
+
+Deux autres usages dangereux de Host dans un SaaS :
+
+- **choisir le tenant d'après le sous-domaine** sans vérifier que l'utilisateur authentifié appartient à ce tenant : le tenant vient de la session, le sous-domaine n'est qu'une indication d'affichage ;
+- **router vers un backend d'après Host** dans un proxy : un Host inattendu peut atteindre un service interne (SSRF par routage). Les règles de routage n'acceptent que des valeurs connues.
+
+<Callout kind="novafact">
+Les clients entreprise demandent à afficher leur portail de factures sous leur propre domaine (`factures.client.example`). Décision de conception : une table `custom_domain` (tenant, domaine, statut de vérification par enregistrement DNS TXT). Le middleware d'hôtes accepte les domaines de la configuration **plus** ceux de cette table au statut « vérifié ». Les URL absolues sont construites à partir de l'enregistrement du tenant (`tenant.primaryDomain ?? APP_URL`), jamais de la requête. La liste blanche devient une donnée, mais elle reste une liste blanche.
+</Callout>
+
+## Tester et surveiller
+
+<Steps items={[
+  { title: "Test de non-régression", text: "Un test supertest envoie la demande de réinitialisation avec un Host et un X-Forwarded-Host arbitraires, capture l'e-mail (transport de test) et vérifie que le lien commence par APP_URL." },
+  { title: "Règle de revue", text: "Une règle Semgrep signale req.hostname, req.protocol, req.get('host') et headers().get('host') (Next.js) quand le résultat entre dans une URL ou un gabarit d'e-mail." },
+  { title: "Compteur à zéro", text: "Le log host.rejected devrait rester à zéro si la bordure fait son travail : toute occurrence en production révèle un chemin qui contourne CloudFront ou l'ALB." },
+  { title: "Comparer les en-têtes", text: "Journaliser Host et X-Forwarded-Host quand ils diffèrent permet de repérer les sondages et de mesurer ce qu'un changement de politique CloudFront laisse passer." },
+]} />
+
+<Callout kind="info">
+L'en-tête Host joue aussi un rôle dans l'empoisonnement de cache (leçon 6) et a déjà causé une SSRF dans les Server Actions de Next.js (CVE-2024-34351, M2). C'est une entrée que les développeurs oublient souvent de considérer comme une entrée.
+</Callout>
+
+<Recap items={[
+  "Host et X-Forwarded-* sont des entrées client, pas de la configuration.",
+  "Les URL absolues (liens, expéditeur des e-mails, callbacks) se construisent à partir d'APP_URL, validée au démarrage.",
+  "trust proxy avec le nombre exact de sauts, jamais true ; et même ainsi, req.hostname peut refléter un X-Forwarded-Host client.",
+  "L'ALB n'accepte que CloudFront, avec une règle par hôte et une réponse fixe par défaut ; un middleware applicatif répète le contrôle.",
+  "Le tenant vient de la session ; les domaines personnalisés sont une liste blanche stockée en base.",
+  "Un test capture l'e-mail de réinitialisation et vérifie son lien ; les hôtes rejetés forment un compteur qui doit rester à zéro.",
+]} />
+
+<Lab id="ps-host" />
+
+<Sources items={[
+  { title: "Web Security Academy : HTTP Host header attacks", url: "https://portswigger.net/web-security/host-header" },
+  { title: "Express : derrière des proxys (trust proxy)", url: "https://expressjs.com/en/guide/behind-proxies.html" },
+  { title: "OWASP Cheat Sheet : Forgot Password", url: "https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html" },
+  { title: "AWS : en-têtes X-Forwarded de l'Application Load Balancer", url: "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/x-forwarded-headers.html" },
+  { title: "AWS : politiques de requête d'origine gérées de CloudFront", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html" },
+  { title: "NVD : CVE-2017-8295 (WordPress)", url: "https://nvd.nist.gov/vuln/detail/CVE-2017-8295" },
+  { title: "Django : ALLOWED_HOSTS", url: "https://docs.djangoproject.com/en/stable/ref/settings/" },
+]} />

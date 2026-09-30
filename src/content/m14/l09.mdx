@@ -1,0 +1,211 @@
+export const questions = [
+  {
+    q: "Une version malveillante d'un paquet porte une attestation de provenance valide, signée par le workflow de release officiel. Comment est-ce possible ?",
+    options: [
+      "Le journal de transparence Sigstore a accepté un certificat sans vérification d'identité",
+      "La clé de signature du mainteneur a été volée et réutilisée hors du workflow",
+      "La provenance atteste où et comment, pas quoi : le workflow officiel était piégé",
+      "L'attestation a été générée après coup et rattachée à l'artefact publié",
+    ],
+    answer: 2,
+    explain: "Chercher une clé volée est le réflexe hérité de la signature classique, et il ne s'applique pas : en signature sans clé, il n'y a pas de clé longue durée à voler. Sigstore n'a rien laissé passer, et l'attestation n'a pas été forgée — elle est parfaitement authentique, et c'est tout le problème. La provenance dit où et comment l'artefact a été construit, pas si son contenu est sain. C'est le cas d'Ultralytics (2024) et de TanStack (2026) : la question se déplace vers la sécurité du builder, que SLSA Build L3 traite.",
+  },
+  {
+    q: "Qu'est-ce qui distingue principalement SLSA Build L3 de Build L2 ?",
+    options: [
+      "L3 exige un build durci : runs isolés, matériel de signature hors de portée",
+      "L3 exige une revue de code à deux personnes avant toute publication",
+      "L3 exige un build reproductible, vérifiable à l'identique par un tiers indépendant",
+      "L3 exige un SBOM signé et joint à chaque artefact publié",
+    ],
+    answer: 0,
+    explain: "Les trois autres exigences sont réelles, mais ailleurs : la revue à deux personnes relève du Source track, et ni le build reproductible ni le SBOM ne figurent dans les niveaux Build. La marche entre L2 et L3 porte sur le builder lui-même — L2 demande une provenance signée par une plateforme de build hébergée, L3 y ajoute l'isolation entre exécutions et un matériel de signature inaccessible aux étapes définies par l'utilisateur.",
+  },
+  {
+    q: "Avec la signature « sans clé » de Sigstore, que vérifie-t-on au moment du déploiement ?",
+    options: [
+      "La clé publique du mainteneur, publiée dans le dépôt du projet",
+      "L'empreinte SHA-256 de l'artefact, comparée à celle du registre",
+      "La validité du certificat éphémère au moment du déploiement, et sa non-expiration",
+      "L'identité inscrite dans le certificat éphémère, et l'émetteur OIDC",
+    ],
+    answer: 3,
+    explain: "Exiger un certificat non expiré au moment du déploiement est le piège : les certificats Sigstore vivent quelques minutes, et c'est le journal de transparence qui atteste qu'ils étaient valides à la signature. L'empreinte prouve l'intégrité, pas l'origine, et il n'existe aucune clé publique longue durée à publier. La confiance porte sur une identité — le workflow GitHub et sa référence, plus l'émetteur OIDC. Une vérification qui n'impose pas l'identité attendue n'apporte presque rien.",
+  },
+  {
+    q: "Pourquoi une politique doit-elle aussi détecter l'**absence** de provenance sur une nouvelle version ?",
+    options: [
+      "Parce qu'une publication hors du workflow officiel n'a pas de provenance",
+      "Parce qu'une version sans provenance ne peut pas être installée par pnpm",
+      "Parce que l'absence de provenance indique que le paquet a été retiré du registre",
+      "Parce que npm exige la provenance sur tous les paquets publics depuis 2025",
+    ],
+    answer: 0,
+    explain: "Les trois autres réponses supposent que l'absence de provenance est déjà bloquée, ou déjà signalée par le registre. Elle ne l'est pas : par défaut, une version sans attestation s'installe comme les autres — et c'est ce qui la rend exploitable. Chez Ultralytics, les dernières versions malveillantes ont été publiées avec un jeton d'API, hors du workflow officiel, donc sans attestation. Une baisse du niveau de confiance est un signal, et `trustPolicy: no-downgrade` de pnpm applique cette règle.",
+  },
+];
+
+<YouKnow>
+Tu as déjà vérifié une signature GPG ou une empreinte SHA-256 à la main. La provenance pousse l'idée plus loin : pas seulement « ce fichier n'a pas été modifié », mais « ce fichier a été construit à partir de ce commit, par ce workflow, sur cette plateforme », avec une preuve vérifiable automatiquement avant chaque déploiement.
+</YouKnow>
+
+## La chaîne de conservation
+
+Entre le commit relu et le conteneur qui tourne en production, l'artefact de Novafact passe par la plateforme Git, le runner, les dépendances téléchargées, le registre d'images et le déploiement. À chaque étape, quelqu'un pourrait substituer autre chose. Le modèle de menaces de SLSA (M11) les nomme : source modifiée hors revue, build compromis, dépendance compromise, artefact substitué entre le build et le déploiement.
+
+La réponse est une **chaîne de conservation** : à chaque étape, une attestation signée dit ce qui s'est passé, et le consommateur vérifie ces attestations contre une politique avant d'accepter l'artefact.
+
+## SLSA v1.2 : deux tracks
+
+SLSA (*Supply-chain Levels for Software Artifacts*, projet OpenSSF) découpe les garanties en **tracks** indépendants. La version 1.2 ajoute le **Source track** au **Build track** existant.
+
+| Build track | Exigence | Ce que ça protège |
+| --- | --- | --- |
+| **L0** | Aucune | Rien : builds locaux, tests |
+| **L1** : provenance existante | Provenance générée automatiquement (builder, processus, entrées principales) | Les erreurs ; falsifiable trivialement |
+| **L2** : plateforme hébergée | Provenance **signée** par une plateforme de build hébergée, vérifiée par le consommateur | La modification après le build ; la falsifier demande une attaque explicite |
+| **L3** : build durci | Runs isolés entre eux, matériel de signature inaccessible aux étapes du projet | La falsification pendant le build, hors vulnérabilité de la plateforme |
+
+| Source track | Exigence |
+| --- | --- |
+| **L1** : versionné | Code dans un système de gestion de versions moderne |
+| **L2** : historique et provenance | Historique de branche continu et immuable, attestations de provenance de source émises au fil de l'eau |
+| **L3** : contrôles techniques continus | Les politiques de l'organisation (revue, checks) sont appliquées techniquement sur les branches protégées, et vérifiables |
+| **L4** : revue à deux personnes | Deux personnes de confiance approuvent chaque changement avant fusion |
+
+Deux limites à garder en tête : un niveau SLSA qualifie **un artefact et sa construction**, pas la qualité du code ; et il ne se transmet pas aux dépendances, qui ont leur propre niveau (ou aucun).
+
+## Les attestations in-toto
+
+Une attestation suit le format **in-toto** : un *statement* qui désigne des **sujets** (artefacts identifiés par leur empreinte), un **type de prédicat** et le **prédicat** lui-même. La provenance SLSA est un prédicat parmi d'autres (SBOM, résultats de tests, VSA).
+
+<Code file="provenance.json (extrait simplifié)" hl="3,4,5,9,13">
+
+```json
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [{ "name": "novafact-sdk-3.4.0.tgz", "digest": { "sha256": "9f2c…" } }],
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+      "externalParameters": {
+        "workflow": { "repository": "https://github.com/novafact/sdk", "path": ".github/workflows/release-sdk.yml", "ref": "refs/tags/v3.4.0" }
+      }
+    },
+    "runDetails": {
+      "builder": { "id": "https://github.com/actions/runner/github-hosted" }
+    }
+  }
+}
+```
+
+</Code>
+
+## Sigstore : signer sans clé longue durée
+
+Gérer des clés de signature est difficile : il faut les protéger, les distribuer, les faire tourner. **Sigstore** remplace la clé par une **identité** :
+
+- **Fulcio**, une autorité de certification, délivre un certificat valable une dizaine de minutes à une identité prouvée par OIDC (un compte, ou un workflow GitHub Actions et sa référence) ;
+- l'artefact est signé avec une clé éphémère liée à ce certificat, puis la clé est oubliée ;
+- **Rekor**, un journal de transparence public en ajout seul, enregistre la signature : toute signature émise pour ton identité y est visible, y compris celles que tu n'as pas faites ;
+- **cosign** signe et vérifie images et fichiers.
+
+La vérification porte donc sur **qui** a signé : l'identité du certificat et l'émetteur OIDC doivent correspondre à ce qui est attendu. Par exemple, pour l'image d'un petit outil open source que Novafact publie depuis un dépôt public et signe avec cosign en mode sans clé :
+
+<Code file="terminal">
+
+```bash
+cosign verify ghcr.io/novafact/webhook-relay@sha256:4b1e… \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/novafact/webhook-relay/\.github/workflows/release\.yml@refs/tags/v'
+```
+
+</Code>
+
+## GitHub artifact attestations
+
+GitHub intègre Sigstore : l'action `actions/attest` (v4) génère et signe une provenance SLSA pour un artefact, stockée par GitHub. Pour les dépôts publics, la signature passe par l'instance publique de Sigstore ; pour les dépôts privés, par l'instance de GitHub, qui n'a pas de journal de transparence. Seule, elle apporte **SLSA Build L2** ; en construisant dans un **workflow réutilisable** dédié, dont l'identité est celle qui signe, on atteint **Build L3** : le dépôt appelant ne peut ni modifier les étapes de build ni toucher à la signature.
+
+<Code file=".github/workflows/build-image.yml (workflow réutilisable, extrait)" hl="2,3,4,5,11">
+
+```yaml
+    permissions:
+      id-token: write          # certificat Sigstore
+      attestations: write      # stockage de l'attestation
+      contents: read
+      artifact-metadata: write # enregistrement de l'artefact
+    steps:
+      # … checkout, build et push de l'image, sortie `digest` …
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: 111122223333.dkr.ecr.eu-west-3.amazonaws.com/novafact-api
+          subject-digest: ${{ steps.push.outputs.digest }}
+```
+
+</Code>
+
+Les dépôts de l'API étant privés, c'est `gh attestation verify` qui fait foi. Avant le déploiement sur ECS, le pipeline de Novafact vérifie l'attestation en imposant l'identité du workflow de build, la branche source et l'usage d'un runner hébergé :
+
+<Code file="scripts/verify-image.sh">
+
+```bash
+gh attestation verify "oci://${IMAGE}@${DIGEST}" \
+  --owner novafact \
+  --signer-workflow novafact/build-workflows/.github/workflows/build-image.yml \
+  --source-ref refs/heads/main \
+  --deny-self-hosted-runners
+```
+
+</Code>
+
+## npm : provenance et signatures du registre
+
+Pour `@novafact/sdk`, le trusted publishing génère la provenance automatiquement (leçon 5), visible sur la page du paquet. Côté consommateur, **`npm audit signatures`** vérifie deux choses pour les paquets installés : les **signatures du registre** (npm signe chaque version publiée) et les **attestations de provenance** quand elles existent. Il détecte une archive altérée dans un miroir ou un cache, et une attestation invalide ; il ne dit rien d'un paquet sans attestation. D'où l'intérêt de `trustPolicy: no-downgrade` (pnpm), qui échoue si une version perd le niveau de confiance des précédentes : exactement le signal qu'aurait donné une publication par jeton volé.
+
+## Ce que la provenance prouve, et ce qu'elle ne prouve pas
+
+| Elle prouve | Elle ne prouve pas |
+| --- | --- |
+| L'artefact vient de ce dépôt, de ce commit, de ce workflow | Que le code du commit est sain |
+| Il a été construit sur telle plateforme, par tel builder | Que le workflow n'a pas exécuté de code malveillant (cache, dépendance) |
+| Il n'a pas été modifié depuis | Que les dépendances étaient saines |
+
+Chez Ultralytics comme chez TanStack, les premières versions malveillantes portaient une provenance authentique. La provenance sert alors à **l'enquête** et à la **politique** : exiger une référence de tag de release, un workflow précis, un runner hébergé, et refuser tout ce qui s'en écarte.
+
+## Builds reproductibles et S2C2F
+
+Un **build reproductible** produit un résultat identique bit à bit à partir des mêmes sources. Deux builders indépendants qui obtiennent la même empreinte rendent une compromission de l'un d'eux détectable : c'est la réponse de fond au cas xz utils (M13, leçon 9), où l'archive publiée différait du dépôt. Il faut pour cela neutraliser horodatages, chemins et ordre des fichiers.
+
+Côté consommation, le **S2C2F** (*Secure Supply Chain Consumption Framework*, OpenSSF) organise huit pratiques en quatre niveaux de maturité :
+
+| Pratique | Chez Novafact |
+| --- | --- |
+| Ingest It | Proxy de registre interne qui garde une copie de tout ce qui est utilisé |
+| Scan It, Inventory It | SCA et SBOM (M13), inventaire par service |
+| Update It, Audit It | Mises à jour automatisées avec délai, vérification que tout passe par les canaux approuvés |
+| Enforce It | Les builds échouent s'ils tirent d'une source non approuvée |
+| Rebuild It, Fix It + Upstream | Niveau 4, aspirationnel : reconstruire soi-même les composants les plus critiques, corriger en privé et remonter le correctif |
+
+<Callout kind="novafact">
+Cible de Novafact à douze mois (fictive) : `@novafact/sdk`, dont le dépôt est public, en SLSA Build L3 (trusted publishing depuis un workflow réutilisable, provenance publique, staged publishing) ; images de l'API attestées et vérifiées avant chaque déploiement ECS, déploiement refusé sinon ; Source L3 sur `api`, `sdk` et `infra` via rulesets (revue obligatoire, checks requis, historique protégé) et L4 sur `infra` (deux approbations). S2C2F niveau 2 atteint, niveau 3 visé sur les dix dépendances les plus critiques.
+</Callout>
+
+<Recap items={[
+  "SLSA v1.2 : Build track L0 à L3 (provenance, plateforme hébergée, build durci) et nouveau Source track L1 à L4.",
+  "Une attestation in-toto lie des sujets (empreintes) à un prédicat, dont la provenance SLSA.",
+  "Sigstore signe avec une identité OIDC (Fulcio, Rekor, cosign) : la vérification doit imposer l'identité attendue.",
+  "GitHub artifact attestations : Build L2 seules, L3 avec un workflow réutilisable ; `gh attestation verify` avant déploiement.",
+  "`npm audit signatures` vérifie signatures et attestations ; `no-downgrade` détecte une provenance qui disparaît.",
+  "La provenance prouve l'origine, pas l'innocuité ; builds reproductibles et S2C2F complètent la chaîne.",
+]} />
+
+<Sources items={[
+  { title: "SLSA v1.2 : spécification", url: "https://slsa.dev/spec/v1.2/" },
+  { title: "Sigstore : documentation", url: "https://docs.sigstore.dev/" },
+  { title: "GitHub Docs : artifact attestations", url: "https://docs.github.com/en/actions/concepts/security/artifact-attestations" },
+  { title: "npm Docs : generating provenance statements", url: "https://docs.npmjs.com/generating-provenance-statements" },
+  { title: "in-toto", url: "https://in-toto.io/" },
+  { title: "OpenSSF : S2C2F", url: "https://github.com/ossf/s2c2f" },
+  { title: "Reproducible Builds", url: "https://reproducible-builds.org/" },
+]} />

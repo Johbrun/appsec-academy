@@ -1,0 +1,147 @@
+export const questions = [
+  {
+    q: "Quelle méthode est centrée sur la vie privée plutôt que sur la sécurité ?",
+    options: [
+      "PASTA, qui part de l'impact métier pour remonter aux menaces",
+      "STRIDE, dont la catégorie Information disclosure couvre la vie privée",
+      "LINDDUN, construit autour du liage et de l'identification des personnes",
+      "DREAD, qui note l'atteinte aux données personnelles parmi ses dimensions",
+    ],
+    answer: 2,
+    explain: "LINDDUN (Linking, Identifying, Non-repudiation, Detecting, Data disclosure, Unawareness, Non-compliance) modélise les menaces sur la vie privée, et son apport est justement ce que STRIDE ne voit pas : le liage de deux jeux de données pourtant non identifiants, ou la possibilité de détecter qu'une personne figure dans une base. Information disclosure ne couvre que la divulgation — et LINDDUN inverse même la non-répudiation, qui devient une menace quand elle empêche de nier une action privée.",
+  },
+  {
+    q: "Quand un arbre d'attaque est-il particulièrement utile ?",
+    options: [
+      "Pour couvrir systématiquement tous les éléments d'un diagramme de flux",
+      "Pour analyser un objectif d'attaquant précis et comparer les chemins qui y mènent",
+      "Pour estimer la probabilité de chaque menace à partir de ses branches",
+      "Pour documenter les vulnérabilités trouvées lors du dernier pentest",
+    ],
+    answer: 1,
+    explain: "La racine est l'objectif de l'attaquant, les branches sont les chemins possibles (en OU ou en ET) : on voit d'un coup d'œil où une mitigation coupe le plus de chemins. C'est un outil de profondeur, pas de couverture — c'est STRIDE par élément qui assure la couverture systématique, et confondre les deux conduit à passer des heures sur un objectif pendant que le reste du système n'est jamais regardé.",
+  },
+  {
+    q: "Dans un arbre d'attaque, un nœud a trois enfants reliés par OU. Que faut-il pour rendre ce nœud inatteignable ?",
+    options: [
+      "Couper le chemin le moins coûteux, que l'attaquant choisira en premier",
+      "Couper un seul enfant, puisque les trois mènent au même résultat",
+      "Couper le nœud parent, ce qui rend les trois enfants inutiles",
+      "Couper les trois enfants : un seul chemin suffit à l'attaquant",
+    ],
+    answer: 3,
+    explain: "Sous un OU, chaque enfant suffit à l'attaquant : tant qu'il en reste un, le nœud est atteignable. Couper le chemin le moins coûteux est la réponse la plus séduisante parce qu'elle sonne économique — elle augmente le coût de l'attaque, ce qui a de la valeur, mais elle ne rend rien impossible. Sous un ET, à l'inverse, couper un seul enfant suffit : c'est pourquoi les mitigations qui touchent un nœud ET, ou un nœud proche de la racine, rapportent le plus.",
+  },
+  {
+    q: "Que recommande Kohnfelder quand on utilise DREAD pour évaluer un risque ?",
+    options: [
+      "Traiter les cinq dimensions séparément, en tailles de t-shirt, sans les additionner",
+      "Noter chaque dimension de 1 à 10 et additionner pour obtenir un classement",
+      "Pondérer les dimensions selon la criticité du service avant d'en faire la somme",
+      "Remplacer DREAD par CVSS, qui repose sur une méthode de calcul publiée",
+    ],
+    answer: 0,
+    explain: "Il juge la gravité peu linéaire et déconseille explicitement la somme des cinq notes, qui revient à additionner des pommes et des oranges — pondérer ne corrige rien, puisque les échelles restent incommensurables. Le CVSS n'est pas l'issue non plus : il note l'exploitabilité d'une vulnérabilité identifiée, pas un risque de conception encore hypothétique.",
+  },
+];
+
+<YouKnow>
+En pentest, tu raisonnes naturellement en arbres d'attaque : un objectif, plusieurs chemins. Cette leçon présente les méthodes qui formalisent ce raisonnement, et quand choisir laquelle.
+</YouKnow>
+
+## Plusieurs méthodes, une même question
+
+| Méthode | Principe | Quand l'utiliser |
+| --- | --- | --- |
+| **STRIDE** (par élément) | Six catégories appliquées aux éléments d'un DFD | Par défaut, pour la plupart des fonctionnalités |
+| **Arbres d'attaque** | Un objectif en racine, des chemins en branches (OU, ET) | Pour analyser un objectif précis en profondeur : « lire les factures d'un autre tenant » |
+| **PASTA** | Sept étapes orientées risque, des objectifs métier à l'analyse des vulnérabilités et des attaques | Pour un système critique, quand le lien avec le risque métier doit être explicite |
+| **Hybrid Threat Modeling Method** (SEI) | Combine SQUARE, les Security Cards et les *personas non grata* | Quand on veut écarter les menaces improbables et impliquer des non-spécialistes |
+| **LINDDUN** | Menaces sur la vie privée | Pour les traitements de données personnelles (M7) |
+
+Aucune n'est « la bonne ». Elles diffèrent par leur point de départ : le **système** (STRIDE part du DFD), l'**attaquant** (les arbres et les personas partent de ses objectifs), le **risque métier** (PASTA part des objectifs de l'entreprise), la **personne concernée** (LINDDUN part de ce qui peut lui nuire). Choisir une méthode, c'est choisir par où commencer à regarder.
+
+## Les arbres d'attaque
+
+Popularisés par Bruce Schneier en 1999, les arbres d'attaque partent d'un **objectif** et le décomposent :
+
+```text
+Lire les factures d'un autre tenant
+├── OU  Exploiter une BOLA dans l'API
+│       ├── ET  Obtenir un compte client (inscription gratuite)
+│       └── ET  Deviner ou obtenir des identifiants de factures
+├── OU  Voler la session d'un utilisateur de ce tenant
+│       ├── OU  XSS dans le back-office
+│       └── OU  Prise de contrôle par credential stuffing
+└── OU  Accéder au stockage des PDF
+        ├── OU  Bucket mal configuré
+        └── OU  SSRF vers les identifiants du service PDF
+```
+
+La logique des nœuds guide la défense. Sous un **ET**, l'attaquant a besoin de tous les enfants : en couper un seul suffit. Sous un **OU**, un seul enfant lui suffit : il faut tous les couper. La branche BOLA est un ET : une autorisation par tenant dans la DAL la ferme, même si l'inscription reste gratuite et les identifiants devinables. La branche « voler la session » est un OU : il faut à la fois une CSP stricte contre la XSS et la MFA contre le credential stuffing.
+
+On voit ainsi où une mitigation coupe **plusieurs** branches : l'autorisation dans la DAL, la MFA, IMDSv2. C'est le même raisonnement que les chaînes de M3.
+
+### Annoter les feuilles
+
+Un arbre devient un outil de décision quand on annote ses feuilles : coût pour l'attaquant, compétence requise, détectabilité. Pas besoin de chiffres précis : « faible, moyen, élevé » suffit à faire apparaître le **chemin le moins cher**, celui qu'un attaquant rationnel prendra. Chez Novafact, l'annotation a montré que la branche la moins chère n'était pas la XSS, discutée pendant une heure, mais le credential stuffing sur des comptes sans MFA. La décision a suivi.
+
+## PASTA
+
+PASTA (*Process for Attack Simulation and Threat Analysis*), créée par Tony UcedaVélez et Marco Morana, déroule sept étapes : définir les objectifs métier, définir le périmètre technique, décomposer l'application, analyser les menaces, analyser les vulnérabilités et faiblesses, modéliser les attaques, analyser le risque et l'impact. Sa force est de relier explicitement chaque menace à un impact métier, ce qui parle aux directions. Son coût est à la hauteur : c'est un processus lourd, qui suppose des données de menace et une équipe dédiée. Pour Novafact, il se justifie sur un périmètre comme le traitement des paiements, pas sur chaque fonctionnalité.
+
+## hTMM
+
+La *Hybrid Threat Modeling Method* du SEI (Carnegie Mellon, 2018) combine trois pratiques : **SQUARE** pour formaliser les exigences de sécurité, les **Security Cards** pour faire émerger des menaces en groupe, et les **personas non grata** (des profils d'attaquants imaginés, avec leurs motivations et leurs moyens) pour écarter celles qui n'ont pas d'auteur réaliste. Ses objectifs affichés : pas de faux positifs, pas de menace oubliée, un résultat stable quel que soit l'animateur, et un coût raisonnable. L'idée des personas est facile à emprunter seule : une menace sans attaquant plausible descend en priorité.
+
+## LINDDUN
+
+LINDDUN, développé à la KU Leuven, fait pour la vie privée ce que STRIDE fait pour la sécurité : sept catégories (liaison, identification, non-répudiation, détection, divulgation, méconnaissance et absence de maîtrise par la personne, non-conformité) appliquées à un DFD. Ce qui est une propriété de sécurité peut devenir une menace pour la vie privée : la **non-répudiation**, recherchée pour l'audit, empêche une personne de nier une action qu'elle aurait le droit de garder pour elle. La méthode existe en trois variantes : **GO** (cartes, séance légère), **PRO** (analyse systématique sur DFD) et **MAESTRO** (modèle enrichi, plus exhaustif). Chez Novafact, une séance LINDDUN GO avec le DPO sur l'assistant IA a fait apparaître des liaisons entre tenants que STRIDE n'avait pas vues.
+
+## Qui menace ?
+
+Une méthode trouve des menaces ; encore faut-il se demander **qui** les porterait. Les personas du hTMM le formalisent, mais une liste courte suffit :
+
+| Profil | Chez Novafact | Ce que ça change |
+| --- | --- | --- |
+| Automates opportunistes | Scanners, credential stuffing, bots d'inscription | Volume, faible sophistication : limites et hygiène (M10) |
+| Fraudeurs | Fausses factures, changement d'IBAN | Motivation financière, patience : invariants et détection |
+| Initié malveillant | Agent du support avec l'outil d'administration, ancien employé | Moindre privilège, double validation, audit des accès aux données |
+| Fournisseur tiers | Prestataire e-mail, paquet npm, outil de support SaaS | Confiance transitive : M14, contrats, isolation des accès |
+| Attaquant ciblé (APT) | Viser Novafact pour atteindre les données comptables de ses clients | Rare pour une PME, mais Novafact concentre des données de milliers d'entreprises |
+
+La dernière ligne est souvent écartée trop vite : un SaaS n'intéresse pas un attaquant ciblé pour lui-même, mais comme **point d'accès** à ses clients. C'est le raisonnement de la supply chain (leçon 6).
+
+## Prioriser sans DREAD
+
+Kohnfelder présente DREAD (dommage, reproductibilité, exploitabilité, utilisateurs affectés, découvrabilité), qu'il a promu chez Microsoft, mais avec deux réserves : il préfère des **tailles de t-shirt** à des notes, parce que la gravité n'est pas linéaire, et il déconseille d'**additionner** les cinq dimensions, ce qui revient à comparer des pommes et des oranges. Microsoft a de son côté abandonné DREAD pour sa subjectivité (M5).
+
+Pour prioriser les menaces d'un threat model, une grille **qualitative** simple suffit souvent : **impact** (faible, moyen, élevé) × **vraisemblance** (faible, moyenne, élevée), avec une justification d'une phrase. Pour ceux qui veulent plus de structure, l'OWASP Risk Rating Methodology décompose vraisemblance et impact en facteurs. L'important est la cohérence dans le temps, pas la précision : une grille appliquée de la même façon d'un trimestre à l'autre permet de comparer ; une grille réinventée à chaque séance ne permet rien.
+
+## Choisir sans dogmatisme
+
+<Steps items={[
+  { title: "Par défaut", text: "STRIDE par élément sur un DFD, en une heure, avec l'équipe." },
+  { title: "Pour un objectif critique", text: "Un arbre d'attaque sur cet objectif précis, feuilles annotées." },
+  { title: "Pour les données personnelles", text: "Une passe LINDDUN GO, avec le DPO." },
+  { title: "Pour trier les menaces", text: "Des personas d'attaquants réalistes, puis la grille impact × vraisemblance." },
+  { title: "Pour un système très critique", text: "PASTA, qui relie explicitement le modèle au risque métier." },
+]} />
+
+<Recap items={[
+  "STRIDE, arbres d'attaque, PASTA, hTMM et LINDDUN répondent aux quatre questions depuis des points de départ différents.",
+  "Arbres d'attaque : sous un ET, couper un enfant suffit ; sous un OU, il faut tous les couper ; les feuilles annotées révèlent le chemin le moins cher.",
+  "hTMM combine SQUARE, Security Cards et personas non grata ; LINDDUN couvre la vie privée ; PASTA relie le modèle au risque métier.",
+  "Se demander qui porterait la menace : automates, fraudeurs, initiés, fournisseurs, attaquants ciblés.",
+  "Prioriser avec une grille impact × vraisemblance cohérente ; si DREAD, alors sans additionner.",
+]} />
+
+<Sources items={[
+  { title: "LINDDUN", url: "https://linddun.org/" },
+  { title: "SEI : A Hybrid Threat Modeling Method (CMU/SEI-2018-TN-002)", url: "https://www.sei.cmu.edu/documents/2308/2018_004_001_516627.pdf" },
+  { title: "SEI : Threat Modeling, 12 Available Methods", url: "https://www.sei.cmu.edu/blog/threat-modeling-12-available-methods/" },
+  { title: "Bruce Schneier, Attack Trees (1999)", url: "https://www.schneier.com/academic/archives/1999/12/attack_trees.html" },
+  { title: "OWASP Cheat Sheet : Threat Modeling", url: "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html" },
+  { title: "OWASP Risk Rating Methodology", url: "https://owasp.org/www-community/OWASP_Risk_Rating_Methodology" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 2 et 13" },
+]} />

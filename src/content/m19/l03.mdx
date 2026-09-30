@@ -1,0 +1,170 @@
+export const questions = [
+  {
+    q: "L'assistant de Novafact suit le pattern plan-then-execute : le plan « lire la facture 42, puis envoyer un récapitulatif au client » est figé avant toute lecture. La facture contient une consigne qui modifie l'adresse du destinataire. Que se passe-t-il ?",
+    options: [
+      "Rien : le plan étant figé avant toute lecture, aucune consigne du document ne l'altère",
+      "Le plan fige les outils, pas les valeurs : l'adresse extraite peut être détournée",
+      "Le modèle repère la consigne cachée au moment de la lecture et interrompt son plan",
+      "La facture n'est jamais lue en clair : le plan ne manipule que son identifiant",
+    ],
+    answer: 1,
+    explain: "Plan-then-execute protège le flux de contrôle — quels outils, dans quel ordre — et pas le flux de données. Si l'adresse du destinataire est extraite de la facture au moment de l'exécution, la consigne cachée la remplace sans jamais modifier le plan : les étapes exécutées sont exactement celles qui étaient prévues, et c'est ce qui rend l'attaque invisible. Compter sur le modèle pour repérer la consigne au passage revient à confier le contrôle au composant qu'on cherche justement à contraindre. D'où l'intérêt de CaMeL, qui suit la provenance de chaque valeur et vérifie une politique avant l'appel d'outil.",
+  },
+  {
+    q: "Dans CaMeL, qu'est-ce qui empêche l'envoi d'une facture à une adresse trouvée dans un document non fiable ?",
+    options: [
+      "Un second modèle relit la réponse finale et bloque les destinataires inconnus",
+      "Les documents non fiables sont résumés par un modèle isolé avant d'entrer au contexte",
+      "Le modèle privilégié ne voit jamais les données non fiables, ce qui suffit à protéger",
+      "Chaque valeur porte sa provenance, et une politique la vérifie avant l'appel d'outil",
+    ],
+    answer: 3,
+    explain: "Le modèle privilégié écrit bien le programme sans voir les données non fiables, mais cette séparation seule ne suffit pas — c'est la moitié du dispositif qu'on retient le plus facilement, et elle laisse une valeur contaminée circuler jusqu'à l'outil. Ce qui bloque l'envoi, c'est que chaque valeur porte des métadonnées de provenance (capabilities) propagées par l'interpréteur, et qu'une politique déterministe refuse un destinataire issu d'une source non fiable. Le contrôle ne dépend plus du jugement du modèle, ni d'un relecteur placé après coup.",
+  },
+  {
+    q: "Dans la grille de Kohnfelder, quel anti-pattern décrit un agent qui exécute ses outils avec un compte de service puissant, sur la foi d'un texte présent dans son contexte ?",
+    options: [
+      "Confused deputy",
+      "Backflow of trust",
+      "Third-party hooks",
+      "Unpatchable components",
+    ],
+    answer: 0,
+    explain: "L'agent est un adjoint privilégié : le contenu de son contexte — utilisateur légitime ou document piégé — l'amène à agir au-delà des droits de celui qui l'a sollicité. « Backflow of trust » est le faux ami le plus proche : il décrit une donnée qui remonte d'une zone moins fiable vers une zone plus fiable, ce qui est bien le véhicule ici, mais pas le défaut de conception. Le défaut, c'est l'écart entre les droits de l'agent et ceux du demandeur. Correction : les outils s'exécutent avec les droits de l'utilisateur, jamais avec ceux de l'agent.",
+  },
+  {
+    q: "Quel pattern convient le mieux à un bouton « Que puis-je faire ici ? » qui oriente l'utilisateur vers une des cinq pages de l'application, sans jamais lire de données du tenant ?",
+    options: [
+      "Dual LLM : un modèle isolé lit la page, un modèle privilégié choisit la destination",
+      "Code-then-execute : le modèle écrit le programme de navigation avant de l'exécuter",
+      "Action-selector : le modèle choisit dans une liste fermée et ne voit aucun retour",
+      "Context-minimization : on retire la question de l'utilisateur après la génération",
+    ],
+    answer: 2,
+    explain: "L'action-selector transforme le modèle en aiguillage : il choisit parmi des actions prédéfinies et ne reçoit aucun retour d'outil qui pourrait l'influencer. Très sûr, très limité, et parfaitement dimensionné ici, puisqu'il n'y a que cinq destinations et aucune donnée du tenant à lire. Dual LLM et code-then-execute sont des patterns corrects mais surdimensionnés : ils existent pour traiter du contenu non fiable, ce que ce bouton ne fait jamais. Ajouter de la machinerie là où une liste fermée suffit ne crée que de nouvelles surfaces.",
+  },
+];
+
+<YouKnow>
+Tu sais déjà qu'un filtre ne remplace pas une séparation de privilèges. La leçon précédente a montré que l'injection de prompt ne se filtre pas de façon fiable ; celle-ci présente les architectures qui la rendent sans conséquence.
+</YouKnow>
+
+## Le principe commun
+
+Tous les patterns de cette leçon appliquent la même idée, formulée dans l'article *Design Patterns for Securing LLM Agents against Prompt Injections* (juin 2025) : **une fois qu'un agent a ingéré une entrée non fiable, il doit être contraint de sorte qu'il soit impossible à cette entrée de déclencher une action conséquente**. Pas « improbable » : impossible, par construction.
+
+Pour y arriver, on sépare deux flux que les agents naïfs mélangent :
+
+- le **flux de contrôle** : quels outils appeler, dans quel ordre ;
+- le **flux de données** : les valeurs passées aux outils et renvoyées par eux.
+
+Un agent ReAct classique laisse le résultat de chaque outil influencer l'étape suivante : un document piégé peut donc décider du prochain appel. Les patterns coupent ce retour, totalement ou partiellement, et paient cette sécurité en fonctionnalités.
+
+## Six patterns, six compromis
+
+L'article, signé par des chercheurs d'IBM, d'Invariant Labs, d'ETH Zurich, de Google et de Microsoft, en décrit six.
+
+| Pattern | Idée | Ce qu'on perd | Usage chez Novafact |
+| --- | --- | --- | --- |
+| **Action-selector** | Le modèle choisit une action dans une liste fermée et ne voit jamais les résultats | Toute tâche qui dépend du contenu | Aiguillage vers une page de l'application |
+| **Plan-then-execute** | Le plan d'appels est fixé avant toute exposition au contenu non fiable | Les plans qui s'adaptent à ce qu'on découvre | Relance d'impayés : lister, rédiger, soumettre à validation |
+| **LLM map-reduce** | Des sous-agents isolés traitent chaque document et renvoient un résultat contraint (booléen, nombre, catégorie) | Les synthèses riches entre documents | Classer 300 factures importées par catégorie de dépense |
+| **Dual LLM** | Un modèle privilégié orchestre ; un modèle en quarantaine lit le contenu, sans outils | Le modèle privilégié ne peut pas raisonner sur le contenu | Résumer puis proposer une action sur une facture |
+| **Code-then-execute** | Le modèle privilégié écrit un programme dans un langage restreint, analysable, puis on l'exécute | Complexité d'implémentation | Base de CaMeL |
+| **Context-minimization** | On retire du contexte ce qui n'est plus nécessaire (par exemple la demande initiale de l'utilisateur) avant l'étape suivante | Une partie du contexte conversationnel | Recherche de factures : la requête SQL est construite, puis le texte brut est oublié |
+
+<Callout kind="tip">
+Ces patterns se combinent. Le classement par map-reduce peut alimenter un plan-then-execute ; le context-minimization s'ajoute à presque tout. Le bon réflexe en revue de conception : pour chaque outil à effet, demander quel pattern empêche un contenu non fiable de le déclencher.
+</Callout>
+
+## Dual LLM : isoler le lecteur
+
+Simon Willison a proposé ce pattern dès avril 2023. Un **modèle privilégié** reçoit uniquement des entrées de confiance (l'utilisateur) et dispose des outils. Un **modèle en quarantaine** lit le contenu non fiable et n'a aucun outil. Entre les deux, un **contrôleur**, du code ordinaire, stocke les sorties de la quarantaine dans des variables symboliques. Le modèle privilégié ne manipule que leurs noms.
+
+<Code file="apps/api/src/assistant/controller.ts" hl="8,9,15">
+
+```ts
+type VarName = `$VAR${number}`;
+const vars = new Map<VarName, string>();
+let n = 0;
+
+// Le modèle en quarantaine lit la facture : pas d'outils, sortie stockée sans la montrer au modèle privilégié.
+export async function summarizeUntrusted(session: Session, invoiceId: string): Promise<VarName> {
+  const text = await loadInvoiceText(session, invoiceId);   // filtré par tenant
+  const summary = await quarantined.generate({ system: 'Résume cette facture en 5 lignes.', input: text });
+  const name: VarName = `$VAR${++n}`;
+  vars.set(name, summary);
+  return name;                                              // le modèle privilégié ne voit que "$VAR1"
+}
+
+// Seul l'affichage final, côté utilisateur, remplace les variables par leur contenu.
+export const render = (answer: string) => answer.replace(/\$VAR\d+/g, (v) => vars.get(v as VarName) ?? v);
+```
+
+</Code>
+
+Willison en listait lui-même les limites : le contenu en quarantaine peut toujours manipuler **l'utilisateur** (le résumé affiché peut l'inviter à faire quelque chose de dangereux), et toute sortie de la quarantaine reste « radioactive » : si on la réinjecte dans le modèle privilégié, même indirectement, la protection disparaît. La discipline du contrôleur est la partie difficile.
+
+## Plan-then-execute et sa limite
+
+Avec **plan-then-execute**, l'agent produit la liste des appels avant de lire quoi que ce soit de non fiable. Un document piégé ne peut plus ajouter un outil au plan. Mais il peut encore influencer les **valeurs** : si l'étape 2 envoie un e-mail à l'adresse extraite de la facture lue à l'étape 1, la facture choisit le destinataire. Le flux de contrôle est protégé, pas le flux de données.
+
+## CaMeL : suivre la provenance des valeurs
+
+**CaMeL** (*Defeating Prompt Injections by Design*, Google DeepMind et ETH Zurich, mars 2025) comble ce trou. Le modèle privilégié écrit un programme dans un sous-ensemble de Python ; un **interpréteur dédié** l'exécute. Quand le programme a besoin d'extraire une information d'un contenu non fiable, il appelle un modèle en quarantaine, sans outils, dont la sortie devient une valeur typée. Chaque valeur porte des **capabilities** : sa provenance et qui a le droit de la lire. Avant chaque appel d'outil, l'interpréteur évalue une **politique** déterministe sur ces métadonnées.
+
+<Code file="apps/api/src/assistant/policies.ts">
+
+```ts
+type Source = 'user' | 'tenant_db' | 'untrusted_document';
+interface Tagged<T> { value: T; sources: Set<Source> }
+
+// Politique appliquée par l'interpréteur avant l'outil sendInvoiceEmail.
+export function allowSendInvoiceEmail(to: Tagged<string>, contacts: Set<string>): boolean {
+  if (to.sources.has('untrusted_document')) return contacts.has(to.value); // une adresse lue dans un document doit déjà être un contact connu
+  return to.sources.has('user') || to.sources.has('tenant_db');
+}
+```
+
+</Code>
+
+Sur le benchmark AgentDojo, CaMeL résout **77 % des tâches avec une sécurité prouvable**, contre 84 % pour un agent sans défense. Le prix : des politiques à écrire et à maintenir pour chaque outil, des demandes de confirmation quand une politique bloque un cas légitime, et une protection qui ne couvre pas tout (un texte trompeur affiché à l'utilisateur reste possible). L'implémentation de recherche est publique, mais ce n'est pas une bibliothèque de production : pour Novafact, on en retient surtout l'idée de **taguer la provenance** et de **vérifier une politique dans le code** avant chaque outil sensible.
+
+## Relecture avec les anti-patterns de Kohnfelder
+
+Les anti-patterns de M8 (leçon 3) décrivent exactement ce que ces patterns corrigent.
+
+| Anti-pattern (K4) | Forme agentique | Correction |
+| --- | --- | --- |
+| **Confused deputy** | L'agent appelle l'API avec son propre compte de service, pour le compte de l'utilisateur ou d'un texte injecté | Les outils s'exécutent avec l'identité de l'utilisateur (token exchange, M9) ; politique de provenance avant l'appel |
+| **Third-party hooks** | Un serveur MCP d'éditeur branché sur l'assistant : ses descriptions d'outils et ses réponses entrent dans ton contexte, son code tourne avec tes jetons | Traiter le serveur comme une dépendance critique : revue, versions figées, sortie considérée non fiable (leçon 5) |
+| **Backflow of trust** | Un agent qui lit du contenu non fiable pilote des outils de haute confiance | Séparation des privilèges : dual LLM, plan-then-execute |
+| **Unpatchable components** | Un modèle ou un SDK figé dont on ne peut plus changer la version | Abstraction du fournisseur, versions tracées dans l'AI SBOM (leçon 8) |
+
+Kohnfelder illustre d'ailleurs les third-party hooks avec un composant d'IA propriétaire, maintenu par son éditeur via un tunnel à travers le pare-feu : un tiers qui dispose d'un accès direct au cœur du système, hors du regard des administrateurs. Un serveur MCP distant auquel on confie des jetons en est la version 2026.
+
+<Callout kind="novafact">
+Décision d'architecture de l'assistant (ADR-031, fictive) : le résumé de factures passe par un modèle en quarantaine ; les outils d'écriture ne sont accessibles qu'au modèle privilégié ; tout argument d'outil issu d'un document importé est tagué `untrusted_document`, et la politique de chaque outil décide entre exécution, confirmation humaine ou refus. Coût estimé : deux semaines de développement et environ 15 % de latence en plus (chiffres fictifs).
+</Callout>
+
+<Callout kind="debate">
+Beaucoup d'équipes s'arrêtent à la confirmation humaine et jugent ces patterns trop coûteux. C'est défendable pour un assistant à faible volume d'actions. Mais la confirmation humaine a ses propres limites : fatigue, écran de confirmation rédigé par le modèle, utilisateur pressé. Les patterns déplacent la décision dans le code ; la confirmation la laisse à l'humain. Les deux se complètent.
+</Callout>
+
+<Recap items={[
+  "Principe : après une entrée non fiable, il doit être impossible, par construction, de déclencher une action conséquente.",
+  "Six patterns (2025) : action-selector, plan-then-execute, map-reduce, dual LLM, code-then-execute, context-minimization ; chacun échange de la fonctionnalité contre de la sécurité.",
+  "Plan-then-execute protège le flux de contrôle, pas les valeurs ; CaMeL suit la provenance et applique des politiques avant chaque outil.",
+  "Un agent est un confused deputy potentiel ; un serveur MCP tiers est un third-party hook.",
+  "En pratique : taguer la provenance, politique dans le code, confirmation humaine pour le reste.",
+]} />
+
+<Lab id="dvla" note="Imagine la même application reconstruite en dual LLM : quelles attaques du lab deviennent impossibles ?" />
+
+<Sources items={[
+  { title: "Beurer-Kellner et al. : Design Patterns for Securing LLM Agents against Prompt Injections (arXiv 2506.08837)", url: "https://arxiv.org/abs/2506.08837" },
+  { title: "Simon Willison : résumé des six patterns (juin 2025)", url: "https://simonwillison.net/2025/Jun/13/prompt-injection-design-patterns/" },
+  { title: "Simon Willison : The Dual LLM pattern (avril 2023)", url: "https://simonwillison.net/2023/Apr/25/dual-llm-pattern/" },
+  { title: "Debenedetti et al. : Defeating Prompt Injections by Design, CaMeL (arXiv 2503.18813)", url: "https://arxiv.org/abs/2503.18813" },
+  { title: "Implémentation de recherche de CaMeL", url: "https://github.com/google-research/camel-prompt-injection" },
+]} />

@@ -1,0 +1,282 @@
+[
+  {
+    "id": "attaque-01",
+    "malicious": true,
+    "label": "l’attaque n°1"
+  },
+  {
+    "id": "attaque-02",
+    "malicious": true,
+    "label": "l’attaque n°2"
+  },
+  {
+    "id": "attaque-03",
+    "malicious": true,
+    "label": "l’attaque n°3"
+  },
+  {
+    "id": "attaque-04",
+    "malicious": true,
+    "label": "l’attaque n°4"
+  },
+  {
+    "id": "attaque-05",
+    "malicious": true,
+    "label": "l’attaque n°5"
+  },
+  {
+    "id": "attaque-06",
+    "malicious": true,
+    "label": "l’attaque n°6"
+  },
+  {
+    "id": "attaque-07",
+    "malicious": true,
+    "label": "l’attaque n°7"
+  },
+  {
+    "id": "attaque-08",
+    "malicious": true,
+    "label": "l’attaque n°8"
+  },
+  {
+    "id": "attaque-09",
+    "malicious": true,
+    "label": "l’attaque n°9"
+  },
+  {
+    "id": "attaque-10",
+    "malicious": true,
+    "label": "l’attaque n°10"
+  },
+  {
+    "id": "attaque-11",
+    "malicious": true,
+    "label": "l’attaque n°11"
+  },
+  {
+    "id": "attaque-12",
+    "malicious": true,
+    "label": "l’attaque n°12"
+  },
+  {
+    "id": "attaque-discrete-1",
+    "malicious": true,
+    "label": "l’attaque discrète n°1"
+  },
+  {
+    "id": "attaque-discrete-2",
+    "malicious": true,
+    "label": "l’attaque discrète n°2"
+  },
+  {
+    "id": "attaque-discrete-3",
+    "malicious": true,
+    "label": "l’attaque discrète n°3"
+  },
+  {
+    "id": "pentest-autorise",
+    "malicious": false,
+    "label": "le test d’intrusion autorisé par le client"
+  },
+  {
+    "id": "test-de-charge-1",
+    "malicious": false,
+    "label": "le test de charge"
+  },
+  {
+    "id": "test-de-charge-2",
+    "malicious": false,
+    "label": "le test de charge"
+  },
+  {
+    "id": "passerelle-sso-1",
+    "malicious": false,
+    "label": "la passerelle SSO du client"
+  },
+  {
+    "id": "passerelle-sso-2",
+    "malicious": false,
+    "label": "la passerelle SSO du client"
+  },
+  {
+    "id": "passerelle-sso-3",
+    "malicious": false,
+    "label": "la passerelle SSO du client"
+  },
+  {
+    "id": "mobile-01",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-02",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-03",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-04",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-05",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-06",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-07",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-08",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-09",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "mobile-10",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie avec un jeton périmé"
+  },
+  {
+    "id": "maladroit-01",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-02",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-03",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-04",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-05",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-06",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-07",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-08",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-09",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-10",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-11",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-12",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-13",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-14",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-15",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "oubli-1",
+    "malicious": false,
+    "label": "une procédure de mot de passe oublié"
+  },
+  {
+    "id": "oubli-2",
+    "malicious": false,
+    "label": "une procédure de mot de passe oublié"
+  },
+  {
+    "id": "oubli-3",
+    "malicious": false,
+    "label": "une procédure de mot de passe oublié"
+  },
+  {
+    "id": "oubli-4",
+    "malicious": false,
+    "label": "une procédure de mot de passe oublié"
+  },
+  {
+    "id": "oubli-5",
+    "malicious": false,
+    "label": "une procédure de mot de passe oublié"
+  },
+  {
+    "id": "sonde-1",
+    "malicious": false,
+    "label": "une sonde de supervision"
+  },
+  {
+    "id": "sonde-2",
+    "malicious": false,
+    "label": "une sonde de supervision"
+  },
+  {
+    "id": "sonde-3",
+    "malicious": false,
+    "label": "une sonde de supervision"
+  },
+  {
+    "id": "integration-1",
+    "malicious": false,
+    "label": "la suite d’intégration qui teste le chemin d’échec"
+  },
+  {
+    "id": "integration-2",
+    "malicious": false,
+    "label": "la suite d’intégration qui teste le chemin d’échec"
+  }
+]

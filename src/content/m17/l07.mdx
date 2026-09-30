@@ -1,0 +1,192 @@
+export const questions = [
+  {
+    q: "Pour décommissionner l'ancien portail de documentation, l'équipe supprime d'abord le bucket S3 qui l'hébergeait, puis prévoit de nettoyer le DNS « la semaine prochaine ». Quel est le risque pendant cette semaine ?",
+    options: [
+      "Aucun : un CNAME vers une ressource supprimée renvoie une erreur de résolution",
+      "Le certificat ACM du sous-domaine se renouvelle seul et validera l'attaquant",
+      "Le CNAME pointe vers un nom de bucket libre, que n'importe qui peut recréer",
+      "Les visiteurs voient une erreur 404 de S3, ce qui expose le nom du bucket interne",
+    ],
+    answer: 2,
+    explain: "C'est la prise de contrôle de sous-domaine classique : le nom du bucket est redevenu disponible dans l'espace de noms global de S3, et qui le recrée sert son contenu sous `docs.novafact.example`, avec tout ce que cela permet — hameçonnage crédible, cookies posés sur le domaine parent, contournement d'une CSP qui autorise le domaine. Le CNAME ne renvoie pas une erreur de résolution : il résout très bien, c'est la cible qui a changé de propriétaire. L'ordre sûr est l'inverse : retirer l'enregistrement DNS, vérifier, puis seulement libérer la ressource.",
+  },
+  {
+    q: "Pourquoi Kohnfelder classe-t-il les composants non patchables parmi les anti-patterns de conception ?",
+    options: [
+      "Parce qu'une vulnérabilité finira par sortir, et qu'elle restera ouverte pour toujours",
+      "Parce qu'ils imposent de figer les versions de tout le reste de la pile logicielle",
+      "Parce qu'ils ne produisent pas de SBOM et échappent donc à l'inventaire des dépendances",
+      "Parce qu'un composant non patchable ne passe jamais les scanners de composition",
+    ],
+    answer: 0,
+    explain: "Le raisonnement est probabiliste : tout composant répandu aura une vulnérabilité publique un jour, et celui qu'on ne peut pas mettre à jour rapidement — éditeur disparu, binaire sans source, runtime en fin de vie, firmware scellé — devient une faiblesse permanente, par conception et non par accident. Le gel transitif de la pile est une conséquence fréquente, pas la raison du classement. Et ils sont parfaitement visibles pour un scanner de composition, ce qui est justement l'expérience frustrante : on voit le problème chaque semaine, sans pouvoir le corriger.",
+  },
+  {
+    q: "Un client quitte Novafact et demande la suppression de toutes ses données. Que faire de ses factures ?",
+    options: [
+      "Les supprimer partout, sauvegardes comprises : le droit à l'effacement prime",
+      "Les pseudonymiser en retirant nom et adresse, puis les conserver en base de production",
+      "Les archiver à accès restreint pour la durée légale, supprimer le reste, documenter",
+      "Les exporter au client puis les supprimer : la charge de conservation lui revient désormais",
+    ],
+    answer: 2,
+    explain: "Le droit à l'effacement cède devant une obligation légale de conservation : les pièces comptables se gardent dix ans, et le RGPD prévoit explicitement cette exception. Pseudonymiser la facture est la fausse bonne idée — une pièce comptable sans l'identité du cocontractant ne vaut plus rien en cas de contrôle, et c'est précisément la donnée qu'il faut garder. Transférer au client ne transfère pas l'obligation : c'est Novafact qui doit pouvoir produire ses propres pièces. La disposition se décide donnée par donnée : ce qui est conservé, où, par qui, combien de temps, et ce qui disparaît.",
+  },
+  {
+    q: "Novafact chiffre les données de chaque tenant avec une clé KMS dédiée et compte sur la suppression de la clé (crypto-shredding) pour détruire les données d'un client. Quel angle mort la leçon 6 introduit-elle ?",
+    options: [
+      "Aucun : supprimer la clé rend illisible toute copie dérivée, où qu'elle se trouve",
+      "Les copies de sauvegarde isolées sont rechiffrées avec la clé du coffre de destination",
+      "KMS impose un délai de 7 à 30 jours avant l'effacement, pendant lequel il reste annulable",
+      "Les objets S3 déjà chiffrés gardent leur clé de données en cache du côté du service",
+    ],
+    answer: 1,
+    explain: "Le crypto-shredding ne détruit que ce qui est chiffré avec la clé supprimée. Or une copie vers un coffre isolé ou un autre compte est déchiffrée puis rechiffrée avec la clé du coffre de destination : supprimer la clé du tenant ne la rend pas illisible, il faut attendre l'expiration de sa rétention. Le délai d'attente de KMS est bien réel et souvent cité comme *l'*angle mort, mais ce n'est qu'un décalage : au bout de trente jours au plus, la clé est partie pour de bon. Tout ce qui a été copié et rechiffré ailleurs — coffre isolé, export client, environnement de test — se traite à part, avec sa propre échéance.",
+  },
+];
+
+<YouKnow>
+En bug bounty, les sous-domaines oubliés, les buckets abandonnés et les vieilles API encore joignables font partie des findings les plus rentables. Presque tous naissent au même moment du cycle de vie : un décommissionnement fait à moitié. Cette leçon traite la fin de vie comme une phase à part entière, avec sa procédure.
+</YouKnow>
+
+## La fin de vie, phase oubliée du cycle
+
+Le CSSLP range la fin de vie des applications dans la gestion du cycle de vie logiciel, au même titre que la conception ou le déploiement. En pratique, c'est la phase que personne ne budgète : le projet suivant a démarré, l'équipe a changé, et le service « éteint » laisse derrière lui des identifiants valides, des enregistrements DNS, des données, des intégrations chez des tiers et parfois des processus qui tournent encore.
+
+Deux situations relèvent de la fin de vie, et elles se traitent différemment :
+
+- un **composant** arrive en fin de support alors que le service continue : runtime, bibliothèque, image de base, service géré ;
+- un **service entier** est retiré : il faut le décommissionner et décider du sort de ses données.
+
+## Les composants non patchables (K4)
+
+Kohnfelder compte parmi ses anti-patterns les **composants non patchables** : dès lors qu'un composant est répandu, la découverte d'une vulnérabilité publique n'est qu'une question de temps, et un composant qu'on ne peut pas corriger vite devient une faiblesse permanente. Il en élargit la définition bien au-delà du matériel : logiciel dont l'éditeur a cessé le support ou disparu, code livré seulement en binaire, code qui dépend d'un compilateur ou d'une dépendance obsolète, code abandonné par décision de gestion, ou technologie pour laquelle on ne trouve plus de développeurs. Même un logiciel encore mis à jour se comporte comme non patchable si l'éditeur publie ses correctifs trop lentement.
+
+Dans l'écosystème de Novafact, les dates sont connues d'avance :
+
+| Composant | Fin de support | Conséquence |
+| --- | --- | --- |
+| Node.js 20 | 30 avril 2026 | Plus aucun correctif de sécurité du projet Node.js |
+| Runtime Lambda `nodejs20.x` | Dépréciation au 30 avril 2026 ; création bloquée au 1er février 2027, mise à jour au 3 mars 2027 | La fonction continue de tourner, sans correctif ni support |
+| Amazon Linux 2 | 30 juin 2026 | Les runtimes Lambda encore basés sur AL2 ne reçoivent plus que les correctifs critiques, jusqu'à leur propre dépréciation |
+| Node.js 22 | 30 avril 2027 | À planifier dès maintenant |
+| Paquet npm abandonné (dernier commit en 2021) | Aucune | Un correctif demande un fork maintenu en interne |
+
+Le point de la documentation Lambda qui surprend le plus : après la dépréciation, **la fonction continue de s'exécuter**. Rien ne casse, rien n'alerte en production ; seul un inventaire trouve ces fonctions. L'API endoflife.date et la CLI AWS suffisent à construire cet inventaire :
+
+<Code file="scripts/eol-inventory.sh">
+
+```bash
+# Fonctions Lambda encore sur un runtime Node.js déprécié
+aws lambda list-functions \
+  --query "Functions[?Runtime=='nodejs20.x' || Runtime=='nodejs18.x'].[FunctionName,Runtime]" \
+  --output table
+
+# Dates de fin de vie de Node.js, pour alimenter le tableau de bord
+curl -s https://endoflife.date/api/v1/products/nodejs/ \
+  | jq -r '.result.releases[] | [.name, .eolFrom, .isMaintained] | @tsv'
+```
+
+</Code>
+
+Les contrôles qui en découlent :
+
+- **à la conception** : pas de composant dont la fin de support tombe pendant la durée de vie prévue du service sans plan de migration, et une préférence documentée pour les composants qu'on sait mettre à jour vite (M8) ;
+- **en continu** : le SBOM (M13) croisé avec les dates de fin de vie, une alerte six mois avant chaque échéance, et le budget de montée de version inscrit dans la feuille de route, pas pris sur le temps libre ;
+- **quand on ne peut pas migrer à temps** : isoler (réseau, droits minimaux), compenser (virtual patching, leçon 8), et consigner l'exception avec une date de fin, comme toute acceptation de risque (M5).
+
+## Décommissionner un service
+
+Le décommissionnement est une procédure, avec un propriétaire et des preuves. L'ordre des étapes compte autant que leur contenu.
+
+<Steps items={[
+  { title: "Décider et prévenir", text: "Un propriétaire, une date, et la liste des consommateurs : clients qui appellent l'API, webhooks configurés, utilisateurs du SDK, autres services internes. Annonce, puis période de dépréciation." },
+  { title: "Couper le trafic et observer", text: "Retirer les routes CloudFront et ALB, répondre 410 Gone pendant la période de transition, et regarder dans les logs qui appelle encore." },
+  { title: "Révoquer les identités", text: "Rôles IAM et leurs politiques de confiance OIDC, clés d'accès, clients OAuth dans Cognito, clés d'API chez les tiers, secrets de webhooks, secrets dans Secrets Manager (suppression avec fenêtre de récupération de 7 à 30 jours)." },
+  { title: "Retirer le DNS avant la ressource", text: "Supprimer les enregistrements (CNAME, alias, délégations NS) puis seulement libérer le bucket, la distribution ou l'adresse IP vers lesquels ils pointaient." },
+  { title: "Supprimer la configuration", text: "Détruire l'infrastructure par l'IaC (pas à la main), retirer les règles WAF, alarmes, tableaux de bord et tâches planifiées devenus orphelins." },
+  { title: "Archiver", text: "Dépôt de code archivé en lecture seule, état IaC, documentation de conception et journal du décommissionnement conservés avec les preuves." },
+  { title: "Disposer des données", text: "Appliquer la décision de rétention ou de destruction, donnée par donnée (section suivante)." },
+  { title: "Vérifier", text: "Chercher les références restantes dans le code et la configuration, les appels refusés dans CloudTrail avec les identités révoquées, et les enregistrements DNS pendants." },
+]} />
+
+L'étape 4 est celle qui produit les findings de bug bounty. Un CNAME qui pointe vers un bucket S3 supprimé, une distribution CloudFront effacée ou une adresse IP élastique rendue permet à quiconque recrée la ressource de servir son contenu sous ton domaine : phishing crédible, vol de cookies à portée de domaine, contournement de CSP qui fait confiance à `*.novafact.example`. Même logique pour les zones hébergées : supprimer la zone Route 53 d'un sous-domaine sans retirer la délégation NS du domaine parent crée une délégation pendante, contre laquelle Route 53 n'offre qu'une protection partielle.
+
+<Callout kind="case">
+**Buckets S3 abandonnés (watchTowr, février 2025)**. Des chercheurs de watchTowr ont réenregistré environ 150 noms de buckets S3 que des administrations, des grandes entreprises, des éditeurs de sécurité et des projets open source avaient utilisés pour distribuer logiciels, mises à jour et configurations, puis supprimés. En deux mois, ces buckets ont reçu plus de 8 millions de requêtes : binaires non signés, images de machines virtuelles, modèles CloudFormation, configurations de VPN. Supprimer le bucket ne suffisait pas : le code et les systèmes qui le référençaient continuaient de le demander.
+</Callout>
+
+La leçon pratique : un nom de bucket encore référencé ne se libère pas. Vide-le, pose une politique qui refuse tout, garde-le le temps que les références disparaissent, et cherche activement les enregistrements pendants. Pour les sites statiques servis depuis S3 par CNAME, le nom du bucket doit égaler le nom d'hôte, ce qui rend la vérification automatisable :
+
+<Code file="scripts/dangling-s3-cname.ts" hl="14,17,19,20">
+
+```ts
+import { Route53Client, ListResourceRecordSetsCommand, type RRType } from '@aws-sdk/client-route-53';
+import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
+
+const r53 = new Route53Client({});
+const s3 = new S3Client({});
+let next: { name?: string; type?: RRType } = {};
+
+do {
+  const page = await r53.send(new ListResourceRecordSetsCommand({
+    HostedZoneId: process.env.ZONE_ID, StartRecordName: next.name, StartRecordType: next.type,
+  }));
+  for (const rr of page.ResourceRecordSets ?? []) {
+    const target = rr.ResourceRecords?.[0]?.Value ?? '';
+    if (rr.Type !== 'CNAME' || !/\.s3-website[.-]/.test(target)) continue;
+    const bucket = rr.Name!.replace(/\.$/, '');
+    try {
+      await s3.send(new HeadBucketCommand({ Bucket: bucket }));
+    } catch (e: any) {
+      if (e.$metadata?.httpStatusCode === 404) console.log(`PENDANT  ${bucket} : bucket inexistant, réclamable`);
+      if (e.$metadata?.httpStatusCode === 403) console.log(`A VERIFIER ${bucket} : existe mais inaccessible (autre compte ?)`);
+    }
+  }
+  next = page.IsTruncated ? { name: page.NextRecordName, type: page.NextRecordType } : {};
+} while (next.name);
+```
+
+</Code>
+
+## Disposer des données
+
+Décommissionner un service ne veut pas dire tout effacer, ni tout garder. La **disposition des données** se décide donnée par donnée, à partir de l'inventaire fait en M7 :
+
+| Donnée | Obligation | Décision chez Novafact |
+| --- | --- | --- |
+| Factures émises et pièces comptables | 10 ans à compter de la clôture de l'exercice (Code de commerce, art. L123-22) ; 6 ans pour les documents fiscaux (LPF, art. L102 B) | Archive S3 dédiée, Object Lock en compliance pour la durée légale, accès limité au rôle comptable |
+| Comptes utilisateurs, journaux de connexion | Minimisation et limitation de conservation (RGPD) | Suppression à la fin de la période de rétention définie |
+| Logs applicatifs dans Elastic | Politique de rétention du SIEM (M18) | Expiration par cycle de vie d'index, sans action manuelle |
+| Copies en environnement de test | Aucune justification une fois le service retiré | Destruction immédiate |
+| Données chez les sous-traitants (SES, prestataire de paiement, support) | Contrats et RGPD | Demande de suppression écrite, preuve conservée |
+
+Avant toute destruction, vérifie deux dépendances : un **gel juridique** (litige en cours, contrôle fiscal) qui suspend la destruction, et les **consommateurs** de la donnée (un rapport financier, un autre service, un modèle d'IA entraîné dessus).
+
+Pour détruire dans le cloud, on ne broie pas de disque : la **suppression logique** retire l'accès, et l'**effacement cryptographique** (*crypto-shredding*) rend les données illisibles en détruisant la clé qui les chiffre. NIST SP 800-88 Rev. 2 (septembre 2025) le reconnaît comme technique d'assainissement, choisie selon la sensibilité des données. Sur AWS, `ScheduleKeyDeletion` sur une clé KMS dédiée (par service ou par tenant) impose un délai de 7 à 30 jours, puis rend inutilisable tout ce qui est chiffré avec elle.
+
+<Callout kind="warn">
+Le crypto-shredding ne détruit que ce qui est chiffré avec **la clé supprimée**. Les copies rechiffrées ailleurs lui échappent : le coffre de sauvegarde isolé de la leçon 6 chiffre avec sa propre clé, un export CSV envoyé au support n'est pas chiffré du tout. Documente, pour chaque copie, quand et comment elle disparaît. Pour les sauvegardes immuables, la réponse honnête est « à l'expiration de leur rétention, sans restauration d'ici là ».
+</Callout>
+
+<Callout kind="novafact">
+Retrait du module « devis » (bilan fictif) : 4 rôles IAM révoqués, dont un rôle OIDC encore assumable par un dépôt archivé ; 2 CNAME pendants trouvés par le script, dont `quotes-static.novafact.example` vers un bucket supprimé huit mois plus tôt ; un webhook toujours configuré chez 37 clients, qui a reçu des 410 pendant trois mois avant d'être retiré de leur console ; devis signés archivés 10 ans sous Object Lock ; base de recette détruite, clé KMS du module programmée pour suppression à 30 jours.
+</Callout>
+
+<Recap items={[
+  "La fin de vie est une phase du cycle, avec un propriétaire, une procédure et des preuves.",
+  "Composants non patchables (K4) : inventaire des fins de support, alerte à six mois, migration budgétée, exception datée sinon.",
+  "Décommissionner : prévenir, couper, révoquer, retirer le DNS avant la ressource, supprimer par l'IaC, archiver, vérifier.",
+  "Un nom de bucket ou de domaine encore référencé ne se libère pas : c'est la prise de contrôle garantie.",
+  "Disposition des données donnée par donnée : obligations légales, gel juridique, consommateurs ; crypto-shredding avec ses angles morts.",
+]} />
+
+<Sources items={[
+  { title: "AWS Lambda : runtimes et politique de dépréciation", url: "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html" },
+  { title: "endoflife.date", url: "https://endoflife.date/" },
+  { title: "OWASP WSTG : Test for Subdomain Takeover", url: "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_and_Deployment_Management_Testing/10-Test_for_Subdomain_Takeover" },
+  { title: "watchTowr : 8 millions de requêtes vers des buckets S3 abandonnés", url: "https://labs.watchtowr.com/8-million-requests-later-we-made-the-solarwinds-supply-chain-attack-look-amateur/" },
+  { title: "Amazon Route 53 : délégations pendantes", url: "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/protection-from-dangling-dns.html" },
+  { title: "NIST SP 800-88 Rev. 2 : Guidelines for Media Sanitization", url: "https://csrc.nist.gov/pubs/sp/800/88/r2/final" },
+  { title: "Service Public Entreprendre : délais de conservation des documents", url: "https://entreprendre.service-public.gouv.fr/vosdroits/F10029" },
+]} />

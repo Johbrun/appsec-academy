@@ -1,0 +1,194 @@
+export const questions = [
+  {
+    q: "Dans la taxonomie OWASP des menaces automatisées, que désigne OAT-008 ?",
+    options: [
+      "Credential Cracking",
+      "Credential Stuffing",
+      "Account Creation",
+      "Scraping",
+    ],
+    answer: 1,
+    explain: "OAT-008 Credential Stuffing : rejouer en masse des couples identifiant / mot de passe issus d'autres fuites. À ne pas confondre avec OAT-007 Credential Cracking, qui devine le mot de passe d'un compte donné : beaucoup d'essais sur peu de comptes, là où le stuffing fait deux ou trois essais sur des milliers de comptes. Les deux appellent des contrôles différents.",
+  },
+  {
+    q: "Quel risque de l'API Security Top 10 2023 correspond à l'abus d'un flux métier légitime (réservations en masse, envois en masse) ?",
+    options: [
+      "API1 BOLA : un objet accessible en changeant son identifiant",
+      "API4 Consommation de ressources non limitée : le coût technique",
+      "API6 Accès non restreint à des flux métier sensibles",
+      "API8 Mauvaise configuration de sécurité",
+    ],
+    answer: 2,
+    explain: "API6 vise l'automatisation d'un flux métier sensible, sans aucune faille technique au sens classique. Le piège est API4 : les deux se déclenchent sur des appels en masse, mais API4 parle de ressources épuisées (CPU, mémoire, facture d'un service tiers) alors qu'API6 parle de préjudice métier, qui peut survenir à très faible volume.",
+  },
+  {
+    q: "Le support de Novafact signale des milliers d'échecs de connexion, répartis sur des milliers de comptes différents, avec deux ou trois essais par compte. Pourquoi est-il important de classer l'incident en OAT-008 plutôt qu'en OAT-007 ?",
+    options: [
+      "Parce que la limite par compte, efficace contre OAT-007, ne se déclenche presque pas",
+      "Parce qu'OAT-008 suppose une fuite chez Novafact, donc une notification à la CNIL",
+      "Parce qu'OAT-007 se traite par WAF et OAT-008 par MFA, sans recouvrement possible",
+      "Parce que l'ampleur du volume change la qualification juridique de l'incident",
+    ],
+    answer: 0,
+    explain: "Credential Cracking devine le mot de passe d'un compte : beaucoup d'essais sur peu de comptes, qu'un compteur d'échecs par compte arrête. Credential Stuffing rejoue des identifiants valides ailleurs : deux essais par compte, sur des milliers de comptes, ce qui passe sous ce même compteur. Le bon nom mène au bon contrôle — mots de passe compromis, MFA, signaux globaux. Et non, le stuffing n'implique aucune fuite chez Novafact : les identifiants viennent d'ailleurs, c'est même ce qui le définit.",
+  },
+  {
+    q: "Un concurrent crée quelques comptes d'essai et exporte chaque jour, à la main et à un rythme humain, les modèles de factures publics de Novafact. Qu'est-ce qui distingue ce cas d'un problème API4 ?",
+    options: [
+      "Rien : c'est bien un cas d'API4, puisque des requêtes répétées consomment des ressources",
+      "C'est une BOLA : le concurrent accède à des objets qui ne lui appartiennent pas",
+      "Aucune ressource n'est épuisée : le préjudice est métier, ce qui relève d'API6",
+      "C'est un cas d'API3, l'API renvoyant plus de champs que le client n'en demande",
+    ],
+    answer: 2,
+    explain: "API4 parle de coût technique ; ici rien n'est saturé, le rythme est humain et le volume négligeable. API6 parle de préjudice métier, qui existe à très faible volume et se traite d'abord par une décision produit : que doit-on exposer, à qui, à quel rythme ? Ce n'est pas une BOLA non plus — les modèles sont publics et le concurrent y a légitimement accès, c'est leur agrégation systématique qui pose problème.",
+  },
+];
+
+<YouKnow>
+Tu cherches des failles : un comportement non prévu. L'abus, lui, utilise l'application **exactement comme prévu**, mais à une échelle ou avec une intention que personne n'a anticipées. Aucun scanner ne le voit.
+</YouKnow>
+
+## Faille ou abus ?
+
+| Faille | Abus |
+| --- | --- |
+| Le système fait ce qu'il ne devrait pas | Le système fait ce qu'il doit, pour la mauvaise personne ou à la mauvaise échelle |
+| Se corrige dans le code | Se gère par des limites, des signaux, des décisions de produit |
+| Un pentest la trouve | Un pentest la trouve rarement : elle se voit dans les données de production |
+
+La troisième ligne mérite qu'on s'y arrête. Un pentest a une fenêtre courte, des règles d'engagement qui interdisent souvent le volume (pas de test de charge, pas de création massive de comptes), et un testeur qui juge d'après la spécification. Or un abus n'est « anormal » que par rapport à une **intention métier** que la spécification ne dit presque jamais : combien de factures un client envoie-t-il vraiment par jour ? Combien d'invitations d'équipe sont plausibles pour une TPE ? Sans ces chiffres, rien ne permet de dire qu'un comportement est un abus.
+
+Le moteur de l'abus est **économique**. L'attaquant compare le coût d'une action (un compte, une requête, une adresse IP résidentielle, un CAPTCHA résolu par un service) à ce qu'elle rapporte (une facture de phishing qui arrive en boîte de réception, un compte pris, un crédit de parrainage). Tant que le rapport est favorable, il automatise. Toute la suite du module consiste à dégrader ce rapport sans dégrader celui des vrais clients.
+
+Pour un SaaS de facturation qui envoie des e-mails au nom de ses clients, l'abus est un **risque métier majeur** : fraude, réputation d'envoi, pertes financières, confiance des clients.
+
+## La taxonomie OWASP
+
+Le projet **OWASP Automated Threats to Web Applications** recense 21 menaces automatisées, identifiées de OAT-001 à OAT-021, décrites dans un *handbook* avec des symptômes et des contre-mesures, et accompagnées d'un tableau d'aide à l'identification. Celles qui concernent Novafact :
+
+| Code | Menace | Chez Novafact |
+| --- | --- | --- |
+| OAT-002 | Token Cracking | Énumérer des codes promo ou des codes de parrainage |
+| OAT-007 | Credential Cracking | Deviner le mot de passe d'un compte précis |
+| OAT-008 | Credential Stuffing | Rejouer en masse des identifiants volés ailleurs |
+| OAT-011 | Scraping | Aspirer les pages publiques de paiement ou les données d'un compte |
+| OAT-014 | Vulnerability Scanning | Scanner l'API à la recherche de failles connues |
+| OAT-015 | Denial of Service | Épuiser l'API ou la génération de PDF |
+| OAT-017 | Spamming | Envoyer du contenu non sollicité par la plateforme (fausses factures) |
+| OAT-019 | Account Creation | Créer des comptes en masse pour abuser des fonctions gratuites |
+| OAT-020 | Account Aggregation | Un agrégateur tiers qui se connecte avec les identifiants des clients |
+
+### Pourquoi nommer précisément
+
+Une taxonomie sert d'abord à **parler la même langue**. Le support voit « des gens qui n'arrivent plus à se connecter », le produit voit « une hausse des inscriptions », l'équipe de détection voit « un pic de 401 ». Rattacher chaque incident à un code OAT permet de compter, de comparer d'un mois sur l'autre, et surtout de **choisir le bon contrôle**.
+
+L'exemple type est la paire OAT-007 et OAT-008. Le *cracking* concentre beaucoup d'essais sur peu de comptes : une limite par compte l'arrête. Le *stuffing* fait l'inverse, deux ou trois essais par compte sur des milliers de comptes, avec des identifiants souvent **valides** : la limite par compte ne se déclenche presque jamais, et il faut d'autres couches (leçon 2). Confondre les deux, c'est déployer un contrôle qui ne voit pas l'attaque.
+
+<Callout kind="warn">
+Tous les automates ne sont pas hostiles. OAT-020 décrit des agrégateurs qui se connectent **avec les identifiants de tes clients**, souvent à leur demande (un outil de gestion de notes de frais, par exemple). Les bloquer casse un usage réel ; les tolérer entraîne des mots de passe stockés chez un tiers et un trafic indiscernable d'une prise de contrôle. La bonne réponse est une décision produit : proposer une API avec délégation OAuth (M9), puis fermer la porte au scraping avec identifiants.
+</Callout>
+
+## API6 : les flux métier sensibles
+
+L'**API Security Top 10 2023** ajoute **API6** : *Unrestricted Access to Sensitive Business Flows*. L'API expose un flux métier (envoi de factures, création de comptes d'essai, parrainage) sans limite adaptée à son usage humain normal. Les scénarios d'OWASP sont parlants : un robot qui achète tout le stock d'une console en série limitée pour la revendre, un utilisateur qui réserve la quasi-totalité des sièges d'un vol pour faire baisser le prix avant d'annuler, des inscriptions automatisées pour accumuler des crédits de parrainage. Aucun de ces cas ne contient de bug au sens classique.
+
+### API4 ou API6 ?
+
+Les deux se confondent souvent, et la distinction change la réponse :
+
+| | API4 Unrestricted Resource Consumption | API6 Sensitive Business Flows |
+| --- | --- | --- |
+| Ce qui est atteint | Une ressource technique (CPU, mémoire, quota d'un fournisseur, facture cloud) | Un objectif métier (stock, réputation, équité, revenus) |
+| Volume nécessaire | Élevé, ou une seule requête très coûteuse | Parfois très faible |
+| Contrôle typique | Limites de taille, de pagination, de débit, délais | Quotas métier, vérification des comptes, décision humaine |
+| Qui décide du seuil | L'équipe technique | Le produit, avec la sécurité |
+
+Un export CSV de 2 Go qui sature un worker relève d'API4. Cinquante fausses factures envoyées depuis un compte créé il y a une heure relèvent d'API6 : l'infrastructure ne sent rien passer, la marque en souffre.
+
+## Démarche pour Novafact
+
+La réponse n'est jamais « corriger une ligne de code », mais :
+
+<Steps items={[
+  { title: "Identifier les flux sensibles", text: "Ceux dont l'automatisation nuit : envoi d'e-mails, création de comptes, remboursements, invitations, exports." },
+  { title: "Définir l'usage normal", text: "Combien de fois par heure un client réel le fait-il ? Selon son ancienneté, son plan, son historique ? Les données de production répondent mieux que les suppositions." },
+  { title: "Choisir les contrôles", text: "Limites de débit, quotas, vérification des nouveaux comptes, défis, décision humaine (leçons suivantes)." },
+  { title: "Surveiller", text: "Les signaux d'abus en production (leçon 7), et réviser les seuils quand l'usage réel évolue." },
+]} />
+
+Appliqué à Novafact, l'inventaire tient sur une page. Les chiffres ci-dessous sont fictifs, mais c'est exactement le type de tableau à produire avec le produit :
+
+| Flux | Menace | Usage normal observé (fictif) | Contrôle retenu |
+| --- | --- | --- | --- |
+| Envoi de facture par e-mail | OAT-017 | 95 % des tenants envoient moins de 40 factures par jour | Quota par tenant selon ancienneté et plan (leçon 5) |
+| Inscription d'essai | OAT-019 | Quelques centaines par jour, pics le lundi | Défi adaptatif et ACFP (leçon 4) |
+| Invitation d'équipe | OAT-017 | Moins de 10 invitations par tenant et par semaine | Quota, texte d'invitation non modifiable |
+| Code de parrainage | OAT-002 | Quelques dizaines d'utilisations par jour | Codes longs et aléatoires, récompense après paiement |
+| Connexion | OAT-007, OAT-008 | Taux d'échec global stable autour de quelques pourcents | Défense en couches (leçons 2 et 3) |
+
+### Rendre les flux visibles dans le code
+
+Un flux sensible qui n'est déclaré nulle part finit par être exposé sans contrôle, par exemple quand une nouvelle route d'API réutilise le service d'envoi. Chez Novafact, les flux sont déclarés en un seul endroit, et chaque route qui les déclenche le dit explicitement :
+
+<Code file="apps/api/src/abuse/flows.ts" hl="8,19,20">
+
+```ts
+import type { RequestHandler } from 'express';
+import { quotas } from './quotas';
+import { logger } from '../logger';
+
+type FlowId = 'invoice.send' | 'team.invite' | 'referral.claim' | 'invoices.export';
+
+// Une seule source de vérité, relue en revue de conception (M8).
+export const FLOWS: Record<FlowId, { oat: string[]; perTenantPerDay: number; newTenantPerDay: number }> = {
+  'invoice.send':    { oat: ['OAT-017'], perTenantPerDay: 500, newTenantPerDay: 10 },
+  'team.invite':     { oat: ['OAT-017'], perTenantPerDay: 20,  newTenantPerDay: 3 },
+  'referral.claim':  { oat: ['OAT-002'], perTenantPerDay: 5,   newTenantPerDay: 1 },
+  'invoices.export': { oat: ['OAT-011'], perTenantPerDay: 50,  newTenantPerDay: 5 },
+};
+
+export const businessFlow = (id: FlowId): RequestHandler => async (req, res, next) => {
+  const policy = FLOWS[id];
+  const limit = req.tenant.ageInDays < 7 ? policy.newTenantPerDay : policy.perTenantPerDay;
+  const allowed = await quotas.consume(`${id}:${req.tenant.id}`, limit, 86_400);
+  logger.info({ event: { action: id, outcome: allowed ? 'success' : 'failure' }, tenant: { id: req.tenant.id } });
+  if (!allowed) return res.status(429).json({ error: 'quota_exceeded', flow: id });
+  next();
+};
+
+// Utilisation : router.post('/invoices/:id/send', requireSession, businessFlow('invoice.send'), sendInvoice);
+```
+
+</Code>
+
+L'intérêt dépasse le quota : chaque flux produit un événement structuré (utile à la leçon 7), le tableau `FLOWS` devient un artefact de revue, et un test peut vérifier que toute route qui appelle le service d'envoi passe par `businessFlow`.
+
+<Callout kind="debate">
+**Qui possède l'abus ?** Dans beaucoup d'entreprises, personne. L'AppSec considère que ce n'est pas une vulnérabilité, le produit que c'est un sujet de sécurité, le support qu'il n'a pas les outils. Les équipes qui s'en sortent désignent un propriétaire par flux sensible (souvent le produit, avec l'AppSec en appui) et une équipe *Trust & Safety*, même réduite à une personne, qui arbitre entre friction et fraude. L'AppSec y apporte la méthode, la détection et le vocabulaire commun.
+</Callout>
+
+<Callout kind="tip">
+Pendant les revues de conception (M8), ajoute une question systématique : « que se passe-t-il si quelqu'un fait ça dix mille fois ? ». Et sa jumelle : « que se passe-t-il si quelqu'un le fait trois fois, avec une mauvaise intention, depuis un compte créé ce matin ? ». Ce sont ces deux questions qui font apparaître les abuse cases (M7) de ce module.
+</Callout>
+
+## En pratique chez toi
+
+- En pentest, quand tu tombes sur un flux sensible sans limite, rapporte-le comme un finding API6 en décrivant l'**impact métier** (coût par abus, volume possible), pas seulement l'absence de 429.
+- En conception, exige l'inventaire des flux sensibles avec leur usage normal chiffré : c'est ce qui permettra de régler les leçons 3 à 5.
+- En production, vérifie que chaque flux sensible émet un événement exploitable : sans données, pas de seuil défendable.
+
+<Recap items={[
+  "Un abus utilise l'application comme prévu, à la mauvaise échelle ou avec une mauvaise intention ; son moteur est économique.",
+  "OWASP OAT recense 21 menaces automatisées ; bien nommer (OAT-007 ou OAT-008) mène au bon contrôle.",
+  "Tous les automates ne sont pas hostiles : les agrégateurs (OAT-020) appellent une décision produit.",
+  "API6:2023 vise un préjudice métier, parfois à faible volume ; API4 vise l'épuisement d'une ressource technique.",
+  "Inventorier les flux sensibles, chiffrer l'usage normal, déclarer les flux dans le code, surveiller.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Automated Threats to Web Applications", url: "https://owasp.org/www-project-automated-threats-to-web-applications/" },
+  { title: "OWASP OAT-019 Account Creation", url: "https://owasp.org/www-project-automated-threats-to-web-applications/assets/oats/EN/OAT-019_Account_Creation" },
+  { title: "OWASP API6:2023", url: "https://owasp.org/API-Security/editions/2023/en/0xa6-unrestricted-access-to-sensitive-business-flows/" },
+  { title: "OWASP API4:2023 Unrestricted Resource Consumption", url: "https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/" },
+]} />

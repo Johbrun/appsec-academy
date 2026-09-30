@@ -1,0 +1,66 @@
+// Cartes de révision espacée. Chaque carte appartient à un module ; la file
+// du jour ne contient que les cartes des modules commencés.
+
+export interface Card { id: string; module: string; front: string; back: string }
+
+const c = (module: string, n: number, front: string, back: string): Card => ({ id: `${module}-c${n}`, module, front, back });
+
+export const cards: Card[] = [
+  c('m01', 1, 'Quelles sont les quatre questions à poser face à chaque finding ?', 'Cause racine, variantes, contrôle de classe, détection.'),
+  c('m01', 2, 'OWASP Top 10, ASVS, SAMM, BSIMM : à quoi sert chacun ?', 'Top 10 pour sensibiliser, ASVS pour exiger et vérifier, SAMM pour piloter la maturité, BSIMM pour se comparer.'),
+  c('m01', 3, 'Qu’est-ce qu’un paved road ?', 'Un chemin de développement outillé et sûr par défaut, plus facile à suivre que les alternatives.'),
+  c('m01', 4, 'Shift left contre shift right ?', 'Trouver plus tôt dans le cycle, contre apprendre de la production. Les deux se nourrissent.'),
+  c('m01', 5, 'Structure de SAMM v2 ?', '5 fonctions (Governance, Design, Implementation, Verification, Operations), 15 pratiques, 2 streams par pratique, 3 niveaux.'),
+  c('m01', 6, 'Différence fondamentale entre SAMM et BSIMM ?', 'SAMM est prescriptif (ce qu’il faudrait faire) ; BSIMM est descriptif (ce que font réellement des organisations observées).'),
+  c('m01', 7, 'Les trois propriétés d’un bon contrôle DevSecOps ?', 'Rapide, précis (peu de faux positifs), actionnable.'),
+  c('m01', 8, 'Que mesure le taux d’échappement ?', 'La part des vulnérabilités trouvées en production qu’un contrôle amont aurait dû attraper.'),
+  c('m01', 9, 'Les cinq éléments d’une bonne exception de sécurité ?', 'Écrite, justifiée, un propriétaire du risque au bon niveau, une date d’expiration, un plan de sortie.'),
+  c('m01', 10, 'Les quatre groupes du NIST SSDF ?', 'PO (Prepare the Organization), PS (Protect the Software), PW (Produce Well-Secured Software), RV (Respond to Vulnerabilities).'),
+  c('m01', 11, 'CRA : délais de signalement d’une vulnérabilité activement exploitée ?', 'Alerte sous 24 h, notification sous 72 h, rapport final sous 14 jours après disponibilité d’une mesure corrective.'),
+  c('m01', 12, 'CRA : à partir de quelle date le signalement est-il obligatoire ?', 'Le 11/09/2026, via la plateforme unique de signalement d’ENISA.'),
+
+  c('m02', 1, 'Les deux nouvelles catégories du Top 10:2025 ?', 'A03 Software Supply Chain Failures et A10 Mishandling of Exceptional Conditions.'),
+  c('m02', 2, 'Où est passée la SSRF dans le Top 10:2025 ?', 'Elle est intégrée à A01 Broken Access Control.'),
+  c('m02', 3, 'API1, API3, API5 de l’API Security Top 10 2023 ?', 'BOLA, Broken Object Property Level Authorization, BFLA : trois problèmes d’autorisation.'),
+  c('m02', 4, 'Contrôle de classe contre l’injection d’opérateurs Mongo ?', 'Un schéma strict (types, longueurs, champs connus) à l’entrée de chaque route.'),
+  c('m02', 5, 'Parser de query string par défaut dans Express 5 ?', 'simple (querystring de Node), qui ne construit pas d’objets imbriqués.'),
+  c('m02', 6, 'Comment représenter un montant de facture ?', 'Un entier en centimes (ou une bibliothèque décimale), calculé côté serveur.'),
+  c('m02', 7, 'Pourquoi Object.hasOwn plutôt que in ?', 'in remonte la chaîne de prototypes : \'toString\' in {} vaut true.'),
+  c('m02', 8, 'Pourquoi le ReDoS est-il grave en Node ?', 'Une requête qui bloque la boucle d’événements gèle toutes les autres requêtes du processus.'),
+  c('m02', 9, 'Vérification correcte d’un chemin fourni par l’utilisateur ?', 'path.resolve(base, nom), puis vérifier que le résultat commence par base + path.sep.'),
+  c('m02', 10, 'node:vm est-il un bac à sable ?', 'Non, la documentation le dit explicitement. Isolation par processus ou conteneur.'),
+  c('m02', 11, 'Que se passe-t-il pour un rejet de promesse non géré sur Node récent ?', 'Le processus s’arrête par défaut (depuis Node 15). Express 5 transmet les rejets au middleware d’erreur.'),
+  c('m02', 12, 'Contrainte de crypto.timingSafeEqual ?', 'Deux Buffers de même longueur, sinon il lève une exception.'),
+  c('m02', 13, 'Sink XSS de React qui n’utilise pas dangerouslySetInnerHTML ?', 'href ou src avec une URL javascript:. Valider le schéma avec new URL().'),
+  c('m02', 14, 'Pourquoi cors({ origin: true, credentials: true }) est-il dangereux ?', 'Il reflète n’importe quelle origine : tout site peut lire les réponses authentifiées.'),
+  c('m02', 15, 'Une Server Action Next.js est-elle privée ?', 'Non : c’est un endpoint POST public. Elle authentifie, autorise et valide elle-même.'),
+  c('m02', 16, 'React2Shell : CVE et versions corrigées ?', 'CVE-2025-55182, corrigée en React 19.0.1, 19.1.2 et 19.2.1.'),
+
+  c('m03', 1, 'Qu’a changé la single-packet attack ?', 'Plusieurs requêtes arrivent quasi simultanément : des fenêtres de quelques millisecondes deviennent exploitables.'),
+  c('m03', 2, 'Contrôle qui garantit « au plus N utilisations » ?', 'Une mise à jour conditionnelle atomique côté base (WHERE used < max).'),
+  c('m03', 3, 'D’où vient l’URL d’un lien de réinitialisation ?', 'D’une configuration (APP_URL), jamais de Host ou de X-Forwarded-Host.'),
+  c('m03', 4, 'Réglage sûr de trust proxy dans Express ?', 'Le nombre exact de sauts de proxy (ou leurs adresses), jamais true.'),
+  c('m03', 5, 'Qu’est-ce que la server-side parameter pollution ?', 'Une entrée concaténée dans un appel interne qui ajoute des paramètres ou change la ressource.'),
+  c('m03', 6, 'Contrôles GraphQL contre le DoS et le contournement des limites ?', 'Limites de profondeur, de coût et d’alias ; requêtes persistées ; autorisation par résolveur.'),
+  c('m03', 7, 'Cause racine du request smuggling ?', 'Deux composants ne délimitent pas une requête de la même façon.'),
+  c('m03', 8, 'Recommandation d’architecture de « HTTP/1.1 must die » ?', 'HTTP/2 de bout en bout, y compris entre le proxy et le backend.'),
+  c('m03', 9, 'Cache poisoning contre cache deception ?', 'Poisoning : une réponse contaminée servie à tous. Deception : une page privée de la victime mise en cache.'),
+  c('m03', 10, 'Qu’est-ce qu’un parser differential ?', 'Deux composants lisent différemment la même entrée : l’un valide, l’autre agit.'),
+  c('m03', 11, 'Qu’est-ce qu’une fuite via l’ORM ?', 'Le client choisit les champs de filtre et déduit des valeurs sensibles, même avec des requêtes paramétrées.'),
+  c('m03', 12, 'Règle pour res.render ?', 'Ne jamais lui passer req.query ou req.body : un objet de vue construit explicitement.'),
+  c('m03', 13, 'Qu’est-ce qu’un gadget de prototype pollution ?', 'Un code légitime qui lit une propriété absente de son objet et la trouve dans le prototype pollué.'),
+  c('m03', 14, 'JWT : qui choisit l’algorithme et la clé ?', 'Le serveur, par configuration. Les en-têtes alg, jwk, jku et un kid libre ne décident rien.'),
+  c('m03', 15, 'Bibliothèque au cœur de SAMLStorm ?', 'xml-crypto (CVE-2025-29775), corrigée en 6.0.1.'),
+  c('m03', 16, 'Défense SSRF qui ne dépend pas des astuces ?', 'Vérifier l’adresse IP réellement contactée à chaque connexion, sans redirections implicites.'),
+
+  c('m05', 1, 'Les sept étapes du cycle de vie d’une vulnérabilité ?', 'Découverte, dédoublonnage, triage, priorisation, correction, vérification, reporting.'),
+  c('m05', 2, 'Nouvelle métrique d’exploitabilité de CVSS 4.0 ?', 'Attack Requirements (AT).'),
+  c('m05', 3, 'Que signifie CVSS-BTE ?', 'Un score calculé avec les métriques Base, Threat et Environmental.'),
+  c('m05', 4, 'Que mesure l’EPSS ?', 'La probabilité d’une activité d’exploitation dans les 30 prochains jours (v4 depuis mars 2025).'),
+  c('m05', 5, 'Les quatre décisions de SSVC (CISA) ?', 'Track, Track*, Attend, Act.'),
+  c('m05', 6, 'Les quatre statuts VEX ?', 'not_affected, affected, fixed, under_investigation.'),
+  c('m05', 7, 'Champs obligatoires de security.txt ?', 'Contact et Expires (RFC 9116).'),
+  c('m05', 8, 'Que fait le NVD depuis avril 2026 ?', 'Il n’enrichit plus que les CVE du KEV, des logiciels fédéraux et des logiciels critiques.'),
+  c('m05', 9, 'Imposer une version corrigée d’une dépendance transitive avec npm ?', 'Le champ overrides de package.json.'),
+  c('m05', 10, 'Deux indicateurs de réaction à une crise de type React2Shell ?', 'Temps d’inventaire et temps de correction en production.'),
+];

@@ -1,0 +1,161 @@
+export const questions = [
+  {
+    q: "Une PR générée par un assistant ajoute une dépendance npm inconnue de l'équipe. Le paquet existe bien sur le registre. Pourquoi ce n'est pas rassurant ?",
+    options: [
+      "Les modèles hallucinent des noms de paquets de façon répétable : un attaquant l'enregistre",
+      "Parce que npm n'exige pas de signature : l'auteur du paquet n'est pas vérifiable",
+      "Parce qu'un nom proche d'un paquet connu trahit un typosquatting classique",
+      "Parce que le modèle a pu recopier une dépendance interne vue dans un dépôt d'entraînement",
+    ],
+    answer: 0,
+    explain: "L'étude présentée à USENIX Security 2025 relève 19,7 % de paquets hallucinés dans le code généré, avec des noms qui reviennent d'une requête à l'autre : un attaquant n'a qu'à enregistrer le nom halluciné et attendre que d'autres assistants le recommandent. Ce n'est pas du typosquatting — il n'y a ni faute de frappe ni nom voisin d'un paquet connu, et c'est précisément ce qui le rend invisible à la relecture. L'existence du paquet ne prouve donc rien : il faut vérifier son auteur, son âge, son volume d'usage et son contenu.",
+  },
+  {
+    q: "Un workflow GitHub Actions lance un agent de code sur chaque nouvelle issue, avec un jeton en écriture sur le dépôt et les secrets de déploiement dans l'environnement. Quel est le risque principal ?",
+    options: [
+      "Le coût d'API : une issue de spam déclenche une exécution complète de l'agent",
+      "L'agent peut pousser directement sur la branche par défaut, sans relecture humaine",
+      "Les secrets de déploiement apparaîtront en clair dans les journaux du workflow",
+      "Quiconque ouvre une issue y place des consignes que l'agent suivra avec ses droits",
+    ],
+    answer: 3,
+    explain: "C'est la lethal trifecta transposée en CI : contenu non fiable (l'issue, ouverte par n'importe qui), données sensibles (les secrets et le code) et capacité d'agir (le push, le réseau). Le push sans relecture est bien un risque, mais c'est la conséquence et non la porte d'entrée — sans l'injection, l'agent fait ce qu'on attend de lui. Le coût et la fuite en journaux sont des dommages collatéraux. Le correctif porte sur les trois pieds : restreindre le déclencheur aux auteurs autorisés, réduire les permissions du jeton, retirer les secrets de déploiement de cet environnement.",
+  },
+  {
+    q: "Qu'apporte un AI SBOM par rapport au SBOM classique de Novafact ?",
+    options: [
+      "Il remplace l'inventaire des dépendances npm par un format adapté aux modèles",
+      "Il enregistre les prompts système et les descriptions d'outils, pour détecter un rug pull",
+      "Il documente aussi modèles, jeux de données, infrastructure et propriétés de sécurité",
+      "Il est exigé par les fournisseurs de modèles avant tout usage commercial de leur API",
+    ],
+    answer: 2,
+    explain: "Les éléments minimaux publiés par la CISA et le G7 en mai 2026 s'ajoutent à ceux du SBOM classique : métadonnées, propriétés du système, modèles, jeux de données, infrastructure, sécurité et indicateurs de performance. L'intérêt est opérationnel : quand un modèle ou un serveur MCP est compromis, on sait en une requête quels systèmes sont touchés. Il ne remplace pas l'inventaire des dépendances, il s'y ajoute — et il n'enregistre ni les prompts système ni les définitions d'outils, qui relèvent du versionnement et de l'empreinte vus en leçon 5.",
+  },
+  {
+    q: "Dans l'AI Act, tel que modifié par l'omnibus entré en vigueur en juillet 2026, quelle obligation concerne le plus probablement l'assistant de Novafact dès août 2026 ?",
+    options: [
+      "Les obligations des systèmes à haut risque de l'annexe III, applicables depuis août 2026",
+      "Les obligations de transparence de l'article 50 : informer qu'on parle à une IA",
+      "L'interdiction des pratiques de l'article 5, dont la notation sociale",
+      "Les obligations des fournisseurs de modèles à usage général, Novafact en intégrant un",
+    ],
+    answer: 1,
+    explain: "Un assistant de facturation n'est a priori pas un système à haut risque — à confirmer avec le juridique — et les obligations de l'annexe III ont de toute façon été repoussées au 2 décembre 2027 par l'omnibus. Les obligations de transparence de l'article 50 s'appliquent, elles, depuis le 2 août 2026 : il faut informer les personnes qu'elles interagissent avec un système d'IA. Quant aux obligations relatives aux modèles à usage général, elles pèsent sur le fournisseur du modèle et non sur qui l'intègre : c'est la confusion la plus coûteuse en temps, parce qu'elle fait produire une documentation qu'on ne doit pas.",
+  },
+];
+
+<YouKnow>
+Les modules précédents ont traité l'IA dans le produit. Cette dernière leçon regarde l'IA dans la fabrication du produit : le code qu'elle écrit, les agents qui ont accès à tes dépôts, l'IA offensive qui accélère les attaquants, et les cadres de gouvernance qui encadrent le tout.
+</YouKnow>
+
+## Le code généré : ce qui change vraiment
+
+Le code produit par un assistant se relit comme n'importe quel code (M12, leçon 6), avec ses erreurs typiques : validation absente, dépendances inventées, secrets en dur, cryptographie approximative. Deux choses changent vraiment : le **volume**, qui met la revue sous pression, et la **plausibilité**, puisque le code généré a l'air juste même quand il ne l'est pas.
+
+Le risque le plus spécifique est celui des **paquets hallucinés**. L'étude *We Have a Package for You!* (Spracklen et al., USENIX Security 2025) a analysé 576 000 échantillons de code Python et JavaScript générés par 16 modèles : **19,7 %** des paquets recommandés n'existaient pas (au moins 5,2 % en moyenne pour les modèles commerciaux, 21,7 % pour les modèles open source), soit 205 474 noms uniques. Surtout, une partie de ces noms revient de façon répétable : un attaquant peut les enregistrer sur le registre et attendre que d'autres développeurs installent ce que leur assistant suggère. C'est le *slopsquatting*, documenté dans ATLAS (AML.CS0022).
+
+| Contrôle | Ce qu'il arrête | Limite |
+| --- | --- | --- |
+| Revue obligatoire de toute nouvelle dépendance (CODEOWNERS sur le lockfile) | Un paquet inconnu qui entre sans que personne le voie | Dépend de l'attention du relecteur |
+| Proxy de registre avec liste d'autorisation | Tout paquet non approuvé | Friction à l'ajout d'une dépendance |
+| `minimumReleaseAge` de pnpm (introduit en 10.16, activé par défaut en pnpm 11) | Une version publiée il y a quelques heures (compromission fraîche) | Ne protège pas d'un nom halluciné enregistré depuis longtemps |
+| Scripts d'installation désactivés par défaut | L'exécution au `install` | Le code malveillant peut aussi s'exécuter à l'import |
+
+## Les agents de code avec accès
+
+Un agent de code qui lit des issues, relit des PR ou corrige des findings cumule souvent les trois pieds de la lethal trifecta (leçon 2) : il lit du contenu que n'importe qui peut écrire (issues, commentaires, descriptions de PR, fichiers du dépôt), il a accès à du code privé et à des secrets, et il peut agir (pousser, commenter, appeler le réseau).
+
+<Callout kind="case">
+Le **26 août 2025**, des versions malveillantes de plusieurs paquets **Nx** ont été publiées sur npm pendant environ quatre heures, après le vol d'un jeton de publication via un workflow `pull_request_target` vulnérable (attaque « s1ngularity »). Le script `postinstall` cherchait des secrets et des portefeuilles de cryptomonnaie, et, première connue dans une attaque de supply chain, **tentait d'utiliser les CLI d'IA installées sur le poste** (Claude Code, Gemini CLI, Amazon Q) pour qu'elles fouillent le disque à sa place. Les données volées étaient publiées dans des dépôts GitHub publics créés au nom des victimes. Nx a depuis remplacé ses jetons npm par la publication de confiance OIDC et exige une validation 2FA à chaque publication.
+</Callout>
+
+<Callout kind="case">
+En juin 2026, l'équipe de recherche Microsoft Defender a montré qu'une injection placée dans une issue ou une PR pouvait amener la GitHub Action de Claude Code à lire les variables d'environnement de son processus et à exposer la clé d'API du workflow sous une forme transformée, qui échappait à la détection de secrets de GitHub. MITRE ATLAS l'a intégré en juillet 2026 (AML.CS0067). La leçon vaut pour tous les agents en CI : ce que le processus de l'agent peut lire, une injection peut le lui faire lire.
+</Callout>
+
+Les contrôles relèvent de M14 et de la règle de deux, appliqués à l'agent :
+
+<Code file=".github/workflows/ai-triage.yml" hl="4,5,8,9,10,13">
+
+```yaml
+name: ai-triage
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  triage:
+    # Déclenché uniquement par un mainteneur qui écrit /triage : pas par l'auteur de l'issue
+    if: >-
+      startsWith(github.event.comment.body, '/triage') &&
+      contains(fromJSON('["OWNER","MEMBER"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: { contents: read, issues: write }   # commenter, pas pousser
+    steps:
+      - uses: actions/checkout@v4                      # à épingler par SHA (M14)
+        with: { persist-credentials: false }
+      - uses: ./.github/actions/ai-triage              # action interne : l'agent ne propose qu'un commentaire
+        env:
+          MODEL_API_KEY: ${{ secrets.TRIAGE_MODEL_KEY }}  # clé dédiée, plafonnée en coût, sans autre secret
+```
+
+</Code>
+
+Au-delà du workflow : un agent qui modifie du code **ouvre une PR** relue comme celle d'un contributeur externe, il ne pousse jamais sur la branche principale ; les modes qui désactivent les confirmations de l'agent sont interdits sur les postes qui détiennent des secrets de production ; les serveurs MCP des postes de développement suivent la procédure d'intégration de la leçon 5.
+
+## AI SBOM : savoir ce qu'on embarque
+
+Le SBOM (M14) répond à « quelle version de quel paquet tourne où ». Pour un système d'IA, ça ne suffit pas : quand un modèle, un jeu de données ou un serveur MCP est compromis, il faut savoir quels produits sont touchés. En **mai 2026**, la CISA et ses partenaires du G7 ont publié *Software Bill of Materials for AI – Minimum Elements*, qui complète les éléments minimaux du SBOM (mis à jour par la CISA fin juillet 2026) avec sept groupes d'éléments.
+
+| Groupe | Chez Novafact |
+| --- | --- |
+| Métadonnées du document | Auteur, date, outil de génération |
+| Propriétés du système | Ask Novafact, usage, périmètre, fournisseurs |
+| Modèles | Modèle de génération et modèle d'embeddings : fournisseur, version, date |
+| Jeux de données | Corpus RAG (factures des tenants), jeux d'évaluation promptfoo |
+| Infrastructure | Postgres avec pgvector, serveur MCP interne, région AWS |
+| Propriétés de sécurité | Contrôles des leçons 2 à 5, résultats de red team |
+| Indicateurs de performance | Taux de réussite de la suite de régression, taux d'erreurs factuelles mesuré |
+
+Les formats existent déjà : CycloneDX décrit les modèles et jeux de données (ML-BOM) et SPDX 3.0 comporte des profils IA et jeux de données. Le document du G7 est volontaire ; il donne surtout une liste de questions précises à poser à un fournisseur d'IA.
+
+## L'IA offensive : ce que ça change pour la défense
+
+L'IA accélère aussi les attaquants et les chercheurs. En août 2026, James Kettle (PortSwigger) a présenté *Meet the HTTP Terminator*, un système qui invente des variantes de désynchronisation HTTP (M3, leçon 13). Côté pentest, des agents comme **Strix** (open source) ou **XBOW**, premier du classement américain de HackerOne en 2025, trouvent et valident des vulnérabilités (M13, leçon 10). En août 2026, MITRE ATLAS a ajouté un ensemble de techniques où l'attaquant est lui-même un agent autonome (leçon 6).
+
+Trois conséquences pour Novafact : les **contrôles qui suppriment une classe** (requêtes paramétrées, filtre de tenant dans la DAL, CSP stricte) prennent encore de la valeur face à des variantes produites en masse ; le **délai de correction** doit baisser, puisque l'exploitation d'une faille publiée s'automatise ; et ces outils s'utilisent aussi en défense, sur tes propres environnements de test.
+
+## Gouvernance : les cadres à connaître
+
+| Cadre | Nature | Utilité pour une équipe AppSec |
+| --- | --- | --- |
+| **NIST AI RMF** (2023) et son profil IA générative (NIST AI 600-1, 2024) | Cadre de gestion des risques : Govern, Map, Measure, Manage | Structurer le programme et le dialogue avec la direction |
+| **NIST AI 100-2 E2025** | Taxonomie des attaques d'apprentissage automatique | Vocabulaire commun avec l'équipe data et les auditeurs |
+| **Google SAIF** | Cadre de sécurisation de l'IA de Google, avec auto-évaluation | Liste de contrôles orientée ingénierie |
+| **ISO/IEC 42001:2023** | Système de management de l'IA, certifiable | Ce que les clients grands comptes commencent à demander |
+| **AI Act** | Règlement européen | Obligations selon le niveau de risque du système |
+
+Pour l'**AI Act**, le calendrier a bougé. L'omnibus numérique sur l'IA, entré en vigueur le 27 juillet 2026, a repoussé les obligations des systèmes à haut risque de l'annexe III au **2 décembre 2027**, et celles de l'annexe I (IA intégrée à des produits réglementés) au 2 août 2028. Les obligations de **transparence de l'article 50** s'appliquent en revanche depuis le 2 août 2026, avec un délai jusqu'au 2 décembre 2026 pour le marquage des contenus générés par les systèmes déjà en service. Pour Ask Novafact, l'enjeu immédiat est donc d'informer clairement l'utilisateur qu'il échange avec une IA ; la classification exacte reste à valider avec le juridique.
+
+<Callout kind="novafact">
+La politique IA de Novafact tient sur une page : outils d'IA de développement approuvés, et données interdites dans les prompts (données clientes, secrets) ; agents de code limités aux PR, sans secrets de production ; toute dépendance nouvelle relue ; AI SBOM régénéré à chaque changement de modèle ou de serveur MCP ; suite de régression promptfoo bloquante ; revue annuelle alignée sur le NIST AI RMF.
+</Callout>
+
+<Recap items={[
+  "Code généré : même revue qu'ailleurs, plus une vigilance sur les paquets hallucinés (19,7 % dans l'étude USENIX 2025).",
+  "Agents de code : la lethal trifecta en CI ; déclencheur restreint, permissions minimales, pas de secrets, PR relues.",
+  "Nx s1ngularity (août 2025) et l'exposition de secrets via une GitHub Action d'agent (juin 2026) : ce que l'agent peut lire, une injection peut le lui faire lire.",
+  "AI SBOM (CISA et G7, mai 2026) : modèles, jeux de données, infrastructure et sécurité en plus des composants.",
+  "Gouvernance : NIST AI RMF, NIST AI 100-2, SAIF, ISO/IEC 42001 ; AI Act avec transparence (art. 50) dès août 2026, haut risque repoussé à décembre 2027.",
+]} />
+
+<Sources items={[
+  { title: "Nx : s1ngularity postmortem", url: "https://nx.dev/blog/s1ngularity-postmortem" },
+  { title: "Spracklen et al. : We Have a Package for You! (USENIX Security 2025)", url: "https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen" },
+  { title: "CISA : Software Bill of Materials for AI, Minimum Elements (mai 2026)", url: "https://www.cisa.gov/resources-tools/resources/software-bill-materials-ai-minimum-elements" },
+  { title: "NIST AI Risk Management Framework", url: "https://www.nist.gov/itl/ai-risk-management-framework" },
+  { title: "Google SAIF", url: "https://saif.google/" },
+  { title: "Gibson Dunn : AI Act, accord sur l'omnibus et nouvelles échéances", url: "https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/" },
+  { title: "Commission européenne : cadre réglementaire de l'IA", url: "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai" },
+]} />

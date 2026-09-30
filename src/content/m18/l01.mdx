@@ -1,0 +1,235 @@
+export const questions = [
+  {
+    q: "Sur l'échec de connexion, un développeur veut journaliser l'identifiant saisi tel quel, « pour détecter le credential stuffing ». Quel est le meilleur compromis ?",
+    options: [
+      "L'identifiant en clair, indispensable à l'enquête sur le credential stuffing",
+      "Rien sur les échecs : seul le nombre de tentatives par IP a une valeur de détection",
+      "L'identifiant tronqué à ses trois premiers caractères, ce qui suffit à dédoublonner",
+      "L'`user.id` si le compte existe, sinon une empreinte HMAC de l'identifiant saisi",
+    ],
+    answer: 3,
+    explain: "Les utilisateurs tapent régulièrement leur mot de passe dans le champ identifiant : le journaliser en clair revient à collecter des mots de passe dans Elastic. La troncature à trois caractères paraît un compromis et cumule les défauts — elle conserve le début du mot de passe et détruit la corrélation, des milliers d'identifiants partageant le même préfixe. Ne rien journaliser prive la détection de l'essentiel : le credential stuffing se reconnaît au nombre d'identifiants *distincts* essayés depuis une source, pas au volume de tentatives. L'empreinte HMAC, avec une clé gardée hors des logs, donne cette cardinalité sans laisser de donnée exploitable.",
+  },
+  {
+    q: "La campagne DAST de recette a tourné toute la nuit (injections, force brute, parcours d'identifiants). Le lendemain, aucune alerte n'est remontée. Que révèle ce constat au sens d'A09:2025 ?",
+    options: [
+      "Que l'application est sûre : rien n'a été détecté parce qu'il n'y avait rien à détecter",
+      "Un défaut de journalisation et d'alerte, symptôme cité par la catégorie",
+      "Que le WAF a absorbé la campagne en amont, avant qu'elle n'atteigne l'application",
+      "Que la recette est hors du SIEM, ce qui est normal : on n'alerte pas sur un environnement de test",
+    ],
+    answer: 1,
+    explain: "A09:2025 range explicitement dans ses symptômes le fait qu'une campagne DAST ne déclenche aucune alerte. L'argument du WAF se vérifie en une minute et tombe : s'il avait bloqué, il aurait produit des journaux, donc des alertes — un silence complet désigne la chaîne de détection, pas la défense. Quant à exclure la recette du SIEM, c'est un choix courant qui coûte cher : c'est le seul environnement où l'on peut rejouer des attaques bruyantes à volonté pour vérifier que les règles se déclenchent vraiment.",
+  },
+  {
+    q: "Pourquoi reprendre tel quel l'en-tête `X-Request-Id` envoyé par le client comme identifiant de corrélation est-il une mauvaise idée ?",
+    options: [
+      "L'ALB écrase toujours cet en-tête par son propre `X-Amzn-Trace-Id` avant l'application",
+      "L'en-tête n'est pas propagé aux appels sortants, la corrélation s'arrête à l'API",
+      "Le client choisit alors la valeur : il peut la réutiliser ou y glisser n'importe quoi",
+      "Le format n'est pas garanti UUID, ce qui casse le mapping `keyword` de l'index",
+    ],
+    answer: 2,
+    explain: "Une donnée d'entrée reste une donnée d'entrée : le client peut reprendre l'identifiant d'une autre requête pour brouiller la chronologie d'une enquête, ou y glisser un contenu conçu pour s'injecter dans les journaux et les tableaux de bord. L'ALB, lui, ajoute `X-Amzn-Trace-Id` sans toucher à `X-Request-Id` — compter sur lui pour nettoyer l'en-tête est une hypothèse confortable et fausse. Le format non garanti est un vrai problème, mais de qualité de données. On génère l'identifiant côté serveur ; si on accepte une valeur entrante, c'est sous un format strict et dans un champ distinct.",
+  },
+  {
+    q: "Quel est l'intérêt principal de produire les logs applicatifs directement au format ECS ?",
+    options: [
+      "Un volume de stockage réduit : ECS normalise et déduplique les champs répétés à l'ingestion",
+      "Les mêmes noms de champs que CloudTrail, le WAF et les règles prêtes d'Elastic",
+      "Un mapping automatique : Elasticsearch déduit les types sans template d'index",
+      "Des logs lisibles sans Kibana, ECS imposant un format texte plutôt que du JSON",
+    ],
+    answer: 1,
+    explain: "ECS est un vocabulaire commun : si l'API écrit `source.ip`, `user.id` et `event.outcome` comme le pipeline CloudTrail et celui du WAF, une même requête, une même séquence EQL ou une règle prête à l'emploi couvrent les trois sources sans table de correspondance. Le typage n'a rien d'automatique pour autant : il vient des templates d'index livrés avec ECS, pas d'une déduction d'Elasticsearch. Et ECS n'est pas un format texte, mais du JSON structuré — plutôt plus volumineux que des logs bruts, et c'est un prix qu'on accepte.",
+  },
+];
+
+<YouKnow>
+En pentest, tu te demandes rarement si ton attaque a laissé une trace ; en réponse à incident, c'est la seule question qui compte. Les meilleurs journaux de sécurité ne viennent ni du WAF ni de CloudTrail : ils viennent de l'application, la seule à savoir qu'un comptable d'Acme vient de demander la facture d'un autre tenant.
+</YouKnow>
+
+## Le troisième pilier : l'audit
+
+Kohnfelder range la sécurité sous le symbole chimique de l'or, **Au** : *authentication*, *authorization*, *auditing*. Les deux premiers décident ; le troisième **garde la trace** de ce qui a été décidé, par qui et quand. Il sert trois fois : pour détecter une attaque en cours, pour reconstituer une attaque passée, et pour surveiller les personnes qui ont légitimement du pouvoir (un administrateur qui abuse de ses droits ne déclenche aucun refus d'autorisation). Il n'a de valeur que si les journaux sont **fiables** : difficiles à altérer, attribuables à une personne précise (pas de compte partagé) et réellement relus.
+
+L'OWASP Top 10 2025 en tire la catégorie **A09:2025 Security Logging & Alerting Failures**. Le nouveau nom insiste sur l'**alerte** : un journal que personne ne lit ne sert qu'à l'autopsie. La catégorie regroupe notamment l'absence de journalisation (CWE-778), l'écriture de données sensibles dans les logs (CWE-532) et l'injection dans les journaux (CWE-117). Parmi ses symptômes, un test que tu peux faire dès demain : **tes scans DAST ou ton dernier pentest ont-ils déclenché une alerte ?** Si la réponse est non, la journalisation existe peut-être, la détection non.
+
+## Quoi journaliser : un vocabulaire commun
+
+La **Logging Cheat Sheet** d'OWASP liste les événements à capturer : échecs de validation d'entrée, succès et échecs d'authentification, refus d'autorisation, anomalies de session, erreurs applicatives, démarrages et arrêts, usage de fonctions à risque (gestion des utilisateurs, changements de droits, exports, accès aux données sensibles), consentements, et comportements métier suspects. Pour chaque événement : **quand**, **où**, **qui** (humain ou machine) et **quoi**, avec l'action, l'objet, le résultat et la raison.
+
+La **Logging Vocabulary Cheat Sheet** va plus loin : elle propose des **noms d'événements** normalisés, pour que la supervision puisse s'appuyer sur des mots-clés identiques dans toutes les applications.
+
+| Famille | Exemples du vocabulaire | Niveau suggéré |
+| --- | --- | --- |
+| Authentification | `authn_login_success`, `authn_login_fail`, `authn_login_lock`, `authn_token_reuse` | INFO, WARN, CRITICAL |
+| Autorisation | `authz_fail`, `authz_change`, `authz_admin` | CRITICAL, WARN |
+| Excès | `excess_rate_limit_exceeded` | WARN |
+| Données sensibles | `sensitive_read`, `sensitive_update`, `sensitive_delete` | WARN |
+| Privilèges | `privilege_permissions_changed` | WARN |
+| Comportement malveillant | `malicious_direct_reference`, `malicious_excess_404`, `malicious_csp_violation` | WARN, CRITICAL |
+| Session | `session_created`, `session_use_after_expire` | INFO, CRITICAL |
+
+Chez Novafact, ces noms deviennent la valeur du champ `event.action`, complétés par quelques extensions maison documentées (`authn_mfa_disabled`, `invoice_export`). La règle d'équipe tient en une ligne : **un contrôle de sécurité journalise son refus**, et une action sensible journalise son succès.
+
+### Les detection points d'AppSensor
+
+Le projet **OWASP AppSensor** pousse l'idée plus loin : l'application connaît mieux que quiconque ce qui est **impossible** pour un utilisateur légitime. Son catalogue de *detection points* en donne des exemples : ACE1 et ACE2 (modifier un identifiant d'objet dans une requête GET ou POST pour atteindre une ressource non autorisée), AE2 et AE3 (échecs de mot de passe répétés, cadence de connexion élevée), SE4 (substitution de l'identifiant de session d'un autre utilisateur), RE3 (un GET là où l'interface n'envoie que des POST), IE2 (violation d'une liste d'autorisation), HT2 (accès à une ressource piège).
+
+Transposé à Novafact : quand le schéma zod rejette un champ `tenantId` dans le corps d'une création de facture, aucun utilisateur de la SPA n'a pu l'envoyer, puisque l'interface ne le propose pas. Ce rejet est un `input_validation_fail`, mais aussi un signal de manipulation. Un seul ne veut rien dire ; vingt en cinq minutes depuis le même compte, si.
+
+## Ce qu'on ne journalise jamais
+
+La liste d'exclusion d'OWASP est courte et non négociable : mots de passe, identifiants de session et jetons d'accès (une empreinte si tu dois suivre une session), clés et secrets, chaînes de connexion, données de carte ou de compte bancaire, données personnelles sensibles, données d'un niveau de classification supérieur à celui du système de logs, et tout ce que l'utilisateur a refusé de partager.
+
+Les fuites réelles passent rarement par un `log.info(password)` explicite. Elles passent par les **objets entiers** :
+
+- le corps complet d'une requête de connexion ou de changement d'IBAN, journalisé « pour déboguer » ;
+- l'**URL** avec sa query string, qui porte un lien magique, un code OAuth ou un jeton de partage ;
+- l'en-tête `Authorization` ou le cookie de session, journalisés avec tous les en-têtes ;
+- l'objet d'erreur d'un client HTTP, qui embarque la requête sortante et ses en-têtes ;
+- le champ « identifiant » d'un échec de connexion, où une partie des utilisateurs tape son mot de passe.
+
+<Callout kind="case">
+**Twitter (2018) et Meta (2019-2024)**. En mai 2018, Twitter a invité l'ensemble de ses utilisateurs à changer de mot de passe : un bogue écrivait les mots de passe en clair dans un journal interne, avant la fin du hachage. En 2019, Meta a signalé à l'autorité irlandaise avoir stocké des mots de passe d'utilisateurs en clair dans ses systèmes internes. Le 27 septembre 2024, la DPC lui a infligé **91 millions d'euros** d'amende (articles 5(1)(f), 32, 33 du RGPD), sans avoir trouvé de preuve d'abus : l'exposition aux équipes internes suffisait.
+</Callout>
+
+Côté vie privée, une adresse IP ou un identifiant d'utilisateur restent des **données personnelles**. La CNIL recommande, dans le cas général, de conserver les journaux de traçabilité entre **six mois et un an**, plus longtemps seulement sur justification. Chez Novafact, la politique est explicite : 13 mois pour les événements de sécurité (fictif, calé sur un exercice comptable complet plus un mois), 30 jours pour les logs techniques, et jamais de contenu de facture dans un log.
+
+## pino au format ECS
+
+Pour qu'un événement applicatif se croise avec CloudTrail et le WAF, il doit parler la même langue : l'**Elastic Common Schema** (ECS). Elastic fournit `@elastic/ecs-pino-format`, qui configure les options `formatters`, `messageKey` et `timestamp` de pino. Le kit de service de Novafact (M2, M6) l'active par défaut :
+
+<Code file="packages/service-kit/src/logger.ts" hl="5,6,7,8,9,10,11,12,13,14,15,16,17">
+
+```ts
+import pino from 'pino';
+import { ecsFormat } from '@elastic/ecs-pino-format';
+
+export const logger = pino({
+  ...ecsFormat({
+    serviceName: 'novafact-api',
+    serviceEnvironment: process.env.DEPLOY_ENV,
+    eventDataset: 'novafact.api',
+    apmIntegration: false,
+  }),
+  level: process.env.LOG_LEVEL ?? 'info',
+  redact: {
+    paths: [
+      'req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]',
+      '*.password', '*.token', '*.iban', '*.secret',
+    ],
+    censor: '[REDACTED]',
+  },
+});
+```
+
+</Code>
+
+La **redaction** est un filet, pas une stratégie : elle ne masque que les chemins qu'on a pensé à lister. La stratégie, c'est l'**allowlist** : un helper qui construit l'événement de sécurité champ par champ, sans jamais recopier un objet reçu.
+
+<Code file="packages/service-kit/src/security-event.ts">
+
+```ts
+import type { Request } from 'express';
+import { createHmac } from 'node:crypto';
+
+const ECS = {
+  authn_login_success: { category: ['authentication'], type: ['start'] },
+  authn_login_fail: { category: ['authentication'], type: ['start'] },
+  authn_mfa_disabled: { category: ['iam'], type: ['change'] },
+  authz_fail: { category: ['api'], type: ['denied'] },
+  input_validation_fail: { category: ['api'], type: ['denied'] },
+  invoice_export: { category: ['database'], type: ['access'] },
+} as const;
+type SecurityAction = keyof typeof ECS;
+
+const hmacKey = process.env.LOG_HMAC_KEY!; // Secrets Manager, jamais dans Elastic
+export const fingerprint = (value: string) =>
+  createHmac('sha256', hmacKey).update(value.trim().toLowerCase()).digest('hex').slice(0, 32);
+
+export function securityEvent(
+  req: Request,
+  action: SecurityAction,
+  outcome: 'success' | 'failure',
+  extra: { reason?: string; objectId?: string; loginFingerprint?: string } = {},
+) {
+  req.log[outcome === 'failure' ? 'warn' : 'info']({
+    event: { kind: 'event', action, ...ECS[action], outcome, reason: extra.reason },
+    user: req.auth ? { id: req.auth.userId } : undefined,
+    organization: req.auth ? { id: req.auth.tenantId } : undefined,
+    source: { ip: req.ip },
+    user_agent: { original: req.get('user-agent')?.slice(0, 512) },
+    http: { request: { id: String(req.id), method: req.method } },
+    url: { path: req.path },
+    novafact: { object_id: extra.objectId, login_fingerprint: extra.loginFingerprint },
+  }, action);
+}
+```
+
+</Code>
+
+Quelques choix à relever : `organization.id` (un champ ECS existant) porte le tenant, ce qui permettra de filtrer toute une enquête sur un client ; `url.path` remplace l'URL complète pour ne jamais embarquer la query string ; les champs propres à Novafact vivent sous un préfixe `novafact.*` pour ne jamais entrer en collision avec ECS ; `req.ip` n'est fiable que si `trust proxy` est réglé sur le nombre exact de proxys devant l'API (M10).
+
+<Callout kind="warn">
+L'option `convertReqRes: true` d'`ecsFormat` transforme un `req` Node en champs ECS, **tous en-têtes compris**, sous `http.request.headers`. Les chemins de redaction en `req.headers.*` ne s'appliquent plus : il faut alors viser `http.request.headers.cookie` et `http.request.headers.authorization`. Vérifie la sortie réelle dans un test plutôt que de supposer.
+</Callout>
+
+## Corréler : un identifiant par requête, une trace par parcours
+
+Un événement isolé raconte peu. Pour relier le refus d'autorisation à la requête HTTP, à l'appel Postgres lent et à l'erreur du worker, chaque ligne porte un **identifiant de requête**, et idéalement un **identifiant de trace** partagé entre services.
+
+<Code file="packages/service-kit/src/http-logger.ts" hl="6,11">
+
+```ts
+import pinoHttp from 'pino-http';
+import { randomUUID } from 'node:crypto';
+import { logger } from './logger.js';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const fromEdge = (v: unknown) => (typeof v === 'string' && UUID.test(v) ? v : undefined);
+
+export const httpLogger = pinoHttp({
+  logger,
+  genReqId: (req, res) => {
+    const id = fromEdge(req.headers['x-request-id']) ?? randomUUID();
+    res.setHeader('X-Request-Id', id);
+    return id;
+  },
+  customLogLevel: (req, res, err) => (err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info'),
+});
+```
+
+</Code>
+
+L'identifiant est renvoyé au client : c'est lui que le support demande quand un utilisateur signale une erreur (M17). L'identifiant entrant n'est accepté que s'il a la forme d'un UUID ; sinon, n'importe quel client pourrait choisir la valeur, réutiliser celle d'une autre requête ou y glisser du texte arbitraire.
+
+Pour les traces distribuées, **OpenTelemetry** fait le reste. L'instrumentation `@opentelemetry/instrumentation-pino` ajoute l'identifiant de trace et de span à chaque log émis dans le contexte d'un span actif ; son option `logKeys` permet de les nommer `trace.id` et `span.id`, les champs ECS. Elastic a d'ailleurs donné ECS à OpenTelemetry en 2023, pour faire converger les deux schémas vers les conventions sémantiques d'OTel.
+
+## Protéger les journaux eux-mêmes
+
+Les logs sont une cible :
+
+- **Injection** (CWE-117) : un retour à la ligne dans un champ peut fabriquer une fausse ligne dans un journal texte. Le JSON de pino échappe les caractères de contrôle ; c'est une raison de plus de ne jamais écrire de logs en texte libre.
+- **Intégrité** : l'application écrit sur `stdout` et n'a aucun droit de lecture ni de suppression sur Elastic. L'agent qui collecte utilise une clé d'API limitée à l'écriture dans ses flux (leçon 2).
+- **Accès** : Kibana est une interface de données (M8, leçon 9). Les rôles de lecture sont restreints, et les accès aux journaux sont eux-mêmes journalisés.
+- **Disponibilité** : un attaquant peut noyer les logs sous le bruit. Plafonne la taille des champs libres (le `slice(0, 512)` sur le user-agent) et prévois un échantillonnage des logs techniques, jamais des événements de sécurité.
+
+<Recap items={[
+  "L'audit est le troisième pilier du Gold Standard : un registre fiable, attribuable et relu, pas une archive.",
+  "A09:2025 met l'accent sur l'alerte : si ton DAST ou ton pentest n'a rien déclenché, la détection manque.",
+  "Le Logging Vocabulary d'OWASP donne des noms d'événements communs ; AppSensor aide à repérer ce qui est impossible pour un utilisateur légitime.",
+  "Jamais de mots de passe, jetons, secrets ni données sensibles : une allowlist de champs, la redaction en filet, une empreinte HMAC quand il faut corréler.",
+  "pino et ecs-pino-format produisent des logs ECS qui se croisent avec CloudTrail et le WAF ; l'identifiant de requête et le trace.id relient les événements.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Top 10 2025 : A09 Security Logging & Alerting Failures", url: "https://owasp.org/Top10/2025/A09_2025-Security_Logging_and_Alerting_Failures/" },
+  { title: "OWASP Cheat Sheet : Logging", url: "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Logging Vocabulary", url: "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Vocabulary_Cheat_Sheet.html" },
+  { title: "OWASP AppSensor : detection points", url: "https://wiki.owasp.org/index.php/AppSensor_DetectionPoints" },
+  { title: "Elastic : ECS Logging pour pino", url: "https://www.elastic.co/docs/reference/ecs/logging/nodejs/pino" },
+  { title: "CNIL : recommandation sur la journalisation", url: "https://www.cnil.fr/fr/la-cnil-publie-une-recommandation-relative-aux-mesures-de-journalisation" },
+  { title: "DPC : amende de 91 millions d'euros contre Meta", url: "https://www.dataprotection.ie/en/news-media/press-releases/DPC-announces-91-million-fine-of-Meta" },
+]} />

@@ -1,0 +1,51 @@
+{
+  "tree": "Deployer",
+  "version": "2.0.0",
+  "selections": [
+    {
+      "id": "SSVC-1",
+      "exploitation": "active",
+      "exposure": "open",
+      "utility": "super effective",
+      "human_impact": "very high",
+      "decision": "immediate",
+      "rationale": "Évasion de bac à sable dans le moteur de règles : exécution de code sur le service de facturation."
+    },
+    {
+      "id": "SSVC-2",
+      "exploitation": "poc",
+      "exposure": "open",
+      "utility": "efficient",
+      "human_impact": "very high",
+      "decision": "out-of-cycle",
+      "rationale": "Confusion d’algorithme sur la vérification des jetons : usurpation de compte sur toute la base clients."
+    },
+    {
+      "id": "SSVC-3",
+      "exploitation": "none",
+      "exposure": "small",
+      "utility": "laborious",
+      "human_impact": "low",
+      "decision": "defer",
+      "rationale": "Outil de construction seulement ; aucun flux entrant, aucune donnée en jeu."
+    },
+    {
+      "id": "SSVC-4",
+      "exploitation": "active",
+      "exposure": "controlled",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "out-of-cycle",
+      "rationale": "Déni de service sur un service interne ; l’accès suppose déjà le réseau d’entreprise."
+    },
+    {
+      "id": "SSVC-5",
+      "exploitation": "poc",
+      "exposure": "small",
+      "utility": "efficient",
+      "human_impact": "medium",
+      "decision": "scheduled",
+      "rationale": "Fuite d’en-tête vers l’hôte de redirection, sur une tâche sortante sans port en écoute."
+    }
+  ]
+}

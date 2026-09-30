@@ -1,0 +1,240 @@
+export const questions = [
+  {
+    q: "Quel titre de ticket a le plus de chances d'être corrigé vite ?",
+    options: [
+      "« BOLA sur l'API de facturation (CWE-639), CVSS 4.0 : 8,7 »",
+      "« Contrôle d'accès insuffisant sur les ressources de l'API »",
+      "« Un client peut télécharger les factures PDF des autres clients »",
+      "« Corriger l'autorisation sur GET /invoices/:id/pdf »",
+    ],
+    answer: 2,
+    explain: "Un titre qui dit qui peut faire quoi, sur quelles données, se comprend sans être expert et se priorise tout seul : le product owner n'a besoin de personne pour l'arbitrer. Nommer la route est utile mais ne suffit pas, puisque « corriger l'autorisation » ne dit pas ce qu'on risque ; et la classification (BOLA, CWE, CVSS) s'adresse à un lecteur sécurité, pas au développeur qui corrige. Ces éléments ont leur place dans le corps du ticket.",
+  },
+  {
+    q: "Que joindre à un finding pour prouver le correctif et empêcher la régression ?",
+    options: [
+      "Un test de régression qui échoue tant que le bug existe",
+      "Une règle Semgrep qui signalera le motif dans les prochaines PR",
+      "Le vecteur CVSS complet et le lien vers l'entrée CWE correspondante",
+      "Une capture du proxy montrant la requête et la réponse fautives",
+    ],
+    answer: 0,
+    explain: "Le test montre le bug avant, valide le correctif après, et reste en CI : c'est le seul artefact qui couvre les trois rôles, et c'est ce que recommande Kohnfelder. La règle Semgrep est excellente, mais elle répond à une autre question — elle attrapera les futures occurrences du motif, elle ne démontre pas que cette route-ci est réparée. La capture de proxy prouve sur l'instant et ne protège de rien ; le score ne fait ni l'un ni l'autre.",
+  },
+  {
+    q: "Ton test de régression vérifie que la facture du tenant B renvoie 404 au tenant A, et que le propriétaire accède toujours à la sienne. Qu'est-ce qui manque encore ?",
+    options: [
+      "Rien : l'invariant négatif et l'invariant positif sont tous deux couverts",
+      "Un jeu de données réel, pour que le test reflète le comportement de production",
+      "Le vecteur CVSS dans le nom du test, pour tracer la priorité du finding",
+      "Les variantes : autres routes par identifiant, et identifiant inexistant",
+    ],
+    answer: 3,
+    explain: "Un test limité à la charge d'origine valide un correctif partiel : le bug a été trouvé sur le PDF, mais la même requête non filtrée existe sur /invoices/:id et /invoices/:id/history. Il faut aussi que la facture d'un autre tenant et un identifiant inexistant répondent à l'identique, sinon l'écart entre 403 et 404 devient un oracle qui permet d'énumérer les factures. Quant aux données réelles, elles n'ont rien à faire dans un test : on sème des tenants de test.",
+  },
+  {
+    q: "Où ouvrir le ticket d'une vulnérabilité exploitable non corrigée sur une API exposée ?",
+    options: [
+      "Dans un canal d'annonce interne, pour que toutes les équipes soient averties",
+      "Dans l'outil de l'équipe, en visibilité restreinte jusqu'au correctif",
+      "Dans l'outil d'agrégation de l'AppSec seulement, le temps de préparer la PR",
+      "Dans un dépôt privé dédié à la sécurité, séparé du backlog de l'équipe",
+    ],
+    answer: 1,
+    explain: "Le ticket doit vivre là où l'équipe travaille, sinon il sort de son flux de priorisation et n'avance pas : c'est ce qui condamne le dépôt sécurité séparé comme l'agrégateur employé seul. Mais un mode d'emploi d'exploitation d'un bug encore ouvert n'a pas à circuler largement — visibilité limitée aux personnes concernées, ni jeton ni donnée client dans le corps, restriction levée après correction. Pour un dépôt public comme le SDK, l'avis de sécurité privé de GitHub joue ce rôle.",
+  },
+];
+
+<YouKnow>
+Tu as écrit des centaines de findings dans des rapports. Beaucoup n'ont jamais été corrigés, souvent parce qu'ils étaient écrits pour un lecteur sécurité, pas pour le développeur qui devait agir.
+</YouKnow>
+
+## Pour qui écris-tu ?
+
+Un finding de pentest s'adresse souvent à un responsable sécurité. Un ticket AppSec s'adresse au **développeur qui va corriger**, dans son outil, entre deux autres tâches. Il doit se comprendre en trente secondes et se corriger sans te rappeler.
+
+Ce lecteur a trois questions, dans cet ordre : **est-ce que c'est vrai ?** (peut-il le reproduire lui-même sans outil offensif), **est-ce que c'est urgent ?** (par rapport à tout le reste de son sprint), **qu'est-ce que je dois changer ?** (dans son code, avec ses conventions). Un ticket qui ne répond pas à la première question est mis de côté ; un ticket qui ne répond pas à la troisième est corrigé de travers.
+
+Il a aussi un deuxième lecteur, souvent oublié : **la personne qui relira le ticket dans six mois**, pendant un incident, un audit ou une revue de régression. Pour elle, le ticket doit dire ce qui a été décidé et pourquoi.
+
+## La structure d'un bon ticket
+
+<Steps items={[
+  { title: "Un titre qui décrit l'impact", text: "« Un client peut télécharger les factures PDF des autres clients », pas « BOLA sur l'API »." },
+  { title: "Où et comment le reproduire", text: "La route, le fichier, une reproduction minimale (une requête, un test), sans outil offensif nécessaire pour la rejouer." },
+  { title: "Pourquoi c'est prioritaire", text: "L'impact métier, l'exposition, et la décision de la grille de priorisation (M5) : Attend, 7 jours." },
+  { title: "Le correctif, dans leur code", text: "Un extrait qui suit les conventions de l'équipe (leur DAL, leur style), ou mieux, une pull request." },
+  { title: "Le test de régression", text: "Un test qui échoue tant que le bug existe et passe après correction." },
+  { title: "La classe, pour aller plus loin", text: "Un lien vers le contrôle de classe s'il existe (defineRoute, règle Semgrep) ou une proposition d'en créer un." },
+]} />
+
+## Avant, après
+
+Le même constat, tel qu'il arrive trop souvent, puis réécrit pour l'équipe :
+
+<Diff file="Ticket NOVA-2481" beforeLabel="Écrit pour un lecteur sécurité" afterLabel="Écrit pour le développeur" stack>
+
+```text
+[CRITIQUE] IDOR / BOLA (CWE-639) - CVSS 4.0 : 8.7
+L'API ne vérifie pas correctement les autorisations sur les objets.
+Un attaquant peut accéder à des ressources d'autres utilisateurs.
+Recommandation : implémenter un contrôle d'accès robuste
+conformément à l'OWASP API Security Top 10 (API1:2023).
+Preuve : voir capture Burp en pièce jointe.
+```
+
+```text
+Un client peut télécharger les factures PDF des autres clients
+
+Où : GET /invoices/:id/pdf (apps/api/src/routes/invoices.ts, ligne 88)
+Reproduire : lancer le test invoices.pdf.authz.test.ts (PR #1932), il échoue sur main.
+Pourquoi maintenant : Attend (7 jours). Factures de tous les tenants, API exposée,
+  identifiants devinables. Aucune trace d'exploitation dans les logs des 30 derniers jours.
+Correctif : remplacer Invoice.findById(id) par invoices.get(tenantOf(req), id) (PR #1932).
+Pour la classe : 6 autres routes appellent findById directement ; règle Semgrep proposée (PR #1933).
+```
+
+</Diff>
+
+La version de gauche n'est pas fausse, elle est **inutilisable** : elle ne dit ni où, ni comment reproduire, ni quoi changer, et la « recommandation » ne correspond à aucune ligne de code. La version de droite peut être traitée par quelqu'un qui n'a jamais entendu parler de BOLA.
+
+Note la phrase sur les logs : dire si l'exploitation a déjà eu lieu (ou si on ne peut pas le savoir) change la priorité et, parfois, déclenche une réponse à incident plutôt qu'une simple correction.
+
+## Le test de régression
+
+Kohnfelder recommande d'écrire le test **avant** le correctif : il sert de reproduction, confirme que le correctif élimine réellement le problème, et empêche le bug de revenir. Il insiste sur un point que les pentesters négligent souvent : un bon test de régression ne rejoue pas seulement la charge d'origine, il couvre les **variantes**.
+
+<Code file="apps/api/test/invoices.pdf.authz.test.ts" hl="12,13,14,15,16,17,18">
+
+```ts
+import { describe, it, expect, beforeAll } from 'vitest';
+import request from 'supertest';
+import { app } from '../src/app';
+import { seedTenant, tokenFor } from './helpers';
+
+describe('Isolation des factures entre tenants (NOVA-2481)', () => {
+  let a: Awaited<ReturnType<typeof seedTenant>>;
+  let b: Awaited<ReturnType<typeof seedTenant>>;
+  beforeAll(async () => { a = await seedTenant('A'); b = await seedTenant('B'); });
+
+  const routes = ['/invoices/:id', '/invoices/:id/pdf', '/invoices/:id/history'];
+  it.each(routes)('%s : la facture d’un autre tenant répond comme une facture inexistante', async (route) => {
+    const other = await request(app).get(route.replace(':id', b.invoiceId)).auth(tokenFor(a.user), { type: 'bearer' });
+    const missing = await request(app).get(route.replace(':id', '000000000000000000000000')).auth(tokenFor(a.user), { type: 'bearer' });
+    expect(other.status).toBe(404);
+    expect(missing.status).toBe(404);
+    expect(other.body).toEqual(missing.body);
+  });
+
+  it('le propriétaire accède toujours à sa facture', async () => {
+    const res = await request(app).get(`/invoices/${a.invoiceId}/pdf`).auth(tokenFor(a.user), { type: 'bearer' });
+    expect(res.status).toBe(200);
+  });
+});
+```
+
+</Code>
+
+Trois choix méritent d'être expliqués dans la PR :
+
+- **plusieurs routes** : le bug a été trouvé sur le PDF, mais la même requête non filtrée existe ailleurs. Tester la surface évite le correctif ponctuel ;
+- **même réponse pour « autre tenant » et « inexistant »** : un 403 sur la facture d'un autre tenant et un 404 sur une facture inexistante créent un oracle qui permet d'énumérer les factures existantes ;
+- **un cas positif** : un correctif qui bloque tout le monde fait aussi passer le test négatif. Sans le cas du propriétaire, le test ne prouve rien.
+
+<Callout kind="case">
+Kohnfelder cite un exemple de régression : en 2019, iOS 12.4 a réintroduit une vulnérabilité déjà corrigée dans iOS 12.3. Comme le bug était connu des chercheurs, l'outil de jailbreak existant a été adapté très vite à la nouvelle version. Un test de régression attaché au correctif initial aurait détecté le retour du bug avant la publication.
+</Callout>
+
+## Chercher les variantes avant d'écrire
+
+Ton réflexe de pentester est ici un atout direct. Avant d'ouvrir le ticket, prends vingt minutes pour une **analyse de variantes** : la même cause racine existe-t-elle ailleurs ? Un `grep` sur `findById(` dans les routes, une requête Semgrep ou CodeQL sur le motif fautif, un coup d'œil aux autres services construits à la même époque. Le ticket passe alors de « une route est vulnérable » à « sept routes partagent ce défaut, en voici la liste », ce qui change la décision : on ne corrige plus un bug, on traite une classe.
+
+L'analyse de variantes évite aussi le scénario le plus frustrant pour tout le monde : l'équipe corrige la route signalée, le ticket est fermé, et le pentest suivant trouve la même faille trois routes plus loin. Pour l'équipe, cela ressemble à un travail mal cadré ; pour la direction, à une équipe qui ne progresse pas. Dans les deux cas, c'est ta crédibilité qui en pâtit.
+
+## La pull request vaut mieux que le PDF
+
+Quand c'est possible, **propose le correctif toi-même**. Une PR petite, testée, qui respecte les conventions de l'équipe, se relit en quelques minutes : la vulnérabilité disparaît dans la journée, et l'équipe apprend en relisant. C'est aussi le meilleur moyen de gagner sa confiance.
+
+Quelques règles pour que la PR soit acceptée :
+
+- **respecte leur style**, même si tu écrirais autrement : leur DAL, leur gestion d'erreurs, leurs noms. Une PR qui introduit une nouvelle abstraction pour corriger un bug est une PR qui traîne ;
+- **sépare le correctif de la refonte** : d'abord la correction minimale avec son test, ensuite (dans une autre PR) le contrôle de classe ;
+- **explique le pourquoi** dans la description, avec un lien vers le ticket, pas seulement le quoi.
+
+<Callout kind="debate">
+Proposer la PR ne veut pas dire corriger à la place de l'équipe. L'équipe reste propriétaire de son code : elle relit, peut refuser, et reste responsable de la maintenance. Pour les classes de bugs récurrentes, la bonne PR est souvent celle qui ajoute un contrôle (wrapper, règle, test) plutôt qu'un correctif ponctuel. Et si l'AppSec corrige tout elle-même, l'équipe n'apprend rien : réserve la PR complète aux urgences et aux premiers cas d'une classe, et accompagne l'équipe sur les suivants.
+</Callout>
+
+## Un modèle dans l'outil de l'équipe
+
+Plutôt que d'espérer que chaque ticket suive la structure, rends-la obligatoire là où les tickets naissent. Sur GitHub, un **formulaire d'issue** impose les champs :
+
+<Code file=".github/ISSUE_TEMPLATE/security-finding.yml">
+
+```yaml
+name: Finding de sécurité
+description: Un problème de sécurité à corriger, écrit pour l'équipe qui corrige
+title: "[Sécu] "
+labels: ["security"]
+body:
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact concret
+      description: Qui peut faire quoi, sur quelles données. Une phrase, sans jargon.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Route, fichier, et un test ou une requête minimale. Aucun jeton réel, aucune donnée client.
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Décision de priorisation (grille M5)
+      options: ["Act (24 à 72 h)", "Attend (7 jours)", "Track* (30 jours)", "Track"]
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Correctif proposé et test de régression
+  - type: textarea
+    id: class
+    attributes:
+      label: Classe de bugs et contrôle associé
+```
+
+</Code>
+
+## Ce qui ne va pas dans un ticket
+
+<Callout kind="warn">
+Un ticket de sécurité est un document sensible tant que le bug est ouvert. N'y colle jamais un jeton, un cookie de session, un mot de passe ou des données réelles d'un client (utilise des tenants de test). Limite sa visibilité aux personnes qui en ont besoin ; pour un projet open source comme `@novafact/sdk`, les *repository security advisories* de GitHub permettent de discuter et de préparer le correctif en privé avant publication.
+</Callout>
+
+Les autres erreurs fréquentes :
+
+- **le résultat de scanner non vérifié** transmis tel quel : un seul faux positif dans une série de tickets et l'équipe cessera de lire les suivants ;
+- **le ticket fleuve** qui mélange cinq constats : un ticket, un problème, un propriétaire ;
+- **le ton accusateur** (« le développeur a oublié de… ») : décris le code, pas la personne ;
+- **la gravité gonflée** pour obtenir de l'attention : ça marche une fois, puis tes priorités perdent toute valeur.
+
+<Recap items={[
+  "Le lecteur d'un ticket AppSec est le développeur qui corrige, dans son outil ; le second lecteur est celui qui le relira dans six mois.",
+  "Titre d'impact, reproduction minimale, priorité justifiée, correctif dans leur style, test de régression.",
+  "Le test de régression couvre les variantes, évite les oracles et contient un cas positif.",
+  "Toujours pointer vers la classe de bugs et son contrôle.",
+  "Une petite PR testée se corrige dans la journée et fait gagner la confiance de l'équipe.",
+  "Un formulaire d'issue impose la structure ; un ticket sensible reste restreint et sans secret.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Vulnerability Management Guide", url: "https://owasp.org/www-project-vulnerability-management-guide/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 12 (Security Regression Tests) et 13" },
+  { title: "GitHub Docs : syntaxe des formulaires d'issue", url: "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms" },
+  { title: "GitHub Docs : repository security advisories", url: "https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/about-repository-security-advisories" },
+]} />

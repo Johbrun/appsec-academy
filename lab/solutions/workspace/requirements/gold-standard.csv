@@ -1,0 +1,14 @@
+route,methode,authentification,autorisation,audit,manque
+/api/credits/apply,POST,oui,non,non,autorisation + audit
+/api/credits/drafts,POST,oui,oui,non,audit
+/api/credits/drafts/:id/issue,POST,oui,non,non,autorisation + audit
+/api/credits/drafts/:id/lines,POST,oui,non,non,autorisation + audit
+/api/invoices,POST,oui,non,non,autorisation + audit
+/api/invoices/:id,DELETE,oui,non,non,autorisation + audit
+/api/invoices/:id,PATCH,oui,oui,non,audit
+/api/invoices/:id/pay,POST,oui,non,non,autorisation + audit
+/api/invoices/:id/refund,POST,oui,non,non,autorisation + audit
+/api/invoices/:id/reissue,POST,oui,non,non,autorisation + audit
+/api/invoices/:id/send,POST,oui,non,non,autorisation + audit
+/api/invoices/query,POST,oui,non,non,autorisation + audit
+/api/me,PATCH,oui,non,non,autorisation + audit

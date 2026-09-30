@@ -1,0 +1,266 @@
+# Modèle de maturité — données embarquées du lab.
+#
+# Reprend la STRUCTURE d'OWASP SAMM v2 : 5 fonctions métier, 3 pratiques de
+# sécurité par fonction, 2 flux par pratique, 3 niveaux d'activités par flux —
+# soit 90 activités. Les intitulés sont réécrits en français et volontairement
+# raccourcis : ce fichier est un support d'exercice, pas une reproduction du
+# modèle officiel. Les identifiants (`SM-A-1`) sont propres au lab.
+#
+# ── Comment se calcule un score (c'est ce que le harnais recalcule) ──────────
+#
+#   · Une réponse vaut :  non = 0 · partiel = 0.5 · oui = 1
+#   · Score d'un flux   = somme de ses trois réponses, entre 0 et 3.
+#   · Contrainte de monotonie : un niveau ne peut pas être mieux tenu que celui
+#     qui le précède. Donc réponse(2) <= réponse(1) et réponse(3) <= réponse(2).
+#     Une évaluation qui prétend faire du niveau 3 sans le niveau 1 est
+#     incohérente, et le harnais la refuse.
+#   · Score d'une pratique = moyenne de ses deux flux.
+#   · Score d'une fonction = moyenne de ses trois pratiques.
+#   · Score global         = moyenne des cinq fonctions.
+#   · Tout est arrondi à deux décimales.
+
+fonctions:
+  - id: GOU
+    nom: Gouvernance
+    pratiques:
+      - id: SM
+        nom: Stratégie et métriques
+        flux:
+          - id: SM-A
+            nom: Création et promotion
+            activites:
+              - { id: SM-A-1, niveau: 1, nom: 'Identifier les objectifs de sécurité de l''organisation' }
+              - { id: SM-A-2, niveau: 2, nom: 'Publier une feuille de route du programme, révisée périodiquement' }
+              - { id: SM-A-3, niveau: 3, nom: 'Aligner la feuille de route sur les risques métier et la faire arbitrer' }
+          - id: SM-B
+            nom: Mesure et amélioration
+            activites:
+              - { id: SM-B-1, niveau: 1, nom: 'Collecter quelques métriques de base sur les défauts' }
+              - { id: SM-B-2, niveau: 2, nom: 'Définir des indicateurs d''effort, de résultat et d''impact' }
+              - { id: SM-B-3, niveau: 3, nom: 'Piloter les décisions du programme par les métriques' }
+      - id: PC
+        nom: Politique et conformité
+        flux:
+          - id: PC-A
+            nom: Politique et normes
+            activites:
+              - { id: PC-A-1, niveau: 1, nom: 'Écrire les politiques et normes de développement applicables' }
+              - { id: PC-A-2, niveau: 2, nom: 'Décliner les politiques en exigences testables par technologie' }
+              - { id: PC-A-3, niveau: 3, nom: 'Mesurer la conformité aux politiques de façon continue' }
+          - id: PC-B
+            nom: Conformité réglementaire
+            activites:
+              - { id: PC-B-1, niveau: 1, nom: 'Identifier les obligations réglementaires applicables' }
+              - { id: PC-B-2, niveau: 2, nom: 'Traduire chaque obligation en contrôle technique vérifiable' }
+              - { id: PC-B-3, niveau: 3, nom: 'Produire la preuve de conformité en continu depuis le dépôt' }
+      - id: EG
+        nom: Formation et accompagnement
+        flux:
+          - id: EG-A
+            nom: Formation et sensibilisation
+            activites:
+              - { id: EG-A-1, niveau: 1, nom: 'Offrir une sensibilisation à la sécurité à toute l''équipe technique' }
+              - { id: EG-A-2, niveau: 2, nom: 'Former par rôle, sur la pile réellement utilisée' }
+              - { id: EG-A-3, niveau: 3, nom: 'Certifier les compétences et mesurer leur effet sur les défauts' }
+          - id: EG-B
+            nom: Culture et champions
+            activites:
+              - { id: EG-B-1, niveau: 1, nom: 'Identifier des relais sécurité dans les équipes' }
+              - { id: EG-B-2, niveau: 2, nom: 'Structurer un réseau de champions avec du temps dédié' }
+              - { id: EG-B-3, niveau: 3, nom: 'Faire porter par les champions la revue et le threat modeling' }
+
+  - id: CON
+    nom: Conception
+    pratiques:
+      - id: TA
+        nom: Évaluation des menaces
+        flux:
+          - id: TA-A
+            nom: Profil de menaces
+            activites:
+              - { id: TA-A-1, niveau: 1, nom: 'Tenir une liste des menaces probables sur l''application' }
+              - { id: TA-A-2, niveau: 2, nom: 'Modéliser les menaces par composant, avec une méthode écrite' }
+              - { id: TA-A-3, niveau: 3, nom: 'Maintenir le modèle de menaces à chaque évolution de conception' }
+          - id: TA-B
+            nom: Abus et mésusage
+            activites:
+              - { id: TA-B-1, niveau: 1, nom: 'Écrire quelques cas d''abus pour les fonctions sensibles' }
+              - { id: TA-B-2, niveau: 2, nom: 'Dériver les cas d''abus des menaces identifiées' }
+              - { id: TA-B-3, niveau: 3, nom: 'Rendre les cas d''abus exécutables dans la suite de tests' }
+      - id: SR
+        nom: Exigences de sécurité
+        flux:
+          - id: SR-A
+            nom: Exigences logicielles
+            activites:
+              - { id: SR-A-1, niveau: 1, nom: 'Dériver des exigences de sécurité des fonctions métier' }
+              - { id: SR-A-2, niveau: 2, nom: 'Adosser les exigences à un standard et les versionner dans le dépôt' }
+              - { id: SR-A-3, niveau: 3, nom: 'Tracer chaque exigence jusqu''au test qui l''établit' }
+          - id: SR-B
+            nom: Exigences fournisseurs
+            activites:
+              - { id: SR-B-1, niveau: 1, nom: 'Exprimer des attentes de sécurité aux fournisseurs' }
+              - { id: SR-B-2, niveau: 2, nom: 'Contractualiser les exigences et le droit d''audit' }
+              - { id: SR-B-3, niveau: 3, nom: 'Vérifier périodiquement la tenue des exigences fournisseurs' }
+      - id: SA
+        nom: Architecture de sécurité
+        flux:
+          - id: SA-A
+            nom: Conception architecturale
+            activites:
+              - { id: SA-A-1, niveau: 1, nom: 'Documenter les décisions d''architecture de sécurité' }
+              - { id: SA-A-2, niveau: 2, nom: 'Appliquer des patterns de conception éprouvés' }
+              - { id: SA-A-3, niveau: 3, nom: 'Faire relire chaque conception sensible avant réalisation' }
+          - id: SA-B
+            nom: Technologies et composants
+            activites:
+              - { id: SA-B-1, niveau: 1, nom: 'Identifier les composants et bibliothèques partagés' }
+              - { id: SA-B-2, niveau: 2, nom: 'Fournir des composants durcis, réutilisables et documentés' }
+              - { id: SA-B-3, niveau: 3, nom: 'Imposer le chemin par défaut sûr et en mesurer l''adoption' }
+
+  - id: IMP
+    nom: Réalisation
+    pratiques:
+      - id: SB
+        nom: Construction sécurisée
+        flux:
+          - id: SB-A
+            nom: Processus de construction
+            activites:
+              - { id: SB-A-1, niveau: 1, nom: 'Construire de façon reproductible et automatisée' }
+              - { id: SB-A-2, niveau: 2, nom: 'Durcir le pipeline et y insérer des contrôles de sécurité' }
+              - { id: SB-A-3, niveau: 3, nom: 'Signer les artefacts et produire une attestation de provenance' }
+          - id: SB-B
+            nom: Gestion des dépendances
+            activites:
+              - { id: SB-B-1, niveau: 1, nom: 'Tenir l''inventaire des dépendances tierces' }
+              - { id: SB-B-2, niveau: 2, nom: 'Analyser les dépendances en continu et fixer des délais de reprise' }
+              - { id: SB-B-3, niveau: 3, nom: 'Produire un SBOM par version et vérifier l''intégrité à l''installation' }
+      - id: SD
+        nom: Déploiement sécurisé
+        flux:
+          - id: SD-A
+            nom: Processus de déploiement
+            activites:
+              - { id: SD-A-1, niveau: 1, nom: 'Automatiser le déploiement de bout en bout' }
+              - { id: SD-A-2, niveau: 2, nom: 'Contrôler l''intégrité de ce qui est déployé' }
+              - { id: SD-A-3, niveau: 3, nom: 'Vérifier la signature à l''admission, avant mise en service' }
+          - id: SD-B
+            nom: Gestion des secrets
+            activites:
+              - { id: SD-B-1, niveau: 1, nom: 'Sortir les secrets du code et du dépôt' }
+              - { id: SD-B-2, niveau: 2, nom: 'Stocker les secrets dans un coffre, avec traçabilité des accès' }
+              - { id: SD-B-3, niveau: 3, nom: 'Générer des secrets de courte durée et les renouveler automatiquement' }
+      - id: DM
+        nom: Gestion des défauts
+        flux:
+          - id: DM-A
+            nom: Suivi des défauts
+            activites:
+              - { id: DM-A-1, niveau: 1, nom: 'Centraliser les défauts de sécurité dans le suivi de l''équipe' }
+              - { id: DM-A-2, niveau: 2, nom: 'Prioriser par le risque et tenir des délais de correction' }
+              - { id: DM-A-3, niveau: 3, nom: 'Traiter par classe de bugs plutôt que par instance' }
+          - id: DM-B
+            nom: Métriques de défauts
+            activites:
+              - { id: DM-B-1, niveau: 1, nom: 'Compter les défauts ouverts et leur ancienneté' }
+              - { id: DM-B-2, niveau: 2, nom: 'Suivre l''origine des défauts et leur point d''introduction' }
+              - { id: DM-B-3, niveau: 3, nom: 'Fermer la boucle : la métrique déclenche une action du programme' }
+
+  - id: VER
+    nom: Vérification
+    pratiques:
+      - id: AA
+        nom: Évaluation de l'architecture
+        flux:
+          - id: AA-A
+            nom: Revue de conception
+            activites:
+              - { id: AA-A-1, niveau: 1, nom: 'Relire la conception des fonctions sensibles avant réalisation' }
+              - { id: AA-A-2, niveau: 2, nom: 'Relire la conception à partir du modèle de menaces' }
+              - { id: AA-A-3, niveau: 3, nom: 'Mesurer la couverture des revues sur l''ensemble du périmètre' }
+          - id: AA-B
+            nom: Conformité de l'architecture
+            activites:
+              - { id: AA-B-1, niveau: 1, nom: 'Vérifier que les contrôles prévus sont bien en place' }
+              - { id: AA-B-2, niveau: 2, nom: 'Contrôler la conformité aux patterns imposés' }
+              - { id: AA-B-3, niveau: 3, nom: 'Détecter automatiquement la dérive d''architecture' }
+      - id: RT
+        nom: Tests dirigés par les exigences
+        flux:
+          - id: RT-A
+            nom: Tests des contrôles
+            activites:
+              - { id: RT-A-1, niveau: 1, nom: 'Tester manuellement les contrôles de sécurité clés' }
+              - { id: RT-A-2, niveau: 2, nom: 'Automatiser un test par exigence de sécurité retenue' }
+              - { id: RT-A-3, niveau: 3, nom: 'Exiger la couverture complète des exigences avant mise en production' }
+          - id: RT-B
+            nom: Tests d'abus
+            activites:
+              - { id: RT-B-1, niveau: 1, nom: 'Écrire quelques tests de mésusage des fonctions métier' }
+              - { id: RT-B-2, niveau: 2, nom: 'Dériver les tests d''abus du modèle de menaces' }
+              - { id: RT-B-3, niveau: 3, nom: 'Intégrer les tests d''abus à la définition de terminé' }
+      - id: ST
+        nom: Tests de sécurité
+        flux:
+          - id: ST-A
+            nom: Outillage
+            activites:
+              - { id: ST-A-1, niveau: 1, nom: 'Lancer un outil d''analyse automatique sur le code' }
+              - { id: ST-A-2, niveau: 2, nom: 'Intégrer l''analyse au pipeline avec un seuil de blocage' }
+              - { id: ST-A-3, niveau: 3, nom: 'Écrire des règles maison pour les classes de bugs propres au produit' }
+          - id: ST-B
+            nom: Tests manuels
+            activites:
+              - { id: ST-B-1, niveau: 1, nom: 'Faire tester les fonctions à haut risque par une personne' }
+              - { id: ST-B-2, niveau: 2, nom: 'Cadrer les tests d''intrusion et suivre leurs constats' }
+              - { id: ST-B-3, niveau: 3, nom: 'Intégrer les constats en tests de non-régression durables' }
+
+  - id: OPE
+    nom: Exploitation
+    pratiques:
+      - id: IM
+        nom: Gestion des incidents
+        flux:
+          - id: IM-A
+            nom: Détection
+            activites:
+              - { id: IM-A-1, niveau: 1, nom: 'Journaliser les événements de sécurité des applications' }
+              - { id: IM-A-2, niveau: 2, nom: 'Écrire des détections à partir des menaces identifiées' }
+              - { id: IM-A-3, niveau: 3, nom: 'Mesurer et améliorer la couverture de détection' }
+          - id: IM-B
+            nom: Réponse
+            activites:
+              - { id: IM-B-1, niveau: 1, nom: 'Désigner qui répond à un incident et comment le joindre' }
+              - { id: IM-B-2, niveau: 2, nom: 'Écrire et éprouver les procédures de réponse' }
+              - { id: IM-B-3, niveau: 3, nom: 'Tirer les leçons des incidents et corriger la classe de cause' }
+      - id: EM
+        nom: Gestion des environnements
+        flux:
+          - id: EM-A
+            nom: Durcissement
+            activites:
+              - { id: EM-A-1, niveau: 1, nom: 'Appliquer une configuration de base aux environnements' }
+              - { id: EM-A-2, niveau: 2, nom: 'Décrire les environnements en code et les contrôler' }
+              - { id: EM-A-3, niveau: 3, nom: 'Détecter et corriger la dérive de configuration' }
+          - id: EM-B
+            nom: Correctifs et mises à jour
+            activites:
+              - { id: EM-B-1, niveau: 1, nom: 'Appliquer les correctifs de sécurité des systèmes' }
+              - { id: EM-B-2, niveau: 2, nom: 'Tenir des délais de correctif par niveau de criticité' }
+              - { id: EM-B-3, niveau: 3, nom: 'Renouveler l''infrastructure plutôt que la corriger sur place' }
+      - id: OM
+        nom: Gestion opérationnelle
+        flux:
+          - id: OM-A
+            nom: Protection des données
+            activites:
+              - { id: OM-A-1, niveau: 1, nom: 'Classer les données manipulées par l''application' }
+              - { id: OM-A-2, niveau: 2, nom: 'Appliquer une durée de conservation par classe de données' }
+              - { id: OM-A-3, niveau: 3, nom: 'Vérifier l''effacement effectif dans tous les magasins' }
+          - id: OM-B
+            nom: Fin de vie
+            activites:
+              - { id: OM-B-1, niveau: 1, nom: 'Tenir l''inventaire des systèmes et de leur statut' }
+              - { id: OM-B-2, niveau: 2, nom: 'Planifier la fin de vie des versions et des dépendances' }
+              - { id: OM-B-3, niveau: 3, nom: 'Décommissionner proprement, données et accès compris' }

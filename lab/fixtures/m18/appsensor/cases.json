@@ -1,0 +1,72 @@
+[
+  {
+    "id": "hostile-ae1",
+    "malicious": true,
+    "label": "l’essai de plusieurs identifiants depuis une même source (AE1)"
+  },
+  {
+    "id": "hostile-ace3",
+    "malicious": true,
+    "label": "la navigation forcée sur des identifiants successifs (ACE3)"
+  },
+  {
+    "id": "hostile-re2",
+    "malicious": true,
+    "label": "l’invocation d’une méthode HTTP non supportée (RE2)"
+  },
+  {
+    "id": "hostile-se5",
+    "malicious": true,
+    "label": "le changement d’adresse source au milieu d’une session (SE5)"
+  },
+  {
+    "id": "hostile-ht2",
+    "malicious": true,
+    "label": "la demande d’une ressource leurre (HT2)"
+  },
+  {
+    "id": "hostile-ie5",
+    "malicious": true,
+    "label": "la rupture de la chaîne d’intégrité du journal (IE5)"
+  },
+  {
+    "id": "legitime-01",
+    "malicious": false,
+    "label": "un comptable qui parcourt ses propres factures"
+  },
+  {
+    "id": "legitime-02",
+    "malicious": false,
+    "label": "un poste partagé où trois personnes se connectent"
+  },
+  {
+    "id": "legitime-03",
+    "malicious": false,
+    "label": "un navigateur qui fait ses préchecks CORS"
+  },
+  {
+    "id": "legitime-04",
+    "malicious": false,
+    "label": "un client mobile qui change de réseau entre deux sessions"
+  },
+  {
+    "id": "legitime-05",
+    "malicious": false,
+    "label": "un administrateur qui lance l’export officiel"
+  },
+  {
+    "id": "legitime-06",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe deux fois de mot de passe"
+  },
+  {
+    "id": "legitime-07",
+    "malicious": false,
+    "label": "une intégration qui relit le journal d’audit sans y toucher"
+  },
+  {
+    "id": "legitime-08",
+    "malicious": false,
+    "label": "un comptable qui reçoit quelques 403 en cherchant une facture archivée"
+  }
+]

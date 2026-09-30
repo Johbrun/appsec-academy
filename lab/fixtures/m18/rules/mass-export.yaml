@@ -1,0 +1,24 @@
+id: mass-export
+name: Export massif de données
+description: Une lecture sensible porte sur un très grand nombre de lignes.
+severity: high
+risk_score: 80
+tags:
+  - 'Domaine: Données'
+  - 'Tactique: Collection'
+  - 'Technique: T1213'
+interval: 5m
+from: now-15m
+note: |-
+  ## Triage
+
+  1. Comparer au volume habituel du compte.
+  2. Vérifier la destination.
+query:
+  where:
+    - field: event.action
+      op: eq
+      value: sensitive_read
+    - field: novafact.export.rows
+      op: gte
+      value: 1000

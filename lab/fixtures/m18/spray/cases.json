@@ -1,0 +1,197 @@
+[
+  {
+    "id": "pulverisage-1",
+    "malicious": true,
+    "label": "le pulvérisage n°1"
+  },
+  {
+    "id": "pulverisage-2",
+    "malicious": true,
+    "label": "le pulvérisage n°2"
+  },
+  {
+    "id": "pulverisage-3",
+    "malicious": true,
+    "label": "le pulvérisage n°3"
+  },
+  {
+    "id": "pulverisage-4",
+    "malicious": true,
+    "label": "le pulvérisage n°4"
+  },
+  {
+    "id": "pulverisage-5",
+    "malicious": true,
+    "label": "le pulvérisage n°5"
+  },
+  {
+    "id": "pulverisage-6",
+    "malicious": true,
+    "label": "le pulvérisage n°6"
+  },
+  {
+    "id": "mobile-1",
+    "malicious": false,
+    "label": "un client mobile bloqué sur un jeton périmé"
+  },
+  {
+    "id": "mobile-2",
+    "malicious": false,
+    "label": "un client mobile bloqué sur un jeton périmé"
+  },
+  {
+    "id": "mobile-3",
+    "malicious": false,
+    "label": "un client mobile bloqué sur un jeton périmé"
+  },
+  {
+    "id": "integration-cassee-1",
+    "malicious": false,
+    "label": "une intégration cassée qui martèle huit comptes de service"
+  },
+  {
+    "id": "integration-cassee-2",
+    "malicious": false,
+    "label": "une intégration cassée qui martèle huit comptes de service"
+  },
+  {
+    "id": "isole-01",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-02",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-03",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-04",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-05",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-06",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-07",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-08",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-09",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-10",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-11",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-12",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-13",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-14",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-15",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-16",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-17",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-18",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-19",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-20",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-21",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-22",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-23",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-24",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "isole-25",
+    "malicious": false,
+    "label": "un échec isolé d’utilisateur"
+  },
+  {
+    "id": "passerelle-sso-1",
+    "malicious": false,
+    "label": "la passerelle SSO du client"
+  },
+  {
+    "id": "passerelle-sso-2",
+    "malicious": false,
+    "label": "la passerelle SSO du client"
+  },
+  {
+    "id": "test-de-charge",
+    "malicious": false,
+    "label": "le test de charge"
+  }
+]

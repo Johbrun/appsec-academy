@@ -1,0 +1,42 @@
+# Livrable de référence — challenge codeowners-sensitive (M6).
+#
+# Trois choses à tenir ensemble, et c'est le fait de les tenir ENSEMBLE qui
+# fait la différence entre un routage de revue et une case cochée :
+#
+#   1. tout ce qui touche au jeton, au socle d'authentification ou à une
+#      décision de privilège passe par la sécurité ;
+#   2. un fichier ordinaire n'y passe PAS. « Tout le dépôt à l'AppSec » est la
+#      règle qui garantit que plus rien ne sera relu sérieusement ;
+#   3. un fichier ordinaire a quand même un relecteur — d'où la règle par
+#      défaut en première ligne.
+#
+# Rappel de la règle de GitHub : la DERNIÈRE règle qui correspond l'emporte.
+# Les règles précises vont donc en bas, pas en haut. C'est l'erreur la plus
+# fréquente dans ce fichier, et elle est silencieuse.
+#
+# ⚠ La liste des chemins sensibles est déduite du code à chaque audit : ce
+#    fichier de référence correspond à l'arbre livré. Une route qui se met à
+#    lire `req.user.role` doit être ajoutée ici — c'est le but.
+
+# Par défaut : tout appartient à la plateforme.
+*                                   @novafact/plateforme
+
+# L'interface.
+src/                                @novafact/frontend
+
+# Le domaine métier.
+server/routes/                      @novafact/facturation
+verify/                             @novafact/plateforme
+
+# ── Chemins sensibles : revue de la sécurité applicative obligatoire ────────
+server/lib/                         @novafact/securite
+novafact/.github/workflows/         @novafact/securite
+novafact/infra/                     @novafact/securite
+server/routes/admin.ts              @novafact/securite
+server/routes/attachments.ts        @novafact/securite
+server/routes/auth.ts               @novafact/securite
+server/routes/invoices.ts           @novafact/securite
+server/routes/oauth.ts              @novafact/securite
+server/routes/profile.ts            @novafact/securite
+server/routes/saml.ts               @novafact/securite
+server/routes/settings.ts           @novafact/securite

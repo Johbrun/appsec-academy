@@ -1,0 +1,213 @@
+export const questions = [
+  {
+    q: "Le Dockerfile de l'API passe le jeton npm du registre privé par `ARG NPM_TOKEN` puis `RUN echo \"//npm.pkg.github.com/:_authToken=$NPM_TOKEN\" > .npmrc && npm ci && rm .npmrc`. Quel est le problème ?",
+    options: [
+      "La valeur du build arg reste dans l'historique de l'image : il faut un montage BuildKit",
+      "Aucun : `rm .npmrc` dans la même instruction `RUN` ne laisse aucune couche contenant le fichier",
+      "Le `.npmrc` du dossier de build est ignoré : npm ne lit que celui du répertoire personnel",
+      "Le vrai problème est le cache : la couche `npm ci` est réutilisée avec l'ancien jeton",
+    ],
+    answer: 0,
+    explain: "Le raisonnement sur la couche est juste et insuffisant, et c'est ce qui le rend dangereux : supprimer le fichier dans le même `RUN` empêche bien qu'il apparaisse dans une couche, mais la valeur du `ARG` reste, elle, dans les métadonnées et l'historique de l'image — `docker history` ou un `docker inspect` la rendent à qui peut tirer l'image. La documentation Docker est explicite pour `ARG` comme pour `ENV`. Le montage `--mount=type=secret` n'existe que le temps de l'instruction `RUN` et n'est écrit ni dans une couche, ni dans les métadonnées.",
+  },
+  {
+    q: "Pourquoi l'image distroless de l'API ne contient-elle ni shell ni npm, et qu'est-ce que ça change après une RCE ?",
+    options: [
+      "Pour réduire la taille et le nombre de CVE remontées, sans effet sur l'exploitation",
+      "Sans shell ni gestionnaire de paquets, la post-exploitation habituelle échoue",
+      "Parce qu'une RCE devient impossible : sans interpréteur, aucun code ne s'exécute",
+      "Parce que le conteneur tourne alors en lecture seule et avec un utilisateur non root",
+    ],
+    answer: 1,
+    explain: "Une image minimale ne supprime pas la vulnérabilité : le processus `node` est toujours là, et une RCE dans ce processus reste une RCE — c'est le contresens à écarter en premier. Ce qu'elle retire, c'est la suite habituelle : pas de `sh`, pas de `curl`, pas de `npm` pour télécharger un outil ou ouvrir un shell. Bonus de détection : dans un conteneur distroless, « processus enfant de node » n'a quasiment aucun bruit de fond (leçon 8). La réduction de CVE est réelle mais accessoire, et le système de fichiers en lecture seule est un réglage distinct, à poser en plus.",
+  },
+  {
+    q: "L'API tourne avec readonlyRootFilesystem à true et plante au démarrage : une bibliothèque écrit dans /tmp. Quelle correction garde le bénéfice du contrôle ?",
+    options: [
+      "Repasser `readonlyRootFilesystem` à `false`, le conteneur tournant déjà en non-root",
+      "Pointer `TMPDIR` vers un dossier de l'image, créé à la construction avec les bons droits",
+      "Ajouter la capacité `SYS_ADMIN` pour autoriser le remontage du système de fichiers",
+      "Monter un volume dédié et vide sur `/tmp`, le reste restant en lecture seule",
+    ],
+    answer: 3,
+    explain: "Un volume éphémère monté sur `/tmp` (tmpfs, `emptyDir`, volume de tâche ECS) donne l'espace d'écriture nécessaire sans permettre de modifier le code de l'application ni ses binaires. Rediriger `TMPDIR` vers un dossier de l'image est la correction qui semble la plus propre et ne marche pas : ce dossier est lui aussi sur le système de fichiers en lecture seule. Et revenir à `false` parce que le conteneur est non-root confond deux contrôles — un utilisateur non privilégié écrit parfaitement dans les répertoires de l'application, donc y dépose une charge utile.",
+  },
+  {
+    q: "En mars 2026, les tags de l'action GitHub trivy-action ont été réécrits vers un voleur d'identifiants. Quelle leçon pour le job de scan d'image de Novafact ?",
+    options: [
+      "Épingler l'action sur un tag de version mineure (`@v0.28`) plutôt que sur `@master`",
+      "Déplacer le scan après le déploiement, quand les secrets ne sont plus en session",
+      "Épingler l'action par SHA, vérifier la version du binaire, ne donner aucun secret au job",
+      "Ajouter une étape qui vérifie la signature Sigstore de l'action avant son exécution",
+    ],
+    answer: 2,
+    explain: "Un tag est mobile : `@v0.28` se réécrit aussi facilement que `@master`, et c'est exactement ce qui s'est passé — c'est le demi-correctif le plus fréquent. Seul un SHA de commit est immuable. Deuxième moitié de la leçon, au moins aussi importante : l'outil de sécurité est une dépendance de la chaîne d'approvisionnement comme une autre, donc le job de scan ne doit détenir aucun secret de déploiement, car un job qui ne possède rien ne peut rien laisser voler. Repousser le scan après le déploiement ne change pas ce calcul et retarde la détection.",
+  },
+];
+
+<YouKnow>
+Tu as sans doute déjà trouvé dans une image publique un `.env`, un dossier `.git` ou un compilateur complet, et obtenu un shell root dans un conteneur après une RCE. Côté AppSec, le Dockerfile est un contrôle de sécurité : il décide de ce qu'une RCE permet ensuite.
+</YouKnow>
+
+## Ce que ton image offre après une RCE
+
+Imagine une RCE dans l'API Express de Novafact (une désérialisation, une dépendance compromise, un React2Shell côté back-office). Ce que l'attaquant peut faire ensuite dépend presque entièrement de l'image et de sa configuration d'exécution :
+
+| Ce qu'il trouve | Image `node:24` complète, root | Image distroless `nonroot`, FS en lecture seule |
+| --- | --- | --- |
+| Shell, `curl`, `apt`, `npm` | Oui : télécharger et lancer ses outils est trivial | Non : il reste le processus `node` |
+| Écriture sur le système de fichiers | Partout, y compris le code de l'application | Seulement sur `/tmp` monté à part |
+| Utilisateur | root dans le conteneur | UID 65532 sans privilège |
+| Code source, `.git`, `.env` oubliés | Souvent, faute de `.dockerignore` | Non : seuls `dist/` et `node_modules` sont copiés |
+| CVE à trier dans le scan | Des centaines (compilateurs, bibliothèques système) | Quelques-unes |
+
+Le durcissement ne corrige pas la vulnérabilité ; il réduit le **rayon d'action** et le bruit. Il rend aussi la détection simple : dans une image sans shell, un processus enfant de `node` est anormal par construction (leçon 8).
+
+## Le Dockerfile de référence
+
+Trois étapes : les dépendances de production, le build TypeScript, puis une image d'exécution qui ne reçoit que le résultat.
+
+<Code file="apps/api/Dockerfile" hl="6,7,18,21,22">
+
+```dockerfile
+# syntax=docker/dockerfile:1
+
+FROM node:24-trixie-slim AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
+    npm ci --omit=dev --ignore-scripts
+
+FROM node:24-trixie-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
+    npm ci --ignore-scripts
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+FROM gcr.io/distroless/nodejs24-debian13:nonroot
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./
+EXPOSE 3000
+CMD ["dist/server.js"]
+```
+
+</Code>
+
+Chaque ligne a une raison :
+
+- **`npm ci`** installe exactement le lockfile et échoue s'il ne correspond pas à `package.json` ; **`--omit=dev`** laisse dehors les outils de build, de test et de lint, qui ne servent à rien en production et alourdissent le scan.
+- **`--ignore-scripts`** empêche les scripts `postinstall` de s'exécuter pendant le build, vecteur classique des paquets malveillants (M14). Si une dépendance native en a réellement besoin, autorise-la explicitement par un `npm rebuild <paquet>` ciblé.
+- **Le montage secret BuildKit** rend le `.npmrc` (jeton du registre privé `@novafact`) disponible le temps d'une instruction `RUN`, sans l'écrire dans aucune couche. La commande de build le fournit : `docker build --secret id=npmrc,src=$HOME/.npmrc .`
+- **Deux étapes pour les dépendances** : l'étape `deps` produit un `node_modules` de production propre, l'étape `build` a besoin de TypeScript. L'image finale ne reçoit que le premier.
+- **L'image distroless** a `node` pour point d'entrée : le `CMD` est le chemin du script. Le tag `:nonroot` exécute tout sous l'UID 65532.
+- **Pas de `--chown`** : les fichiers copiés appartiennent à root et restent lisibles. L'utilisateur de l'application ne peut pas modifier son propre code.
+
+Complète avec un `.dockerignore` (`.git`, `.env*`, `node_modules`, `coverage`, `*.pem`, `.npmrc`) : sans lui, `COPY . .` dans une autre équipe embarque tout le dépôt. Et épingle chaque `FROM` par digest (`@sha256:…`) : un tag comme `24-trixie-slim` bouge à chaque publication, ce qui est souhaitable pour les correctifs mais doit passer par une PR de Renovate ou Dependabot, pas par un build silencieux.
+
+<Callout kind="warn">
+`ARG` et `ENV` ne sont **jamais** des moyens de passer un secret au build : leurs valeurs restent dans les métadonnées et l'historique de l'image (`docker history`, manifeste). Supprimer le fichier dans une instruction suivante n'efface pas la couche précédente. Si tu trouves ce motif en revue, le jeton est à considérer comme exposé.
+</Callout>
+
+## Choisir l'image de base
+
+| Image | Contenu | Points d'attention |
+| --- | --- | --- |
+| `node:24` | Debian complète, compilateurs | Pratique pour builder, jamais pour exécuter |
+| `node:24-trixie-slim` | Debian réduite, shell, npm | Bon compromis si tu ajoutes `USER node` (UID 1000) |
+| `node:24-alpine` | musl, BusyBox | Petite, mais musl diffère de glibc (modules natifs, DNS) |
+| Distroless `nodejs24-debian13` | Node et ses bibliothèques, sans shell ni gestionnaire de paquets | Déboguer demande le tag `:debug` ou un conteneur annexe |
+| Chainguard, Docker Hardened Images | Images minimales reconstruites en continu, avec SBOM et provenance | Docker a rendu son catalogue gratuit (Apache 2.0) en décembre 2025 ; le délai de correction garanti reste réservé à l'offre payante |
+
+Si tu restes sur une image avec shell, `USER node` est le minimum : Hadolint (règle DL3002) signale un Dockerfile dont le dernier `USER` est root. Et construis l'étape de build sur la même distribution que l'image finale (ici Debian 13) : un module natif compilé contre une autre glibc plante au démarrage.
+
+## À l'exécution : utilisateur, système de fichiers, capacités
+
+L'image fixe les valeurs par défaut ; la plateforme les impose. Les mêmes contrôles existent partout, sous des noms différents :
+
+| Contrôle | `docker run` | Définition de conteneur ECS | Pod Kubernetes (`securityContext`) |
+| --- | --- | --- | --- |
+| Utilisateur non root | `--user 65532` | `user` | `runAsNonRoot: true` |
+| FS en lecture seule | `--read-only` | `readonlyRootFilesystem` | `readOnlyRootFilesystem: true` |
+| Espace d'écriture | `--tmpfs /tmp` | volume de tâche monté sur `/tmp` | volume `emptyDir` |
+| Capacités Linux | `--cap-drop ALL` | `linuxParameters.capabilities.drop` | `capabilities.drop: ["ALL"]` |
+| Init pour PID 1 | `--init` | `linuxParameters.initProcessEnabled` | (processus applicatif qui gère les signaux) |
+
+<Code file="infra/ecs/api-task-definition.json" hl="5,6,8,9">
+
+```json
+{
+  "containerDefinitions": [{
+    "name": "api",
+    "image": "123456789012.dkr.ecr.eu-west-3.amazonaws.com/novafact/api@sha256:…",
+    "user": "65532:65532",
+    "readonlyRootFilesystem": true,
+    "linuxParameters": {
+      "capabilities": { "drop": ["ALL"] },
+      "initProcessEnabled": true
+    },
+    "mountPoints": [{ "sourceVolume": "tmp", "containerPath": "/tmp" }]
+  }],
+  "volumes": [{ "name": "tmp" }]
+}
+```
+
+</Code>
+
+`initProcessEnabled` règle un problème de disponibilité autant que de sécurité : un processus lancé en PID 1 ne reçoit pas les comportements par défaut des signaux. Sans init ni gestionnaire `SIGTERM` dans le code, l'API ignore l'arrêt demandé par ECS, est tuée brutalement au bout du délai, et coupe les requêtes en cours. Ajoute dans tous les cas un arrêt propre (`server.close()` sur `SIGTERM`). Sur Fargate, les conteneurs privilégiés n'existent pas et la seule capacité qu'on peut ajouter est `SYS_PTRACE` : supprimer toutes les capacités ne coûte rien à une API Node.
+
+## Scanner l'image, et tenir le scanner
+
+Le scan d'image cherche les CVE des paquets du système et des dépendances npm, plus les secrets oubliés. Deux outils open source dominent :
+
+<Code file=".github/workflows/image.yml (extrait)">
+
+```bash
+# Trivy : échoue sur les vulnérabilités HIGH et CRITICAL qui ont un correctif
+trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 novafact/api:${GIT_SHA}
+
+# Grype : même logique, autre base de vulnérabilités
+grype novafact/api:${GIT_SHA} --fail-on high
+```
+
+</Code>
+
+Quelques règles rendent le scan utile plutôt que bruyant :
+
+- **bloquer sur ce qui se corrige** (`--ignore-unfixed`) ; le reste entre dans la gestion des vulnérabilités (M5), avec un VEX quand le composant n'est pas atteignable ;
+- **scanner aussi en continu** : une image propre le jour du build ne l'est plus trois semaines plus tard. Le scan amélioré d'ECR (Amazon Inspector) rescanne les images déjà poussées quand une nouvelle CVE sort ;
+- **garder le SBOM** de l'image (`trivy image --format cyclonedx`), pour répondre en minutes à la question « sommes-nous touchés ? » (M13).
+
+<Callout kind="case">
+**Trivy (mars 2026)**. Du 19 au 23 mars 2026, un attaquant a publié une version piégée du binaire Trivy (v0.69.4, puis des images v0.69.5 et v0.69.6), réécrit 76 des 77 tags de l'action `aquasecurity/trivy-action` et les 7 tags de `setup-trivy`. Le code ajouté s'exécutait avant le scan légitime : il lisait la mémoire du processus du runner et une cinquantaine d'emplacements de fichiers pour voler clés SSH, identifiants cloud et jetons, pendant que le pipeline semblait fonctionner normalement. L'avis GHSA-69fq-xp46-6x23 recommande de tourner tous les secrets exposés et d'épingler les actions par SHA de commit.
+</Callout>
+
+La leçon pour Novafact : le job de scan est un job comme un autre (M14). Action épinglée par SHA, version du binaire fixée, et surtout **aucun secret de déploiement** dans ce job : il lit l'image, il ne pousse rien.
+
+<Callout kind="novafact">
+Migration de l'API vers le Dockerfile de référence (chiffres fictifs) : image passée de 1,1 Go (`node:20`, EOL depuis avril 2026) à 190 Mo ; findings Trivy HIGH et CRITICAL passés de 212 à 4, tous dans des dépendances npm ; un `.env` de recette retrouvé dans l'ancienne image et révoqué. Deux ajustements : un volume `/tmp` pour la génération des PDF de factures, et un `npm rebuild` explicite pour le module natif de hachage des mots de passe.
+</Callout>
+
+<Lab id="k8s-goat" note="Plusieurs scénarios partent d'un conteneur trop permissif : lis-les avec la table des contrôles d'exécution sous les yeux." />
+
+<Recap items={[
+  "L'image et sa configuration d'exécution décident de ce qu'une RCE permet ensuite.",
+  "Multi-stage, npm ci --omit=dev, --ignore-scripts, secrets BuildKit, .dockerignore et FROM épinglé par digest.",
+  "Image finale minimale (distroless, Chainguard, Docker Hardened Images) ou au minimum USER node.",
+  "À l'exécution : non root, FS en lecture seule avec /tmp à part, capacités supprimées, init pour PID 1.",
+  "Trivy ou Grype en CI sur ce qui se corrige, rescan continu, SBOM conservé ; le scanner est lui-même une dépendance à épingler.",
+]} />
+
+<Sources items={[
+  { title: "Docker : secrets de build (BuildKit)", url: "https://docs.docker.com/build/building/secrets/" },
+  { title: "OWASP Cheat Sheet : NodeJS Docker", url: "https://cheatsheetseries.owasp.org/cheatsheets/NodeJS_Docker_Cheat_Sheet.html" },
+  { title: "Distroless : images Node.js", url: "https://github.com/GoogleContainerTools/distroless/blob/main/nodejs/README.md" },
+  { title: "Trivy", url: "https://trivy.dev/" },
+  { title: "Grype", url: "https://github.com/anchore/grype" },
+  { title: "Avis GHSA-69fq-xp46-6x23 : compromission de l'écosystème Trivy", url: "https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23" },
+]} />

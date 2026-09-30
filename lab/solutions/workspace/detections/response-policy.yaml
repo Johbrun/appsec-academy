@@ -1,0 +1,48 @@
+# Réponse graduée — corrigé de référence.
+#
+# Détecter sans répondre, c'est documenter l'incident pendant qu'il se déroule.
+# Mais verrouiller au troisième échec, c'est transformer le contrôle en arme de
+# déni de service contre ses propres clients.
+#
+# Les quatre paliers partagent le même axe et la même fenêtre : c'est ce qui
+# fait la graduation. Un cas qui verrouille est forcément passé par les trois
+# paliers d'avant — le harnais le vérifie, précisément parce qu'une réponse qui
+# saute des étapes n'en est pas une.
+#
+# Le dernier palier change de critère et pas seulement de seuil : verrouiller
+# suppose plusieurs comptes distincts. Une intégration cassée qui martèle son
+# propre compte de service mérite un ralentissement, pas un verrou — sinon la
+# production tombe avec l'attaquant.
+stages:
+  - stage: trace
+    window: 15m
+    where:
+      - { field: event.action, op: eq, value: authn_login_fail }
+    group_by: [source.ip]
+    having:
+      - { metric: count, op: gte, value: 3 }
+
+  - stage: alerte
+    window: 15m
+    where:
+      - { field: event.action, op: eq, value: authn_login_fail }
+    group_by: [source.ip]
+    having:
+      - { metric: count, op: gte, value: 10 }
+
+  - stage: ralentissement
+    window: 15m
+    where:
+      - { field: event.action, op: eq, value: authn_login_fail }
+    group_by: [source.ip]
+    having:
+      - { metric: count, op: gte, value: 25 }
+
+  - stage: verrouillage
+    window: 15m
+    where:
+      - { field: event.action, op: eq, value: authn_login_fail }
+    group_by: [source.ip]
+    having:
+      - { metric: count, op: gte, value: 25 }
+      - { metric: distinct, field: user.name, op: gte, value: 10 }

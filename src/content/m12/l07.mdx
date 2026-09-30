@@ -1,0 +1,160 @@
+export const questions = [
+  {
+    q: "Tu as deux jours pour auditer un dépôt de 200 000 lignes. Comment prioriser ?",
+    options: [
+      "Par les modules les plus récemment modifiés, d'après l'historique Git",
+      "Par les fichiers qui concentrent le plus de findings du SAST existant",
+      "Par les modules qui portent le plus de dette technique et de complexité",
+      "Des surfaces les plus exposées vers les actifs les plus précieux",
+    ],
+    answer: 3,
+    explain: "Les trois autres heuristiques ne sont pas absurdes, et on les croise en chemin. Mais elles classent le code selon ce que l'équipe a fait, pas selon ce qu'un attaquant peut atteindre : un module ancien, stable et sans alerte peut porter la route la plus sensible. On suit le chemin de l'attaquant — surfaces d'abord, actifs ensuite —, comme en revue de conception.",
+  },
+  {
+    q: "Que doit produire un audit de code, au-delà de la liste de vulnérabilités ?",
+    options: [
+      "Une note de risque par module, pour arbitrer le budget de l'année suivante",
+      "Des règles et des tests qui empêchent le retour des classes trouvées",
+      "Un plan de correction daté, avec un responsable désigné par constat",
+      "Un jeu de requêtes CodeQL rejouables par l'auditeur lors du prochain audit",
+    ],
+    answer: 1,
+    explain: "Le plan de correction daté et la note de risque servent l'arbitrage, mais ils expirent avec le dernier ticket fermé. Les requêtes gardées par l'auditeur ne protègent qu'au prochain passage. Ce qui continue de protéger, c'est ce qui entre dans le dépôt et la CI de l'équipe : une règle Semgrep, un test de régression, un contrôle de classe — et la carte du code, réutilisable.",
+  },
+  {
+    q: "Pourquoi le rapport d'audit doit-il indiquer précisément ce qui n'a pas été relu ?",
+    options: [
+      "Pour permettre au client de commander une seconde tranche sur le reste du périmètre",
+      "Parce que la méthode impose de documenter le périmètre et les limites de l'audit",
+      "Parce qu'une zone sans constat sera lue comme une zone saine",
+      "Pour que le prochain auditeur reparte des zones déjà couvertes sans les relire",
+    ],
+    answer: 2,
+    explain: "Justifier une tranche complémentaire ou cocher une exigence de méthode sont des conséquences, pas la raison. Et le prochain auditeur ne doit surtout pas sauter les zones déjà vues, puisque le code a changé entre-temps. La raison tient en une phrase : une absence de constat n'est une information que si la couverture est connue. Sans elle, le rapport crée une assurance que personne n'a mesurée.",
+  },
+  {
+    q: "En 2018, le code malveillant glissé dans event-stream ne se déclenchait que dans une seule application. Quel signal de revue cela illustre-t-il ?",
+    options: [
+      "Une condition très spécifique à l'environnement, ici tirée du paquet racine",
+      "Une dépendance dont la maintenance a été transférée à un nouveau contributeur",
+      "Un code minifié publié sur npm sans correspondance avec les sources du dépôt",
+      "Un script postinstall qui télécharge et exécute une charge à l'installation",
+    ],
+    answer: 0,
+    explain: "Le transfert de maintenance et la divergence entre le paquet publié et les sources sont bien réels dans cette affaire, et ce sont d'excellents signaux — mais ils n'expliquent pas ce que la question isole : pourquoi personne ne voyait la charge s'exécuter. La réponse tient à la condition de déclenchement, ici une clé de déchiffrement tirée de la description du paquet racine. Ailleurs que chez la cible, le code ne faisait rien de visible.",
+  },
+];
+
+<YouKnow>
+Tu connais les audits de code en temps limité. Côté AppSec, l'objectif change : ne pas seulement trouver, mais laisser derrière soi des outils qui empêchent le retour de ce qu'on a trouvé.
+</YouKnow>
+
+## Cadrer avant de lire
+
+Un audit limité dans le temps se gagne ou se perd dans la première heure. Avant d'ouvrir un fichier, écris avec le demandeur une page qui fixe :
+
+- **la question** : « un client peut-il accéder aux données d'un autre tenant ? » oriente beaucoup mieux que « est-ce sûr ? » ;
+- **le périmètre** : quels dépôts, quels répertoires, et surtout quel **commit** (on audite un SHA figé, pas une branche qui bouge) ;
+- **ce qui est hors périmètre** : l'infrastructure, les dépendances tierces, le front ;
+- **les accès** : un environnement qui tourne, des comptes de test pour deux tenants, la documentation d'architecture et le threat model (M11) ;
+- **le rendu attendu** et sa date, avec un point d'étape à mi-parcours pour réorienter si besoin.
+
+## Prioriser comme un attaquant
+
+Sur un gros dépôt, tout lire est impossible. Kohnfelder (K7) recommande, pour les revues de conception, d'aller **des surfaces les plus exposées vers les actifs les plus précieux**, comme le ferait un attaquant déterminé. La même logique guide un audit de code. Sur deux jours :
+
+<Steps items={[
+  { title: "Carte (2 h)", text: "La méthode de la leçon 2 : entrées, contrôles, données sensibles." },
+  { title: "Surfaces exposées (1 jour)", text: "Routes publiques non authentifiées, webhooks, imports de fichiers, authentification, OAuth." },
+  { title: "Actifs précieux (une demi-journée)", text: "Accès aux factures, paiements, rôles, secrets, exports." },
+  { title: "Ce qui contourne les contrôles (le reste)", text: "Tout ce qui ne passe pas par les contrôles centraux." },
+]} />
+
+Garde **10 % du temps** pour ce que ton intuition signale : Kohnfelder encourage à suivre son instinct sur les zones qui « sentent » la fragilité (un fichier que tout le monde évite, un module réécrit trois fois, un commentaire `// TODO sécurité`).
+
+## Trois façons de lire, à alterner
+
+*The Art of Software Security Assessment* classe les stratégies d'audit en trois familles. Les connaître aide à changer d'approche quand l'une s'épuise :
+
+| Famille | Principe | Exemple chez Novafact | Limite |
+| --- | --- | --- | --- |
+| **Compréhension du code** | Suivre une entrée à travers le code, ou lire un module en entier | Suivre `POST /imports` de la route jusqu'au rendu PDF | Lent, fatigant après deux heures |
+| **Points candidats** | Partir d'une liste de sinks ou de résultats d'outil, et remonter vers les sources | Les 23 résultats Semgrep sur `findUnique` par id, un par un | Ne trouve que ce que la liste contient |
+| **Généralisation de conception** | Reconstruire le modèle du système, formuler des hypothèses, les vérifier | « Le tenant est toujours pris dans la session » : vrai partout ? | Demande de bien connaître l'architecture |
+
+Alterner garde l'attention vive : une matinée de compréhension, une heure de points candidats après le déjeuner, une hypothèse de conception à vérifier en fin de journée.
+
+## Des notes réutilisables
+
+La carte du code (entrées, contrôles, flux sensibles) a une valeur durable : range-la dans le dépôt, à côté du threat model (M11). Le prochain audit, ou le prochain champion, partira de là plutôt que de zéro.
+
+Tiens aussi une **carte de couverture** : quels fichiers ont été lus en entier, survolés, ou pas ouverts. L'extension weAudit de Trail of Bits pour VS Code le fait simplement : marquer un fichier comme relu, poser des notes et des findings sur une sélection, les partager entre auditeurs. La couverture a un usage que l'on oublie : sans elle, un rapport sans constat sur le module d'export sera lu comme « l'export est sain », alors qu'il n'a peut-être jamais été ouvert.
+
+## Le rapport
+
+Organise le rapport comme une revue de conception (M8) : par **changement recommandé**, priorisé, avec pour chaque constat le lieu, la reproduction, la correction proposée et le test de régression (M6). Donne à chaque constat deux axes distincts : la **gravité** (l'impact si c'est exploité) et la **difficulté** d'exploitation (ce qu'il faut à l'attaquant : un compte, une position réseau, du temps). Les rapports publics de Trail of Bits suivent ce modèle et valent la lecture pour s'en inspirer.
+
+```text
+NF-07  Lecture des pièces jointes sans filtre de tenant
+Gravité     Élevée (données de facturation d'autres clients)
+Difficulté  Faible (compte client de n'importe quel tenant, identifiants séquentiels)
+Lieu        apps/api/src/routes/attachments.ts:41  (commit 3f9c2e1)
+Constat     GET /attachments/:id charge par id seul ; la route n'est pas déclarée via defineRoute.
+Correction  attachments.get(tenantOf(req), id) dans la DAL ; migration vers defineRoute.
+Prévention  Règle Semgrep novafact-find-by-id-without-tenant en bloquant ; test de refus inter-tenant.
+```
+
+Mentionne aussi ce qui est **bien fait** : les bons contrôles méritent d'être protégés, et une équipe qui lit « votre DAL rend la BOLA difficile » la défendra lors du prochain refactoring. Termine par la couverture et les limites : ce qui n'a pas été lu, ce qui a été supposé.
+
+## Capitaliser
+
+Le plus important vient après le rapport :
+
+| Constat | Ce qu'il devient |
+| --- | --- |
+| Une classe de bugs (plusieurs BOLA) | Un contrôle de classe (DAL, defineRoute) et une règle Semgrep |
+| Une vulnérabilité ponctuelle | Un test de régression dans la CI |
+| Une faiblesse de conception | Une décision d'architecture (ADR) et une mise à jour du paved road |
+| Une zone fragile | Une entrée dans CODEOWNERS pour que l'AppSec la relise |
+| Un angle mort de l'outillage | Un model CodeQL ou une règle de taint pour un helper maison (M13, leçon 4) |
+
+<Callout kind="novafact">
+Le dernier audit fictif de Novafact (deux jours, API Express, commit figé) a produit 9 constats, dont 4 BOLA sur des routes secondaires. Un mois plus tard, il en reste : 1 règle Semgrep bloquante qui aurait trouvé les 4 BOLA, 6 tests de régression, 1 ADR (« les pièces jointes passent par des URL présignées de 5 minutes, émises après contrôle d'appartenance »), 2 lignes de plus dans CODEOWNERS, et une carte du code qui a servi deux fois depuis.
+</Callout>
+
+## Le code malveillant
+
+Un audit peut aussi viser le **code malveillant** : backdoors, bombes logiques, code obfusqué dans une dépendance ou dans un script d'installation. La posture change : on ne cherche plus une erreur, mais une **intention cachée**. Les signaux :
+
+- des chaînes à forte entropie, du base64 ou du hexadécimal décodé puis passé à `eval`, `new Function` ou `vm` ;
+- des requêtes vers des domaines ou des adresses IP que rien dans le produit n'explique ;
+- des conditions très spécifiques : une date, un nom d'hôte, une variable d'environnement, le nom de l'application qui installe le paquet ;
+- des scripts `preinstall` ou `postinstall` qui n'ont pas de raison d'être ;
+- un changement de mainteneur récent suivi d'une nouvelle dépendance.
+
+```bash
+npm query ':attr(scripts, [postinstall])' | jq -r '.[].name'     # paquets avec un script d'installation
+rg -l --no-ignore "eval\(|new Function\(|Buffer\.from\([^)]*'base64'\)" node_modules --glob '*.js' | head   # --no-ignore : node_modules est souvent dans .gitignore
+```
+
+<Callout kind="case">
+En 2018, un nouveau mainteneur du paquet npm event-stream (des millions de téléchargements hebdomadaires) y a ajouté une dépendance, flatmap-stream, dont une version contenait une charge chiffrée. La clé de déchiffrement était la description du paquet racine : la charge ne s'activait que dans l'application de portefeuille Bitcoin Copay, pour voler des clés de portefeuilles bien garnis. Partout ailleurs, le code ne faisait rien de visible. Le module 13 y revient avec le cas xz utils.
+</Callout>
+
+<Recap items={[
+  "Cadrer avant de lire : la question, le périmètre, un commit figé, les accès, le rendu.",
+  "Des surfaces exposées vers les actifs précieux, puis ce qui contourne les contrôles ; garder du temps pour l'intuition.",
+  "Alterner compréhension du code, points candidats et généralisation de conception.",
+  "Ranger la carte du code dans le dépôt, et publier la carte de couverture avec le rapport.",
+  "Un rapport par changement recommandé, avec gravité et difficulté, qui mentionne ce qui est bien fait ; chaque constat devient un contrôle, une règle, un test, une ADR ou une entrée CODEOWNERS.",
+  "Le code malveillant se cherche par l'intention cachée : entropie, conditions très spécifiques, destinations inexpliquées, scripts d'installation.",
+]} />
+
+<Sources items={[
+  { title: "Dowd, McDonald & Schuh, The Art of Software Security Assessment", url: "https://www.oreilly.com/library/view/the-art-of/0321444426/" },
+  { title: "Trail of Bits Testing Handbook", url: "https://appsec.guide/" },
+  { title: "Trail of Bits : rapports d'audit publics", url: "https://github.com/trailofbits/publications" },
+  { title: "Trail of Bits : weAudit pour VS Code", url: "https://blog.trailofbits.com/2024/03/19/read-code-like-a-pro-with-our-weaudit-vscode-extension/" },
+  { title: "npm : détails de l'incident event-stream", url: "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 7, Where to Dig" },
+]} />

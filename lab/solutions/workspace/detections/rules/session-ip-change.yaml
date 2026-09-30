@@ -1,0 +1,27 @@
+id: session-ip-change
+name: Changement d’adresse source en cours de session
+description: Une même session est utilisée depuis plusieurs adresses en peu de temps.
+severity: medium
+risk_score: 42
+tags:
+  - 'Domaine: Identité'
+  - 'Tactique: Credential Access'
+  - 'Technique: T1539'
+interval: 5m
+from: now-20m
+note: |-
+  ## Triage
+
+  1. Comparer les adresses : opérateur mobile ou continents différents ?
+query:
+  window: 10m
+  where:
+    - field: novafact.session.id
+      op: exists
+  group_by:
+    - novafact.session.id
+  having:
+    - metric: distinct
+      field: source.ip
+      op: gte
+      value: 2

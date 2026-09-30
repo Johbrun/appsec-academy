@@ -1,0 +1,211 @@
+export const questions = [
+  {
+    q: "Une clé commençant par `AKIA` est trouvée dans le `.env` d'une image Docker. Qu'est-ce que le préfixe t'apprend ?",
+    options: [
+      "Une clé longue durée d'utilisateur IAM : elle reste valide jusqu'à sa désactivation",
+      "Une clé de session STS : elle expire d'elle-même, la fuite se referme sans intervention",
+      "Une clé du compte racine : le préfixe `AKIA` est réservé aux identifiants root",
+      "Rien de précis : le préfixe encode la région d'émission, pas le type d'identifiant",
+    ],
+    answer: 0,
+    explain: "`AKIA` désigne une clé longue durée, `ASIA` les identifiants temporaires de STS, qui viennent avec un jeton de session et une expiration. Le raisonnement tentant est justement « c'est temporaire, ça va expirer » : ici rien n'expire, il faut désactiver la clé, la supprimer, puis relire CloudTrail sur toute la période depuis la publication de l'image. Le préfixe ne dit rien de la région ni du caractère root de l'identité.",
+  },
+  {
+    q: "Pourquoi IAM Identity Center plutôt que des utilisateurs IAM pour les développeurs de Novafact ?",
+    options: [
+      "Parce qu'il applique la MFA, que les utilisateurs IAM ne savent pas gérer",
+      "Parce que l'identité vient de l'annuaire d'entreprise et l'accès de jetons temporaires",
+      "Parce qu'il remplace les politiques IAM par des permission sets, qu'on n'écrit plus",
+      "Parce qu'il évite un rôle par compte : un seul rôle global sert toute l'organisation",
+    ],
+    answer: 1,
+    explain: "Un départ désactivé dans l'annuaire coupe tous les accès AWS le jour même, et aucun secret longue durée ne traîne sur les postes. Les deux arguments tentants sont faux sur le détail : les utilisateurs IAM acceptent parfaitement la MFA (le problème est ailleurs, dans les clés qu'ils portent), et un permission set n'est rien d'autre qu'un jeu de politiques IAM matérialisé en rôle dans chaque compte — il reste à écrire et à réduire.",
+  },
+  {
+    q: "Après la centralisation de la gestion du root dans l'organisation, comment Novafact débloque-t-elle un bucket dont la politique refuse tout le monde, dans un compte membre sans identifiants root ?",
+    options: [
+      "En contactant le support AWS, seul habilité à lever une politique de bucket bloquante",
+      "En réinitialisant le mot de passe root du compte membre par courriel de récupération",
+      "Depuis le compte de gestion, avec une session root courte obtenue par `sts:AssumeRoot`",
+      "Avec `OrganizationAccountAccessRole`, dont les droits administrateur priment sur le bucket",
+    ],
+    answer: 2,
+    explain: "La session `sts:AssumeRoot` est courte et bornée à une tâche précise (ici `S3UnlockBucketPolicy`), sans mot de passe root à conserver nulle part. Passer par `OrganizationAccountAccessRole` est le réflexe naturel et ne marche pas : c'est un rôle administrateur du compte, et un `Deny` explicite dans une politique de bucket s'applique aussi aux administrateurs — seul le root du compte propriétaire y échappe.",
+  },
+  {
+    q: "Un développeur a exporté `AWS_ACCESS_KEY_ID` dans son shell et lance l'API en local avec `AWS_PROFILE=novafact-dev`. Quelles permissions le SDK utilise-t-il ?",
+    options: [
+      "Celles du profil SSO : `AWS_PROFILE` est lu en premier et fixe la source d'identifiants",
+      "Celles du profil : une clé sans `AWS_SESSION_TOKEN` est ignorée par le SDK v3",
+      "Aucune : le SDK v3 lève une erreur quand deux sources d'identifiants sont configurées",
+      "Celles de la clé exportée : les variables d'environnement passent avant le profil",
+    ],
+    answer: 3,
+    explain: "Dans la chaîne par défaut du SDK v3, `fromEnv()` est interrogé avant SSO et avant les fichiers partagés. `AWS_PROFILE` paraît plus explicite, et c'est là que se joue le piège : il ne choisit pas la source d'identifiants, il nomme seulement un profil que la chaîne consultera plus bas. Rien n'échoue et rien n'avertit — l'appel part simplement avec les droits de la clé oubliée.",
+  },
+];
+
+<YouKnow>
+Tu as déjà trouvé une clé `AKIA…` dans un dépôt, une image ou un bundle JavaScript. Chaque clé longue durée est une identité qui ne dort jamais et qu'on oublie de révoquer. La bonne cible n'est pas « mieux protéger les clés », c'est **ne plus en avoir**.
+</YouKnow>
+
+## Pourquoi viser zéro utilisateur IAM
+
+Un utilisateur IAM avec une clé d'accès, c'est un secret **longue durée**, **portable** (il fonctionne depuis n'importe quel poste, n'importe où) et **impersonnel** (une clé partagée par une équipe ne dit pas qui l'a utilisée). Il finit dans un `.env`, un historique Git, un poste volé, un runner CI. Les bonnes pratiques IAM d'AWS le disent sans détour : les humains passent par la **fédération** avec un fournisseur d'identité et des identifiants temporaires, les workloads par des **rôles**.
+
+Le préfixe te le dit au premier coup d'œil : `AKIA` pour une clé longue durée d'utilisateur IAM, `ASIA` pour des identifiants temporaires issus de STS, qui arrivent toujours avec un jeton de session et une date d'expiration.
+
+| Qui a besoin d'AWS ? | Mécanisme cible | Détail |
+| --- | --- | --- |
+| Développeurs, ops, support | **IAM Identity Center**, fédéré avec l'IdP de l'entreprise | Permission sets, sessions courtes, MFA à l'IdP |
+| Workloads dans AWS (Lambda, ECS, EKS, EC2) | **Rôle** de la ressource | Identifiants livrés et renouvelés par la plateforme (leçon 3) |
+| CI/CD (GitHub Actions) | **Fédération OIDC** vers un rôle | Pas de secret stocké dans GitHub (M14, leçon 2) |
+| Serveurs hors AWS | **IAM Roles Anywhere** | Certificat X.509 échangé contre une session |
+| Éditeur tiers qui agit dans ton compte | **Rôle cross-account** avec `ExternalId` | Voir la leçon 4 |
+| Accès d'urgence | Comptes *break-glass* dédiés, surveillés | La seule exception assumée (leçon 6) |
+
+<Callout kind="novafact">
+L'inventaire de Novafact a trouvé onze utilisateurs IAM. Neuf étaient des humains qui s'étaient créé un accès « le temps de », un était le vieux déploiement Jenkins, et le dernier servait aux **identifiants SMTP d'Amazon SES**, qui sont dérivés d'une clé d'utilisateur IAM. La correction du dernier a été la plus intéressante : l'API envoie désormais les factures par l'API SES v2 (`@aws-sdk/client-sesv2`) avec le rôle de sa tâche ECS, et l'utilisateur SMTP a disparu.
+</Callout>
+
+## Les humains : IAM Identity Center
+
+Identity Center branche l'annuaire de l'entreprise (Entra ID, Okta, Google Workspace…) sur l'organisation AWS : authentification par SAML ou OIDC, provisionnement des utilisateurs et groupes par **SCIM**, MFA appliquée par l'IdP. Un départ désactivé dans l'annuaire coupe tous les accès AWS (M7).
+
+Les droits se décrivent en **permission sets**, qu'Identity Center matérialise dans chaque compte cible sous forme de rôles nommés `AWSReservedSSO_<permission set>_<suffixe>`. Un humain ne « possède » donc jamais de permission : il endosse un rôle pour une session limitée dans le temps.
+
+| Permission set chez Novafact | Comptes | Contenu |
+| --- | --- | --- |
+| `ReadOnly` | Tous | Lecture de la configuration, pas des données (pas de `s3:GetObject` sur les buckets clients) |
+| `Developer` | Sandbox, staging | Déploiement et débogage, jamais d'IAM hors boundary |
+| `ProdSupport` | Production | Lecture, redémarrage de services, pas d'accès direct aux données |
+| `SecurityAudit` | Tous | Politique gérée `SecurityAudit`, lecture des journaux |
+
+En ligne de commande et dans le SDK, la même mécanique s'applique : `aws configure sso` crée un profil, `aws sso login --profile novafact-dev` ouvre la session, et le SDK JavaScript v3 la reprend via le fournisseur SSO de sa chaîne. Aucun secret ne traîne sur le poste au-delà de la durée de la session.
+
+## Les workloads : des rôles et STS
+
+Tout identifiant temporaire vient de **STS**. Les appels à connaître :
+
+- `AssumeRole` : un principal AWS endosse un rôle (cross-account, élévation ponctuelle) ;
+- `AssumeRoleWithWebIdentity` : un jeton OIDC (GitHub Actions, EKS, Cognito) est échangé contre une session ;
+- `AssumeRoleWithSAML` : une assertion SAML est échangée contre une session ;
+- `GetSessionToken` : session temporaire pour un utilisateur IAM existant, typiquement pour exiger la MFA.
+
+Une session de rôle dure **une heure par défaut** et au plus la valeur `MaxSessionDuration` du rôle (**douze heures** au maximum). Le **chaînage de rôles** (un rôle qui en endosse un autre) est plafonné à une heure. Pour la traçabilité, impose un **nom de session** significatif et, pour les humains, la **source identity** (`sts:SetSourceIdentity`), qui suit la session à travers les chaînages et apparaît dans CloudTrail.
+
+Côté code Node, la bonne configuration est souvent **l'absence de configuration** :
+
+<Diff file="apps/api/src/aws.ts" hlBefore="3,4,5,6,7" hlAfter="3,4,5" stack>
+
+```ts
+import { S3Client } from '@aws-sdk/client-s3';
+
+export const s3 = new S3Client({
+  region: 'eu-west-3',
+  credentials: {
+    accessKeyId: process.env.AWS_KEY!,
+    secretAccessKey: process.env.AWS_SECRET!,
+  },
+});
+```
+
+```ts
+import { S3Client } from '@aws-sdk/client-s3';
+
+// Pas d'identifiants dans le code : la chaîne par défaut du SDK v3 trouve
+// le rôle de la tâche ECS en production et le profil SSO en local.
+export const s3 = new S3Client({ region: 'eu-west-3' });
+```
+
+</Diff>
+
+<Callout kind="warn">
+La chaîne par défaut s'arrête au **premier** fournisseur qui répond, et les variables d'environnement passent en premier. Une `AWS_ACCESS_KEY_ID` oubliée dans un shell, un fichier `.env` ou une définition de conteneur masque le profil SSO ou le rôle de la tâche, sans erreur. La leçon 3 montre comment vérifier l'identité effective au démarrage.
+</Callout>
+
+**Révoquer une session** ne passe pas par la suppression d'un secret. Dans la console IAM, « Revoke active sessions » attache au rôle une politique inline qui refuse tout aux sessions émises avant l'instant présent, via la clé `aws:TokenIssueTime`. C'est le geste de confinement quand une session de rôle a fuité (M18).
+
+## Le compte racine
+
+Le compte racine de chaque compte AWS a un accès total que ni IAM ni une boundary ne limitent (seules les SCP le peuvent, dans les comptes membres). Hygiène minimale : MFA (AWS l'impose désormais), **aucune clé d'accès**, adresse e-mail de contact sur une liste gérée par l'équipe, pas une boîte personnelle.
+
+Dans une organisation, AWS propose la **gestion centralisée de l'accès root** des comptes membres :
+
+<Code file="scripts/org/centralize-root.sh">
+
+```bash
+# Depuis le compte de gestion : activer l'accès de confiance pour IAM
+aws organizations enable-aws-service-access --service-principal iam.amazonaws.com
+
+# Gérer les identifiants root des comptes membres (et les supprimer)
+aws iam enable-organizations-root-credentials-management
+
+# Autoriser les sessions root privilégiées, limitées à une tâche
+aws iam enable-organizations-root-sessions
+```
+
+</Code>
+
+Ensuite, les comptes membres peuvent perdre tout identifiant root (mot de passe, clés, MFA), et les nouveaux comptes naissent sans. Les rares tâches qui exigent le root (supprimer une politique de bucket ou de file SQS qui refuse tout le monde, auditer ou supprimer des identifiants root) se font par une **session root à tâche limitée** : `sts:AssumeRoot` avec une politique de tâche gérée par AWS (`S3UnlockBucketPolicy`, `SQSUnlockQueuePolicy`, `IAMAuditRootUserCredentials`, `IAMDeleteRootUserCredentials`…). Plus de coffre-fort de mots de passe root par compte.
+
+Toute utilisation du root, même légitime, déclenche une alerte : dans CloudTrail, `userIdentity.type` vaut `Root`, et une règle Elastic (M18) le signale en temps réel.
+
+<Callout kind="case">
+En 2016, des attaquants ont trouvé une clé d'accès AWS dans un dépôt GitHub privé utilisé par des ingénieurs d'Uber, puis s'en sont servis pour télécharger depuis S3 des données concernant environ 57 millions d'utilisateurs et de chauffeurs. Le dépôt était privé, la clé était longue durée, et rien ne signalait son usage anormal. Chaque élément de la chaîne disparaît avec des identifiants temporaires issus d'un rôle.
+</Callout>
+
+## Migrer sans casser la production
+
+<Steps items={[
+  { title: "Inventorier", text: "`aws iam generate-credential-report` puis `aws iam get-credential-report` : chaque utilisateur, ses clés, leur date de dernière utilisation et le service appelé." },
+  { title: "Attribuer un propriétaire", text: "Chaque clé encore utilisée a un humain responsable et un usage identifié (poste, script, intégration)." },
+  { title: "Remplacer", text: "Identity Center pour les humains, rôle de workload, OIDC pour la CI, Roles Anywhere pour l'extérieur." },
+  { title: "Désactiver avant de supprimer", text: "`aws iam update-access-key --status Inactive` : une désactivation se réactive en cas d'oubli, une suppression non. Surveille CloudTrail pendant deux à quatre semaines." },
+  { title: "Empêcher le retour", text: "Une SCP refuse la création d'utilisateurs et de clés, sauf pour le rôle qui gère le break-glass." },
+]} />
+
+<Code file="infra/org/scp-no-iam-users.json" hl="6,7,8,9,10,11,12,13">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyIamUsersAndKeys",
+      "Effect": "Deny",
+      "Action": ["iam:CreateUser", "iam:CreateAccessKey", "iam:CreateLoginProfile"],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalArn": "arn:aws:iam::*:role/org-breakglass-admin"
+        }
+      }
+    }
+  ]
+}
+```
+
+</Code>
+
+La condition sur `aws:PrincipalArn` vise l'ARN du **rôle** (et non celui de la session), ce qui permet d'exempter un rôle précis quel que soit le nom de session.
+
+<Recap items={[
+  "Une clé AKIA est un secret longue durée ; ASIA signale des identifiants temporaires issus de STS.",
+  "Humains : Identity Center fédéré avec l'IdP, permission sets matérialisés en rôles, sessions courtes.",
+  "Workloads : un rôle par ressource et aucun identifiant dans le code ; la chaîne par défaut du SDK s'en charge.",
+  "Sessions : une heure par défaut, douze au maximum, une heure en chaînage ; révocation par aws:TokenIssueTime.",
+  "Root : MFA, pas de clés, gestion centralisée dans l'organisation et sessions root à tâche limitée ; alerte à chaque usage.",
+  "Migrer : inventorier, attribuer, remplacer, désactiver, surveiller, puis bloquer le retour par SCP.",
+]} />
+
+<Lab id="flaws" />
+
+<Sources items={[
+  { title: "AWS IAM : Security best practices", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html" },
+  { title: "AWS IAM Identity Center : What is IAM Identity Center?", url: "https://docs.aws.amazon.com/singlesignon/latest/userguide/what-is.html" },
+  { title: "AWS IAM : Temporary security credentials", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html" },
+  { title: "AWS IAM : AWS account root user", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user.html" },
+  { title: "AWS IAM : Centralize root access for member accounts", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-enable-root-access.html" },
+  { title: "AWS SDK for JavaScript v3 : Set credentials in Node.js", url: "https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/setting-credentials-node.html" },
+]} />

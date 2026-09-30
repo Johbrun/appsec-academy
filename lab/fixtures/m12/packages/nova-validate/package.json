@@ -1,0 +1,1 @@
+{ "name": "nova-validate", "version": "0.9.3", "main": "lib/pattern.js", "description": "Validation des références de document." }

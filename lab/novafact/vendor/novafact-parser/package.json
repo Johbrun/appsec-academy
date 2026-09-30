@@ -1,0 +1,7 @@
+{
+  "name": "@novafact/parser",
+  "version": "0.9.1",
+  "description": "Analyseur de références de facture — paquet vendorisé, fixture du lab.",
+  "main": "build/index.min.js",
+  "scripts": { "build": "esbuild src/index.js --minify --outfile=build/index.min.js" }
+}

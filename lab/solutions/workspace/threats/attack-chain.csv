@@ -1,0 +1,6 @@
+challenge,cwe,capec,attack,attack_name
+nosql-auth,CWE-943,CAPEC-676,T1190,Exploit Public-Facing Application
+path-traversal,CWE-22,CAPEC-126,T1083,File and Directory Discovery
+ssrf-imds,CWE-918,CAPEC-664,T1552.005,Unsecured Credentials: Cloud Instance Metadata API
+no-rate-limit,CWE-307,CAPEC-600,T1110.004,Credential Stuffing
+npm-token-in-repo,CWE-798,CAPEC-37,T1552.001,Unsecured Credentials: Credentials In Files

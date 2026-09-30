@@ -1,0 +1,159 @@
+export const questions = [
+  {
+    q: "Un rôle IAM de Novafact a été utilisé depuis une IP inconnue. Par où commencer l’investigation ?",
+    options: [
+      "Supprimer le rôle immédiatement : couper l’accès prime sur la compréhension",
+      "Supprimer les clés et le rôle, puis analyser une fois la menace neutralisée",
+      "Reconstituer la chronologie dans CloudTrail, puis contenir avant d’éradiquer",
+      "Faire tourner les identifiants de tous les rôles du compte avant toute analyse",
+    ],
+    answer: 2,
+    explain: "On mesure l’étendue avant d’agir : CloudTrail dit quelles actions, depuis quand, avec quel jeton et sous quel `userIdentity`. Sans cela, on contient au mauvais endroit et on ignore ce qui a été créé ailleurs — une clé, un rôle de persistance, une règle de transfert de courrier. L’instinct de supprimer tout de suite est compréhensible et détruit les preuves : le rôle supprimé, ses sessions et ses références deviennent illisibles. Contenir n’est pas éradiquer : on coupe l’accès de façon réversible, par un `Deny` explicite et la révocation des sessions, en gardant tout ce qui permet de comprendre.",
+  },
+  {
+    q: "Pourquoi la révocation d’une session IAM compromise ne suffit-elle pas toujours ?",
+    options: [
+      "Les identifiants déjà émis restent valides : il faut refuser ceux d’avant le confinement",
+      "Parce qu’il faut aussi supprimer le rôle, les sessions lui survivant autrement",
+      "Parce que la révocation ne vaut que pour les sessions du même compte, pas pour les inter-comptes",
+      "Parce que la MFA de la session empêche toute révocation avant son expiration",
+    ],
+    answer: 0,
+    explain: "Un jeton STS déjà émis n’est révoqué par rien : il reste valide jusqu’à son expiration, une heure ou douze selon la durée demandée. AWS propose pour cela une politique « revoke older sessions » fondée sur `aws:TokenIssueTime`, qui refuse tout jeton émis avant l’instant du confinement sans toucher au rôle. Supprimer le rôle marcherait aussi, et casserait du même coup tous ses usages légitimes — c’est la solution brutale qu’on garde pour la phase d’éradication. Ni la MFA ni le compte d’origine n’entrent dans l’affaire.",
+  },
+  {
+    q: "À quoi sert un modèle de maturité comme le DEBMM (Detection Engineering Behavior Maturity Model) ?",
+    options: [
+      "Mesurer la couverture ATT&CK d’un parc de règles et en déduire les manques",
+      "Situer et faire progresser la pratique de detection engineering d’une équipe",
+      "Classer les détections par fiabilité, du signal brut à la règle à haute confiance",
+      "Noter la maturité d’un fournisseur de SIEM avant de le retenir en appel d’offres",
+    ],
+    answer: 1,
+    explain: "Comme SAMM pour l’AppSec, le DEBMM donne des repères pour faire progresser une capacité dans la durée : passer de détections ad hoc à des détections versionnées, documentées, testées et mesurées. Ce n’est pas un instrument de mesure de couverture — la carte ATT&CK joue ce rôle, et on a vu (leçon 4) qu’elle mesure des associations, pas de l’efficacité. Ce n’est pas davantage un classement des règles par fiabilité ni une grille d’évaluation d’éditeurs : il porte sur la pratique de l’équipe, pas sur son outillage.",
+  },
+];
+
+<YouKnow>
+Tu as sûrement été du côté attaquant d’un exercice où l’équipe défense fouillait les logs sous pression. Cette leçon est le manuel de cette équipe : mesurer sa maturité, enquêter dans CloudTrail et contenir sans casser la preuve.
+</YouKnow>
+
+## Mesurer la maturité de la détection
+
+Écrire des détections (leçon 4) est une chose ; construire une **capacité** qui s’améliore en est une autre. Le **DEBMM** (Detection Engineering Behavior Maturity Model, publié par Elastic) décrit des comportements d’équipe, du plus artisanal au plus mûr :
+
+| Niveau | Comportement typique |
+| --- | --- |
+| **Bas** | Détections écrites à la main dans l’interface, non versionnées, jamais testées |
+| **Intermédiaire** | Détections en dépôt Git (detection-as-code), revues, documentées (ADS) |
+| **Élevé** | Tests automatisés (rejeu d’événements), couverture ATT&CK suivie, métriques de qualité (taux de faux positifs, délai de détection) |
+| **Avancé** | Boucle continue : chaque incident et chaque exercice produit une détection nouvelle ou améliorée |
+
+C’est l’équivalent défensif de SAMM (M3) : un repère pour progresser, pas une note. La question utile n’est pas « avons-nous une règle ? » mais « comment cette règle est-elle née, testée et mesurée ? ».
+
+## Les métriques de détection
+
+Quelques indicateurs qui orientent l’effort, à manier comme ceux de M6 (attention à la loi de Goodhart) :
+
+- **MTTD** (délai moyen de détection) et **MTTR** (délai de réponse) ;
+- le **taux de faux positifs** par règle, qui décide de ce qu’on garde ;
+- la **couverture ATT&CK** des techniques pertinentes pour une application (M11), visualisée avec le Navigator ;
+- le **temps de résidence** (*dwell time*) : combien de temps un accès a duré avant d’être vu.
+
+## La réponse à incident applicatif
+
+Le cadre classique (NIST SP 800-61) tient en quatre temps. Le piège le plus fréquent est d’**éradiquer avant d’avoir compris**, ce qui détruit les preuves et masque l’étendue.
+
+<Steps items={[
+  { title: "Préparer", text: "Runbooks, accès break-glass (M15), journaux immuables et centralisés (leçon 1), rôles définis. Se prépare avant l’incident, pas pendant." },
+  { title: "Détecter et analyser", text: "Confirmer l’alerte, qualifier la gravité, reconstituer la chronologie. Qu’est-ce qui a été atteint, depuis quand, comment ?" },
+  { title: "Contenir", text: "Couper l’accès sans détruire les preuves : révoquer les sessions, restreindre le rôle, isoler l’instance (la mettre en quarantaine plutôt que la terminer)." },
+  { title: "Éradiquer et rétablir", text: "Retirer l’accès de l’attaquant (rotation des secrets, correction de la faille), restaurer depuis une base saine, surveiller le retour." },
+]} />
+
+Un cinquième temps, souvent sauté : le **retour d’expérience**. Chaque incident produit une détection nouvelle ou améliorée (la boucle du DEBMM) et souvent une exigence ou une règle (M6, M13).
+
+## Enquêter dans CloudTrail
+
+Pour Novafact, CloudTrail est le journal de référence de tout ce qui touche AWS. L’investigation d’un accès suspect suit un fil précis :
+
+<Code file="investigation.md">
+
+```text
+1. Qui ? Isoler l'identité : userIdentity.arn, accessKeyId, sessionContext.
+2. Quand ? Borne temporelle : première et dernière action de cette identité.
+3. Quoi ? Lister les eventName : lecture (Get*, List*, Describe*) vs écriture/impact
+   (Create*, Delete*, Put*, *AccessKey, AssumeRole).
+4. D'où ? sourceIPAddress et userAgent : hors VPC ? client SDK inhabituel ?
+5. Comment obtenu ? Remonter au sessionContext : quel rôle, assumé par qui, depuis quand.
+```
+
+</Code>
+
+ES|QL (leçon 3) sur l’index CloudTrail rend cette enquête rapide :
+
+<Code file="hunt-cloudtrail.esql">
+
+```sql
+FROM logs-aws.cloudtrail-*
+| WHERE user.name == "role/support-tools" AND @timestamp > NOW() - 24 hours
+| STATS actions = COUNT(*), first = MIN(@timestamp), last = MAX(@timestamp)
+    BY event.action, source.ip
+| SORT actions DESC
+```
+
+</Code>
+
+<Callout kind="case">
+Lors de la compromission de comptes Snowflake attribuée à UNC5537 (2024), l’absence de MFA et la longue durée de résidence ont pesé lourd. La leçon défensive : des identifiants courts, la MFA partout, et surtout des journaux exploitables assez tôt pour réduire le temps de résidence. Une détection ne vaut que si quelqu’un la voit vite.
+</Callout>
+
+## Contenir un accès IAM sans tout casser
+
+Révoquer une session IAM est subtil : les **identifiants temporaires déjà émis restent valides jusqu’à leur expiration**. Supprimer le rôle casserait les usages légitimes et alerterait l’attaquant. La bonne réponse est une politique en ligne qui **refuse toute session émise avant l’instant du confinement** :
+
+<Code file="containment/revoke-sessions.json">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Deny",
+    "Action": "*",
+    "Resource": "*",
+    "Condition": {
+      "DateLessThan": { "aws:TokenIssueTime": "2026-09-28T09:15:00Z" }
+    }
+  }]
+}
+```
+
+</Code>
+
+Attachée au rôle compromis, elle invalide immédiatement les jetons volés tout en laissant les nouvelles sessions légitimes fonctionner, sans détruire le rôle ni les preuves. En parallèle : rotation des secrets exposés (M13, leçon 7), restriction de la politique de confiance, et enquête sur ce que le jeton a fait.
+
+<Callout kind="novafact">
+Le runbook « accès AWS suspect » de Novafact tient en une page : appliquer la politique de révocation horodatée sur le rôle, geler ses clés, ouvrir un tableau de bord Kibana filtré sur l’identité, prévenir l’astreinte, et n’éradiquer (rotation, correction) qu’une fois la chronologie établie. Les instantanés des volumes concernés sont pris avant toute action destructive.
+</Callout>
+
+## Les honeytokens comme signal de dernier recours
+
+Un **honeytoken** (leçon 5) est une ressource-piège qui n’a aucune raison légitime d’être touchée : une fausse clé AWS dans un fichier de configuration, une facture-appât. Toute interaction est, par construction, un incident à très faible taux de faux positifs. C’est souvent la détection qui réduit le plus le temps de résidence, parce qu’elle se déclenche tôt dans la chaîne, quand l’attaquant explore.
+
+<Recap items={[
+  "Le DEBMM situe la maturité de la détection : des règles ad hoc vers des détections versionnées, testées et mesurées.",
+  "Réponse à incident : préparer, analyser, contenir, éradiquer et rétablir, puis en tirer une détection.",
+  "Comprendre l’étendue dans CloudTrail (qui, quand, quoi, d’où, comment) avant d’éradiquer.",
+  "Contenir un rôle IAM avec une politique aws:TokenIssueTime, sans détruire rôle ni preuves.",
+  "Honeytokens et journaux exploitables réduisent le temps de résidence : une détection ne vaut que vue à temps.",
+]} />
+
+<Lab id="stratus" note="Rejoue une technique d’attaque cloud avec Stratus Red Team dans un compte de test, puis retrouve-la dans CloudTrail et écris la détection." />
+
+<Sources items={[
+  { title: "Elastic : Detection Engineering Behavior Maturity Model", url: "https://www.elastic.co/security-labs/elastic-releases-debmm" },
+  { title: "NIST SP 800-61r3 : Incident Response", url: "https://csrc.nist.gov/pubs/sp/800/61/r3/final" },
+  { title: "AWS : révoquer les identifiants temporaires d’un rôle", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_revoke-sessions.html" },
+  { title: "AWS : interroger CloudTrail", url: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference.html" },
+  { title: "Mandiant : UNC5537 (Snowflake)", url: "https://cloud.google.com/blog/topics/threat-intelligence/unc5537-snowflake-data-theft-extortion" },
+]} />

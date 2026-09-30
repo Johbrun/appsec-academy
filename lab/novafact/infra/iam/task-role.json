@@ -1,0 +1,27 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "RoleName": "novafact-task-role",
+  "Description": "Rôle porté par la tâche ECS de l'API Novafact.",
+  "AssumeRolePolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "TachesEcs",
+        "Effect": "Allow",
+        "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+        "Action": "sts:AssumeRole"
+      }
+    ]
+  },
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "LeTempsDeFaireMarcherLeDeploiement",
+        "Effect": "Allow",
+        "Action": "*",
+        "Resource": "*"
+      }
+    ]
+  }
+}

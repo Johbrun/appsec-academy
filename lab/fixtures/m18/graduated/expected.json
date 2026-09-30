@@ -1,0 +1,31 @@
+{
+  "_note": "Le palier maximal que la politique doit atteindre pour chaque cas. C’est une spécification, pas une devinette : le travail est de trouver l’axe, la fenêtre et les seuils qui la réalisent.",
+  "stages": [
+    "aucun",
+    "trace",
+    "alerte",
+    "ralentissement",
+    "verrouillage"
+  ],
+  "expected": {
+    "attaquant-1": "verrouillage",
+    "attaquant-2": "verrouillage",
+    "attaquant-3": "verrouillage",
+    "integration-cassee-1": "ralentissement",
+    "integration-cassee-2": "ralentissement",
+    "oubli-1": "alerte",
+    "oubli-2": "alerte",
+    "oubli-3": "alerte",
+    "oubli-4": "alerte",
+    "maladroit-1": "trace",
+    "maladroit-2": "trace",
+    "maladroit-3": "trace",
+    "maladroit-4": "trace",
+    "maladroit-5": "trace",
+    "maladroit-6": "trace",
+    "maladroit-7": "trace",
+    "maladroit-8": "trace",
+    "bureau-partage-1": "aucun",
+    "bureau-partage-2": "aucun"
+  }
+}

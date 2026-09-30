@@ -1,0 +1,42 @@
+name: Triage IA des pull requests
+
+# Un agent lit la pull request et propose un classement.
+#
+# Ce workflow passe toutes les règles de durcissement de M14 : permissions
+# déclarées, actions épinglées au SHA, aucune donnée non fiable interpolée dans
+# un `run:`. Et il fuit quand même — parce que le puits d'injection n'est pas le
+# shell, c'est le modèle.
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Classer la pull request
+        uses: novafact/ai-agent-action@9d2b1f4c6a8e30517bd4c2e90f81a637b5c0de24 # v1.3.0
+        env:
+          # Le canari du dépôt. Le step d'agent en hérite « au cas où il aurait
+          # besoin d'appeler l'API interne ».
+          NOVAFACT_CANARY: ${{ secrets.NOVAFACT_CANARY }}
+          NODE_ENV: production
+        with:
+          prompt: |
+            Tu classes les pull requests du dépôt Novafact.
+            Titre de la pull request : ${{ github.event.pull_request.title }}
+            Réponds par une seule étiquette parmi : bug, feature, support, infra.
+
+      - name: Résumé
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo "Triage terminé pour la PR $PR_NUMBER"

@@ -1,0 +1,209 @@
+export const questions = [
+  {
+    q: "Comment intégrer le threat modeling dans un rythme agile ?",
+    options: [
+      "Un threat model complet chaque trimestre, revu en séance avec l'équipe sécurité et le produit",
+      "Un threat model au démarrage, complété avant chaque mise en production",
+      "Des threat models légers, incrémentaux, déclenchés par les changements structurants",
+      "Un threat model par epic, rédigé par l'AppSec et validé par l'équipe",
+    ],
+    answer: 2,
+    explain: "Un modèle vivant, mis à jour par petites touches à chaque changement structurant, reste utile ; un modèle périodique se périme entre deux passages et personne ne le rouvre. Le rythme trimestriel est le compromis le plus souvent proposé, et c'est le même défaut à plus haute fréquence : il se déclenche sur le calendrier, pas sur ce qui change. Quant à confier la rédaction à l'AppSec, c'est le Hero Threat Modeler du Manifesto.",
+  },
+  {
+    q: "Quel outil d'AWS aide à rédiger des threat models structurés ?",
+    options: [
+      "Amazon Inspector, qui analyse les charges de travail et leurs vulnérabilités",
+      "AWS Security Hub, qui agrège les constats de sécurité d'un compte",
+      "AWS Well-Architected Tool, avec le pilier Sécurité et ses questions",
+      "Threat Composer, qui guide la rédaction des menaces et de leurs mitigations",
+    ],
+    answer: 3,
+    explain: "Threat Composer, open source, impose une grammaire commune pour écrire une menace et la relie à ses mitigations et aux actifs touchés. Le Well-Architected Tool est le faux jumeau : il pose des questions de conformité à de bonnes pratiques, ce qui est utile mais ne produit pas de menaces propres au système. Inspector et Security Hub, eux, travaillent sur l'existant déployé, pas sur le modèle.",
+  },
+  {
+    q: "Dans la grammaire de menaces de Threat Composer, quel élément répond à la question « qu'est-ce qui doit être vrai pour que l'attaquant puisse agir ? »",
+    options: [
+      "Threat source, qui décrit l'acteur à l'origine de la menace",
+      "Prerequisites, les conditions qui doivent être réunies pour agir",
+      "Threat impact, l'effet direct de la menace si elle se réalise",
+      "Impacted assets, les actifs touchés par la réalisation de la menace",
+    ],
+    answer: 1,
+    explain: "Les prérequis décrivent les conditions de l'attaque — « qui possède un compte client », « qui a intercepté un lien de partage » — et ils sont précieux parce que les supprimer est souvent la meilleure mitigation : plus de condition, plus de menace. Threat source répond à « qui », pas à « à quelles conditions » : c'est la confusion la plus fréquente, et elle conduit à écrire des menaces qui décrivent un attaquant au lieu d'un chemin.",
+  },
+  {
+    q: "Pourquoi Novafact déclare-t-il l'équipe AppSec dans CODEOWNERS pour le dossier threat-model/ et pour les routes d'authentification ?",
+    options: [
+      "Pour que l'AppSec devienne responsable du contenu du modèle de menaces",
+      "Pour qu'une modification de ces chemins demande automatiquement la revue AppSec",
+      "Pour empêcher toute fusion tant que le threat model n'a pas été mis à jour",
+      "Pour générer la liste des chemins à couvrir par les tests de sécurité",
+    ],
+    answer: 1,
+    explain: "Avec une règle de protection de branche qui exige la revue des propriétaires de code, le déclenchement devient mécanique et ne dépend plus de la mémoire de chacun. L'équipe reste auteure du modèle, l'AppSec relit : inverser les rôles, c'est le Hero Threat Modeler. Et CODEOWNERS demande une revue, il ne vérifie pas qu'un fichier a été mis à jour — c'est justement le rôle du relecteur de le demander.",
+  },
+];
+
+<YouKnow>
+Tu as sûrement vu des threat models de 60 pages, écrits une fois et jamais relus. Cette leçon les remplace par des modèles légers, vivants, stockés avec le code.
+</YouKnow>
+
+## Quand déclencher un threat model
+
+Pas pour chaque ticket, mais pour chaque changement **structurant** :
+
+- une nouvelle fonctionnalité qui manipule des données sensibles ou franchit une frontière de confiance ;
+- une nouvelle intégration avec un tiers (prestataire, fournisseur d'IA, SSO d'un client) ;
+- un changement d'architecture (nouveau service, nouvelle base, nouveau flux) ;
+- une nouvelle surface exposée (API publique, webhook entrant).
+
+À l'inverse, un correctif de bug, un changement d'interface sans nouvelle donnée ou une montée de version mineure n'en demandent pas. Tracer cette limite par écrit compte autant que le déclencheur : une équipe à qui l'on demande un threat model pour chaque ticket finit par les bâcler tous, y compris ceux qui comptent. Chez Novafact, la règle tient en une phrase : « nouvelle donnée sensible, nouvelle frontière, nouvelle surface ou nouveau tiers ».
+
+Une question dans le gabarit de ticket ou de design doc (« ce changement franchit-il une frontière de confiance ? ») suffit à le déclencher. Le mot important est « suffit » : un déclencheur qui dépend de la bonne volonté de chacun finit par être oublié les semaines chargées. Le déclenchement doit être **mécanique**.
+
+### Rendre le déclenchement automatique
+
+Deux mécanismes de GitHub font le travail chez Novafact. Le **gabarit de PR** pose la question, et une case cochée oblige à lier le modèle mis à jour. Le fichier **CODEOWNERS**, combiné à une règle de protection de branche qui exige la revue des propriétaires, demande automatiquement l'avis de l'AppSec quand une PR touche les chemins sensibles :
+
+<Code file=".github/CODEOWNERS">
+
+```text
+# Les modèles de menaces : l'équipe écrit, l'AppSec relit.
+/threat-model/                 @novafact/appsec
+# Chemins dont la modification change le modèle.
+/apps/bff/src/auth/            @novafact/appsec @novafact/identity
+/apps/api/src/webhooks/        @novafact/appsec
+/infra/iam/                    @novafact/appsec @novafact/platform
+/.github/workflows/            @novafact/appsec @novafact/platform
+```
+
+</Code>
+
+L'équipe reste **auteure** du modèle ; l'AppSec relit. C'est la réponse directe à l'anti-motif du héros du Threat Modeling Manifesto (leçon 1).
+
+## Léger et incrémental
+
+<Steps items={[
+  { title: "Quinze minutes de DFD", text: "Juste la partie concernée, avec ses frontières." },
+  { title: "Trente minutes de STRIDE", text: "En équipe, avec le champion de sécurité (M6)." },
+  { title: "Quinze minutes de décisions", text: "Mitigations retenues, risques acceptés, tickets créés." },
+  { title: "Dans le dépôt", text: "Le modèle vit à côté du code (dossier threat-model/), revu en PR comme le reste." },
+]} />
+
+L'approche **Continuous Threat Modeling** publiée par Autodesk formalise ce rythme : un modèle de référence (*baseline*) établi une fois pour le système, puis des mises à jour incrémentales à chaque changement, guidées par des listes de contrôle conçues pour des développeurs sans expertise sécurité poussée. L'intérêt du modèle de référence est de ne pas repartir de zéro : la séance d'une heure porte sur le **delta**, et les hypothèses déjà écrites disent ce que le changement pourrait invalider.
+
+Les **ADR** (*Architecture Decision Records*) sont l'autre point d'ancrage naturel. Une décision d'architecture qui déplace une frontière de confiance (« le worker d'export lira désormais directement le bucket des PDF ») porte une section « impact sur le modèle de menaces », courte, relue avec l'ADR.
+
+## Les outils
+
+| Outil | Approche |
+| --- | --- |
+| **AWS Threat Composer** | Rédaction guidée des menaces sous une grammaire commune, hypothèses et mitigations liées, tableau de bord de qualité, fichiers `.tc.json` versionnables |
+| **OWASP Threat Dragon** | Diagrammes et menaces (STRIDE, LINDDUN, CIA, CIA-DIE, PLOT4ai), application web ou de bureau, modèles stockés en local ou dans GitHub, GitLab, Bitbucket |
+| **pytm** | Threat model écrit en Python : le DFD, le diagramme de séquence et un rapport de menaces sont générés |
+| **Threagile** | Modèle en YAML, analyse de risques automatisée par règles |
+
+### La grammaire de Threat Composer
+
+Threat Composer impose une forme de phrase qui oblige à préciser ce que les séances laissent souvent flou : une **source** de menace, des **prérequis**, une **action**, un **impact**, l'**objectif** atteint (confidentialité, intégrité…) et les **actifs** touchés. Pour Novafact :
+
+> Un utilisateur externe **qui possède un compte client** peut **appeler l'export avec l'identifiant de facture d'un autre tenant**, ce qui mène à **la lecture de factures qui ne lui appartiennent pas**, réduisant la **confidentialité** des **factures et IBAN des clients**.
+
+Les prérequis sont la partie la plus utile : « qui possède un compte client », dans un SaaS à inscription gratuite, veut dire « n'importe qui ». Supprimer ou durcir un prérequis est souvent la mitigation la plus efficace.
+
+Le fichier `.tc.json` se versionne, s'édite dans VS Code via l'AWS Toolkit, et une extension de navigateur l'affiche dans GitHub. Le projet propose aussi, en statut expérimental, un outil qui analyse un dépôt avec des modèles d'IA pour produire un modèle de départ. Il évite la page blanche ; il ne remplace pas la séance, et chaque menace générée doit être validée par l'équipe.
+
+### Le modèle comme code
+
+pytm décrit le système avec des objets Python ; le diagramme n'est plus dessiné, il est **généré**, donc toujours cohérent avec la description :
+
+<Code file="threat-model/export.py">
+
+```python
+from pytm import TM, Actor, Boundary, Server, Datastore, Dataflow
+
+tm = TM("Novafact - export comptable")
+internet, vpc = Boundary("Internet"), Boundary("VPC Novafact")
+
+comptable = Actor("Comptable"); comptable.inBoundary = internet
+bff = Server("BFF"); bff.inBoundary = vpc
+worker = Server("Worker export"); worker.inBoundary = vpc
+factures = Datastore("Postgres factures"); factures.inBoundary = vpc
+
+Dataflow(comptable, bff, "Demande d'export").protocol = "HTTPS"
+Dataflow(worker, factures, "Lecture des factures du tenant").protocol = "PostgreSQL"
+
+tm.process()
+```
+
+</Code>
+
+Un workflow de CI régénère le diagramme à chaque PR qui touche le modèle, et le joint à la PR : le relecteur voit le DFD mis à jour sans quitter la revue.
+
+<Code file=".github/workflows/threat-model.yml" hl="4,5,7,8">
+
+```yaml
+name: threat-model
+on:
+  pull_request:
+    paths: ['threat-model/**']
+permissions:
+  contents: read
+jobs:
+  dfd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4          # à épingler par SHA (M14)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get install -y graphviz && pip install -r threat-model/requirements.txt
+      - run: python threat-model/export.py --dfd | dot -Tsvg -o dfd.svg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dfd
+          path: dfd.svg
+```
+
+</Code>
+
+Le « threat modeling as code » a un avantage décisif : le modèle se **met à jour dans la même PR** que le code qui le change, et se relit comme lui.
+
+<Callout kind="debate">
+**L'outil trouve-t-il les menaces ?** pytm, Threagile et les générateurs à base d'IA produisent des listes de menaces à partir du modèle. Les partisans y voient une couverture minimale garantie ; les sceptiques, une liste générique (« chiffrer les flux », « journaliser ») qui noie les trois menaces spécifiques au métier, celles qu'aucune règle ne connaît, comme le changement d'IBAN après prise de contrôle. Le compromis qui marche : laisser l'outil lister le générique, et consacrer la séance humaine à ce qui est propre au produit.
+</Callout>
+
+## Mesurer
+
+Un threat model n'a de valeur que par ses **effets**. Quelques indicateurs suffisent, suivis par trimestre :
+
+| Indicateur | Ce qu'il dit |
+| --- | --- |
+| Part des design docs à fort enjeu qui ont un modèle | Le déclenchement fonctionne-t-il ? |
+| Menaces retenues ayant donné lieu à une mitigation livrée | Le modèle produit-il des changements, ou des documents ? |
+| Délai entre la séance et la fermeture des tickets | Les décisions sont-elles suivies ? |
+| Taux d'échappement : vulnérabilités trouvées en pentest ou en production qui auraient dû apparaître dans le modèle (M1) | La méthode voit-elle les bonnes choses ? |
+
+Le taux d'échappement est le plus instructif. Chaque échappement donne lieu à une question simple en rétrospective : qu'est-ce qui, dans la séance, aurait permis de le voir ? La réponse améliore la méthode (une carte de plus, une question dans le gabarit), pas seulement le code.
+
+<Callout kind="novafact">
+Chez Novafact, chaque design doc (M8) contient désormais une section « threat model » générée avec Threat Composer. Le champion de l'équipe anime la séance, l'AppSec relit les modèles des fonctionnalités à fort enjeu, déclenchée par CODEOWNERS. Les `.tc.json` vivent dans `threat-model/`, à côté du code qu'ils décrivent.
+</Callout>
+
+<Recap items={[
+  "Un threat model se déclenche sur les changements structurants, mécaniquement : gabarit de PR, CODEOWNERS, section dans l'ADR.",
+  "Une heure suffit sur le delta, à partir d'un modèle de référence (Continuous Threat Modeling).",
+  "La grammaire de Threat Composer force à préciser source, prérequis, action, impact, objectif et actifs ; les prérequis sont souvent la meilleure prise.",
+  "pytm et Threagile génèrent le modèle depuis du code ; la CI le régénère dans la PR ; l'outil couvre le générique, l'équipe le spécifique.",
+  "On mesure le threat modeling à ses effets, dont le taux d'échappement.",
+]} />
+
+<Sources items={[
+  { title: "AWS Threat Composer", url: "https://github.com/awslabs/threat-composer" },
+  { title: "AWS : Threat modeling workshop, threat grammar", url: "https://catalog.workshops.aws/threatmodel/en-US/what-can-go-wrong/threat-grammar" },
+  { title: "OWASP Threat Dragon", url: "https://owasp.org/www-project-threat-dragon/" },
+  { title: "pytm", url: "https://github.com/OWASP/pytm" },
+  { title: "Threagile", url: "https://threagile.io/" },
+  { title: "Autodesk : Continuous Threat Modeling", url: "https://github.com/Autodesk/continuous-threat-modeling" },
+]} />

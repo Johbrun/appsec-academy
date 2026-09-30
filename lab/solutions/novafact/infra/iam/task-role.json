@@ -1,0 +1,60 @@
+{
+  "_comment": "CORRIGÉ : la politique ne part plus de « ce dont on pourrait avoir besoin » mais des appels que l'API fait réellement — une instruction par usage, chacune nommant sa ressource. Une politique écrite à la main part toujours trop large : Access Analyzer la génère depuis les appels observés, et les accès inutilisés se lisent dans la console.",
+  "RoleName": "novafact-task-role",
+  "Description": "Rôle porté par la tâche ECS de l'API Novafact.",
+  "AssumeRolePolicyDocument": {
+    "_comment": "CORRIGÉ : l'approbation est bornée au compte et à la région, pour qu'un service d'un autre compte ne puisse pas s'en servir comme député confus.",
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "TachesEcs",
+        "Effect": "Allow",
+        "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+        "Action": "sts:AssumeRole",
+        "Condition": {
+          "StringEquals": { "aws:SourceAccount": "123456789012" },
+          "ArnLike": { "aws:SourceArn": "arn:aws:ecs:eu-west-3:123456789012:*" }
+        }
+      }
+    ]
+  },
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "_comment": "CORRIGÉ : le préfixe des factures, pas le bucket entier.",
+        "Sid": "LireEtEcrireLesFactures",
+        "Effect": "Allow",
+        "Action": ["s3:GetObject", "s3:PutObject"],
+        "Resource": "arn:aws:s3:::novafact-invoices/factures/*"
+      },
+      {
+        "_comment": "CORRIGÉ : les deux secrets que l'application lit, nommés. Le joker « secret:* » ouvrait tous les secrets du compte.",
+        "Sid": "LireLesSecretsDeLApplication",
+        "Effect": "Allow",
+        "Action": "secretsmanager:GetSecretValue",
+        "Resource": [
+          "arn:aws:secretsmanager:eu-west-3:123456789012:secret:novafact/db-password-a1b2c3",
+          "arn:aws:secretsmanager:eu-west-3:123456789012:secret:novafact/stripe-key-d4e5f6"
+        ]
+      },
+      {
+        "_comment": "CORRIGÉ : le déchiffrement est borné au service qui l'appelle. Le rôle ne peut pas se servir de la clé directement.",
+        "Sid": "DechiffrerAvecLaCleDesFactures",
+        "Effect": "Allow",
+        "Action": ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"],
+        "Resource": "arn:aws:kms:eu-west-3:123456789012:key/2f5c1b7e-0000-4a00-9c00-labfake00001",
+        "Condition": {
+          "StringEquals": { "kms:ViaService": "s3.eu-west-3.amazonaws.com" }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ : écrire ses journaux, pas les lire ni les effacer.",
+        "Sid": "EcrireSesJournaux",
+        "Effect": "Allow",
+        "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+        "Resource": "arn:aws:logs:eu-west-3:123456789012:log-group:/ecs/novafact-api:*"
+      }
+    ]
+  }
+}

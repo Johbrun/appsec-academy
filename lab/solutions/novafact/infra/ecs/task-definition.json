@@ -1,0 +1,37 @@
+{
+  "_comment": "CORRIGÉ : le rôle d'EXÉCUTION sert à l'agent ECS pour tirer l'image et pousser les journaux ; le rôle de TÂCHE est celui que le code obtient via le service de métadonnées. Les confondre donne au code applicatif les droits de la plateforme — et une exécution de code arbitraire lit alors tous les secrets. C'est la structure de la brèche Capital One.",
+  "family": "novafact-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "taskRoleArn": "arn:aws:iam::123456789012:role/novafact-task-role",
+  "executionRoleArn": "arn:aws:iam::123456789012:role/novafact-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "api",
+      "image": "123456789012.dkr.ecr.eu-west-3.amazonaws.com/novafact-api:2.4.0",
+      "essential": true,
+      "portMappings": [{ "containerPort": 3000, "protocol": "tcp" }],
+      "_comment": "CORRIGÉ : chaque secret est nommé par son ARN complet. Le joker « secret:* » donnait au rôle la lecture de TOUS les secrets du compte, y compris ceux des autres applications.",
+      "secrets": [
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:eu-west-3:123456789012:secret:novafact/db-password-a1b2c3"
+        },
+        {
+          "name": "STRIPE_KEY",
+          "valueFrom": "arn:aws:secretsmanager:eu-west-3:123456789012:secret:novafact/stripe-key-d4e5f6"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/novafact-api",
+          "awslogs-region": "eu-west-3",
+          "awslogs-stream-prefix": "api"
+        }
+      }
+    }
+  ]
+}

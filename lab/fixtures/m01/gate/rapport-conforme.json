@@ -1,0 +1,29 @@
+{
+  "_comment": "Rapport d'analyse de référence du challenge break-build-gate : il reste des vulnérabilités, mais aucune de sévérité HIGH ou CRITICAL ne dispose d'une version corrigée. La porte doit LAISSER PASSER (code de sortie 0). C'est la moitié qu'une porte paresseuse rate : bloquer tout le temps n'est pas une porte, c'est un mur.",
+  "date": "2026-09-22",
+  "results": [
+    {
+      "source": { "path": "package-lock.json", "type": "lockfile" },
+      "packages": [
+        {
+          "package": { "name": "color-name-map", "version": "1.1.3", "ecosystem": "npm" },
+          "vulnerabilities": [
+            { "id": "CVE-2025-9901", "summary": "Expression régulière à complexité exponentielle", "severity": "LOW", "fixed": "1.1.4" }
+          ]
+        },
+        {
+          "package": { "name": "tar-stream-legacy", "version": "1.6.2", "ecosystem": "npm" },
+          "vulnerabilities": [
+            { "id": "CVE-2026-4488", "summary": "Écriture hors du répertoire d'extraction", "severity": "HIGH", "fixed": null }
+          ]
+        },
+        {
+          "package": { "name": "graphql-depth", "version": "1.1.0", "ecosystem": "npm" },
+          "vulnerabilities": [
+            { "id": "CVE-2026-6021", "summary": "Absence de limite de profondeur", "severity": "MEDIUM", "fixed": "1.2.0" }
+          ]
+        }
+      ]
+    }
+  ]
+}

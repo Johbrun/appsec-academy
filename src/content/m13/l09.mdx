@@ -1,0 +1,139 @@
+export const questions = [
+  {
+    q: "Dans l'affaire xz utils (2024), pourquoi la revue du dépôt Git ne montrait-elle pas la porte dérobée ?",
+    options: [
+      "Parce que la charge était répartie sur des dizaines de commits anodins",
+      "Parce que le déclencheur vivait dans l'archive de release, pas dans le dépôt",
+      "Parce que le mainteneur légitime avait approuvé lui-même les commits concernés",
+      "Parce que la porte dérobée était dans une dépendance et non dans xz lui-même",
+    ],
+    answer: 1,
+    explain: "La manœuvre sociale autour du mainteneur est bien réelle dans cette affaire, mais elle n'explique pas l'invisibilité du code : ce qui était relu dans Git ne contenait pas la pièce déclenchante. Elle n'existait que dans les archives de release, et la charge se cachait dans des fichiers de test binaires présentés comme corrompus. Ce qui était construit n'était pas ce qui était relu — c'est l'argument des builds reproductibles et de la provenance (M14).",
+  },
+  {
+    q: "Quel signal, dans un paquet npm, justifie une analyse approfondie ?",
+    options: [
+      "Un paquet publié depuis moins d'une semaine par un compte sans autre publication",
+      "Une archive dont la taille a doublé entre deux versions mineures",
+      "Un postinstall qui décode une chaîne à forte entropie puis l'exécute",
+      "Un dépôt GitHub dont le dernier commit date de plus de deux ans",
+    ],
+    answer: 2,
+    explain: "Les trois autres sont des signaux faibles : ils décrivent aussi des milliers de paquets parfaitement sains, et un tri fondé sur eux se noie dans le bruit. Ce qui justifie l'analyse approfondie, c'est la combinaison exécution à l'installation, contenu obfusqué, appels réseau et lecture de fichiers sensibles — la signature des paquets malveillants observés en 2024-2026.",
+  },
+  {
+    q: "Qu'est-ce qu'une bombe logique ?",
+    options: [
+      "Du code qui ne s'active que dans des conditions précises, hors des tests",
+      "Un code qui se déclenche à une date fixe pour dégrader le service",
+      "Une charge chiffrée déposée dans le paquet et déchiffrée à l'exécution",
+      "Un script qui exfiltre les variables d'environnement au premier lancement",
+    ],
+    answer: 0,
+    explain: "La charge chiffrée et le voleur de variables d'environnement décrivent ce que le code fait ; la date fixe n'est qu'une des conditions possibles. La bombe logique se définit par son déclencheur — date, environnement, nom d'hôte, variable —, c'est-à-dire par ce qui l'empêche de s'exécuter ailleurs que chez la cible, et surtout pendant les tests. En revue, une condition étrangement précise est le signal.",
+  },
+];
+
+<YouKnow>
+Tu cherches d'habitude des erreurs involontaires. Ici, le code a été écrit **pour** nuire, et pour ne pas être vu. Les réflexes changent : on cherche ce qui se cache, pas ce qui est mal fait.
+</YouKnow>
+
+## Deux origines
+
+Le code malveillant arrive par deux chemins :
+
+| Origine | Exemples | Où regarder |
+| --- | --- | --- |
+| **Une dépendance** | Paquet typosquatté, compte de mainteneur compromis, mainteneur malveillant | Scripts d'installation, fichiers ajoutés à la publication, code minifié |
+| **L'intérieur** | Développeur malveillant, compte compromis, agent de code manipulé (M12) | Revue de PR, conditions inhabituelles, changements hors périmètre |
+
+La première est de loin la plus fréquente dans l'écosystème JS (M14, leçon 7). La seconde est rare, mais les contrôles qui la préviennent (revue obligatoire, protection de branche, séparation des rôles) protègent aussi contre la compromission d'un compte.
+
+## Le cas xz utils
+
+En mars 2024, Andres Freund, ingénieur chez Microsoft, remarque que les connexions SSH sur une Debian de test consomment un peu trop de CPU. Il remonte le fil jusqu'à **liblzma**, la bibliothèque de xz utils : les versions 5.6.0 et 5.6.1 contenaient une porte dérobée (**CVE-2024-3094**) qui visait sshd sur les distributions où sshd est lié indirectement à liblzma via libsystemd.
+
+Ce qui rend le cas exemplaire :
+
+<Steps items={[
+  { title: "Une ingénierie sociale sur plusieurs années", text: "Un contributeur, « Jia Tan », gagne la confiance du mainteneur épuisé, aidé par des comptes qui réclament plus de réactivité, jusqu'à obtenir les droits de publication." },
+  { title: "Un code absent du dépôt", text: "Le script qui déclenchait l'insertion n'était présent que dans les archives de release, pas dans l'historique Git que l'on relit." },
+  { title: "Une charge cachée en fichiers de test", text: "Le code malveillant était dissimulé dans des fichiers binaires de test, présentés comme des archives volontairement corrompues pour tester la robustesse." },
+  { title: "Une détection par hasard", text: "Une latence de quelques centaines de millisecondes, remarquée par quelqu'un de curieux, avant que les versions n'atteignent les distributions stables." },
+]} />
+
+Les leçons pour une équipe produit :
+
+- ce qui est **construit** doit être ce qui est **relu** : builds reproductibles, provenance SLSA, comparaison de l'archive publiée avec le dépôt (M14, leçon 9) ;
+- les fichiers de test et les fichiers binaires ne sont pas « hors sujet » en revue ;
+- la santé d'un projet (un seul mainteneur, épuisé) est un **risque de sécurité** que l'on évalue en choisissant un composant (M14, leçon 6).
+
+## Les signaux d'un code malveillant
+
+| Signal | Pourquoi c'est suspect |
+| --- | --- |
+| **Exécution à l'installation** (`preinstall`, `install`, `postinstall`) | Le code s'exécute avant toute utilisation, sur le poste du développeur et dans la CI, avec leurs secrets |
+| **Chaînes à forte entropie**, base64 ou hexadécimal longs | Contenu qu'on ne veut pas rendre lisible |
+| **`eval`, `new Function`, `vm`** sur du contenu décodé ou téléchargé | Exécution de code qui n'est pas dans le paquet relu |
+| **Accès réseau inattendu** | Un utilitaire de formatage de dates n'a aucune raison de contacter un serveur |
+| **Lecture de fichiers sensibles** | `~/.npmrc`, `~/.aws/credentials`, `~/.ssh`, variables d'environnement en masse |
+| **Conditions très spécifiques** | Une date, un nom d'hôte, la présence d'une variable CI : c'est ainsi qu'on échappe aux tests |
+| **Écart entre source et publication** | Le paquet publié contient des fichiers absents du dépôt, ou un fichier minifié différent |
+| **Changements hors périmètre** | Une PR « corrige une faute de frappe » qui touche aussi un script de build |
+
+Aucun signal n'est une preuve : beaucoup de paquets légitimes ont des scripts d'installation (compilation de modules natifs, par exemple). C'est la **combinaison** qui alerte : installation + obfuscation + réseau + lecture de secrets.
+
+## Les bombes logiques et les conditions cachées
+
+Une **bombe logique** ne s'active que dans une situation précise. Le motif typique, en revue :
+
+<Code file="exemple-de-revue.ts" hl="3">
+
+```ts
+export function computeDiscount(invoice: Invoice, now = new Date()) {
+  const base = invoice.totalCents * discountRate(invoice.customer);
+  if (now.getUTCFullYear() >= 2027 && process.env.REGION === 'eu-west-3') return 0; // ← pourquoi cette condition ?
+  return Math.round(base);
+}
+```
+
+</Code>
+
+Rien dans le métier ne justifie qu'une remise disparaisse en 2027 dans une seule région. En revue, une condition **étrangement précise** (date, région, identifiant de tenant, nom d'utilisateur, en-tête particulier) mérite toujours la question « pourquoi ? ». Ce peut être un reste de test, une fonctionnalité oubliée, ou une porte dérobée : les trois sont à retirer.
+
+## Les outils
+
+- **Socket** et **GuardDog** (Datadog) analysent le comportement des paquets (scripts d'installation, réseau, système de fichiers, obfuscation) plutôt que les CVE ; ils signalent un paquet suspect le jour même de sa publication.
+- **`npm diff`** compare deux versions publiées d'un paquet : utile quand un correctif mineur arrive avec 400 lignes de changement.
+- La **comparaison source/publication** : télécharger l'archive publiée (`npm pack nom@version`) et la comparer au tag du dépôt.
+- L'**analyse dynamique en bac à sable** : installer le paquet suspect dans un conteneur jetable, sans secrets, avec le réseau surveillé, et observer.
+
+<Callout kind="warn">
+N'analyse jamais un paquet suspect sur ton poste ou dans la CI : les scripts d'installation s'exécutent au premier `npm install`. Utilise un conteneur jetable, sans identifiants, avec `--ignore-scripts` pour une première lecture statique.
+</Callout>
+
+## Prévenir plutôt que chercher
+
+La recherche de code malveillant est difficile et coûteuse. L'essentiel de la défense est ailleurs, dans des contrôles de classe détaillés en M14 :
+
+- désactiver les scripts d'installation par défaut (pnpm 10 le fait ; `ignore-scripts` pour npm) et autoriser au cas par cas ;
+- attendre quelques jours avant d'adopter une nouvelle version (la plupart des paquets malveillants sont retirés en quelques heures ou jours) ;
+- revue obligatoire, protection de branche et CODEOWNERS pour le code interne ;
+- runners CI éphémères, sans secrets inutiles, avec surveillance du réseau sortant.
+
+<Recap items={[
+  "Le code malveillant vient surtout des dépendances, parfois de l'intérieur ou d'un compte compromis.",
+  "xz utils : ce qui était construit n'était pas ce qui était relu ; la santé d'un projet est un risque.",
+  "Signaux : exécution à l'installation, obfuscation, réseau, lecture de secrets, conditions très précises, écart source/publication.",
+  "Socket, GuardDog, npm diff et l'analyse en bac à sable, jamais sur ton poste.",
+  "La prévention (scripts désactivés, délai d'adoption, revue obligatoire) vaut mieux que la chasse.",
+]} />
+
+<Sources items={[
+  { title: "Andres Freund : backdoor in upstream xz/liblzma (oss-security)", url: "https://www.openwall.com/lists/oss-security/2024/03/29/4" },
+  { title: "CISA : CVE-2024-3094", url: "https://www.cisa.gov/news-events/alerts/2024/03/29/reported-supply-chain-compromise-affecting-xz-utils-data-compression-library-cve-2024-3094" },
+  { title: "Russ Cox : timeline of the xz open source attack", url: "https://research.swtch.com/xz-timeline" },
+  { title: "GuardDog (Datadog)", url: "https://github.com/DataDog/guarddog" },
+  { title: "npm diff", url: "https://docs.npmjs.com/cli/v11/commands/npm-diff" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 13, environnement de développement" },
+]} />

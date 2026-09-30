@@ -1,0 +1,302 @@
+export const questions = [
+  {
+    q: "Une règle Rego analyse `rc.change.after.policy` dans le plan Terraform pour refuser `iam:PassRole` sur `*`. Dans quel cas la règle ne verra-t-elle rien ?",
+    options: [
+      "Quand la politique est écrite avec `aws_iam_policy_document`, que le plan ne rend pas en JSON",
+      "Quand la ressource vient d'un module distant, dont le plan masque les attributs",
+      "Quand le document dépend d'une valeur calculée à l'apply : il passe dans `after_unknown`",
+      "Quand la règle est déclarée `warn` : Conftest n'évalue pas les règles non bloquantes",
+    ],
+    answer: 2,
+    explain: "Les valeurs connues seulement après l'apply apparaissent dans `after_unknown` et disparaissent de `after` : une politique qui interpole un ARN créé dans le même plan est invisible pour la règle. Le module distant n'y change rien — le plan aplatit tous les modules et expose leurs ressources comme les autres — et `aws_iam_policy_document` est bien rendu en JSON dans le plan. Une règle `warn` est évaluée, elle ne fait simplement pas échouer la commande. D'où le second filet après déploiement : Access Analyzer ou un CSPM.",
+  },
+  {
+    q: "Qu'est-ce qui distingue une exception bien gérée d'un simple contournement ?",
+    options: [
+      "Elle vise une règle et une ressource, porte un propriétaire, une raison et une échéance",
+      "Elle est validée par l'équipe AppSec puis consignée dans le registre des risques",
+      "Elle désactive la règle dans le fichier de configuration du scanner, avec un commentaire",
+      "Elle est accordée pour la durée du sprint, le temps de corriger au sprint suivant",
+    ],
+    answer: 0,
+    explain: "Une exception est une acceptation de risque (M1) : sans cible précise, sans propriétaire ni date, elle devient permanente et invisible. La validation par l'AppSec et l'inscription au registre sont nécessaires, mais ne suffisent pas — ce qui manque, c'est que l'exception vive dans le dépôt, à côté du code qu'elle couvre, donc sous les yeux de chaque relecteur. Un `skip` posé dans la configuration du scanner, lui, couvre tout le dépôt et survit à la correction qui l'avait justifié.",
+  },
+  {
+    q: "Dans Conftest, quelle est la différence entre une règle `warn` et une règle `deny` ?",
+    options: [
+      "`warn` n'échoue pas la commande, sauf avec `--fail-on-warn` ; `deny` la fait échouer",
+      "`warn` s'évalue sur le HCL, `deny` sur la sortie JSON du plan",
+      "`warn` remonte les règles sans test unitaire associé, `deny` celles qui en ont",
+      "`warn` s'applique aux ressources existantes, `deny` à celles que le plan va créer",
+    ],
+    answer: 0,
+    explain: "Les deux sont évaluées de la même façon, sur les mêmes données : seule la conséquence diffère, `deny` renvoie un code de sortie non nul. C'est précisément le levier pour introduire une règle en douceur — `warn` d'abord, pour mesurer l'impact sur l'existant, `deny` une fois l'existant corrigé. Ni l'une ni l'autre ne dépend du format d'entrée, de l'existence de tests ou de l'âge de la ressource : ce sont des noms de règles, pas des portées.",
+  },
+  {
+    q: "Pourquoi tester les politiques Rego avec `opa test` ou `conftest verify` ?",
+    options: [
+      "Parce que sans test, on ne peut pas mesurer le taux de faux positifs de la règle",
+      "Parce que `conftest verify` est le seul moyen d'exécuter une règle contre un plan réel",
+      "Parce qu'une règle non testée ne peut pas être promue de `warn` à `deny`",
+      "Parce qu'une règle muette (chemin faux, type inattendu) donne une fausse assurance",
+    ],
+    answer: 3,
+    explain: "Une règle muette est pire qu'une règle absente : tout le monde croit le contrôle en place. Une faute de frappe dans un chemin (`after` au lieu de `change.after`) suffit, et rien ne se déclenche jamais — un résultat vide ressemble en tous points à un résultat conforme. Un test positif et un test négatif par règle le révèlent. Le taux de faux positifs, lui, se mesure sur les plans réels du parc et non sur les cas de test, et la promotion de `warn` à `deny` est une décision d'équipe, pas une contrainte de l'outil.",
+  },
+];
+
+<YouKnow>
+Les scanners de la leçon 2 appliquent les règles de quelqu'un d'autre. Tôt ou tard, Novafact a des exigences que personne n'a écrites pour elle : un tag de classification obligatoire, aucune ressource hors de deux régions, jamais de `PassRole` sur `*`. La policy as code, c'est écrire ces règles comme du code, les tester et les faire appliquer par le pipeline.
+</YouKnow>
+
+## Pourquoi écrire ses propres règles
+
+Une règle de politique maison répond à trois besoins que les catalogues des scanners ne couvrent pas :
+
+- **tes conventions** : tags de classification (M7, leçon 5), régions autorisées, nommage qui porte l'environnement ;
+- **tes décisions de sécurité** : aucune politique IAM avec `iam:PassRole` sur `*` (M15, leçon 4), aucune file SQS sans chiffrement KMS géré par Novafact ;
+- **tes leçons apprises** : chaque incident ou finding de pentest sur l'infrastructure devient une règle, comme un template Nuclei côté application (M13).
+
+Trois familles d'outils coexistent. Le bon choix dépend de ce que tu scannes et de qui écrira les règles.
+
+| Outil | Langage | Ce qu'il lit | Quand le choisir |
+| --- | --- | --- | --- |
+| **OPA + Conftest** | Rego | N'importe quel JSON ou YAML (plan Terraform, templates, manifests, workflows) | Règles transverses, logique complexe, même langage que Kubernetes (Gatekeeper) ou KICS |
+| **Checkov, politiques maison** | YAML (ou Python) | Ressources Terraform, CloudFormation, Kubernetes… | Règles simples sur des attributs ou des connexions, équipe qui utilise déjà Checkov |
+| **cfn-guard** | DSL déclaratif de Guard | JSON ou YAML, surtout CloudFormation | Templates CloudFormation et CDK synthétisés, hooks CloudFormation |
+
+## OPA, Rego et Conftest sur un plan Terraform
+
+**OPA** évalue des règles écrites en **Rego** sur un document d'entrée. **Conftest** l'emballe pour les fichiers de configuration : il cherche des règles `deny`, `violation` et `warn` dans le paquet `main`. Depuis OPA 1.0, la syntaxe Rego v1 est la norme : les mots-clés `if` et `contains` sont obligatoires.
+
+L'entrée la plus utile est le **plan JSON** (`terraform show -json tfplan`) : son tableau `resource_changes` donne, pour chaque ressource, les actions prévues et l'état `after`.
+
+<Code file="policy/terraform/novafact.rego" hl="16,20,22,23,24,33,37,38">
+
+```rego
+package main
+
+# Ressources créées ou modifiées par ce plan
+changed(rc) if {
+	some action in rc.change.actions
+	action in {"create", "update"}
+}
+
+statements(doc) := doc.Statement if is_array(doc.Statement)
+statements(doc) := [doc.Statement] if is_object(doc.Statement)
+
+as_array(x) := x if is_array(x)
+as_array(x) := [x] if is_string(x)
+
+# Règle NVF-IAM-01 : jamais de iam:PassRole sur * (M15, leçon 4)
+deny contains msg if {
+	some rc in input.resource_changes
+	rc.type in {"aws_iam_policy", "aws_iam_role_policy"}
+	changed(rc)
+	some st in statements(json.unmarshal(rc.change.after.policy))
+	st.Effect == "Allow"
+	"iam:PassRole" in as_array(st.Action)
+	"*" in as_array(st.Resource)
+	not exception_active(rc.address, "NVF-IAM-01")
+	msg := sprintf("NVF-IAM-01 %s : iam:PassRole sur * interdit", [rc.address])
+}
+
+# Règle NVF-TAG-01 : tout bucket porte une classification connue (M7, leçon 5)
+classifications := {"public", "internal", "confidential", "restricted"}
+
+valid_classification(rc) if rc.change.after.tags_all.classification in classifications
+
+deny contains msg if {
+	some rc in input.resource_changes
+	rc.type == "aws_s3_bucket"
+	changed(rc)
+	not valid_classification(rc)
+	not exception_active(rc.address, "NVF-TAG-01")
+	msg := sprintf("NVF-TAG-01 %s : tag classification absent ou invalide", [rc.address])
+}
+
+# Règle en observation : on mesure avant de bloquer
+has_kms(rc) if {
+	key := rc.change.after.kms_master_key_id
+	is_string(key)
+	key != ""
+}
+
+has_kms(rc) if rc.change.after_unknown.kms_master_key_id == true # clé créée dans le même plan
+
+warn contains msg if {
+	some rc in input.resource_changes
+	rc.type == "aws_sqs_queue"
+	changed(rc)
+	not has_kms(rc)
+	msg := sprintf("NVF-SQS-01 %s : file sans clé KMS gérée par Novafact", [rc.address])
+}
+
+exception_active(address, rule) if {
+	some e in data.exceptions
+	e.address == address
+	e.rule == rule
+	time.now_ns() < time.parse_rfc3339_ns(e.expires)
+}
+```
+
+</Code>
+
+<Code file="scripts/ci/policy-check.sh">
+
+```bash
+terraform show -json tfplan > tfplan.json
+conftest verify --policy policy/terraform          # les tests des règles passent d'abord
+conftest test tfplan.json --policy policy/terraform --data policy/exceptions.yaml
+```
+
+</Code>
+
+Deux limites à connaître. Une valeur **calculée** pendant l'apply (un ARN créé dans le même plan, injecté dans un document de politique) est inconnue au moment du plan : elle apparaît dans `after_unknown`, pas dans `after`, et la règle ne la voit pas. Et une règle Rego ne comprend pas la sémantique IAM comme le fait Access Analyzer (leçon 5 de M15) : pour les politiques IAM, combine les deux.
+
+### Tester les règles
+
+Une règle qui ne se déclenche jamais (faute de frappe dans un chemin, `Action` en chaîne et non en tableau) donne une fausse assurance. Piège classique : une négation directe sur une référence absente, comme `not x.tags.classification in classifications` quand `tags` est nul, ne se déclenche pas, d'où la règle auxiliaire `valid_classification` et le `not` posé sur elle. De même, `null` n'est pas « faux » en Rego : `has_kms` teste explicitement une chaîne non vide. Chaque règle a donc au moins un test positif et un test négatif :
+
+<Code file="policy/terraform/novafact_test.rego">
+
+```rego
+package main
+
+passrole_star := {"resource_changes": [{
+	"address": "aws_iam_policy.ci",
+	"type": "aws_iam_policy",
+	"change": {"actions": ["create"], "after": {"policy": "{\"Statement\":{\"Effect\":\"Allow\",\"Action\":\"iam:PassRole\",\"Resource\":\"*\"}}"}},
+}]}
+
+test_passrole_star_denied if {
+	some msg in deny with input as passrole_star with data.exceptions as []
+	startswith(msg, "NVF-IAM-01")
+}
+
+test_scoped_passrole_allowed if {
+	scoped := json.patch(passrole_star, [{"op": "replace", "path": "/resource_changes/0/change/after/policy",
+		"value": "{\"Statement\":{\"Effect\":\"Allow\",\"Action\":\"iam:PassRole\",\"Resource\":\"arn:aws:iam::111122223333:role/workloads/novafact-api\"}}"}])
+	count(deny) == 0 with input as scoped with data.exceptions as []
+}
+```
+
+</Code>
+
+## Les autres langages de règles
+
+**Checkov** accepte des politiques maison en YAML, chargées avec `--external-checks-dir`. C'est le chemin le plus court pour une règle simple sur des attributs :
+
+<Code file="policy/checkov/nvf_s3_classification.yaml">
+
+```yaml
+metadata:
+  id: "CKV2_NOVA_1"
+  name: "Les buckets S3 portent un tag classification connu"
+  category: "GENERAL_SECURITY"
+definition:
+  and:
+    - cond_type: "attribute"
+      resource_types: ["aws_s3_bucket"]
+      attribute: "tags.classification"
+      operator: "exists"
+    - cond_type: "attribute"
+      resource_types: ["aws_s3_bucket"]
+      attribute: "tags.classification"
+      operator: "within"
+      value: ["public", "internal", "confidential", "restricted"]
+```
+
+</Code>
+
+**cfn-guard** exprime des règles déclaratives sur les templates CloudFormation, donc aussi sur ce que produit `cdk synth`. Le même moteur sert aux **hooks CloudFormation**, qui évaluent un template au moment du déploiement :
+
+<Code file="policy/guard/s3.guard">
+
+```text
+let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+
+rule nvf_s3_kms when %buckets !empty {
+    %buckets.Properties.BucketEncryption.ServerSideEncryptionConfiguration[*].ServerSideEncryptionByDefault.SSEAlgorithm == 'aws:kms'
+        <<NVF-S3-02 : les buckets Novafact sont chiffrés par une clé KMS>>
+}
+```
+
+</Code>
+
+Il s'exécute avec `cfn-guard validate --rules policy/guard --data cdk.out/novafact-prod-invoicing.template.json`.
+
+## Une règle, plusieurs points d'application
+
+Une même exigence gagne à être vérifiée à plusieurs étages, chacun avec l'outil qui y a accès :
+
+| Étage | Outil | Ce qu'il empêche |
+| --- | --- | --- |
+| PR | Conftest sur le plan, Checkov maison | La misconfiguration n'atteint jamais `main` |
+| Déploiement | Hooks CloudFormation (cfn-guard), contrôles proactifs de Control Tower | Un template non conforme n'est pas déployé, même hors du pipeline habituel |
+| Admission Kubernetes | Kyverno ou Gatekeeper (leçon 5) | Un manifest non conforme n'entre pas dans le cluster |
+| Exécution | Règles AWS Config, CSPM (leçon 5) | Ce qui a été créé à la main ou a dérivé est signalé |
+
+Le piège est la **divergence** : la règle Rego dit « trois classifications », la règle Config en connaît quatre. Chez Novafact, chaque exigence porte un identifiant (`NVF-TAG-01`) utilisé partout, et la liste des valeurs autorisées vit dans un seul fichier de données, lu par la règle Rego et par la règle Config.
+
+### Des messages qui font corriger
+
+Un blocage mal expliqué coûte une demi-journée et un ticket à l'équipe AppSec. Un bon message donne l'**identifiant** de la règle, la **ressource** exacte, la **raison** en une phrase et le **correctif** attendu, avec un lien vers la page interne de la règle. Comparé à « Policy violation », `NVF-TAG-01 aws_s3_bucket.exports : tag classification absent ; ajoute tags = { classification = "confidential" } (voir la page NVF-TAG-01)` se corrige sans aide.
+
+<Callout kind="debate">
+Rego ou un langage plus simple ? Rego est puissant et transverse (Terraform, Kubernetes, CI, API), mais sa logique déclarative et ses règles d'indéfini surprennent les développeurs, comme le montre le piège ci-dessus. Les politiques YAML de Checkov se lisent immédiatement mais atteignent vite leurs limites. Côté Kubernetes, CEL s'impose (Kyverno l'a adopté comme langage principal). Un compromis répandu : Rego tenu par une petite équipe plateforme, règles simples en YAML écrites par les équipes produit, et tests obligatoires dans les deux cas.
+</Callout>
+
+## Stratégie de blocage et d'exceptions
+
+Écrire la règle est la partie facile. La faire accepter demande une stratégie explicite, publiée et stable.
+
+| Niveau | Effet | Pour quelles règles |
+| --- | --- | --- |
+| **Bloquant** (`deny`) | La PR ne passe pas | Exposition publique, IAM d'escalade, données clients non chiffrées : peu de règles, bien expliquées |
+| **Avertissement** (`warn`) | Commentaire en PR, pas de blocage | Nouvelles règles en observation, bonnes pratiques |
+| **Audit** | Rapport périodique uniquement | Conventions, hygiène, indicateurs |
+
+Une nouvelle règle passe **toujours** par l'avertissement : deux à quatre semaines de mesure, correction de l'existant par les équipes concernées, puis bascule en bloquant annoncée à l'avance.
+
+<Callout kind="novafact">
+Les exceptions de Novafact vivent dans `policy/exceptions.yaml`, protégé par CODEOWNERS (équipe AppSec). Chaque entrée porte un identifiant, la règle, l'adresse exacte de la ressource, un propriétaire, une justification et une date d'expiration (90 jours au plus). À l'échéance, la règle Rego ignore l'entrée et la PR suivante échoue : l'exception doit être renouvelée (et justifiée à nouveau) ou la ressource corrigée. Le fichier est aussi la liste des risques acceptés côté infrastructure, relue chaque trimestre (M1, leçon 7).
+</Callout>
+
+<Code file="policy/exceptions.yaml">
+
+```yaml
+exceptions:
+  - id: NOVA-EXC-2026-051
+    rule: NVF-IAM-01
+    address: module.legacy_batch.aws_iam_policy.runner
+    owner: equipe-batch
+    reason: "Le batch historique passe des rôles créés dynamiquement ; migration vers des rôles nommés planifiée"
+    approved_by: appsec
+    expires: "2026-11-30T00:00:00Z"
+```
+
+</Code>
+
+<Callout kind="warn">
+Évite les exceptions par commentaire dans le code pour les règles bloquantes : elles se copient avec le code, n'expirent jamais et échappent à la revue centrale. Un registre unique, daté et relu, rend les exceptions visibles et coûteuses à prolonger.
+</Callout>
+
+<Recap items={[
+  "La policy as code encode tes conventions, tes décisions de sécurité et tes leçons apprises.",
+  "Rego + Conftest sur le plan JSON pour les règles transverses ; Checkov YAML pour les règles simples ; cfn-guard pour CloudFormation et le CDK synthétisé.",
+  "Rego v1 : deny contains msg if { ... } ; les valeurs calculées pendant l'apply échappent au plan.",
+  "Chaque règle a ses tests (conftest verify, opa test), positifs et négatifs.",
+  "Nouvelle règle : warn d'abord, deny ensuite ; exceptions ciblées, avec propriétaire et expiration, dans un registre relu.",
+]} />
+
+<Lab id="terragoat" />
+
+<Sources items={[
+  { title: "OPA : Policy Language (Rego)", url: "https://www.openpolicyagent.org/docs/policy-language" },
+  { title: "OPA : Terraform", url: "https://www.openpolicyagent.org/docs/terraform" },
+  { title: "Conftest", url: "https://www.conftest.dev/" },
+  { title: "Checkov : YAML custom policies", url: "https://www.checkov.io/3.Custom%20Policies/YAML%20Custom%20Policies.html" },
+  { title: "AWS CloudFormation Guard : user guide", url: "https://docs.aws.amazon.com/cfn-guard/latest/ug/what-is-guard.html" },
+  { title: "AWS CloudFormation Hooks", url: "https://docs.aws.amazon.com/cloudformation-cli/latest/hooks-userguide/what-is-cloudformation-hooks.html" },
+]} />

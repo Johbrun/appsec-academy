@@ -1,0 +1,25 @@
+{
+  "_": "Ce que le rôle de la tâche Novafact a réellement fait sur quatre-vingt-dix jours, tel qu'un analyseur d'accès le restitue. Les politiques réécrites doivent permettre tout cela — sinon la production casse — et rien de ce qui figure dans `escalation`.",
+  "usage": [
+    { "action": "s3:GetObject", "resource": "arn:aws:s3:::novafact-invoices/acme/2025/INV-1001.pdf" },
+    { "action": "s3:PutObject", "resource": "arn:aws:s3:::novafact-invoices/acme/2025/INV-1042.pdf" },
+    { "action": "s3:ListBucket", "resource": "arn:aws:s3:::novafact-invoices" },
+    { "action": "kms:Decrypt", "resource": "arn:aws:kms:eu-west-3:123456789012:key/7d2c1a04-5b6e-4f83-9a21-c0de5f6a7b88" },
+    { "action": "kms:GenerateDataKey", "resource": "arn:aws:kms:eu-west-3:123456789012:key/7d2c1a04-5b6e-4f83-9a21-c0de5f6a7b88" },
+    { "action": "secretsmanager:GetSecretValue", "resource": "arn:aws:secretsmanager:eu-west-3:123456789012:secret:novafact/db-Ab3xY9" },
+    { "action": "logs:CreateLogStream", "resource": "arn:aws:logs:eu-west-3:123456789012:log-group:/ecs/novafact:*" },
+    { "action": "logs:PutLogEvents", "resource": "arn:aws:logs:eu-west-3:123456789012:log-group:/ecs/novafact:*" },
+    { "action": "sqs:SendMessage", "resource": "arn:aws:sqs:eu-west-3:123456789012:novafact-invoices" },
+    { "action": "ses:SendEmail", "resource": "arn:aws:ses:eu-west-3:123456789012:identity/novafact.example" }
+  ],
+  "escalation": [
+    "iam:CreatePolicyVersion",
+    "iam:AttachRolePolicy",
+    "iam:AttachUserPolicy",
+    "iam:PutRolePolicy",
+    "iam:UpdateAssumeRolePolicy",
+    "iam:CreateAccessKey",
+    "iam:PassRole",
+    "sts:AssumeRole"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "_comment": "Rapport d'analyse de référence du challenge break-build-gate : il contient une vulnérabilité de sévérité HIGH pour laquelle une version corrigée existe. La porte doit BLOQUER (code de sortie différent de 0).",
+  "date": "2026-09-22",
+  "results": [
+    {
+      "source": { "path": "package-lock.json", "type": "lockfile" },
+      "packages": [
+        {
+          "package": { "name": "minimist-ng", "version": "1.2.6", "ecosystem": "npm" },
+          "vulnerabilities": [
+            { "id": "CVE-2026-1101", "summary": "Pollution de prototype", "severity": "HIGH", "fixed": "1.2.9" }
+          ]
+        },
+        {
+          "package": { "name": "pdf-render", "version": "4.3.0", "ecosystem": "npm" },
+          "vulnerabilities": [
+            { "id": "CVE-2026-2207", "summary": "Déni de service", "severity": "MEDIUM", "fixed": null }
+          ]
+        }
+      ]
+    }
+  ]
+}

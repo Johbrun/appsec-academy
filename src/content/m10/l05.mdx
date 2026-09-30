@@ -1,0 +1,171 @@
+export const questions = [
+  {
+    q: "Pourquoi l'envoi de factures par e-mail de Novafact intéresse-t-il les escrocs ?",
+    options: [
+      "Parce que les factures contiennent l'IBAN et les coordonnées des clients",
+      "Parce que l'envoi en masse par une plateforme coûte moins cher qu'un serveur SMTP",
+      "Parce qu'une fausse facture partie d'une plateforme légitime passe les filtres",
+      "Parce que le domaine de Novafact n'a pas encore de politique DMARC stricte",
+    ],
+    answer: 2,
+    explain: "C'est le mode opératoire observé sur QuickBooks et PayPal : ouvrir un compte parfaitement légitime et envoyer de fausses factures, qui arrivent en boîte de réception parce que la plateforme est réputée. La politique DMARC n'y est pour rien — au contraire, plus l'authentification du domaine est stricte, mieux le message passe. C'est la réputation empruntée qui se monnaie, pas le coût de l'envoi.",
+  },
+  {
+    q: "Quelle mesure réduit le plus l'abus de l'envoi de factures par des comptes récents ?",
+    options: [
+      "Un CAPTCHA à chaque envoi de facture tant que le compte est récent",
+      "Des quotas d'envoi faibles pour les nouveaux comptes, relevés avec l'ancienneté",
+      "Une vérification d'identité obligatoire avant toute création de compte",
+      "Une revue humaine de chaque facture envoyée par un compte de moins d'un mois",
+    ],
+    answer: 1,
+    explain: "La confiance se gagne : un nouveau compte envoie peu, un compte ancien et vérifié envoie davantage, et l'escroc doit attendre ou payer pour monter en volume. Le KYC systématique est efficace et c'est bien là le problème — il fait fuir les clients légitimes dès l'inscription, pour un abus qui ne concerne qu'une fraction des comptes. La revue humaine de chaque envoi ne tient pas à l'échelle, et un CAPTCHA ne coûte à l'escroc que quelques centimes.",
+  },
+  {
+    q: "Les fausses factures envoyées via Novafact passent SPF, DKIM et DMARC. Pourquoi ?",
+    options: [
+      "Parce que la politique DMARC du domaine est encore en p=none",
+      "Parce que DKIM ne signe que les en-têtes, pas le corps du message",
+      "Parce que les destinataires ont ajouté Novafact à leurs expéditeurs sûrs",
+      "Parce qu'elles partent réellement de l'infrastructure de Novafact",
+    ],
+    answer: 3,
+    explain: "SPF, DKIM et DMARC prouvent qu'un message vient bien du domaine annoncé ; ils ne disent rien de l'honnêteté du client qui l'a rédigé. Ici l'expéditeur est authentique, la signature valide, l'alignement bon — et c'est exactement ce qui rend l'abus rentable. DKIM couvre d'ailleurs le corps, par un condensat inclus dans la signature ; et une politique p=none ne ferait pas passer davantage de messages, elle changerait seulement le sort de ceux qui échouent.",
+  },
+  {
+    q: "Avec un seul compte Amazon SES pour tous ses tenants, quel risque Novafact court-il, et quelle fonctionnalité le réduit ?",
+    options: [
+      "Les rebonds d'un tenant consomment le quota des autres ; les configuration sets le cloisonnent",
+      "Un tenant abusif fait basculer tout le compte en revue ; les tenants SES isolent la réputation",
+      "Tous les tenants partagent la même adresse de retour ; une IP dédiée par tenant l'évite",
+      "Les réponses arrivent dans une boîte commune ; les règles de réception SES les trient",
+    ],
+    answer: 1,
+    explain: "SES place un compte en revue à partir de 5 % de rebonds ou 0,1 % de plaintes : un seul client abusif suspend les envois de tous les autres. Depuis août 2025, les tenants SES ont leurs propres métriques et politiques de réputation, et l'un peut être mis en pause sans arrêter les autres. Les configuration sets sont le piège : ils séparent bien les métriques et les événements, mais la réputation reste celle du compte — savoir quel tenant a causé les plaintes ne sert à rien si tout le monde est bloqué pareil.",
+  },
+];
+
+<YouKnow>
+Tu as déjà vu des fonctionnalités « innocentes » détournées : un formulaire de contact en relais de spam, un partage de fichiers en hébergement de phishing. Chez Novafact, la fonctionnalité la plus détournable est aussi la plus centrale.
+</YouKnow>
+
+## Le détournement des plateformes de facturation
+
+Les escrocs ont compris qu'un e-mail envoyé **depuis une plateforme légitime** passe les filtres anti-spam et inspire confiance. Le mode opératoire, observé sur **QuickBooks** et **PayPal** : créer un compte gratuit, émettre de fausses factures (ou de faux avis de paiement) vers des victimes, avec un numéro de téléphone de « support » qui les pousse ensuite à payer ou à installer un outil de prise en main à distance. KnowBe4 a mesuré une hausse de 36,5 % des attaques de phishing utilisant le domaine de QuickBooks en 2025.
+
+<Callout kind="case">
+**DocuSign (2024).** Des chercheurs de Wallarm ont documenté en novembre 2024 des campagnes de fausses factures envoyées par l'API Envelopes de DocuSign. Les attaquants utilisaient des comptes **payants**, qui donnent accès aux modèles et à l'API, pour produire en masse des factures imitant des marques connues, parfois avec des frais plausibles et des instructions de virement. Les e-mails partaient du domaine de DocuSign lui-même. Deux enseignements pour Novafact : un compte payant n'est pas un compte de confiance, et l'accès programmatique à un flux d'envoi multiplie l'abus.
+</Callout>
+
+Pour Novafact, l'enjeu dépasse la victime : si la plateforme devient un relais de phishing, sa **réputation d'envoi** s'effondre, et les factures légitimes de tous les clients finissent en spam.
+
+## Pourquoi l'authentification des e-mails ne suffit pas
+
+SPF, DKIM et DMARC sont indispensables, mais il faut comprendre ce qu'ils prouvent : que le message vient bien d'un serveur autorisé pour ce domaine. Une fausse facture rédigée par un fraudeur **dans** Novafact part des serveurs de Novafact, signée par Novafact : elle passe les trois contrôles. Ces mécanismes empêchent un tiers d'usurper `novafact.example` ; ils ne disent rien d'un client légitime qui abuse de la plateforme. C'est précisément ce qui rend l'abus rentable.
+
+Leur rôle reste central pour une autre raison : ils conditionnent la délivrabilité. Depuis février 2024, Google exige des expéditeurs de plus de 5 000 messages par jour vers Gmail SPF, DKIM et DMARC, avec un domaine `From` aligné, et un taux de spam signalé qui reste sous 0,3 %. Quelques tenants malhonnêtes suffisent à dépasser ce seuil pour tout le monde.
+
+### Au nom de qui envoyer ?
+
+| Choix | Avantage | Risque |
+| --- | --- | --- |
+| `From` sur le domaine de Novafact, `Reply-To` vers le client | Aucun réglage DNS côté client | Toutes les fausses factures portent la marque Novafact ; réputation partagée |
+| `From` sur le domaine du client, après vérification DKIM de ce domaine | La réputation suit le client ; un fraudeur doit posséder un domaine et prouver son contrôle | Configuration DNS à accompagner ; les petits clients n'ont pas toujours de domaine |
+
+Novafact combine les deux : les nouveaux comptes envoient depuis `factures.novafact.example` avec des quotas bas ; les comptes qui ont vérifié leur domaine envoient en leur nom et obtiennent des quotas plus larges.
+
+## La réputation est collective
+
+Amazon SES, qu'utilise Novafact, surveille la réputation **du compte AWS**. Selon sa FAQ, un compte passe en revue à partir de 5 % de rebonds ou de 0,1 % de plaintes, et peut voir ses envois suspendus à partir de 10 % de rebonds ou de 0,5 % de plaintes. Avec un seul compte pour tous les tenants, une campagne de fausses factures peut donc suspendre l'envoi des factures de **tous** les clients.
+
+Depuis août 2025, SES propose des **tenants** : chaque tenant a ses identités, ses configuration sets, ses métriques de rebonds et de plaintes, et une politique de réputation qui peut le mettre en pause automatiquement sans toucher aux autres. Pour un SaaS multi-tenant, c'est la traduction directe du principe d'isolation : l'abus d'un client ne doit pas devenir la panne de tous.
+
+## Les contrôles
+
+<Steps items={[
+  { title: "Vérifier les nouveaux comptes", text: "E-mail vérifié, domaine vérifié pour envoyer en son nom, et une vérification plus poussée (entreprise, moyen de paiement) avant les volumes élevés." },
+  { title: "Des quotas qui grandissent avec la confiance", text: "10 envois par jour pour un compte de la semaine, davantage avec l'ancienneté, le plan payant, le domaine vérifié et l'absence de signalements." },
+  { title: "Analyser le contenu", text: "Numéros de téléphone dans le texte libre, liens externes, montants et libellés typiques des arnaques : signaux qui déclenchent une revue." },
+  { title: "Authentifier les e-mails", text: "SPF, DKIM et DMARC en mode strict sur le domaine d'envoi, pour qu'aucun tiers ne l'usurpe et que la délivrabilité tienne." },
+  { title: "Isoler la réputation", text: "Un tenant SES par client, avec pause automatique, et des alarmes sur les rebonds et plaintes par tenant." },
+  { title: "Un canal de signalement", text: "Un lien « signaler cette facture » dans chaque e-mail, et une équipe qui agit vite (suspension, notification)." },
+]} />
+
+Le niveau de confiance d'un compte se calcule, il ne se décrète pas. Chez Novafact, il détermine à la fois le quota et ce que le compte peut personnaliser :
+
+<Code file="apps/api/src/abuse/sendPolicy.ts" hl="11,12,22,23">
+
+```ts
+type Tenant = { createdAt: Date; plan: 'free' | 'pro' | 'business'; domainVerified: boolean; paidInvoices: number; openReports: number };
+
+export type SendPolicy = { dailyQuota: number; customMessage: boolean; externalLinks: boolean; holdForReview: boolean };
+
+export function sendPolicy(t: Tenant): SendPolicy {
+  const ageDays = (Date.now() - t.createdAt.getTime()) / 86_400_000;
+  if (t.openReports > 0) return { dailyQuota: 0, customMessage: false, externalLinks: false, holdForReview: true };
+
+  const trusted = ageDays >= 30 && t.plan !== 'free' && t.domainVerified && t.paidInvoices > 0;
+  const known = ageDays >= 7 && (t.domainVerified || t.paidInvoices > 0);
+
+  if (trusted) return { dailyQuota: 2_000, customMessage: true, externalLinks: true, holdForReview: false };
+  if (known) return { dailyQuota: 200, customMessage: true, externalLinks: false, holdForReview: false };
+  return { dailyQuota: 10, customMessage: false, externalLinks: false, holdForReview: false };
+}
+
+const PHONE = /\+?\d[\d .-]{7,}\d/;
+const URL_RE = /https?:\/\/[^\s]+/i;
+
+export function contentSignals(message: string, policy: SendPolicy): string[] {
+  const signals: string[] = [];
+  if (PHONE.test(message)) signals.push('phone_in_message');   // mode opératoire du faux support
+  if (URL_RE.test(message) && !policy.externalLinks) signals.push('external_link');
+  return signals; // un signal met l'envoi en file de revue, il ne le rejette pas en silence
+}
+```
+
+</Code>
+
+Les chiffres sont ceux de Novafact, fictifs mais cohérents : l'important est la structure. La confiance repose sur des preuves coûteuses à fabriquer (ancienneté, paiement réel, domaine vérifié), un signalement ouvert fait tomber le compte au niveau le plus bas, et l'analyse de contenu **met en revue** au lieu de rejeter, pour ne pas apprendre à l'attaquant quel mot contourner.
+
+<Callout kind="warn">
+L'analyse de contenu par expressions régulières attrape les campagnes grossières et apprend vite ses limites (numéros écrits en lettres, texte dans une image, lien raccourci). Traite-la comme un signal parmi d'autres, jamais comme le contrôle principal. Le contrôle principal, c'est ce qu'un compte récent a le droit de faire.
+</Callout>
+
+## D'autres abus de fonctionnalités
+
+| Fonctionnalité | Abus | Contrôle |
+| --- | --- | --- |
+| Essai gratuit | Création de comptes en série pour ne jamais payer | Limite par moyen de paiement, par domaine, par appareil |
+| Parrainage | Faux filleuls pour cumuler les récompenses | Récompense après paiement réel, détection des liens entre comptes |
+| Coupons | Réutilisation, partage massif ou énumération (OAT-002) | Codes longs et aléatoires, usage unique par compte, en base (M3, leçon 1) |
+| Invitations d'équipe | Envoi d'e-mails à des tiers | Quotas, contenu imposé |
+| Personnalisation des modèles | Contenu frauduleux ou code (M3) | Langage de template limité, revue des modèles des nouveaux comptes |
+| Page de paiement publique | Hébergement d'une page de phishing sous le domaine Novafact | Contenu non modifiable, logo et libellés filtrés |
+
+Le parrainage mérite une attention particulière, parce que la récompense est directement monétisable. La règle simple, « la récompense n'est versée qu'après un paiement réel du filleul », supprime la plupart des schémas : créer des comptes gratuits ne rapporte plus rien.
+
+<Callout kind="novafact">
+Nouvelle règle de Novafact : un compte de moins de 7 jours ne peut pas envoyer plus de 10 factures par jour ni modifier le texte de l'e-mail d'envoi. Le quota se lève automatiquement après vérification du domaine et un premier paiement. Chaque tenant a son propre tenant SES, en pause automatique si ses plaintes dépassent le seuil.
+</Callout>
+
+## Le signalement, un contrôle à part entière
+
+Le lien « signaler cette facture » est souvent traité comme un détail d'interface. C'est pourtant le seul capteur placé **chez la victime**. Pour qu'il serve, il faut un circuit : le signalement suspend immédiatement les envois en attente du tenant, crée un cas pour l'équipe de modération avec la facture et l'historique du compte, et alimente les signaux de la leçon 7. Un signalement qui dort trois jours dans une boîte partagée ne protège personne.
+
+<Recap items={[
+  "Une plateforme légitime est un excellent relais de phishing : QuickBooks, PayPal et DocuSign en ont fait l'expérience.",
+  "SPF, DKIM et DMARC empêchent l'usurpation du domaine, pas l'abus par un client : ils conditionnent la délivrabilité.",
+  "La réputation d'envoi est collective : isoler chaque client (tenants SES) évite qu'un abus devienne une panne générale.",
+  "La confiance se calcule sur des preuves coûteuses : ancienneté, paiement réel, domaine vérifié ; les nouveaux comptes envoient peu et ne personnalisent rien.",
+  "Essais, parrainage, coupons, invitations, modèles et pages publiques sont d'autres fonctionnalités à protéger.",
+]} />
+
+<Sources items={[
+  { title: "KnowBe4 : phishing via le domaine QuickBooks (2025)", url: "https://blog.knowbe4.com/invoice-or-impersonation-36.5-spike-in-phishing-attacks-leveraging-quickbooks-legitimate-domain-in-2025" },
+  { title: "SC Media : comptes QuickBooks et PayPal détournés", url: "https://www.scworld.com/news/rogue-quickbooks-paypal-phishing" },
+  { title: "Wallarm : abus de l'API DocuSign pour de fausses factures", url: "https://lab.wallarm.com/attackers-abuse-docusign-api-to-send-authentic-looking-invoices-at-scale/" },
+  { title: "Google : exigences pour les expéditeurs d'e-mails", url: "https://support.google.com/a/answer/81126" },
+  { title: "Amazon SES : FAQ du processus de revue", url: "https://docs.aws.amazon.com/ses/latest/dg/faqs-enforcement.html" },
+  { title: "Amazon SES : isolation des tenants (août 2025)", url: "https://aws.amazon.com/about-aws/whats-new/2025/08/amazon-ses-tenant-isolation-automated-reputation-policies" },
+  { title: "OWASP Automated Threats : OAT-017 Spamming", url: "https://owasp.org/www-project-automated-threats-to-web-applications/" },
+]} />

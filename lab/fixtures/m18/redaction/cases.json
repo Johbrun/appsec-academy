@@ -1,0 +1,177 @@
+[
+  {
+    "id": "attaque-01",
+    "malicious": true,
+    "label": "l’attaque n°1"
+  },
+  {
+    "id": "attaque-02",
+    "malicious": true,
+    "label": "l’attaque n°2"
+  },
+  {
+    "id": "attaque-03",
+    "malicious": true,
+    "label": "l’attaque n°3"
+  },
+  {
+    "id": "attaque-04",
+    "malicious": true,
+    "label": "l’attaque n°4"
+  },
+  {
+    "id": "attaque-05",
+    "malicious": true,
+    "label": "l’attaque n°5"
+  },
+  {
+    "id": "attaque-06",
+    "malicious": true,
+    "label": "l’attaque n°6"
+  },
+  {
+    "id": "attaque-07",
+    "malicious": true,
+    "label": "l’attaque n°7"
+  },
+  {
+    "id": "attaque-08",
+    "malicious": true,
+    "label": "l’attaque n°8"
+  },
+  {
+    "id": "attaque-09",
+    "malicious": true,
+    "label": "l’attaque n°9"
+  },
+  {
+    "id": "attaque-10",
+    "malicious": true,
+    "label": "l’attaque n°10"
+  },
+  {
+    "id": "attaque-11",
+    "malicious": true,
+    "label": "l’attaque n°11"
+  },
+  {
+    "id": "attaque-12",
+    "malicious": true,
+    "label": "l’attaque n°12"
+  },
+  {
+    "id": "test-de-charge-1",
+    "malicious": false,
+    "label": "le test de charge"
+  },
+  {
+    "id": "test-de-charge-2",
+    "malicious": false,
+    "label": "le test de charge"
+  },
+  {
+    "id": "passerelle-sso-1",
+    "malicious": false,
+    "label": "la passerelle SSO du client"
+  },
+  {
+    "id": "passerelle-sso-2",
+    "malicious": false,
+    "label": "la passerelle SSO du client"
+  },
+  {
+    "id": "mobile-1",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie"
+  },
+  {
+    "id": "mobile-2",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie"
+  },
+  {
+    "id": "mobile-3",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie"
+  },
+  {
+    "id": "mobile-4",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie"
+  },
+  {
+    "id": "mobile-5",
+    "malicious": false,
+    "label": "l’application mobile qui réessaie"
+  },
+  {
+    "id": "rush-matinal-1",
+    "malicious": false,
+    "label": "la vague de connexions réussies du matin"
+  },
+  {
+    "id": "rush-matinal-2",
+    "malicious": false,
+    "label": "la vague de connexions réussies du matin"
+  },
+  {
+    "id": "rush-matinal-3",
+    "malicious": false,
+    "label": "la vague de connexions réussies du matin"
+  },
+  {
+    "id": "sonde-de-session-1",
+    "malicious": false,
+    "label": "la vérification de session du client web"
+  },
+  {
+    "id": "sonde-de-session-2",
+    "malicious": false,
+    "label": "la vérification de session du client web"
+  },
+  {
+    "id": "sonde-de-session-3",
+    "malicious": false,
+    "label": "la vérification de session du client web"
+  },
+  {
+    "id": "maladroit-1",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-2",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-3",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-4",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-5",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-6",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-7",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  },
+  {
+    "id": "maladroit-8",
+    "malicious": false,
+    "label": "un utilisateur qui se trompe de mot de passe"
+  }
+]

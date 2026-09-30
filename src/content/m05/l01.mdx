@@ -1,0 +1,189 @@
+export const questions = [
+  {
+    q: "Une équipe ferme ses tickets de vulnérabilité au merge de la pull request. Quelle étape du cycle de vie lui manque ?",
+    options: [
+      "Le dédoublonnage : le même problème reviendra par une autre source",
+      "La priorisation : sans grille, l'ordre de correction reste arbitraire",
+      "La vérification : le correctif n'est pas constaté en production",
+      "Le reporting : sans indicateur, le délai réel de correction reste invisible",
+    ],
+    answer: 2,
+    explain: "Un ticket fermé n'est pas une vulnérabilité corrigée : entre le merge et la production, il y a un déploiement qui peut tarder, et un correctif qui peut ne pas tenir. Seul l'état « vérifié » ferme la boucle, et c'est cet écart que trahit un taux de réouverture élevé. Les autres étapes ont pu être menées correctement en amont : c'est la dernière qui saute.",
+  },
+  {
+    q: "Pourquoi dédoublonner les findings avant le triage ?",
+    options: [
+      "Pour éviter que deux équipes corrigent le même bug en parallèle",
+      "Pour qu'un même problème ne crée qu'un travail, avec un propriétaire",
+      "Pour que les indicateurs de délai ne soient pas gonflés par les doublons",
+      "Pour mesurer quel outil trouve le plus de vrais positifs",
+    ],
+    answer: 1,
+    explain: "SAST, SCA, DAST et pentest remontent souvent la même chose sous des formes différentes. Sans dédoublonnage, une équipe reçoit plusieurs tickets pour un seul correctif et finit par se méfier de la file. Les effets cités à côté — pas de double travail, indicateurs plus justes — sont réels, mais ils découlent de ce principe au lieu de le fonder ; et comparer le rendement des outils est un autre exercice, qui suppose justement de garder toutes les sources dans l'historique.",
+  },
+  {
+    q: "L'outil SAST identifie chaque finding par règle, fichier et numéro de ligne. Que se passe-t-il quand un développeur ajoute dix lignes en haut du fichier ?",
+    options: [
+      "Rien : l'outil suit le code déplacé grâce au diff de la pull request",
+      "Le finding fusionne avec les autres du même fichier et perd son contexte",
+      "L'outil le rouvre automatiquement, avec son historique et son délai",
+      "L'ancien passe pour corrigé, un nouveau apparaît : historique et délai repartent",
+    ],
+    answer: 3,
+    explain: "Une empreinte fondée sur le numéro de ligne est fragile : un simple décalage fait disparaître un finding et en crée un autre, avec le triage, l'historique et le compteur de délai remis à zéro — et l'équipe revoit un problème qu'elle croyait tranché. L'excès inverse existe aussi : une empreinte réduite à la règle et au fichier fusionne deux problèmes distincts. Le bon compromis est règle, fichier et extrait de code normalisé, comme les partialFingerprints de SARIF.",
+  },
+  {
+    q: "Quand faut-il faire démarrer le délai de correction (SLA) d'une vulnérabilité ?",
+    options: [
+      "À la découverte : le temps passé en file de triage compte aussi",
+      "À la confirmation du triage, seul moment où le problème est avéré",
+      "Quand l'équipe propriétaire accepte le ticket dans son backlog",
+      "À la publication de l'avis, pour aligner le délai sur celui de l'éditeur",
+    ],
+    answer: 0,
+    explain: "Partir de la confirmation semble équitable — on ne compte pas contre une équipe un problème encore incertain — et c'est exactement ce qui rend une file de triage lente invisible : trois semaines avant qualification ne coûtent rien à l'indicateur. Mesurer depuis la découverte montre où le temps se perd réellement, quitte à suivre séparément délai de triage et délai de correction.",
+  },
+];
+
+<YouKnow>
+Tu produis des findings depuis des années, et tu sais qu'une partie finit dans un backlog sans fin. Ce module regarde l'autre côté : ce qui se passe après le rapport, et comment le faire bien.
+</YouKnow>
+
+## Le cycle de vie
+
+<Steps items={[
+  { title: "Découverte", text: "Un outil, une personne ou un signal externe révèle un problème potentiel." },
+  { title: "Dédoublonnage", text: "Le même problème remonté par plusieurs sources devient un seul élément, avec l'historique de ses sources." },
+  { title: "Triage", text: "Vrai ou faux positif ? Qui en est propriétaire ? Quel actif est touché ?" },
+  { title: "Priorisation", text: "Quelle urgence, au regard de l'exploitation, de l'exposition et de l'impact (leçon 3) ?" },
+  { title: "Correction", text: "Le correctif, ou une mesure compensatoire, ou une acceptation formelle du risque (M1)." },
+  { title: "Vérification", text: "Le correctif fonctionne-t-il vraiment ? Test de régression, nouveau scan, retest." },
+  { title: "Reporting", text: "Indicateurs, tendances, et retour vers les contrôles en amont (M1, leçon 6)." },
+]} />
+
+Ces étapes paraissent évidentes ; ce qui distingue un programme qui fonctionne d'un tableur qui grossit, c'est que **chaque transition a une règle** : qui peut la faire, avec quelle justification, et ce qu'elle déclenche.
+
+## Les sources
+
+| Source | Forces | Limites |
+| --- | --- | --- |
+| SAST, SCA, secrets, IaC | Continu, dans la PR, couvre tout le code | Faux positifs, pas de contexte d'exécution |
+| DAST | Voit l'application réelle | Surface limitée, peu de logique métier |
+| Revue de code | Autorisation, logique, conception | Coûteux, ne passe pas à l'échelle sans méthode (M12) |
+| Pentest | Profondeur, chaînes, logique | Ponctuel, cher |
+| Bug bounty et VDP | Diversité des chercheurs, continu | Qualité variable, demande de la capacité de triage |
+| Veille et avis de sécurité | Vulnérabilités des dépendances et frameworks | Volume énorme, pertinence à qualifier |
+| Incidents | Réel, prioritaire par nature | Arrive trop tard par définition |
+
+## Dédoublonner : plus difficile qu'il n'y paraît
+
+Le dédoublonnage repose sur une **empreinte** : ce qui fait que deux résultats désignent le même problème. Le choix de l'empreinte a des conséquences directes.
+
+- **Trop fine** (règle, fichier, numéro de ligne) : le moindre ajout de code déplace le finding, qui disparaît puis réapparaît comme nouveau. L'historique, la décision de triage et le compteur de SLA sont perdus, et les équipes voient revenir des findings déjà traités.
+- **Trop large** (règle, fichier) : deux injections distinctes dans le même fichier fusionnent, et la correction de l'une ferme l'autre à tort.
+- **Stable** : règle, fichier, et une empreinte du code concerné, normalisée (espaces, noms de variables locales). Le format SARIF prévoit précisément un champ `partialFingerprints` pour cela, et les agrégateurs comme DefectDojo laissent choisir les champs de l'empreinte par type d'outil.
+
+Le dédoublonnage **entre outils** de natures différentes (le SAST voit une ligne de code, le DAST une URL, le pentest un scénario) se fait rarement automatiquement. C'est un travail de triage : relier les résultats au même problème, garder toutes les sources dans l'historique, et n'ouvrir qu'un seul ticket.
+
+## Trier : des états qui veulent dire quelque chose
+
+| État | Sens | Règle |
+| --- | --- | --- |
+| Nouveau | Pas encore examiné | Le délai court déjà |
+| Confirmé | Vrai problème, propriétaire et actif identifiés | Priorité fixée par la grille (leçon 3) |
+| Faux positif | Le problème n'existe pas | Justification écrite ; retour vers l'outil (règle ajustée) |
+| Non applicable | Le problème existe mais ne touche pas ce produit | Justification, idéalement un VEX (leçon 3) |
+| Risque accepté | Vrai problème, non corrigé par décision | Propriétaire du risque, date d'expiration (M1) |
+| Corrigé | Correctif livré | N'est pas une fermeture |
+| Vérifié | Correctif constaté en production | Seul état qui ferme |
+
+Séparer **faux positif**, **non applicable** et **risque accepté** n'est pas du formalisme. Les trois alimentent des décisions différentes : un taux de faux positifs élevé dit qu'une règle d'outil doit être ajustée ; un « non applicable » doit être revu quand le produit évolue ; un risque accepté expire et revient. Tout ranger dans « fermé sans correction » rend ces trois signaux invisibles.
+
+<Callout kind="warn">
+Le faux positif « par commodité » est le piège classique : un finding gênant, mal compris ou trop coûteux est marqué faux positif pour sortir du tableau de bord. Exige une justification technique relisible par quelqu'un d'autre, et échantillonne ces décisions chaque trimestre.
+</Callout>
+
+## Défauts et vulnérabilités dans le même outil
+
+Kohnfelder (K13) insiste sur un point que les équipes sous-estiment : une vulnérabilité **est un bug**. La traiter dans un circuit parallèle (tableur de l'équipe sécurité, PDF de pentest) la sort du flux normal des équipes : planification, revue, tests. Les vulnérabilités vivent dans le **même outil de suivi** que les autres défauts, avec une étiquette, une sévérité et un SLA. L'équipe sécurité garde une vue transverse grâce à un outil d'agrégation (leçon 5), synchronisé avec les tickets.
+
+Un modèle de ticket garantit que chaque vulnérabilité arrive avec ce dont l'équipe a besoin pour agir, sans aller-retour.
+
+<Code file=".github/ISSUE_TEMPLATE/vulnerabilite.yml">
+
+```yaml
+name: Vulnérabilité
+description: Finding de sécurité confirmé par l'AppSec
+title: "[VULN] "
+labels: ["security", "vulnerability"]
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Décision de la grille (leçon 3)
+      options: ["Act", "Attend", "Track*", "Track"]
+    validations:
+      required: true
+  - type: input
+    id: asset
+    attributes:
+      label: Actif et environnement touchés
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction minimale (environnement de test, données fictives)
+  - type: textarea
+    id: fix
+    attributes:
+      label: Correctif proposé et test de régression
+  - type: input
+    id: sources
+    attributes:
+      label: Sources et identifiants (outil, pentest, bounty, CVE)
+```
+
+</Code>
+
+<Callout kind="debate">
+**Même outil, mais visible par qui ?** Mettre les vulnérabilités dans le backlog des équipes les rend visibles à toute l'entreprise, parfois à des prestataires. Pour la plupart des findings, c'est un avantage. Pour une vulnérabilité critique non corrigée sur un actif exposé, ou une faille du SDK public `@novafact/sdk`, la visibilité doit être restreinte jusqu'au correctif : niveau de sécurité du ticket, ou avis de sécurité privé sur GitHub pour un dépôt public. La règle : même flux de travail, visibilité proportionnée à la criticité, et levée de la restriction après correction.
+</Callout>
+
+## Le propriétaire
+
+Chaque vulnérabilité a **un** propriétaire : une équipe, pas « la sécurité ». L'ingénieur AppSec aide à qualifier, propose le correctif, vérifie ; l'équipe propriétaire du code corrige. Sans propriétaire clair, un finding n'avance pas.
+
+L'attribution se fait mal à la main. Chez Novafact, elle part du **catalogue de services** (chaque dépôt et chaque service déployé a une équipe) et du fichier `CODEOWNERS` pour les findings de code. Un finding sur un actif sans propriétaire n'est pas un cas particulier : c'est un finding en soi, signe d'un composant orphelin.
+
+## Vérifier, puis corriger la classe
+
+La vérification répond à deux questions distinctes. **Le correctif fonctionne-t-il ?** Un test de régression qui échoue avant et passe après (leçon 4), un nouveau scan, ou un retest pour les findings de pentest. **Le même bug existe-t-il ailleurs ?** C'est l'analyse de variantes : transformer le finding en règle (Semgrep, CodeQL, M12) et l'exécuter sur tout le code. Un finding corrigé à un seul endroit alors que la cause racine se trouve dans un helper partagé n'est corrigé qu'en apparence.
+
+## Le reporting qui sert
+
+- **Délai de correction** par niveau de priorité, mesuré depuis la découverte, et pas seulement la moyenne : le 90e centile montre les findings qui traînent.
+- **Âge du backlog** par équipe : la tendance compte plus que le chiffre.
+- **Taux de réouverture** : un correctif qui ne tient pas signale une vérification trop légère.
+- **Origine des findings** : ce que le pentest trouve et que les outils auraient dû voir indique la prochaine règle à écrire (M1, leçon 6).
+
+<Callout kind="novafact">
+Premier inventaire de Novafact : 412 findings répartis entre l'ancien SAST, deux rapports de pentest en PDF et un export de npm audit. Après dédoublonnage et triage : 58 vrais problèmes, dont 9 prioritaires, chacun désormais dans le backlog de l'équipe concernée. Trois mois plus tard, le taux de réouverture est de 12 % : deux équipes fermaient les tickets au merge de la PR, avant le déploiement. La règle devient « fermé = vérifié en production ».
+</Callout>
+
+<Recap items={[
+  "Sept étapes : découverte, dédoublonnage, triage, priorisation, correction, vérification, reporting ; chaque transition a une règle.",
+  "Chaque source a ses forces et ses limites ; aucune ne suffit seule.",
+  "Une empreinte stable (règle, fichier, extrait normalisé) évite les findings qui disparaissent et reviennent.",
+  "Faux positif, non applicable et risque accepté sont trois états distincts, avec des justifications et des suites différentes.",
+  "Une vulnérabilité est un bug : même outil que les autres défauts, visibilité proportionnée à la criticité.",
+  "Un propriétaire unique par vulnérabilité, qui est une équipe, déduit du catalogue de services.",
+  "La vérification ferme la boucle, et l'analyse de variantes corrige la classe ; le délai se mesure depuis la découverte.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Vulnerability Management Guide", url: "https://owasp.org/www-project-vulnerability-management-guide/" },
+  { title: "OWASP SAMM : Defect Management", url: "https://owaspsamm.org/model/implementation/defect-management/" },
+  { title: "OASIS : SARIF 2.1.0 (fingerprints et partialFingerprints)", url: "https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html" },
+  { title: "GitHub : syntaxe des formulaires d'issues", url: "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms" },
+  { title: "GitHub : avis de sécurité privés d'un dépôt", url: "https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/about-repository-security-advisories" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 13" },
+]} />

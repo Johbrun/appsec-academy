@@ -1,0 +1,247 @@
+# Livrable de référence — challenge samm-assessment (M1).
+#
+# L'auto-évaluation de Novafact sur les 30 flux du modèle embarqué. Les réponses
+# sont UN profil plausible d'équipe produit qui livre vite et n'a jamais
+# structuré de programme : elle teste, elle construit proprement, elle ne
+# gouverne rien et ne vérifie pas sa conception. La sincérité des réponses
+# n'est pas vérifiable et n'est pas notée — ce qui l'est, c'est que les 90
+# activités soient renseignées, que la monotonie soit respectée (un niveau ne se
+# saute pas) et que tous les scores se retrouvent par le calcul.
+
+evaluation:
+  # SM · Création et promotion
+  - flux: SM-A
+    reponses:
+      SM-A-1: partiel
+      SM-A-2: non
+      SM-A-3: non
+    score: 0.5
+  # SM · Mesure et amélioration
+  - flux: SM-B
+    reponses:
+      SM-B-1: non
+      SM-B-2: non
+      SM-B-3: non
+    score: 0
+  # PC · Politique et normes
+  - flux: PC-A
+    reponses:
+      PC-A-1: partiel
+      PC-A-2: non
+      PC-A-3: non
+    score: 0.5
+  # PC · Conformité réglementaire
+  - flux: PC-B
+    reponses:
+      PC-B-1: oui
+      PC-B-2: partiel
+      PC-B-3: non
+    score: 1.5
+  # EG · Formation et sensibilisation
+  - flux: EG-A
+    reponses:
+      EG-A-1: partiel
+      EG-A-2: non
+      EG-A-3: non
+    score: 0.5
+  # EG · Culture et champions
+  - flux: EG-B
+    reponses:
+      EG-B-1: non
+      EG-B-2: non
+      EG-B-3: non
+    score: 0
+  # TA · Profil de menaces
+  - flux: TA-A
+    reponses:
+      TA-A-1: partiel
+      TA-A-2: non
+      TA-A-3: non
+    score: 0.5
+  # TA · Abus et mésusage
+  - flux: TA-B
+    reponses:
+      TA-B-1: non
+      TA-B-2: non
+      TA-B-3: non
+    score: 0
+  # SR · Exigences logicielles
+  - flux: SR-A
+    reponses:
+      SR-A-1: partiel
+      SR-A-2: non
+      SR-A-3: non
+    score: 0.5
+  # SR · Exigences fournisseurs
+  - flux: SR-B
+    reponses:
+      SR-B-1: non
+      SR-B-2: non
+      SR-B-3: non
+    score: 0
+  # SA · Conception architecturale
+  - flux: SA-A
+    reponses:
+      SA-A-1: partiel
+      SA-A-2: non
+      SA-A-3: non
+    score: 0.5
+  # SA · Technologies et composants
+  - flux: SA-B
+    reponses:
+      SA-B-1: oui
+      SA-B-2: partiel
+      SA-B-3: non
+    score: 1.5
+  # SB · Processus de construction
+  - flux: SB-A
+    reponses:
+      SB-A-1: oui
+      SB-A-2: partiel
+      SB-A-3: non
+    score: 1.5
+  # SB · Gestion des dépendances
+  - flux: SB-B
+    reponses:
+      SB-B-1: oui
+      SB-B-2: partiel
+      SB-B-3: non
+    score: 1.5
+  # SD · Processus de déploiement
+  - flux: SD-A
+    reponses:
+      SD-A-1: oui
+      SD-A-2: non
+      SD-A-3: non
+    score: 1
+  # SD · Gestion des secrets
+  - flux: SD-B
+    reponses:
+      SD-B-1: partiel
+      SD-B-2: non
+      SD-B-3: non
+    score: 0.5
+  # DM · Suivi des défauts
+  - flux: DM-A
+    reponses:
+      DM-A-1: oui
+      DM-A-2: partiel
+      DM-A-3: non
+    score: 1.5
+  # DM · Métriques de défauts
+  - flux: DM-B
+    reponses:
+      DM-B-1: partiel
+      DM-B-2: non
+      DM-B-3: non
+    score: 0.5
+  # AA · Revue de conception
+  - flux: AA-A
+    reponses:
+      AA-A-1: non
+      AA-A-2: non
+      AA-A-3: non
+    score: 0
+  # AA · Conformité de l'architecture
+  - flux: AA-B
+    reponses:
+      AA-B-1: non
+      AA-B-2: non
+      AA-B-3: non
+    score: 0
+  # RT · Tests des contrôles
+  - flux: RT-A
+    reponses:
+      RT-A-1: partiel
+      RT-A-2: non
+      RT-A-3: non
+    score: 0.5
+  # RT · Tests d'abus
+  - flux: RT-B
+    reponses:
+      RT-B-1: non
+      RT-B-2: non
+      RT-B-3: non
+    score: 0
+  # ST · Outillage
+  - flux: ST-A
+    reponses:
+      ST-A-1: oui
+      ST-A-2: partiel
+      ST-A-3: non
+    score: 1.5
+  # ST · Tests manuels
+  - flux: ST-B
+    reponses:
+      ST-B-1: oui
+      ST-B-2: oui
+      ST-B-3: partiel
+    score: 2.5
+  # IM · Détection
+  - flux: IM-A
+    reponses:
+      IM-A-1: partiel
+      IM-A-2: non
+      IM-A-3: non
+    score: 0.5
+  # IM · Réponse
+  - flux: IM-B
+    reponses:
+      IM-B-1: oui
+      IM-B-2: partiel
+      IM-B-3: non
+    score: 1.5
+  # EM · Durcissement
+  - flux: EM-A
+    reponses:
+      EM-A-1: oui
+      EM-A-2: partiel
+      EM-A-3: non
+    score: 1.5
+  # EM · Correctifs et mises à jour
+  - flux: EM-B
+    reponses:
+      EM-B-1: oui
+      EM-B-2: non
+      EM-B-3: non
+    score: 1
+  # OM · Protection des données
+  - flux: OM-A
+    reponses:
+      OM-A-1: partiel
+      OM-A-2: non
+      OM-A-3: non
+    score: 0.5
+  # OM · Fin de vie
+  - flux: OM-B
+    reponses:
+      OM-B-1: non
+      OM-B-2: non
+      OM-B-3: non
+    score: 0
+
+pratiques:
+  SM: 0.25
+  PC: 1
+  EG: 0.25
+  TA: 0.25
+  SR: 0.25
+  SA: 1
+  SB: 1.5
+  SD: 0.75
+  DM: 1
+  AA: 0
+  RT: 0.25
+  ST: 2
+  IM: 1
+  EM: 1.25
+  OM: 0.25
+
+fonctions:
+  GOU: 0.5
+  CON: 0.5
+  IMP: 1.08
+  VER: 0.75
+  OPE: 0.83
+
+score-global: 0.73

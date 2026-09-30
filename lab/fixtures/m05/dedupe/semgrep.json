@@ -1,0 +1,163 @@
+{
+  "version": "1.96.0",
+  "results": [
+    {
+      "check_id": "novafact.cwe-915.rule",
+      "path": "./server/routes/profile.ts",
+      "start": {
+        "line": 31,
+        "col": 3
+      },
+      "end": {
+        "line": 31,
+        "col": 40
+      },
+      "extra": {
+        "severity": "ERROR",
+        "message": "Object.assign du corps de requête dans l’entité utilisateur",
+        "metadata": {
+          "cwe": [
+            "CWE-915: catégorie"
+          ],
+          "confidence": "HIGH"
+        }
+      }
+    },
+    {
+      "check_id": "novafact.cwe-1321.rule",
+      "path": "./server/routes/settings.ts",
+      "start": {
+        "line": 34,
+        "col": 3
+      },
+      "end": {
+        "line": 34,
+        "col": 40
+      },
+      "extra": {
+        "severity": "ERROR",
+        "message": "Fusion récursive sans filtrage de __proto__",
+        "metadata": {
+          "cwe": [
+            "CWE-1321: catégorie"
+          ],
+          "confidence": "HIGH"
+        }
+      }
+    },
+    {
+      "check_id": "novafact.cwe-918.rule",
+      "path": "./server/routes/webhooks.ts",
+      "start": {
+        "line": 42,
+        "col": 3
+      },
+      "end": {
+        "line": 42,
+        "col": 40
+      },
+      "extra": {
+        "severity": "ERROR",
+        "message": "fetch() sur une URL fournie par le client",
+        "metadata": {
+          "cwe": [
+            "CWE-918: catégorie"
+          ],
+          "confidence": "HIGH"
+        }
+      }
+    },
+    {
+      "check_id": "novafact.cwe-1333.rule",
+      "path": "./server/routes/invoices.ts",
+      "start": {
+        "line": 33,
+        "col": 3
+      },
+      "end": {
+        "line": 33,
+        "col": 40
+      },
+      "extra": {
+        "severity": "WARNING",
+        "message": "Quantificateur imbriqué dans une expression régulière",
+        "metadata": {
+          "cwe": [
+            "CWE-1333: catégorie"
+          ],
+          "confidence": "HIGH"
+        }
+      }
+    },
+    {
+      "check_id": "novafact.cwe-347.rule",
+      "path": "./server/lib/jwt.ts",
+      "start": {
+        "line": 65,
+        "col": 3
+      },
+      "end": {
+        "line": 65,
+        "col": 40
+      },
+      "extra": {
+        "severity": "ERROR",
+        "message": "Algorithme lu dans l’en-tête du jeton",
+        "metadata": {
+          "cwe": [
+            "CWE-347: catégorie"
+          ],
+          "confidence": "HIGH"
+        }
+      }
+    },
+    {
+      "check_id": "novafact.cwe-79.rule",
+      "path": "./src/pages/InvoiceDetail.tsx",
+      "start": {
+        "line": 58,
+        "col": 3
+      },
+      "end": {
+        "line": 58,
+        "col": 40
+      },
+      "extra": {
+        "severity": "ERROR",
+        "message": "dangerouslySetInnerHTML avec une valeur non assainie",
+        "metadata": {
+          "cwe": [
+            "CWE-79: catégorie"
+          ],
+          "confidence": "HIGH"
+        }
+      }
+    },
+    {
+      "check_id": "novafact.cwe-639.rule",
+      "path": "./server/routes/invoices.ts",
+      "start": {
+        "line": 62,
+        "col": 3
+      },
+      "end": {
+        "line": 62,
+        "col": 40
+      },
+      "extra": {
+        "severity": "WARNING",
+        "message": "Chargement par identifiant sans filtre de locataire",
+        "metadata": {
+          "cwe": [
+            "CWE-639: catégorie"
+          ],
+          "confidence": "HIGH"
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "paths": {
+    "scanned": []
+  }
+}

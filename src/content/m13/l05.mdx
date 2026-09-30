@@ -1,0 +1,237 @@
+export const questions = [
+  {
+    q: "Quel type de bug un test de propriétés avec fast-check trouve-t-il bien ?",
+    options: [
+      "Les régressions introduites par une mise à jour de dépendance majeure",
+      "Les cas limites qu'aucun développeur n'aurait écrits à la main",
+      "Les vulnérabilités connues déclenchées par des charges d'attaque prédéfinies",
+      "Les écarts de comportement entre deux environnements d'exécution différents",
+    ],
+    answer: 1,
+    explain: "Le piège est de le confondre avec un fuzzer à corpus d'attaques : fast-check ne connaît aucune charge utile. On lui décrit une propriété toujours vraie — « parse(serialize(x)) vaut x », « la sortie reste sur notre origine » — et il cherche un contre-exemple sur des milliers d'entrées générées, puis le réduit au plus simple.",
+  },
+  {
+    q: "Pourquoi tester la disponibilité fait-il partie de la sécurité ?",
+    options: [
+      "Parce qu'une indisponibilité empêche les journaux de sécurité d'être collectés",
+      "Parce que la charge révèle les conditions de course invisibles à faible trafic",
+      "Parce que la consommation de ressources non bornée est une vulnérabilité",
+      "Parce que le chiffrement TLS impose un coût CPU à vérifier avant la production",
+    ],
+    answer: 2,
+    explain: "Les conditions de course révélées par la charge sont une vraie trouvaille, mais c'est un effet de bord du test, pas sa raison d'être. La raison figure dans les référentiels eux-mêmes : la consommation non bornée y est listée comme vulnérabilité (API4, Unbounded Consumption côté LLM). Une limite non testée est une limite qui n'existe peut-être pas ; k6 vérifie qu'elle se déclenche au bon seuil.",
+  },
+  {
+    q: "fast-check signale le contre-exemple « /.// » pour la fonction safeRedirect de Novafact, qui renvoie alors « // ». Pourquoi est-ce grave ?",
+    options: [
+      "Parce qu'un navigateur lit « //domaine » comme une URL relative au protocole",
+      "Parce que « // » sort de la racine du site et expose l'arborescence des fichiers",
+      "Parce que la fonction renvoie une chaîne quasi vide, et le navigateur ne bouge pas",
+      "Parce que le contre-exemple montre une mauvaise normalisation, sans risque direct",
+    ],
+    answer: 0,
+    explain: "Le réflexe est de lire « // » comme un chemin — une racine, une traversée, une valeur quasi vide — et d'en conclure qu'il n'y a pas de risque direct. Mais le navigateur ne le lit pas comme un chemin : `//domaine` est une URL relative au protocole, qui part vers un autre site. C'est une redirection ouverte qu'aucun test écrit à la main n'avait prévue.",
+  },
+  {
+    q: "Le service d'autorisation de Novafact ne répond plus. Quel comportement de l'API le test d'injection de fautes doit-il exiger ?",
+    options: [
+      "Servir la réponse depuis le cache de décisions, avec une durée de vie courte",
+      "Refuser, en 503 ou 403 : l'application doit échouer fermée",
+      "Laisser passer les lectures et refuser les écritures, le temps du rétablissement",
+      "Mettre les requêtes en file et les rejouer au rétablissement du service",
+    ],
+    answer: 1,
+    explain: "Le compromis « lectures oui, écritures non » sonne raisonnable et reste une ouverture : c'est justement la lecture de la facture d'un autre tenant qui fait la faille. Le cache de décisions est défendable en régime normal, mais s'il sert de secours pendant la panne, il prolonge des autorisations que plus personne ne peut révoquer. Un contrôle qui s'ouvre quand sa dépendance tombe est un contournement offert à qui sait la faire tomber.",
+  },
+];
+
+<YouKnow>
+Tu as sans doute fuzzé des binaires ou des paramètres HTTP. Côté développement, le fuzzing et les tests de propriétés s'écrivent comme des tests unitaires, et tournent en CI.
+</YouKnow>
+
+## Pourquoi fuzzer du JavaScript
+
+JavaScript est sûr en mémoire : pas de débordement de tampon à chercher. Le fuzzing reste utile, pour d'autres défauts. Une exception non rattrapée dans un parseur fait tomber le processus Node, et avec lui toutes les requêtes en cours. Une boucle ou une regex qui s'emballe bloque la boucle d'événements (M2). Une fusion d'objets mal écrite pollue le prototype. Et surtout, un parseur ou une fonction de normalisation se comporte bizarrement sur des entrées que personne n'a imaginées : c'est exactement ce que le fuzzing génère.
+
+## Le fuzzing guidé par la couverture
+
+**Jazzer.js** (Code Intelligence) apporte à Node le fuzzing guidé par la couverture de libFuzzer : il mute les entrées pour explorer de nouveaux chemins du code, et signale les exceptions inattendues, les délais dépassés et certaines classes de vulnérabilités grâce à des **détecteurs** activés par défaut : injection de commande, path traversal, exécution de code, SSRF, et prototype pollution (à configurer).
+
+<Code file="apps/api/fuzz/parse-import.fuzz.ts">
+
+```ts
+import { FuzzedDataProvider } from '@jazzer.js/core';
+import { parseInvoiceImport, ImportError } from '../src/imports/parse';
+
+// Cible : le parseur d'import CSV/UBL des factures, qui reçoit des fichiers clients.
+export function fuzz(data: Buffer) {
+  const provider = new FuzzedDataProvider(data);
+  try {
+    parseInvoiceImport(provider.consumeRemainingAsString());
+  } catch (e) {
+    if (!(e instanceof ImportError)) throw e; // seules les erreurs prévues sont acceptables
+  }
+}
+```
+
+</Code>
+
+Le `catch` est la partie intéressante : il exprime le **contrat** du parseur. Refuser une entrée avec une `ImportError` est normal ; toute autre exception (un `TypeError` sur une propriété absente, un `RangeError` de pile) est un défaut. Avec l'intégration Jest (`@jazzer.js/jest-runner`), la même cible s'écrit `it.fuzz(...)` à côté des tests ordinaires : en mode régression (par défaut), elle rejoue les entrées déjà trouvées à chaque exécution de la CI ; avec `JAZZER_FUZZ=1`, elle fuzz vraiment, typiquement dans un job de nuit.
+
+Bonnes cibles chez Novafact : les parseurs (imports CSV et UBL, Markdown des notes), la validation des montants, la normalisation d'URL, tout ce qui reçoit un fichier ou une chaîne structurée d'un client.
+
+## Les tests de propriétés
+
+**fast-check** génère des entrées selon un modèle et vérifie une propriété. Quand elle échoue, il **réduit** le contre-exemple au plus simple (le *shrinking*) et affiche une graine qui permet de rejouer exactement le même cas. Pour la sécurité, les propriétés utiles sont des **invariants** :
+
+<Code file="apps/api/test/money.property.test.ts">
+
+```ts
+import fc from 'fast-check';
+
+test('un avoir ne rend jamais le solde d’une facture négatif', () => {
+  fc.assert(fc.property(
+    fc.integer({ min: 1, max: 10_000_00 }),                // total en centimes
+    fc.array(fc.integer({ min: -10_000_00, max: 10_000_00 })), // demandes d'avoirs, y compris aberrantes
+    (total, requests) => {
+      const invoice = newInvoice(total);
+      for (const amount of requests) tryCreditNote(invoice, amount);
+      return invoice.balance >= 0;
+    },
+  ));
+});
+```
+
+</Code>
+
+Un exemple réel montre la puissance de l'approche. Novafact a une fonction qui n'autorise, après connexion, que des redirections vers sa propre origine. La propriété s'énonce en une phrase : « quelle que soit l'entrée, la sortie est un chemin qui reste sur notre origine ».
+
+<Code file="apps/web/test/safe-redirect.property.test.ts">
+
+```ts
+const ORIGIN = 'https://app.novafact.example';
+const staysHome = (out: string) =>
+  out.startsWith('/') && !out.startsWith('//') && !out.startsWith('/\\') && new URL(out, ORIGIN).origin === ORIGIN;
+
+test('safeRedirect ne quitte jamais notre origine', () => {
+  const target = fc.oneof(fc.string(), fc.webUrl(), fc.webPath(), fc.string().map((s) => '/' + s));
+  fc.assert(fc.property(target, (t) => staysHome(safeRedirect(t))), { numRuns: 50_000 });
+});
+```
+
+</Code>
+
+Sur la première version, fast-check a trouvé en quelques milliers d'essais le contre-exemple `/.//` : l'analyse de l'URL normalise le chemin en `//`, que la fonction renvoyait tel quel. Or un navigateur lit `//domaine` comme une URL relative au protocole : redirection ouverte (M2).
+
+<Diff file="apps/web/src/lib/safe-redirect.ts" hlBefore="5" hlAfter="5,6">
+
+```ts
+export function safeRedirect(target: string): string {
+  try {
+    const url = new URL(target, ORIGIN);
+    if (url.origin !== ORIGIN) return '/';
+    return url.pathname + url.search + url.hash;
+  } catch { return '/'; }
+}
+```
+
+```ts
+export function safeRedirect(target: string): string {
+  try {
+    const url = new URL(target, ORIGIN);
+    if (url.origin !== ORIGIN) return '/';
+    const path = url.pathname + url.search + url.hash;
+    return path.startsWith('//') ? '/' : path;             // une sortie relative au protocole est refusée
+  } catch { return '/'; }
+}
+```
+
+</Diff>
+
+Aucun développeur n'aurait écrit ce cas de test à la main. Le contre-exemple réduit rejoint ensuite les tests ordinaires, comme test de régression.
+
+<Callout kind="warn">
+Le générateur définit ce que tu testes. Une propriété vérifiée sur `fc.integer({ min: 0 })` ne dit rien des montants négatifs ; un harnais de fuzzing qui rattrape **toutes** les exceptions ne trouvera jamais rien. Relis tes générateurs comme tu relis une règle Semgrep : quelles entrées un attaquant enverrait-il, que le générateur ne produit jamais ? Les types inattendus (objet à la place d'une chaîne, tableau, `null`) et les valeurs aux limites méritent souvent d'être ajoutés explicitement avec `fc.oneof`.
+</Callout>
+
+## Où faire tourner quoi
+
+| Technique | Moment | Durée | Ce qu'on garde |
+| --- | --- | --- | --- |
+| Fuzzing en mode régression, tests de propriétés | Chaque PR | Secondes | Les contre-exemples réduits, devenus tests ordinaires |
+| Campagne de fuzzing (`JAZZER_FUZZ=1`) | Nuit, sur les parseurs modifiés | Une à quelques heures | Le corpus, conservé d'une nuit à l'autre pour ne pas repartir de zéro |
+| Tests de limites avec k6 | Avant release, en recette | Minutes | Les seuils, versionnés avec le code |
+| Injection de fautes (FIS, Toxiproxy) | Tests d'intégration, puis *game days* trimestriels | Heures | Les comportements d'échec attendus, écrits comme exigences |
+
+Un défaut trouvé par une campagne de nuit suit le même chemin qu'un finding de pentest : ticket, correction, et l'entrée qui l'a déclenché rejoint le corpus de régression.
+
+## La disponibilité
+
+Kohnfelder (K12) rappelle que la disponibilité se teste aussi : consommation mémoire, taille des entrées, temps de traitement, comportement sous charge. Chaque limite de l'API (taille des corps avec `express.json({ limit })`, pagination maximale, délais d'expiration, profondeur des requêtes GraphQL, nombre de lignes d'un import) est une **exigence** qui mérite son test. Deux outils :
+
+- **k6** pour vérifier que les limites existent et se déclenchent au bon seuil ;
+- l'**injection de fautes** pour vérifier que l'application **échoue fermée**.
+
+<Code file="load/exports-rate-limit.js">
+
+```js
+import http from 'k6/http';
+import { check } from 'k6';
+
+export const options = { vus: 1, iterations: 1, thresholds: { checks: ['rate==1.0'] } };
+
+export default function () {
+  const params = { headers: { Cookie: __ENV.SESSION_COOKIE } };
+  const statuses = [];
+  for (let i = 0; i < 11; i++) statuses.push(http.post(`${__ENV.BASE_URL}/exports`, null, params).status);
+  check(statuses, {
+    'les 10 premiers exports sont acceptés': (s) => s.slice(0, 10).every((code) => code === 202),
+    'le 11e reçoit 429': (s) => s[10] === 429,
+  });
+}
+```
+
+</Code>
+
+Le seuil `checks: ['rate==1.0']` fait échouer l'exécution si une seule vérification rate : le script devient un test de CI, pas seulement une mesure.
+
+<Callout kind="case">
+Le 2 juillet 2019, une nouvelle règle du WAF de Cloudflare contenait une regex au retour arrière catastrophique : le CPU de toutes les machines du réseau a saturé, et le trafic mondial a chuté pendant 27 minutes. Le rapport de Cloudflare relève deux points utiles ici : une protection contre la consommation excessive de CPU par les regex avait été retirée par erreur lors d'un refactoring quelques semaines plus tôt, et la suite de tests n'avait aucun moyen de détecter une consommation excessive de CPU. Une limite de ressources sans test disparaît sans bruit.
+</Callout>
+
+Pour l'injection de fautes, on coupe une dépendance et on observe. En recette, **AWS Fault Injection Service** arrête des tâches ECS ou perturbe le réseau selon un scénario, avec des conditions d'arrêt ; en test d'intégration, **Toxiproxy** (Shopify) s'intercale entre l'application et une dépendance pour ajouter latence ou coupures. Le test le plus important est aussi le plus simple :
+
+<Code file="apps/api/test/authz.fail-closed.test.ts">
+
+```ts
+it('refuse quand le service d’autorisation est indisponible', async () => {
+  const app = createApp({ authz: { check: async () => { throw new Error('ECONNREFUSED'); } } });
+  const alice = await login('alice@acme.example', app);
+  const res = await request(app).get('/invoices/inv_acme_001').set('Cookie', alice.cookie);
+  expect(res.status).toBe(503);                     // jamais 200 : l'application échoue fermée
+});
+```
+
+</Code>
+
+## La validation cryptographique
+
+Les tests couvrent aussi l'aléatoire et la crypto : les jetons viennent de `crypto.randomBytes` ou `randomUUID` (jamais de `Math.random`), ont la bonne longueur et le bon alphabet, et une batterie simple vérifie qu'ils ne se répètent pas sur un grand échantillon. C'est rudimentaire, et c'est voulu : on ne teste pas la qualité statistique d'un générateur (celui du système est fiable), on attrape les régressions grossières, comme un refactoring qui remplace le générateur ou tronque le jeton. Une règle Semgrep qui interdit `Math.random` dans les modules d'authentification complète le dispositif.
+
+<Recap items={[
+  "Le fuzzing de JavaScript cherche des exceptions, des blocages et des comportements inattendus, pas des débordements mémoire.",
+  "Jazzer.js fuzz les parseurs et la validation, guidé par la couverture, avec des détecteurs de vulnérabilités ; le mode régression rejoue le corpus en CI.",
+  "fast-check vérifie des invariants métier et de sécurité sur des milliers d'entrées, et réduit chaque contre-exemple au plus simple.",
+  "k6 vérifie que les limites se déclenchent ; l'injection de fautes vérifie l'échec fermé.",
+  "Les jetons et l'aléatoire se testent aussi, simplement, pour attraper les régressions.",
+]} />
+
+<Sources items={[
+  { title: "Jazzer.js", url: "https://github.com/CodeIntelligenceTesting/jazzer.js" },
+  { title: "Jazzer.js : bug detectors", url: "https://github.com/CodeIntelligenceTesting/jazzer.js/blob/main/docs/bug-detectors.md" },
+  { title: "fast-check", url: "https://fast-check.dev/" },
+  { title: "Grafana k6 : thresholds", url: "https://grafana.com/docs/k6/latest/using-k6/thresholds/" },
+  { title: "AWS Fault Injection Service", url: "https://docs.aws.amazon.com/fis/latest/userguide/what-is.html" },
+  { title: "Toxiproxy (Shopify)", url: "https://github.com/Shopify/toxiproxy" },
+  { title: "Cloudflare : détails de la panne du 2 juillet 2019", url: "https://blog.cloudflare.com/details-of-the-cloudflare-outage-on-july-2-2019/" },
+]} />

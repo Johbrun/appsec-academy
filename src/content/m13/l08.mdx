@@ -1,0 +1,150 @@
+export const questions = [
+  {
+    q: "L'équipe veut une copie de la production en recette pour reproduire un bug de facturation. Quelle réponse est la plus défendable ?",
+    options: [
+      "Accepter avec une durée de vie de 48 h et une suppression automatique ensuite",
+      "Accepter en chiffrant le disque de recette et en restreignant l'accès à l'équipe",
+      "Proposer un jeu généré reproduisant la situation, sinon un extrait pseudonymisé",
+      "Refuser et demander à l'équipe de reproduire le bug à partir des journaux",
+    ],
+    answer: 2,
+    explain: "Chiffrer le disque et limiter la durée de vie sont des mesures réelles, mais elles ne changent rien à la nature de ce qui est copié : des données personnelles de clients, dans un environnement où les accès, les journaux et les sauvegardes sont moins contrôlés qu'en production. Refuser sans alternative, à l'inverse, garantit qu'une copie sauvage finira par exister.",
+  },
+  {
+    q: "Quelle différence entre pseudonymisation et anonymisation au sens du RGPD ?",
+    options: [
+      "L'anonymisation supprime les identifiants directs, la pseudonymisation les remplace",
+      "Les données pseudonymisées restent personnelles ; les anonymisées ne le sont plus",
+      "La pseudonymisation est réversible par le responsable de traitement, pas l'anonymisation",
+      "L'anonymisation est exigée en recette, la pseudonymisation suffit en production",
+    ],
+    answer: 1,
+    explain: "La réversibilité par le responsable de traitement est une bonne intuition, mais elle manque le critère juridique : ce qui compte est la possibilité de réidentifier à l'aide d'une information supplémentaire, par quiconque en dispose. Et l'anonymisation ne se réduit pas à retirer les identifiants directs — un jeu sans nom reste réidentifiable par croisement. En pratique : remplacer un nom par un hash est une pseudonymisation, et le RGPD continue de s'appliquer.",
+  },
+  {
+    q: "Pourquoi hacher les e-mails (SHA-256) ne suffit-il pas à les protéger dans un jeu de test ?",
+    options: [
+      "Parce que SHA-256 produit des collisions sur les chaînes courtes comme les e-mails",
+      "Parce que le hash conserve le domaine de l'adresse, qui identifie l'entreprise",
+      "Parce qu'un hash reste une donnée personnelle et demeure soumis au RGPD",
+      "Parce que l'espace des e-mails est petit : on retrouve l'original par dictionnaire",
+    ],
+    answer: 3,
+    explain: "Dire qu'un hash reste une donnée personnelle est exact, mais c'est la conclusion, pas le mécanisme — et il le reste précisément parce qu'on le renverse. Aucune collision n'est en jeu, et le domaine ne survit pas au hachage. Le point est l'entropie : une valeur tirée d'un ensemble petit et prévisible se retrouve en hachant des listes d'adresses connues. Il faut un HMAC à clé secrète, ou mieux, une valeur générée.",
+  },
+];
+
+<YouKnow>
+En pentest, tu as sûrement trouvé des recettes remplies de vraies données clients, moins protégées que la production. C'est l'une des fuites les plus banales, et l'une des plus faciles à prévenir.
+</YouKnow>
+
+## Le problème
+
+Les environnements de développement, de recette et de preview sont conçus pour être **ouverts** : plus de personnes y accèdent (développeurs, prestataires, outils), les contrôles y sont assouplis, les journaux moins surveillés, les sauvegardes moins maîtrisées. Y copier la production, c'est déplacer les données les plus sensibles vers l'endroit le moins protégé.
+
+Pour Novafact, une copie de production contient : les coordonnées de milliers de clients finaux, des IBAN, des montants et l'activité commerciale de chaque tenant. Chaque tenant est en droit d'attendre que ses factures ne se retrouvent pas sur le portable d'un prestataire.
+
+Le CSSLP (domaine 6) et Kohnfelder (K12) en font une règle : **les données de test se conçoivent**, elles ne se copient pas.
+
+## L'ordre de préférence
+
+| Option | Quand | Risque résiduel |
+| --- | --- | --- |
+| **1. Données générées** | Par défaut, pour tous les environnements | Quasi nul |
+| **2. Extrait pseudonymisé** | Reproduire un bug qui dépend de la forme réelle des données | Réidentification possible : restent des données personnelles |
+| **3. Données agrégées** | Tests de performance, statistiques | Faible si l'agrégation est suffisante |
+| **4. Copie de production** | Jamais comme pratique courante ; exceptionnellement, avec les contrôles de la production | Celui de la production, dans un environnement plus faible |
+
+## Générer des données représentatives
+
+« Représentatif » ne veut pas dire « réel ». Ce qui compte pour trouver des bugs :
+
+- les **volumes** (un tenant à 200 000 factures, un autre à 3) ;
+- les **distributions** (beaucoup de petites factures, quelques énormes) ;
+- les **cas limites** (montants à zéro, devises, caractères Unicode dans les noms, adresses de 300 caractères, dates en fin d'année fiscale) ;
+- les **relations** (avoirs sur des factures, factures multi-devises, clients partagés par plusieurs utilisateurs) ;
+- des **tenants multiples**, indispensables pour tester l'isolation.
+
+<Code file="packages/seed/src/tenants.ts">
+
+```ts
+import { faker } from '@faker-js/faker/locale/fr';
+
+faker.seed(20260927); // reproductible : le même jeu à chaque génération
+
+export function makeTenant(name: string, invoiceCount: number) {
+  const customers = Array.from({ length: Math.ceil(invoiceCount / 20) }, () => ({
+    name: faker.company.name(),
+    email: faker.internet.email({ provider: 'example.test' }), // domaine réservé : aucun e-mail réel ne partira
+    iban: faker.finance.iban({ formatted: false, countryCode: 'FR' }),
+  }));
+  const invoices = Array.from({ length: invoiceCount }, () => ({
+    customer: faker.helpers.arrayElement(customers),
+    // Distribution réaliste : beaucoup de petites factures, quelques très grosses.
+    totalCents: Math.round(Math.exp(faker.number.float({ min: 3, max: 13 }))),
+    currency: faker.helpers.weightedArrayElement([{ value: 'EUR', weight: 9 }, { value: 'USD', weight: 1 }]),
+  }));
+  return { name, customers, invoices };
+}
+
+export const seedTenants = [
+  makeTenant('Acme', 2_000),
+  makeTenant('Globex', 3),                  // petit tenant : cas limites d'affichage et de pagination
+  makeTenant('Initech', 200_000),           // gros tenant : performances, exports, quotas
+];
+```
+
+</Code>
+
+<Callout kind="tip">
+Utilise des domaines réservés (`example.test`, `example.com`, RFC 2606) et des numéros de téléphone de plage fictive : un jeu de test ne doit jamais pouvoir envoyer un e-mail ou un SMS à une vraie personne. C'est un incident classique, embarrassant, et évitable.
+</Callout>
+
+## Quand il faut des données réelles : pseudonymiser
+
+Certains bugs ne se reproduisent qu'avec la forme exacte des données réelles. Dans ce cas, on extrait le **minimum** (un tenant, une période) et on le transforme :
+
+| Technique | Principe | Attention |
+| --- | --- | --- |
+| **Substitution** | Remplacer par une valeur générée (nom, e-mail) | Garder la cohérence : le même client doit recevoir le même faux nom partout |
+| **Tokenisation** | Remplacer par un jeton, la table de correspondance reste en production | La table est aussi sensible que les données |
+| **HMAC avec clé** | Pseudonyme stable, non réversible sans la clé | Un simple hash sans clé se renverse par dictionnaire |
+| **Généralisation** | Date exacte vers mois, montant vers tranche | Baisse la précision, parfois trop pour le bug |
+| **Suppression** | Retirer les champs inutiles au test | La plus sûre : ce qui n'est pas copié ne fuit pas |
+
+<Callout kind="warn">
+Des données pseudonymisées **restent des données personnelles** au sens du RGPD (considérant 26) : les obligations s'appliquent toujours. L'anonymisation au sens strict, c'est-à-dire l'impossibilité raisonnable de réidentifier, est rarement atteinte sur des données riches comme des factures : le montant, la date et le secteur suffisent parfois à reconnaître un client.
+</Callout>
+
+L'extrait pseudonymisé reçoit une **durée de vie** (supprimé à la fermeture du ticket), un **accès restreint** aux personnes qui travaillent sur le bug, et une trace dans le registre des traitements si la pratique devient régulière.
+
+## Les secrets et les intégrations de test
+
+Les données de test incluent aussi les **secrets et intégrations** : clés Stripe en mode test, bac à sable Cognito dédié, bucket S3 de recette distinct. Aucun environnement de test ne doit détenir un secret qui permet d'agir en production. C'est l'anti-pattern Backflow of Trust de Kohnfelder (M8) : un environnement peu fiable qui contrôle un environnement très fiable.
+
+## Fonctionnalités non documentées et vérification de la documentation
+
+Le domaine 6 du CSSLP ajoute deux vérifications que les tests fonctionnels oublient :
+
+- **Les fonctionnalités non documentées** : routes de debug, paramètres cachés (`?debug=1`), comptes de support, drapeaux de fonctionnalités oubliés. Elles ne figurent dans aucun cahier de test, donc personne ne les teste, alors qu'elles contournent souvent les contrôles. La cartographie de M12 et le contrat OpenAPI permettent de comparer ce qui est déclaré à ce qui est exposé.
+- **La documentation elle-même** : messages d'erreur trop bavards (traces de pile, requêtes SQL), notes de version qui décrivent une vulnérabilité avant que les clients aient pu mettre à jour, documentation d'API qui expose des champs internes. La documentation se relit avec le même regard que le code.
+
+<Callout kind="novafact">
+Chez Novafact, la règle tient en une ligne du guide d'ingénierie : « aucune donnée de production hors de la production ; les exceptions passent par un ticket AppSec avec une date d'expiration ». Le générateur de jeux de test est un paquet interne maintenu comme un produit, avec trois profils (petit, moyen, énorme) et des cas limites ajoutés à chaque bug trouvé.
+</Callout>
+
+<Recap items={[
+  "Copier la production déplace les données les plus sensibles vers l'endroit le moins protégé.",
+  "Par défaut, des données générées, représentatives en volumes, distributions, cas limites et tenants.",
+  "Si des données réelles sont indispensables : extrait minimal, pseudonymisé, à accès restreint et durée de vie courte.",
+  "Pseudonymisé reste personnel au sens du RGPD ; un hash sans clé se renverse.",
+  "Tester aussi les fonctionnalités non documentées, et relire la documentation comme du code.",
+]} />
+
+<Sources items={[
+  { title: "Faker.js", url: "https://fakerjs.dev/" },
+  { title: "CNIL : l'anonymisation des données personnelles", url: "https://www.cnil.fr/fr/technologies/lanonymisation-de-donnees-personnelles" },
+  { title: "EDPB : lignes directrices 01/2025 sur la pseudonymisation", url: "https://www.edpb.europa.eu/our-work-tools/documents/public-consultations/2025/guidelines-012025-pseudonymisation_en" },
+  { title: "RFC 2606 : noms de domaine réservés", url: "https://www.rfc-editor.org/rfc/rfc2606" },
+  { title: "OWASP WSTG : tester la gestion des erreurs", url: "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/08-Testing_for_Error_Handling/" },
+]} />

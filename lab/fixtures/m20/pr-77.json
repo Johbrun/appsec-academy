@@ -1,0 +1,21 @@
+{
+  "_": "Ce que porte la PR 77, fabriquée pour l'étape 4. Les lignes sont celles du fichier d'arrivée. `lines` donne les positions acceptables d'un même constat : un défaut tient parfois sur deux lignes, et on ne piège pas sur un décalage.",
+  "blockers": [
+    {
+      "lines": [16, 19],
+      "cwe": "CWE-306",
+      "what": "la route de statut n'est pas authentifiée et répond pour le tenant que l'appelant nomme, journal d'audit compris"
+    },
+    {
+      "lines": [24],
+      "cwe": "CWE-639",
+      "what": "le tenant exporté est pris dans le corps de la requête, donc choisi par l'appelant"
+    }
+  ],
+  "decoys": [
+    { "line": 26, "why": "un parseInt sans base, sur une valeur qui ne franchit aucune frontière de sécurité" },
+    { "line": 31, "why": "une arithmétique de pagination fragile, pas un défaut de sécurité" },
+    { "line": 34, "why": "une trace d'audit qui contient l'adresse de l'acteur, ce qui est justement son rôle" },
+    { "line": 36, "why": "un commentaire de suivi" }
+  ]
+}

@@ -1,0 +1,208 @@
+export const questions = [
+  {
+    q: "Quelle combinaison couvre à la fois les erreurs de workflow avant fusion et un comportement anormal pendant l'exécution ?",
+    options: [
+      "actionlint en check requis, et OpenSSF Scorecard en tableau de bord hebdomadaire",
+      "poutine pour l'analyse, et Dependabot pour les montées de version des actions",
+      "Scorecard sur les dépôts, et une revue humaine obligatoire des workflows modifiés",
+      "zizmor en check requis, et harden-runner ou un pare-feu de sortie",
+    ],
+    answer: 3,
+    explain: "Les trois autres combinaisons empilent deux outils qui regardent le même objet au repos : actionlint, poutine, Scorecard et la revue humaine lisent tous ce qui est écrit dans le fichier. Aucun ne voit une action pourtant bien épinglée qui, une fois lancée, contacte un domaine inconnu — seule une surveillance du réseau pendant le job le voit, et c'est ainsi que la compromission de tj-actions a été repérée.",
+  },
+  {
+    q: "zizmor signale un `template-injection` sur une expression qui ne contient que `github.event.pull_request.number`. Que faire ?",
+    options: [
+      "Vérifier que la valeur est peu contrôlable, la passer par env, ou ignorer la ligne",
+      "Ajouter la règle template-injection aux exclusions globales de la configuration du dépôt",
+      "Passer zizmor en persona auditor, qui filtre les alertes de faible confiance",
+      "Réécrire l'expression avec la fonction toJSON pour en neutraliser le contenu",
+    ],
+    answer: 0,
+    explain: "Exclure la règle pour tout le dépôt éteint aussi les alertes qui comptent, sur un titre d'issue ou une `head_ref`. La persona `auditor` va dans l'autre sens : elle augmente le nombre d'alertes, elle n'en masque aucune. Ici la valeur est un entier, donc peu contrôlable — corriger coûte souvent moins que justifier, et si tu ignores, fais-le à la ligne, avec la raison.",
+  },
+  {
+    q: "Pourquoi le niveau gratuit de harden-runner ne suffit-il pas pour les dépôts de Novafact ?",
+    options: [
+      "Parce qu'il exige des runners self-hosted, que Novafact n'exploite pas",
+      "Parce qu'il entre en conflit avec zizmor sur les mêmes points de contrôle",
+      "Parce qu'il ne couvre que les dépôts publics sur runners hébergés par GitHub",
+      "Parce qu'il ne fait qu'observer le réseau sans jamais pouvoir le bloquer en sortie",
+    ],
+    answer: 2,
+    explain: "Le blocage existe bien : harden-runner sait passer du mode audit au mode block sur une liste d'hôtes autorisés. Et il ne concurrence pas zizmor, qui lit les fichiers quand lui observe l'exécution. La limite est commerciale — les dépôts de Novafact sont privés, hors du niveau gratuit. Il faut donc l'offre entreprise, ou une autre maîtrise des sorties réseau : proxy, runners dans un VPC, ou le pare-feu de sortie natif annoncé par GitHub.",
+  },
+  {
+    q: "À quoi sert OpenSSF Scorecard dans le programme AppSec de Novafact ?",
+    options: [
+      "Détecter les CVE des dépendances déclarées dans le package.json du projet",
+      "Mesurer la posture de ses propres dépôts, et évaluer celle de ses dépendances",
+      "Afficher un badge de conformité sur le README des dépôts open source",
+      "Vérifier que les artefacts publiés portent une attestation de provenance valide",
+    ],
+    answer: 1,
+    explain: "Scorecard ne cherche ni CVE ni attestation : ce sont les rôles de la SCA et de la vérification de provenance. Le badge est une sortie, pas un usage. Ce qu'il mesure, ce sont des pratiques de dépôt — workflows dangereux, permissions, épinglage, protection de branche —, et les mêmes checks servent dans les deux sens : tenir ses propres dépôts, et choisir ses dépendances.",
+  },
+];
+
+<YouKnow>
+Tu as déjà utilisé des linters et des SAST sur du code applicatif (M13). Les workflows GitHub Actions sont du code comme un autre, avec leurs propres classes de bugs ; ils méritent leurs propres outils, dans la CI et en check requis.
+</YouKnow>
+
+## Quatre familles d'outils
+
+| Outil | Famille | Ce qu'il voit | Où le placer |
+| --- | --- | --- | --- |
+| **actionlint** | Linter | Syntaxe, types d'expressions, erreurs shell (via shellcheck), entrées non fiables dans les scripts | Hook pre-commit, CI de chaque PR |
+| **zizmor** | Analyse statique de sécurité | Injections, déclencheurs dangereux, permissions, épinglage, cache, identifiants persistés… | Check requis sur toute PR qui touche `.github/` |
+| **poutine** | Analyse statique à l'échelle d'une organisation | Exécution de code non fiable, injections, runners self-hosted, sur GitHub Actions, GitLab CI, Azure DevOps et Tekton | Scan périodique de toute l'organisation |
+| **harden-runner** (StepSecurity) | Surveillance à l'exécution | Connexions sortantes, processus, fichiers modifiés pendant le job | Première étape de chaque job sensible |
+| **OpenSSF Scorecard** | Évaluation de posture | Une vingtaine de checks sur les pratiques d'un dépôt | Hebdomadaire sur tes dépôts, ponctuel sur tes dépendances |
+
+Aucun ne remplace les autres. Les outils statiques voient ce qui est **écrit** ; seule la surveillance à l'exécution voit ce que fait réellement une action épinglée une fois lancée.
+
+## actionlint : la base
+
+actionlint vérifie la syntaxe des workflows, le typage des expressions `${{ }}`, les références à des jobs ou des sorties inexistants, et passe chaque bloc `run:` à shellcheck. Il signale aussi l'usage d'entrées potentiellement non fiables directement dans un script inline. Il est rapide, sans configuration, et attrape surtout des bugs de fiabilité : c'est le bon outil pour un hook pre-commit, que les développeurs acceptent parce qu'il leur évite des runs cassés.
+
+## zizmor : la sécurité des workflows
+
+zizmor est devenu l'outil de référence pour la sécurité de GitHub Actions. Ses audits correspondent presque un par un aux règles de la leçon 2 :
+
+| Audit | Ce qu'il détecte | Règle de la leçon 2 |
+| --- | --- | --- |
+| `template-injection` | Expression contrôlable interpolée dans du code | Passer par `env` |
+| `dangerous-triggers` | `pull_request_target`, `workflow_run` | Couple `pull_request` + `workflow_run` sûr |
+| `excessive-permissions` | Jeton trop large, permissions implicites | `permissions: {}` puis par job |
+| `unpinned-uses` | Action référencée par tag ou branche | Épinglage SHA |
+| `artipacked` | Identifiants Git persistés par `actions/checkout` | `persist-credentials: false` |
+| `cache-poisoning` | Cache restauré dans un workflow de release | Pas de cache dans les releases |
+| `impostor-commit`, `ref-confusion` | SHA qui n'appartient pas au dépôt annoncé, référence ambiguë | Vérifier l'origine du SHA |
+| `known-vulnerable-actions` | Version d'action avec avis de sécurité connu | Mettre à jour |
+| `secrets-inherit`, `overprovisioned-secrets` | Secrets transmis en bloc | Secrets nommés, au plus près |
+| `use-trusted-publishing` | Publication par jeton là où l'OIDC est possible | Trusted publishing (leçon 5) |
+
+Trois réglages comptent :
+
+- **Le persona** : `regular` (par défaut, signal fort), `pedantic` (ajoute les mauvaises pratiques), `auditor` (tout, y compris les faux positifs probables). Utilise `regular` en check bloquant et `auditor` pour une revue ponctuelle.
+- **Le mode en ligne** : avec un jeton GitHub, certains audits interrogent GitHub (vulnérabilités connues, commits imposteurs) ; sans réseau, ils sont sautés.
+- **Les exceptions** : à la ligne (`# zizmor: ignore[template-injection]`) ou dans `zizmor.yml`, toujours avec une justification relue.
+
+<Code file=".github/workflows/zizmor.yml" hl="3,4,6,10">
+
+```yaml
+name: zizmor
+on:
+  pull_request: { paths: [".github/**"] }
+  push: { branches: [main], paths: [".github/**"] }
+permissions: {}
+jobs:
+  zizmor:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, security-events: write, actions: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          persona: regular
+          advanced-security: true   # résultats SARIF dans l'onglet code scanning
+```
+
+</Code>
+
+<Code file="zizmor.yml">
+
+```yaml
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        "*": hash-pin              # tout épinglé par SHA, sans exception
+  forbidden-uses:
+    config:
+      allow:                       # liste d'actions autorisées chez Novafact
+        - actions/*
+        - github/codeql-action/*
+        - aws-actions/configure-aws-credentials
+        - zizmorcore/zizmor-action
+        - step-security/harden-runner
+```
+
+</Code>
+
+Sur un dépôt privé, l'envoi des résultats SARIF dans code scanning suppose une licence GitHub Code Security (Advanced Security) ; sans elle, garde la sortie texte et fais échouer le job.
+
+## poutine : la vue d'organisation
+
+poutine (BoostSecurity) analyse aussi les pipelines, avec une force particulière : `poutine analyze_org novafact` passe **tous** les dépôts d'une organisation en une commande, y compris ceux qui n'ont pas encore de CI de sécurité, et comprend GitLab CI, Azure DevOps et Tekton. C'est l'outil de l'inventaire initial (leçon 1) et du contrôle périodique des dépôts oubliés : un vieux dépôt de démonstration avec un `pull_request_target` suffit à exposer des secrets d'organisation.
+
+## harden-runner : voir ce que fait le job
+
+harden-runner s'installe en première étape d'un job et observe les connexions sortantes, les processus et les fichiers modifiés. En mode `audit`, il construit une référence des domaines contactés ; en mode `block`, il refuse tout ce qui n'est pas dans la liste.
+
+<Code file=".github/workflows/release-sdk.yml (extrait)">
+
+```yaml
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block      # après quelques runs en mode audit
+          allowed-endpoints: >      # liste issue de la référence construite en audit
+            github.com:443
+            api.github.com:443
+            registry.npmjs.org:443
+```
+
+</Code>
+
+C'est le type de contrôle qui a repéré la compromission de tj-actions/changed-files en mars 2025 : l'action, épinglée par tag, contactait soudain un domaine inhabituel. Limite importante : l'offre gratuite ne couvre que les dépôts **publics** sur runners hébergés par GitHub. Pour Novafact, dont les dépôts sont privés, il faut l'offre entreprise, des runners dans un VPC derrière un proxy filtrant, ou attendre le **pare-feu de sortie natif** que GitHub a inscrit à sa feuille de route 2026 (modes surveillance et blocage).
+
+## OpenSSF Scorecard : mesurer la posture
+
+Scorecard évalue un dépôt sur une vingtaine de checks, notés de 0 à 10 et pondérés par risque. Les plus utiles pour le pipeline :
+
+| Check | Risque | Ce qu'il vérifie |
+| --- | --- | --- |
+| Dangerous-Workflow | Critique | `pull_request_target` avec checkout de la PR, injections de script |
+| Token-Permissions | Élevé | Permissions par défaut du jeton en lecture seule |
+| Branch-Protection, Code-Review | Élevé | Revue obligatoire, protection de la branche principale |
+| Pinned-Dependencies | Moyen | Actions, images et installations épinglées |
+| Maintained, Vulnerabilities | Élevé | Activité récente, vulnérabilités connues ouvertes |
+
+Deux usages : l'action `ossf/scorecard-action` sur tes propres dépôts, chaque semaine et à chaque push sur la branche principale, pour suivre la tendance ; et la CLI ou les données publiées (reprises par deps.dev) pour **évaluer une dépendance avant de l'adopter** (leçon 6). Le score global compte moins que les checks critiques : un 7/10 avec Dangerous-Workflow à 0 est un mauvais signe.
+
+## Intégrer sans noyer les équipes
+
+<Steps items={[
+  { title: "Mesurer d'abord", text: "Lancer poutine et zizmor (persona regular) sur toute l'organisation, sans bloquer. Trier les résultats par dépôt et par audit." },
+  { title: "Corriger en masse", text: "Les corrections sont mécaniques : `permissions`, `persist-credentials`, épinglage (outils de réécriture ou Dependabot). Une PR par dépôt, préparée par l'équipe plateforme." },
+  { title: "Bloquer le nouveau", text: "zizmor devient un check requis par ruleset sur `.github/**` : aucun nouveau workflow dangereux n'entre." },
+  { title: "Surveiller l'exécution", text: "harden-runner ou filtrage réseau d'abord en audit sur les workflows de release et de déploiement, puis en blocage." },
+  { title: "Suivre la tendance", text: "Scorecard hebdomadaire, résultat dans le tableau de bord AppSec (M13, leçon 11)." },
+]} />
+
+<Callout kind="novafact">
+Premier passage sur Novafact (chiffres fictifs) : zizmor sort 212 findings sur 61 workflows, dont 170 `unpinned-uses` et `artipacked` corrigés en deux jours par des PR automatiques. Restent 9 `template-injection`, 3 `dangerous-triggers` et 2 `cache-poisoning`, tous corrigés à la main. Après trois semaines, le check est bloquant ; le taux d'exception est de 2 lignes ignorées, justifiées et relues.
+</Callout>
+
+<Callout kind="debate">
+Faut-il bloquer les PR sur tous les findings zizmor ? Les partisans du blocage rappellent que les corrections sont triviales et que les workflows sont rarement modifiés : le coût est faible. Les sceptiques notent que les audits `pedantic` et `auditor` produisent des faux positifs qui usent la confiance. Un compromis courant : bloquer en persona `regular` à partir de la sévérité moyenne, et réserver les personas plus larges aux revues trimestrielles.
+</Callout>
+
+<Recap items={[
+  "Les workflows sont du code : linter (actionlint), analyse de sécurité (zizmor, poutine), surveillance à l'exécution (harden-runner), posture (Scorecard).",
+  "Les audits zizmor recoupent les règles de durcissement : injection, déclencheurs, permissions, épinglage, cache, identifiants persistés.",
+  "Exceptions à la ligne et justifiées, jamais en désactivant un audit globalement.",
+  "Seule la surveillance à l'exécution voit ce que fait une action épinglée ; l'offre gratuite de harden-runner ne couvre pas les dépôts privés.",
+  "Scorecard sert à tenir ses dépôts et à évaluer ses dépendances ; lire les checks critiques plutôt que le score global.",
+]} />
+
+<Sources items={[
+  { title: "zizmor : documentation", url: "https://docs.zizmor.sh/" },
+  { title: "actionlint", url: "https://github.com/rhysd/actionlint" },
+  { title: "poutine (BoostSecurity)", url: "https://github.com/boostsecurityio/poutine" },
+  { title: "StepSecurity harden-runner", url: "https://github.com/step-security/harden-runner" },
+  { title: "OpenSSF Scorecard : liste des checks", url: "https://github.com/ossf/scorecard/blob/main/docs/checks.md" },
+  { title: "GitHub : feuille de route sécurité Actions 2026", url: "https://github.blog/news-insights/product-news/whats-coming-to-our-github-actions-2026-security-roadmap/" },
+]} />

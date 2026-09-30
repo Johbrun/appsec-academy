@@ -1,0 +1,99 @@
+{
+  "_comment": "Référentiel d'exigences applicatives — données embarquées du lab. Reprend la STRUCTURE et la numérotation par chapitre d'OWASP ASVS 5.0, ainsi que la notion de niveau (L1 socle, L2 défendable, L3 critique). Les libellés sont réécrits en français et raccourcis, et le sous-ensemble retenu est celui qui a un sens pour une application de facturation multi-tenant en TypeScript. Ce n'est pas l'export officiel : ne pas s'en servir comme d'une source.",
+  "standard": "ASVS",
+  "version": "5.0",
+  "chapitres": {
+    "V1": "Encodage et assainissement",
+    "V2": "Validation et logique métier",
+    "V3": "Sécurité du front web",
+    "V4": "API et services web",
+    "V5": "Manipulation de fichiers",
+    "V6": "Authentification",
+    "V7": "Gestion de session",
+    "V8": "Autorisation",
+    "V9": "Jetons autoportants",
+    "V10": "OAuth et OIDC",
+    "V11": "Cryptographie",
+    "V12": "Communications sécurisées",
+    "V13": "Configuration",
+    "V14": "Protection des données",
+    "V15": "Codage sûr et architecture",
+    "V16": "Journalisation et gestion des erreurs"
+  },
+  "obligatoires": ["V2", "V6", "V7", "V8", "V14", "V16"],
+  "exigences": [
+    { "id": "V1.1.1", "chapitre": "V1", "niveau": "L1", "texte": "La sortie est encodée selon le contexte d'interprétation (HTML, attribut, URL, JavaScript)." },
+    { "id": "V1.2.1", "chapitre": "V1", "niveau": "L2", "texte": "Le contenu fourni par un utilisateur et rendu en HTML passe par un assainisseur éprouvé, appelé à un seul endroit." },
+    { "id": "V1.2.4", "chapitre": "V1", "niveau": "L2", "texte": "Les requêtes vers la couche de données sont paramétrées ; aucune valeur d'utilisateur n'est concaténée dans une requête." },
+    { "id": "V1.3.2", "chapitre": "V1", "niveau": "L3", "texte": "Les types de confiance du navigateur sont imposés sur les points d'injection DOM." },
+
+    { "id": "V2.1.1", "chapitre": "V2", "niveau": "L1", "texte": "Toute entrée est validée par un schéma déclaré côté serveur avant d'atteindre la logique métier." },
+    { "id": "V2.1.3", "chapitre": "V2", "niveau": "L2", "texte": "Le schéma refuse les champs non déclarés plutôt que de les ignorer silencieusement." },
+    { "id": "V2.2.1", "chapitre": "V2", "niveau": "L2", "texte": "Les clés de structure du langage (__proto__, constructor, prototype) sont refusées dans toute donnée désérialisée." },
+    { "id": "V2.3.1", "chapitre": "V2", "niveau": "L2", "texte": "Les montants sont représentés en entiers et les invariants métier sont vérifiés côté serveur avant persistance." },
+    { "id": "V2.3.4", "chapitre": "V2", "niveau": "L2", "texte": "Les transitions d'état métier autorisées sont déclarées côté serveur ; le client ne choisit pas l'état d'arrivée." },
+    { "id": "V2.4.2", "chapitre": "V2", "niveau": "L2", "texte": "Les opérations sensibles à la concurrence sont atomiques au niveau de la couche de données." },
+    { "id": "V2.5.1", "chapitre": "V2", "niveau": "L3", "texte": "Les expressions régulières appliquées à une entrée sont linéaires, ou la longueur de l'entrée est bornée avant évaluation." },
+
+    { "id": "V3.1.1", "chapitre": "V3", "niveau": "L1", "texte": "Une politique de sécurité de contenu est servie et interdit le script en ligne sans nonce." },
+    { "id": "V3.2.2", "chapitre": "V3", "niveau": "L2", "texte": "Les origines des scripts tiers sont en liste blanche et ne sont jamais pilotées par de la configuration modifiable." },
+    { "id": "V3.4.1", "chapitre": "V3", "niveau": "L2", "texte": "Les cookies de session portent HttpOnly, Secure et SameSite." },
+
+    { "id": "V4.1.1", "chapitre": "V4", "niveau": "L1", "texte": "Chaque route déclare les méthodes HTTP qu'elle accepte et refuse les autres." },
+    { "id": "V4.2.1", "chapitre": "V4", "niveau": "L2", "texte": "Les réponses ne renvoient que les champs nécessaires à l'appelant, par projection explicite." },
+    { "id": "V4.3.2", "chapitre": "V4", "niveau": "L2", "texte": "Les limites de débit sont appliquées par compte, par adresse et par organisation." },
+    { "id": "V4.4.1", "chapitre": "V4", "niveau": "L2", "texte": "Les requêtes sortantes déclenchées par une entrée d'utilisateur passent par une liste blanche de destinations." },
+
+    { "id": "V5.1.1", "chapitre": "V5", "niveau": "L1", "texte": "Un chemin de fichier n'est jamais dérivé d'une entrée du client ; un identifiant opaque est résolu côté serveur." },
+    { "id": "V5.2.2", "chapitre": "V5", "niveau": "L2", "texte": "Le type et la taille des fichiers téléversés sont contrôlés côté serveur." },
+
+    { "id": "V6.1.1", "chapitre": "V6", "niveau": "L1", "texte": "Les mots de passe sont stockés par une fonction de dérivation à coût paramétrable, avec sel." },
+    { "id": "V6.1.4", "chapitre": "V6", "niveau": "L2", "texte": "Les mots de passe choisis sont comparés à un corpus d'identifiants déjà divulgués." },
+    { "id": "V6.2.1", "chapitre": "V6", "niveau": "L2", "texte": "Les tentatives d'authentification échouées sont comptées et ralenties, sans permettre un déni de service sur un compte." },
+    { "id": "V6.2.3", "chapitre": "V6", "niveau": "L2", "texte": "La réponse d'authentification ne révèle pas si le compte existe." },
+    { "id": "V6.3.1", "chapitre": "V6", "niveau": "L2", "texte": "Un second facteur est disponible et obligatoire pour les comptes à privilège." },
+    { "id": "V6.4.2", "chapitre": "V6", "niveau": "L2", "texte": "Le lien de réinitialisation est construit depuis une origine de configuration, jamais depuis un en-tête de requête." },
+    { "id": "V6.4.3", "chapitre": "V6", "niveau": "L2", "texte": "Les jetons de réinitialisation sont à usage unique, de courte durée, et invalidés à l'usage." },
+
+    { "id": "V7.1.1", "chapitre": "V7", "niveau": "L1", "texte": "L'identifiant de session est généré par une source cryptographiquement sûre." },
+    { "id": "V7.2.1", "chapitre": "V7", "niveau": "L2", "texte": "La session est renouvelée à l'élévation de privilège et à la connexion." },
+    { "id": "V7.3.1", "chapitre": "V7", "niveau": "L2", "texte": "La déconnexion invalide la session côté serveur, pas seulement côté client." },
+    { "id": "V7.4.2", "chapitre": "V7", "niveau": "L3", "texte": "Les sessions actives sont listables et révocables par la personne concernée." },
+
+    { "id": "V8.1.1", "chapitre": "V8", "niveau": "L1", "texte": "Chaque accès à une ressource vérifie que l'appelant y a droit, indépendamment de l'interface appelée." },
+    { "id": "V8.1.2", "chapitre": "V8", "niveau": "L2", "texte": "Le cloisonnement entre organisations est porté par la couche d'accès aux données, pas par chaque route." },
+    { "id": "V8.2.1", "chapitre": "V8", "niveau": "L2", "texte": "Les décisions d'autorisation ne dépendent d'aucune propriété héritée ni d'aucune valeur fournie par le client." },
+    { "id": "V8.2.3", "chapitre": "V8", "niveau": "L2", "texte": "Les opérations d'administration sont refusées par défaut et accordées explicitement." },
+    { "id": "V8.3.1", "chapitre": "V8", "niveau": "L3", "texte": "La matrice des droits est testée automatiquement, rôle par rôle et ressource par ressource." },
+
+    { "id": "V9.1.1", "chapitre": "V9", "niveau": "L1", "texte": "La signature d'un jeton autoporté est vérifiée avant que la moindre revendication ne soit lue." },
+    { "id": "V9.1.2", "chapitre": "V9", "niveau": "L2", "texte": "La liste des algorithmes acceptés est fixée côté serveur ; l'algorithme annoncé par le jeton n'est jamais suivi." },
+    { "id": "V9.2.1", "chapitre": "V9", "niveau": "L2", "texte": "L'émetteur, l'audience et l'expiration du jeton sont contrôlés à chaque utilisation." },
+
+    { "id": "V10.2.1", "chapitre": "V10", "niveau": "L2", "texte": "Le flux d'autorisation utilise le code d'autorisation avec PKCE ; le flux implicite n'est pas accepté." },
+    { "id": "V10.3.1", "chapitre": "V10", "niveau": "L2", "texte": "Les URI de redirection sont comparées à une liste exacte, sans correspondance partielle." },
+
+    { "id": "V11.1.1", "chapitre": "V11", "niveau": "L1", "texte": "Les primitives cryptographiques viennent d'une bibliothèque éprouvée ; rien n'est réimplémenté." },
+    { "id": "V11.2.2", "chapitre": "V11", "niveau": "L2", "texte": "Les comparaisons de secrets se font en temps constant." },
+    { "id": "V11.3.1", "chapitre": "V11", "niveau": "L2", "texte": "Les clés sont renouvelables sans redéploiement, et leur usage est journalisé." },
+
+    { "id": "V12.1.1", "chapitre": "V12", "niveau": "L1", "texte": "Toutes les communications, y compris internes, sont chiffrées en transit." },
+    { "id": "V12.2.1", "chapitre": "V12", "niveau": "L2", "texte": "Les certificats des services appelés sont vérifiés, sans possibilité de désactivation par configuration." },
+
+    { "id": "V13.1.1", "chapitre": "V13", "niveau": "L1", "texte": "Les secrets ne sont ni dans le code, ni dans le dépôt, ni dans les arguments de construction d'image." },
+    { "id": "V13.2.1", "chapitre": "V13", "niveau": "L2", "texte": "Les en-têtes de sécurité de production sont servis et vérifiés automatiquement." },
+    { "id": "V13.3.2", "chapitre": "V13", "niveau": "L2", "texte": "Les dépendances sont installées depuis un lockfile, avec contrôle d'intégrité." },
+    { "id": "V13.4.1", "chapitre": "V13", "niveau": "L2", "texte": "Les valeurs de configuration par défaut sont les plus sûres ; l'ouverture est explicite." },
+
+    { "id": "V14.1.1", "chapitre": "V14", "niveau": "L1", "texte": "Les données manipulées sont classées, et la classification est tenue dans le dépôt." },
+    { "id": "V14.1.3", "chapitre": "V14", "niveau": "L2", "texte": "Aucune donnée classée interne ou secrète n'apparaît dans une réponse d'API." },
+    { "id": "V14.2.1", "chapitre": "V14", "niveau": "L2", "texte": "Une durée de conservation est déclarée et appliquée pour chaque classe de données." },
+    { "id": "V14.2.4", "chapitre": "V14", "niveau": "L2", "texte": "L'effacement d'un compte porte sur tous les magasins où la donnée s'est propagée." },
+    { "id": "V14.3.1", "chapitre": "V14", "niveau": "L2", "texte": "Les données sensibles ne sont ni journalisées, ni mises en cache par un intermédiaire." },
+
+    { "id": "V16.1.1", "chapitre": "V16", "niveau": "L1", "texte": "Les événements de sécurité sont journalisés avec l'acteur, l'action, la cible et l'horodatage." },
+    { "id": "V16.1.3", "chapitre": "V16", "niveau": "L2", "texte": "Toute opération mutante sur une ressource métier laisse une entrée d'audit." },
+    { "id": "V16.2.1", "chapitre": "V16", "niveau": "L2", "texte": "Les erreurs renvoyées au client ne contiennent ni pile d'appel ni détail d'implémentation." },
+    { "id": "V16.3.2", "chapitre": "V16", "niveau": "L3", "texte": "Les journaux de sécurité sont protégés contre la modification et la suppression par l'application elle-même." }
+  ]
+}

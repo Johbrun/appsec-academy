@@ -1,0 +1,227 @@
+export const questions = [
+  {
+    q: "Tu génères la politique du rôle `export-worker` avec IAM Access Analyzer à partir de 90 jours de CloudTrail. Quelle permission manquera à coup sûr si le worker en a besoin ?",
+    options: [
+      "`iam:PassRole`, absent des données sur lesquelles la génération s'appuie",
+      "`sts:AssumeRole`, que CloudTrail n'enregistre que dans le compte cible de l'endossement",
+      "`kms:Decrypt`, l'appel étant émis par S3 et non par le worker lui-même",
+      "Aucune : la politique générée est exhaustive sur la fenêtre observée",
+    ],
+    answer: 0,
+    explain: "PassRole n'apparaît ni dans la génération de politiques ni dans les données *last accessed* : un worker qui confie un rôle à un service perdra ce droit si on applique la politique générée telle quelle. `kms:Decrypt` est le faux ami : en SSE-KMS l'appel est bien fait avec les identifiants du worker et figure dans CloudTrail, donc il sera généré. Et la génération n'est jamais exhaustive : elle ne voit que ce qui a été exercé pendant la fenêtre, jamais un traitement trimestriel.",
+  },
+  {
+    q: "Quelle vérification Access Analyzer place-t-on dans la CI pour bloquer une PR qui élargit une politique existante ?",
+    options: [
+      "`validate-policy`, qui signale les écarts avec la version précédente du document",
+      "`check-access-not-granted`, qui refuse toute politique plus large que l'existante",
+      "`check-no-new-access`, qui compare la politique à sa version de référence",
+      "`check-no-public-access`, qui vérifie qu'aucun accès n'a été ajouté à la ressource",
+    ],
+    answer: 2,
+    explain: "`check-no-new-access` prend deux documents et répond à « ce diff accorde-t-il un accès qui n'existait pas ? ». Le faux ami est `check-access-not-granted` : utile, mais il répond à une autre question — « cette politique accorde-t-elle l'une de ces actions interdites ? » — et sans référence il laisse passer un élargissement qui ne touche aucune action de sa liste. `validate-policy` ne fait que syntaxe et bonnes pratiques ; `check-no-public-access` ne regarde que l'exposition publique d'une politique de ressource.",
+  },
+  {
+    q: "À quoi sert iamlive pendant le développement ?",
+    options: [
+      "Il bloque les appels AWS non couverts par la politique, comme un bac à sable local",
+      "Il rejoue les événements CloudTrail d'un rôle pour vérifier sa politique hors production",
+      "Il compare la politique du dépôt à celle déployée et signale la dérive",
+      "Il observe les appels du SDK en local et en produit un brouillon de politique",
+    ],
+    answer: 3,
+    explain: "iamlive écoute les appels sortants (mode CSM, ou mode proxy pour capter aussi les ressources) et imprime la politique correspondante. Le contresens à éviter est d'en faire un garde-fou : il n'empêche rien, il observe. Et il ne voit que ce que ton exécution a réellement exercé, ce qui en fait un point de départ, jamais la politique finale.",
+  },
+  {
+    q: "Le rapport d'accès non utilisés signale que le rôle `legacy-billing-sync` n'a fait aucun appel depuis 120 jours. Quelle suite est la plus prudente ?",
+    options: [
+      "Le supprimer : 120 jours sans appel prouvent qu'il n'est plus référencé",
+      "Retirer sa politique d'identité et le laisser en place, sans prévenir personne",
+      "Trouver son propriétaire, le neutraliser par un `Deny` réversible, puis supprimer",
+      "L'ignorer : le rapport ne voit ni les événements de données ni les appels inter-comptes",
+    ],
+    answer: 2,
+    explain: "Un rôle inutilisé est une surface sans valeur, mais certains usages sont saisonniers : une clôture annuelle ou une procédure de reprise casse le jour où on en a besoin. Le rapport a bien des angles morts, ce qui rend l'inaction tentante — sauf qu'un angle mort plaide pour aller vérifier auprès du propriétaire, pas pour ne rien faire. Et supprimer n'est pas réversible : recréé, le rôle change d'identifiant unique et les politiques qui le désignaient cessent de le reconnaître.",
+  },
+];
+
+<YouKnow>
+En pentest, un rôle avec `*:*` te fait gagner une journée. Côté défense, tout le monde est d'accord sur le moindre privilège ; ce qui manque, c'est une **méthode** qui produit des politiques étroites sans ralentir les équipes, et qui les garde étroites dans le temps.
+</YouKnow>
+
+## Une boucle, pas un audit
+
+Le moindre privilège ne s'écrit pas en une fois. Il se construit par itérations, avec un outil adapté à chaque étape :
+
+<Steps items={[
+  { title: "Observer en développement", text: "iamlive capture les appels du code pendant les tests locaux et propose un brouillon." },
+  { title: "Écrire et relire", text: "La politique passe en revue comme du code, dans le dépôt IaC, avec des ressources nommées." },
+  { title: "Contrôler en CI", text: "Access Analyzer valide la syntaxe et les bonnes pratiques, vérifie l'absence d'actions interdites et d'accès nouveaux non voulus." },
+  { title: "Affiner avec la production", text: "La génération depuis CloudTrail et les données last accessed montrent ce qui sert réellement." },
+  { title: "Surveiller l'inutilisé", text: "L'analyseur d'accès non utilisés signale en continu rôles, clés et permissions dormants." },
+]} />
+
+Chaque étape corrige une faiblesse de la précédente : iamlive ne voit que ce que les tests exercent, CloudTrail ne voit que ce qui s'est passé en production, et les contrôles de CI empêchent que l'effort soit défait par une PR pressée.
+
+## En développement : iamlive
+
+**iamlive** (Ian Mckay) observe les appels AWS d'une exécution locale et imprime la politique IAM correspondante. Deux modes :
+
+- **CSM** (Client-Side Monitoring) : le SDK ou la CLI émet des métriques UDP locales ; iamlive en déduit les actions, sans les ressources ;
+- **proxy** : iamlive s'intercale comme proxy HTTPS (avec son propre certificat d'autorité), voit les requêtes complètes et propose aussi les ARN de ressources. C'est le mode à retenir pour du code Node : le SDK JavaScript v3 passe par un proxy si on lui fournit un agent HTTP (`requestHandler`), ce qui se configure une fois dans le harnais de test.
+
+<Code file="scripts/dev/capture-policy.sh">
+
+```bash
+# Terminal 1 : proxy local, politique écrite à la sortie
+iamlive --mode proxy --set-ini --output-file ./tmp/export-worker.policy.json --sort-alphabetical
+
+# Terminal 2 : les tests d'intégration du worker, à travers le proxy.
+# Le SDK JS v3 ne lit pas HTTPS_PROXY seul : la config de test lui passe un agent
+# proxy (hpagent via NodeHttpHandler) quand IAMLIVE_PROXY est défini.
+IAMLIVE_PROXY=http://127.0.0.1:10080 \
+NODE_EXTRA_CA_CERTS=~/.iamlive/ca.pem \
+npm run test:integration -- --filter export-worker
+```
+
+</Code>
+
+Le brouillon obtenu est **optimiste** (il contient tout ce que les tests ont exercé, y compris des appels de préparation) et **incomplet** (il ignore les chemins que les tests n'ont pas couverts, comme la gestion d'erreur). On le relit, on nomme les ressources, on retire ce qui relève du harnais de test.
+
+## En CI : les vérifications d'Access Analyzer
+
+IAM Access Analyzer propose deux niveaux de contrôle, appelables en CLI ou via les actions GitHub fournies par AWS pour les templates CloudFormation et Terraform :
+
+| Contrôle | Commande | Question posée |
+| --- | --- | --- |
+| Validation | `aws accessanalyzer validate-policy` | La politique est-elle correcte et conforme aux bonnes pratiques (erreurs, avertissements de sécurité comme `PassRole` sur `*`) ? |
+| Pas d'accès nouveau | `aws accessanalyzer check-no-new-access` | La nouvelle version accorde-t-elle un accès absent de la version de référence ? |
+| Accès interdit | `aws accessanalyzer check-access-not-granted` | La politique accorde-t-elle l'une de ces actions (ou l'accès à ces ressources) ? |
+| Pas d'accès public | `aws accessanalyzer check-no-public-access` | Cette politique de ressource peut-elle rendre la ressource publique ? |
+
+Les trois vérifications personnalisées reposent sur du raisonnement automatisé (elles prouvent une propriété sur la politique au lieu de chercher des motifs) et sont **facturées à l'appel** : on les lance sur les politiques modifiées par la PR, pas sur tout le dépôt à chaque commit.
+
+<Code file=".github/workflows/iam-guard.yml" hl="23,24,25,26,27">
+
+```yaml
+name: iam-guard
+on:
+  pull_request:
+    paths: ['infra/iam/**']
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::777788889999:role/gha-iam-policy-checker
+          aws-region: eu-west-3
+      - name: Aucune action d'escalade dans les politiques modifiées
+        run: |
+          for f in $(git diff --name-only origin/main -- 'infra/iam/*.json'); do
+            result=$(aws accessanalyzer check-access-not-granted \
+              --policy-document "file://$f" \
+              --policy-type IDENTITY_POLICY \
+              --access 'actions=iam:CreatePolicyVersion,iam:SetDefaultPolicyVersion,iam:AttachRolePolicy,iam:PutRolePolicy,iam:UpdateAssumeRolePolicy,iam:CreateAccessKey' \
+              --query result --output text)
+            if [ "$result" != "PASS" ]; then echo "::error file=$f::action d'escalade accordée"; exit 1; fi
+          done
+```
+
+</Code>
+
+Le rôle `gha-iam-policy-checker` n'a que les permissions `access-analyzer:Validate*` et `access-analyzer:Check*` : ces API analysent le document fourni, elles n'ont pas besoin d'accès aux ressources. Chez Novafact, la liste des actions interdites vit dans un fichier versionné, relu par l'équipe AppSec, et les rôles du pipeline IaC en sont exemptés par un chemin de fichiers dédié (`infra/iam/platform/`) protégé par CODEOWNERS.
+
+## En production : ce qui sert vraiment
+
+### Générer depuis CloudTrail
+
+Access Analyzer peut **générer une politique** à partir de l'activité CloudTrail d'un rôle ou d'un utilisateur, sur une période de 90 jours au plus. Le résultat est un modèle à compléter : actions précises pour les services couverts, niveau service pour les autres, et des emplacements à remplacer par les ARN de ressources. Ses angles morts sont documentés et méritent d'être connus :
+
+- les **événements de données** (lecture d'objets S3, par exemple) ne sont pas identifiés au niveau action ;
+- `iam:PassRole` n'est pas tracé et n'apparaît jamais ;
+- les traces de l'organisation créées par Control Tower ne sont pas prises en charge ;
+- une période trop courte manque les traitements rares (clôtures mensuelles, exports annuels).
+
+### Last accessed
+
+Les données **last accessed** d'IAM indiquent, pour chaque rôle, la dernière tentative d'accès à chaque service autorisé (au moins 400 jours d'historique), et pour un nombre croissant de services la dernière utilisation de chaque action de gestion.
+
+<Code file="scripts/iam/last-accessed.sh">
+
+```bash
+JOB=$(aws iam generate-service-last-accessed-details \
+  --arn arn:aws:iam::111122223333:role/workloads/novafact-export-worker \
+  --granularity ACTION_LEVEL --query JobId --output text)
+aws iam get-service-last-accessed-details --job-id "$JOB"
+```
+
+</Code>
+
+Un service jamais appelé en un an peut disparaître de la politique. Attention : les tentatives **refusées** comptent aussi, et seules les politiques d'identité sont prises en compte.
+
+## L'inutilisé, en continu
+
+L'**analyseur d'accès non utilisés** d'Access Analyzer surveille tous les rôles et utilisateurs d'un compte ou de l'organisation et produit des findings : rôles inutilisés, clés d'accès et mots de passe inutilisés, et, pour les identités actives, services et actions jamais employés. Il est payant (au nombre d'identités analysées) et il suffit d'un analyseur, les findings ne dépendant pas de la région.
+
+<Code file="scripts/iam/unused-analyzer.sh">
+
+```bash
+aws accessanalyzer create-analyzer \
+  --analyzer-name novafact-unused-90d \
+  --type ORGANIZATION_UNUSED_ACCESS \
+  --configuration '{"unusedAccess":{"unusedAccessAge":90}}'
+```
+
+</Code>
+
+<Callout kind="novafact">
+Premier passage sur l'organisation : 212 rôles, dont 64 sans activité depuis 90 jours (surtout des restes de piles CloudFormation supprimées à moitié) et 31 rôles actifs qui n'utilisaient pas plus de 20 % de leurs permissions (chiffres de l'exercice, fictifs). L'équipe plateforme a traité les rôles inutilisés par lots : propriétaire identifié, `Deny` complet attaché pendant 30 jours, suppression ensuite. Aucune panne, un seul rôle réactivé (le traitement de clôture annuelle, qui tourne en janvier).
+</Callout>
+
+## Et les politiques de ressource ?
+
+Tout ce qui précède regarde les **identités**. Le moindre privilège vaut aussi dans l'autre sens : qui peut atteindre tes buckets, clés KMS, secrets et files ? Access Analyzer y répond avec deux autres analyseurs :
+
+- l'analyseur d'**accès externe** raisonne sur les politiques de ressource et signale toute ressource accessible depuis l'extérieur de la « zone de confiance » (le compte ou l'organisation) : bucket public, rôle endossable par un autre compte, clé KMS partagée. Il est gratuit et par région ;
+- l'analyseur d'**accès interne**, plus récent et payant, indique quels principals **de l'organisation** peuvent atteindre des ressources critiques que tu désignes (buckets S3, tables DynamoDB, instantanés RDS).
+
+Chez Novafact, chaque finding d'accès externe crée un ticket automatique ; les partages volontaires (le bucket de logs lu par le compte sécurité) sont archivés par une règle d'archivage explicite, relue une fois par trimestre.
+
+## Choisir ses combats
+
+<Callout kind="debate">
+Faut-il viser une politique parfaite pour chaque fonction Lambda ? Pour : chaque action superflue est une arête de plus dans le graphe d'escalade (leçon 4). Contre : cent rôles ajustés à la main coûtent cher à maintenir, et une politique trop fine casse au premier changement de code, ce qui pousse les équipes à tout rouvrir. Le compromis de Novafact : moindre privilège **strict** sur trois axes (IAM, données clients, secrets), plus tolérant sur le reste (métriques, logs, lecture de configuration), et des rôles générés par des constructions CDK partagées plutôt qu'écrits à la main.
+</Callout>
+
+| Outil | Quand | Entrée | Limite principale |
+| --- | --- | --- | --- |
+| iamlive | Développement | Exécution locale | Ne voit que ce que les tests exercent |
+| `validate-policy` et vérifications personnalisées | CI | Document de politique | Ne connaît pas l'usage réel |
+| Génération de politique | Après quelques semaines de production | CloudTrail, 90 jours max | Pas de PassRole ni d'actions de données |
+| Last accessed | Revue périodique | Historique IAM | Politiques d'identité seulement |
+| Analyseur d'accès non utilisés | En continu | Organisation entière | Coût, et usages saisonniers |
+
+<Recap items={[
+  "Le moindre privilège est une boucle : observer, écrire, contrôler en CI, affiner avec la production, surveiller l'inutilisé.",
+  "iamlive (CSM ou proxy) donne un brouillon depuis les tests locaux, à relire et à nommer.",
+  "En CI : validate-policy, check-no-new-access, check-access-not-granted sur une liste d'actions interdites, check-no-public-access.",
+  "La génération depuis CloudTrail ignore PassRole et les actions de données ; last accessed couvre 400 jours.",
+  "L'analyseur d'accès non utilisés trouve rôles, clés et permissions dormants ; désactiver avant de supprimer.",
+]} />
+
+<Lab id="cloudgoat" />
+
+<Sources items={[
+  { title: "IAM Access Analyzer : présentation", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html" },
+  { title: "IAM Access Analyzer : policy generation", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-policy-generation.html" },
+  { title: "IAM Access Analyzer : custom policy checks", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-custom-policy-checks.html" },
+  { title: "AWS IAM : Refine permissions using last accessed information", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_last-accessed.html" },
+  { title: "iamlive (Ian Mckay)", url: "https://github.com/iann0036/iamlive" },
+  { title: "Action GitHub : IAM Policy Validator for CloudFormation", url: "https://github.com/aws-actions/cloudformation-aws-iam-policy-validator" },
+]} />

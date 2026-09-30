@@ -1,0 +1,220 @@
+export const questions = [
+  {
+    q: "Un filtre SSRF valide l'URL fournie, puis le client HTTP suit une redirection. Quel est le problème ?",
+    options: [
+      "La redirection peut mener vers une adresse interne que le filtre n'a jamais vue",
+      "Le nombre de sauts n'est pas borné, ce qui peut épuiser le processus",
+      "La redirection fait perdre l'en-tête d'autorisation du premier appel",
+      "Le client HTTP réutilise la connexion TLS établie au premier saut",
+    ],
+    answer: 0,
+    explain: "Le nombre de sauts non borné est un vrai problème — c'est même la technique classée n° 3 du Top 10 2025, où des boucles de redirection font parler une SSRF aveugle — mais c'est un problème de disponibilité, pas un contournement du filtre. Ici, le filtre a validé une URL et le client se connecte ensuite à une autre, choisie par le serveur distant. C'est la même fenêtre entre vérification et usage que le DNS rebinding : on revalide chaque saut, avec un plafond.",
+  },
+  {
+    q: "Quelle mesure côté AWS réduit le plus l'impact d'une SSRF sur une instance EC2 ?",
+    options: [
+      "Un groupe de sécurité en sortie qui refuse 169.254.169.254",
+      "Des points de terminaison VPC pour que le trafic ne sorte pas du réseau",
+      "IMDSv2 obligatoire, limite de sauts, et rôles au moindre privilège",
+      "Une alerte GuardDuty sur l'exfiltration d'identifiants d'instance",
+    ],
+    answer: 2,
+    explain: "Le groupe de sécurité est le distracteur à connaître : il ne filtre pas le trafic vers l'adresse de lien local des métadonnées, donc cette règle ne fait rien du tout. Les points de terminaison VPC réduisent l'exposition réseau sans empêcher l'appel à l'IMDS. GuardDuty détecte après coup, ce qui est précieux mais n'est pas de la prévention. IMDSv2 exige un jeton obtenu par une requête PUT, hors de portée d'une SSRF simple.",
+  },
+  {
+    q: "L'API de Novafact tourne sur ECS. L'équipe a imposé IMDSv2 sur tout le compte et considère le risque de vol d'identifiants par SSRF comme traité. Qu'oublie-t-elle ?",
+    options: [
+      "Que la variable AWS_CONTAINER_CREDENTIALS_RELATIVE_URI rend le chemin imprévisible",
+      "Que les tâches ECS reçoivent leurs identifiants sur 169.254.170.2, hors IMDSv2",
+      "Que la limite de sauts à 1 empêche déjà les conteneurs d'atteindre l'IMDS",
+      "Que les rôles de tâche expirent au bout d'une heure, ce qui borne l'impact",
+    ],
+    answer: 1,
+    explain: "Le chemin imprévisible de AWS_CONTAINER_CREDENTIALS_RELATIVE_URI est le raisonnement le plus risqué, parce qu'il part d'un fait exact : ce chemin est bien aléatoire. Mais c'est de l'obscurité — il suffit qu'il fuite une fois, par un message d'erreur ou une autre primitive, et il n'y a plus rien derrière. La limite de sauts et l'expiration d'une heure réduisent le périmètre sans fermer ce canal. D'où un filtrage par plage entière plutôt que par adresses connues.",
+  },
+  {
+    q: "Pour détecter l'usage abusif de l'endpoint de métadonnées, l'équipe prévoit d'analyser les VPC Flow Logs. Pourquoi cela ne marchera-t-il pas ?",
+    options: [
+      "Parce qu'ils n'enregistrent que les flux rejetés, pas ceux qui aboutissent",
+      "Parce qu'ils n'enregistrent pas l'URL demandée, seulement adresses et ports",
+      "Parce qu'ils sont agrégés par fenêtres trop longues pour ce cas",
+      "Parce qu'ils n'enregistrent pas le trafic vers 169.254.169.254",
+    ],
+    answer: 3,
+    explain: "« Pas d'URL, seulement des adresses et des ports » est exact, et ce serait suffisant ici : voir une connexion vers 169.254.169.254 dirait déjà l'essentiel. Le filtre n'est pas non plus limité aux rejets, il se choisit. La raison est plus radicale : la documentation AWS range ce trafic parmi les limites des Flow Logs, qui ne l'enregistrent pas du tout. La détection passe donc par les journaux de sortie de l'application, avec l'adresse résolue, et par GuardDuty.",
+  },
+];
+
+<YouKnow>
+Tu connais les contournements de filtres SSRF (encodages d'adresses, redirections, DNS rebinding) et l'intérêt de l'endpoint de métadonnées du cloud. On se concentre sur une défense qui ne dépend pas d'une liste d'astuces, et sur ce qui se passe réellement dans une infrastructure AWS avec des conteneurs.
+</YouKnow>
+
+## Pourquoi les filtres échouent
+
+La plupart des filtres SSRF vérifient **l'URL** puis laissent le client HTTP faire le reste. Or entre l'URL et la connexion réelle, beaucoup de choses peuvent changer :
+
+| Étape | Ce qui peut contourner le filtre |
+| --- | --- |
+| Analyse de l'URL | Encodages d'adresses (décimal, IPv6 mappée, `0.0.0.0`), divergences de parsers (leçon 7) |
+| Résolution DNS | Le nom résout vers une adresse autorisée pendant la vérification, puis vers une adresse interne à la connexion (DNS rebinding) |
+| Redirections | Le serveur externe redirige vers une adresse interne que le filtre n'a jamais vue |
+| Protocole | Un proxy qui accepte `CONNECT`, y compris en HTTP/2, sert de tunnel vers des ports internes |
+
+Le Top 10 des techniques web de 2025 compte deux entrées sur ce thème : des **boucles de redirection** qui rendent visible une SSRF aveugle (n° 3) et l'usage de **HTTP/2 CONNECT** pour scanner des ports internes (n° 9).
+
+Le point commun de ces contournements est une **fenêtre entre la vérification et l'usage** (un TOCTOU, comme en leçon 1) : le filtre vérifie une représentation (une chaîne, un nom, une première URL), la connexion en utilise une autre. Toute défense qui vérifie autre chose que la socket réellement ouverte hérite de cette fenêtre.
+
+## Une défense qui ne dépend pas des astuces
+
+La bonne approche vérifie **l'adresse à laquelle on se connecte réellement**, à chaque connexion :
+
+<Steps items={[
+  { title: "Liste blanche si possible", text: "Webhooks vers des domaines déclarés et vérifiés par le client, logos hébergés chez Novafact après téléchargement contrôlé." },
+  { title: "Filtrer à la connexion", text: "Un agent HTTP qui vérifie l'adresse IP résolue au moment de la connexion (request-filtering-agent, ou une résolution manuelle suivie d'une connexion à l'adresse vérifiée)." },
+  { title: "Pas de redirections implicites", text: "redirect: 'manual', puis revalidation de chaque saut, avec un nombre maximum." },
+  { title: "Isoler la sortie", text: "Les requêtes sortantes passent par un proxy de sortie avec liste blanche, dans un sous-réseau sans accès aux services internes." },
+  { title: "Réduire l'impact", text: "IMDSv2 obligatoire, rôles au moindre privilège, points de terminaison VPC : même réussie, la SSRF ne donne presque rien." },
+]} />
+
+Les plages à refuser forment une liste courte, mais chacune a son piège :
+
+| Plage | Pourquoi | Piège fréquent |
+| --- | --- | --- |
+| `127.0.0.0/8`, `::1` | Bouclage | Oublier que toute la plage `/8` boucle, pas seulement `127.0.0.1` |
+| `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7` | Réseaux privés, dont le VPC | Oublier les adresses privées IPv6 |
+| `169.254.0.0/16`, `fe80::/10` | Lien local : métadonnées EC2, identifiants ECS | Ne bloquer que `169.254.169.254` |
+| `fd00:ec2::254` | Endpoint IPv6 des métadonnées EC2 | Couvert par `fc00::/7`, à condition de l'avoir mis |
+| `::ffff:0:0/96` | IPv4 écrite en IPv6 mappée | Vérifier la forme IPv6 sans la convertir |
+| `0.0.0.0/8` | Souvent interprété comme l'hôte local | Le considérer comme « invalide donc inoffensif » |
+
+<Code file="apps/api/src/lib/safeFetch.ts">
+
+```ts
+import { useAgent } from 'request-filtering-agent';
+import fetch from 'node-fetch';
+
+// Refuse les adresses privées, de lien local et de bouclage au moment de la connexion.
+export async function safeFetch(rawUrl: string, init: { timeoutMs?: number } = {}) {
+  const url = new URL(rawUrl);
+  if (url.protocol !== 'https:') throw new Error('HTTPS uniquement');
+  return fetch(url.href, {
+    agent: useAgent(url.href),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(init.timeoutMs ?? 5000),
+    size: 5 * 1024 * 1024,
+  });
+}
+```
+
+</Code>
+
+`redirect: 'manual'` ne suffit pas à lui seul : il faut décider quoi faire de la redirection. Le plus sûr est de la suivre soi-même, en repassant chaque saut par `safeFetch`, avec un plafond :
+
+<Code file="apps/api/src/lib/safeFetchFollow.ts">
+
+```ts
+export async function safeFetchFollow(rawUrl: string, maxHops = 3) {
+  let current = rawUrl;
+  for (let hop = 0; hop <= maxHops; hop++) {
+    const res = await safeFetch(current);          // chaque saut : protocole, résolution et adresse revalidés
+    const location = res.headers.get('location');
+    if (res.status < 300 || res.status >= 400 || !location) return res;
+    current = new URL(location, current).href;     // les redirections relatives restent sur le même hôte
+    logger.info({ from: rawUrl, to: current, hop }, 'egress.redirect');
+  }
+  throw new Error('Trop de redirections');
+}
+```
+
+</Code>
+
+Le plafond compte aussi pour la disponibilité : les boucles de redirection classées n° 3 du Top 10 2025 servent justement à faire parler un client qui suit sans limite.
+
+<Callout kind="warn">
+Next.js a son propre client sortant : l'optimiseur d'images (`/_next/image`) va chercher les images distantes autorisées par `images.remotePatterns`. Assetnote a montré que des configurations avec `hostname: '**'` sont plus courantes qu'on ne croit, et transforment l'optimiseur en SSRF. Les versions récentes de Next.js suivent au plus trois redirections par défaut (`maximumRedirects`) et refusent les adresses IP locales (`dangerouslyAllowLocalIP` vaut `false`) : garde ces valeurs, et liste les hôtes exactement.
+</Callout>
+
+<Diff file="apps/backoffice/next.config.js" hlBefore="3-4" hlAfter="3-6">
+
+```js
+module.exports = {
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: '**' }],
+    dangerouslyAllowLocalIP: true,
+  },
+};
+```
+
+```js
+module.exports = {
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: 'assets.novafact.example', pathname: '/logos/**' }],
+    maximumRedirects: 0,
+    // dangerouslyAllowLocalIP : non défini, donc false
+  },
+};
+```
+
+</Diff>
+
+## Le cas de l'infrastructure
+
+Sur AWS, l'endpoint de métadonnées des instances (`169.254.169.254`) délivre les identifiants temporaires du rôle attaché. C'est ce qui a transformé une SSRF en fuite de données massive chez Capital One en 2019. **IMDSv2** exige un jeton obtenu par une requête `PUT` avec un en-tête dédié, ce qu'une SSRF classique ne peut pas faire, et une limite de sauts réglée à 1 empêche les conteneurs d'atteindre l'endpoint quand ils n'en ont pas besoin. Le module 15 approfondit ce point.
+
+<Code file="infra/ec2-pdf-worker.tf">
+
+```hcl
+resource "aws_launch_template" "pdf_worker" {
+  name_prefix   = "pdf-worker-"
+  image_id      = data.aws_ami.al2023.id
+  instance_type = "t3.medium"
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"  # IMDSv2 obligatoire
+    http_put_response_hop_limit = 1
+  }
+}
+```
+
+</Code>
+
+Au niveau de l'organisation, une SCP qui refuse `ec2:RunInstances` quand la clé de condition `ec2:MetadataHttpTokens` ne vaut pas `required` empêche qu'une instance oubliée réintroduise IMDSv1.
+
+Mais l'API de Novafact tourne sur **ECS**, et là, IMDSv2 ne protège pas tout : les identifiants du rôle de tâche sont servis par un autre endpoint de lien local, `169.254.170.2`, à un chemin que l'agent transmet au conteneur par la variable `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`. Ne compte pas sur ce chemin pour te protéger : le filtre de sortie bloque **toute** la plage `169.254.0.0/16`, pas une liste d'adresses connues. Et chaque tâche a un rôle qui ne contient que ce dont elle a besoin : le service de webhooks n'a aucune raison de lire S3.
+
+## Détecter
+
+Deux idées reçues à corriger. Les VPC Flow Logs n'enregistrent **pas** le trafic vers `169.254.169.254` (la documentation AWS le liste parmi leurs limites) : ils ne verront jamais une SSRF qui vise les métadonnées. Et un WAF qui cherche `169.254` dans les paramètres ne voit ni les redirections, ni les noms DNS qui résolvent vers une adresse interne.
+
+La détection fiable se fait à deux endroits :
+
+- **dans l'application** : chaque requête sortante de `safeFetch` est journalisée avec l'hôte demandé, l'adresse résolue, la décision et le nombre de sauts. Un refus pour « adresse privée » sur la fonctionnalité de webhooks est un signal à fort rapport signal sur bruit ;
+- **côté AWS** : GuardDuty signale l'usage d'identifiants d'instance EC2 depuis l'extérieur d'AWS ou depuis un autre compte (types de findings `InstanceCredentialExfiltration.OutsideAWS` et `InsideAWS`). C'est le filet quand tout le reste a échoué.
+
+<Callout kind="novafact">
+Novafact a trois fonctionnalités qui émettent des requêtes vers des URL fournies par les clients : webhooks, import de logo, et génération de PDF qui charge des images. Toutes passent désormais par `safeFetchFollow`, et une règle Semgrep interdit tout autre client HTTP dans ces modules. Les tâches correspondantes tournent dans un sous-réseau dont la seule sortie est un proxy avec liste blanche pour les logos et le PDF ; les webhooks, qui doivent joindre des domaines arbitraires, n'ont en revanche accès à aucun service interne ni point de terminaison VPC.
+</Callout>
+
+<Recap items={[
+  "Les filtres SSRF échouent dans la fenêtre entre l'URL vérifiée et la connexion réelle : encodages, DNS, redirections, CONNECT.",
+  "On vérifie l'adresse réellement contactée, à chaque connexion, en refusant des plages complètes (IPv4 et IPv6).",
+  "Pas de redirections implicites ; chaque saut est revalidé, avec un plafond.",
+  "Next.js a son propre client sortant : remotePatterns exacts, pas d'IP locale, redirections limitées.",
+  "IMDSv2 et moindre privilège réduisent l'impact ; sur ECS, l'endpoint 169.254.170.2 impose de bloquer toute la plage de lien local.",
+  "Les Flow Logs ne voient pas l'IMDS : journaux de sortie applicatifs et GuardDuty font la détection.",
+]} />
+
+<Lab id="ps-ssrf" />
+
+<Sources items={[
+  { title: "Web Security Academy : SSRF", url: "https://portswigger.net/web-security/ssrf" },
+  { title: "OWASP Cheat Sheet : SSRF Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html" },
+  { title: "request-filtering-agent", url: "https://github.com/azu/request-filtering-agent" },
+  { title: "AWS : utiliser IMDSv2", url: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html" },
+  { title: "Assetnote : Digging for SSRF in NextJS apps", url: "https://www.assetnote.io/resources/research/digging-for-ssrf-in-nextjs-apps" },
+  { title: "Next.js : composant Image (remotePatterns, maximumRedirects, dangerouslyAllowLocalIP)", url: "https://nextjs.org/docs/app/api-reference/components/image" },
+  { title: "AWS : limites des VPC Flow Logs", url: "https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-limitations.html" },
+  { title: "AWS : identifiants de conteneur (AWS_CONTAINER_CREDENTIALS_RELATIVE_URI)", url: "https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html" },
+  { title: "AWS : types de findings GuardDuty IAM", url: "https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-iam.html" },
+]} />

@@ -1,0 +1,4 @@
+# Les livrables sont personnels : ils ne remontent pas dans le dépôt du lab.
+*
+!.gitignore
+!README.md

@@ -1,0 +1,14 @@
+{
+  "_comment": "Catalogue d'exploitation connue — données embarquées du lab. Reprend le FORMAT du catalogue KEV de la CISA (champ `cveID`, produit, date d'ajout, usage par rançongiciel). Les premières entrées sont des vulnérabilités réelles et réellement exploitées ; les entrées 2026 portant sur des paquets npm sont FICTIVES et n'existent que pour cet exercice. Ne jamais se servir de ce fichier comme d'une source.",
+  "catalogVersion": "2026.09.15",
+  "vulnerabilities": [
+    { "cveID": "CVE-2021-44228", "vendorProject": "Apache", "product": "Log4j2", "dateAdded": "2021-12-10", "knownRansomwareCampaignUse": "Known" },
+    { "cveID": "CVE-2022-22965", "vendorProject": "VMware", "product": "Spring Framework", "dateAdded": "2022-04-04", "knownRansomwareCampaignUse": "Known" },
+    { "cveID": "CVE-2023-44487", "vendorProject": "IETF", "product": "HTTP/2", "dateAdded": "2023-10-10", "knownRansomwareCampaignUse": "Unknown" },
+    { "cveID": "CVE-2023-4863", "vendorProject": "Google", "product": "libwebp", "dateAdded": "2023-09-13", "knownRansomwareCampaignUse": "Unknown" },
+    { "cveID": "CVE-2026-3310", "vendorProject": "npm", "product": "xlsx-lite", "dateAdded": "2026-06-02", "knownRansomwareCampaignUse": "Known" },
+    { "cveID": "CVE-2026-7742", "vendorProject": "npm", "product": "jsonwebtoken-compat", "dateAdded": "2026-08-19", "knownRansomwareCampaignUse": "Unknown" },
+    { "cveID": "CVE-2026-8810", "vendorProject": "npm", "product": "novafact-pdf-signer", "dateAdded": "2026-09-01", "knownRansomwareCampaignUse": "Unknown" },
+    { "cveID": "CVE-2026-9004", "vendorProject": "npm", "product": "img-resize-native", "dateAdded": "2026-09-08", "knownRansomwareCampaignUse": "Known" }
+  ]
+}

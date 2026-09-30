@@ -1,0 +1,17 @@
+id: credential-stuffing
+_note: La règle de référence du corpus réduit. Le caviardage ne doit pas l’empêcher de lever.
+window: 10m
+where:
+  - field: event.action
+    op: eq
+    value: authn_login_fail
+group_by:
+  - source.ip
+having:
+  - metric: count
+    op: gte
+    value: 12
+  - metric: distinct
+    field: user.name
+    op: gte
+    value: 8

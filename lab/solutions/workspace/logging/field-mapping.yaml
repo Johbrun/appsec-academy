@@ -1,0 +1,31 @@
+# Normalisation des champs — corrigé de référence.
+#
+# La règle fournie ne bouge pas d'une ligne : c'est au journal de parler la
+# langue que la détection attend. Une détection est un contrat sur le schéma
+# des journaux, et c'est pour ça que le schéma vient avant les règles.
+#
+# Cinq correspondances, et la règle passe de zéro à douze alertes :
+#
+#   ts    → @timestamp            sans quoi la fenêtre ne s'ouvre pas
+#   ip    → source.ip            l'axe d'agrégation
+#   who   → user.name            ce que la règle compte
+#   evt   → event.action         avec la traduction vers le vocabulaire OWASP
+#   ok    → event.outcome        booléen traduit en énumération
+#   verb  → http.request.method  en majuscules
+map:
+  - { to: "@timestamp", from: ts }
+  - { to: source.ip, from: ip }
+  - { to: user.name, from: who }
+  - to: event.action
+    from: evt
+    values:
+      login_failed: authn_login_fail
+      login_ok: authn_login_success
+  - to: event.outcome
+    from: ok
+    values:
+      "false": failure
+      "true": success
+  - { to: http.request.method, from: verb, transform: uppercase }
+  - { to: url.path, from: route }
+  - { to: user_agent.original, from: agent }

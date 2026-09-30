@@ -1,0 +1,189 @@
+export const questions = [
+  {
+    q: "Pourquoi une CSP fondée sur une liste de domaines autorisés est-elle souvent contournable ?",
+    options: [
+      "Parce que la directive default-src ne couvre pas script-src",
+      "Parce que 'unsafe-inline' reste nécessaire à la plupart des frameworks",
+      "Parce qu'un attaquant peut élargir la politique avec une balise <meta>",
+      "Parce qu'un domaine autorisé héberge souvent des gadgets ou du JSONP",
+    ],
+    answer: 3,
+    explain: "Une balise <meta> ne peut que restreindre davantage une politique, jamais l'élargir, et default-src sert justement de repli pour script-src. « unsafe-inline » est une vraie faiblesse, mais d'une autre nature — et un front React n'en a pas besoin. Le défaut de la liste de domaines est qu'elle fait confiance à un domaine entier : un CDN autorisé expose des milliers de fichiers, dont des endpoints JSONP et des gadgets de frameworks.",
+  },
+  {
+    q: "Comment protéger une connexion WebSocket contre le cross-site WebSocket hijacking ?",
+    options: [
+      "S'appuyer sur le cookie de session, envoyé par la poignée de main",
+      "Vérifier l'Origin à la mise à niveau, et authentifier explicitement",
+      "Configurer CORS pour n'autoriser que l'origine de la SPA",
+      "Passer en wss:// pour que la poignée de main soit chiffrée",
+    ],
+    answer: 1,
+    explain: "CORS est le réflexe qui ne marche pas : la politique de même origine ne s'applique pas à l'ouverture d'un WebSocket, donc aucune configuration CORS ne l'empêchera. wss:// chiffre le transport sans rien dire de l'appelant. Et s'appuyer sur le cookie est exactement la faille, puisque la poignée de main l'envoie toute seule, quel que soit le site qui l'ouvre. C'est au serveur de refuser.",
+  },
+  {
+    q: "Une politique d'isolation des ressources fondée sur Fetch Metadata refuse les requêtes Sec-Fetch-Site: cross-site. Pourquoi laisse-t-elle quand même passer les navigations GET de premier niveau ?",
+    options: [
+      "Parce qu'une navigation ne porte pas d'en-tête Sec-Fetch-Site exploitable",
+      "Parce que SameSite=Lax laisse déjà passer ces navigations, le contrôle serait redondant",
+      "Parce qu'un GET ne modifie rien, donc ne peut pas être abusé",
+      "Pour que les liens externes fonctionnent, sans donner la lecture de la réponse",
+    ],
+    answer: 3,
+    explain: "Le raisonnement par SameSite=Lax est le plus séduisant, et il confond deux mécanismes : Lax décide si le cookie part, Fetch Metadata décide si le serveur répond — ils ne se remplacent pas. Une navigation porte bien un Sec-Fetch-Site, et un GET s'abuse très bien : c'est même le carburant des XS-Leaks. La raison est fonctionnelle : un lien reçu par e-mail doit ouvrir l'application, et cette navigation affiche la page sans que le site d'origine puisse en lire le contenu.",
+  },
+  {
+    q: "Les notes de facture de Novafact acceptent un HTML limité, assaini par DOMPurify. Quel réglage réduit spécifiquement le risque de DOM clobbering ?",
+    options: [
+      "ALLOWED_URI_REGEXP restreint à https:, qui bloque les schémas dangereux",
+      "SANITIZE_DOM, qu'il faut activer car il est désactivé par défaut",
+      "SANITIZE_NAMED_PROPS, qui préfixe les id et name par « user-content- »",
+      "FORBID_TAGS: ['form'], pour supprimer la source du clobbering",
+    ],
+    answer: 2,
+    explain: "SANITIZE_DOM est le piège : c'est bien le réglage qui protège les propriétés sensibles de document et des formulaires, mais il est actif par défaut — il n'y a rien à activer. Interdire les form ne couvre qu'un vecteur, alors qu'un id ou un name sur n'importe quel élément suffit à écraser une globale. ALLOWED_URI_REGEXP ferme les schémas dangereux, pas le clobbering. SANITIZE_NAMED_PROPS isole les noms choisis par l'utilisateur de l'espace de noms du code.",
+  },
+];
+
+<YouKnow>
+Tu utilises DOM Invader, tu connais le DOM clobbering, les contournements de CSP par gadgets et le dangling markup, et tu as croisé les XS-Leaks. On regarde ce qui reste exploitable une fois les bonnes défenses en place, et les réglages concrets qui réduisent encore la surface dans une application React.
+</YouKnow>
+
+## DOM clobbering et gadgets
+
+Le **DOM clobbering** exploite le fait que des éléments HTML avec un `id` ou un `name` deviennent des propriétés globales : un HTML injecté mais « inoffensif » (sans script) peut remplacer une variable que le code lit, comme `window.config`. Les **script gadgets** sont des morceaux de code légitimes (d'un framework ou d'une bibliothèque) qui transforment du HTML inoffensif en exécution de script.
+
+Ces deux techniques ont un point commun qui compte pour la défense : elles fonctionnent **même quand l'assainisseur a bien fait son travail** au sens habituel (pas de `<script>`, pas de gestionnaire d'événement). Elles exploitent ce que le code légitime fait ensuite du HTML autorisé. C'est pourquoi l'assainissement se configure en fonction du code qui consomme le résultat, pas seulement en fonction des balises dangereuses.
+
+Côté défense :
+
+- ne jamais lire de configuration dans une variable globale qui pourrait être remplacée par le DOM : utiliser des modules et des constantes ;
+- assainir le HTML autorisé avec une liste blanche stricte d'attributs (`id` et `name` inclus quand c'est possible) ;
+- DOM Invader, l'extension de Burp, aide aussi côté défense : elle trouve les sinks et les sources de prototype pollution côté client.
+
+Chez Novafact, les notes de facture acceptent un HTML limité (gras, listes, liens). La configuration de DOMPurify est écrite pour ce besoin, et rien de plus :
+
+<Code file="apps/web/src/lib/sanitizeNote.ts">
+
+```ts
+import DOMPurify from 'dompurify';
+
+export const sanitizeNote = (dirty: string) => DOMPurify.sanitize(dirty, {
+  ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'ul', 'ol', 'li', 'p', 'br', 'a'],
+  ALLOWED_ATTR: ['href'],          // ni id, ni name, ni class, ni style
+  ALLOWED_URI_REGEXP: /^https:/i,  // pas de javascript:, pas de data:
+  SANITIZE_NAMED_PROPS: true,      // si un jour id/name reviennent : préfixe user-content-
+});
+```
+
+</Code>
+
+`SANITIZE_DOM` (actif par défaut) protège déjà les propriétés sensibles de `document` et des formulaires. `SANITIZE_NAMED_PROPS` va plus loin en isolant les noms choisis par l'utilisateur. Côté React, le rendu JSX échappe tout par défaut ; les points à surveiller sont `dangerouslySetInnerHTML` (une règle de lint qui exige un appel à `sanitizeNote` juste avant) et le rendu Markdown, où `react-markdown` n'interprète pas le HTML brut tant qu'on ne lui ajoute pas de plugin comme `rehype-raw`.
+
+## Ce qui contourne une CSP
+
+| Technique | Pourquoi elle marche | Défense |
+| --- | --- | --- |
+| Script gadgets et JSONP sur un domaine autorisé | La CSP fait confiance à un domaine entier | CSP stricte avec nonces et `strict-dynamic`, sans liste de domaines |
+| Injection de `<base>` | Redirige les scripts relatifs | `base-uri 'none'` |
+| Dangling markup | Exfiltre du contenu sans script, via une balise non fermée | Échappement correct à la source, `img-src` et `form-action` restreints |
+| Plugins | Exécution hors du modèle de scripts | `object-src 'none'` |
+
+Une CSP stricte ne protège pas contre ce qui ne passe pas par un script : le dangling markup, le CSS injecté ou le DOM clobbering qui détourne la logique d'un script autorisé. C'est pourquoi elle se combine avec **Trusted Types** (`require-trusted-types-for 'script'`), qui ferme les sinks DOM côté code. Le module 4 construit cette CSP stricte pas à pas, avec Trusted Types.
+
+## XS-Leaks
+
+Les **XS-Leaks** (cross-site leaks) déduisent des informations sur un autre site à partir de canaux auxiliaires : nombre de frames, durée de chargement, erreurs, taille de réponse, état du cache. Deux entrées du Top 10 des techniques web de 2025 en relèvent : une fuite de **taille de réponse via les ETag** (n° 6) et une fuite de **l'hôte de redirection** via la priorisation des connexions de Chrome (n° 8).
+
+Pour un SaaS comme Novafact, la question type est : un site tiers peut-il savoir si le visiteur est client de Novafact, ou si une recherche de facture renvoie des résultats ? Les défenses, rassemblées sur xsleaks.dev :
+
+- cookies **SameSite** (Lax ou Strict) pour que les requêtes inter-sites ne soient pas authentifiées ;
+- **Fetch Metadata** : refuser côté serveur les requêtes `Sec-Fetch-Site: cross-site` sur les ressources privées (*resource isolation policy*) ;
+- **COOP** pour couper les références entre fenêtres, **CORP** pour empêcher le chargement inter-origine des ressources ;
+- `frame-ancestors` pour interdire l'intégration.
+
+<Code file="apps/api/src/middleware/resourceIsolation.ts">
+
+```ts
+// Politique d'isolation des ressources (Fetch Metadata), sur toutes les routes privées.
+export function resourceIsolation(req: Request, res: Response, next: NextFunction) {
+  const site = req.get('sec-fetch-site');
+  if (!site) return next();                                   // navigateur ancien : on ne casse rien
+  if (['same-origin', 'same-site', 'none'].includes(site)) return next();
+  const isTopLevelNav = req.get('sec-fetch-mode') === 'navigate' && req.method === 'GET'
+    && !['object', 'embed'].includes(req.get('sec-fetch-dest') ?? '');
+  if (isTopLevelNav) return next();                           // un lien depuis un e-mail reste valide
+  logger.info({ path: req.path, site, dest: req.get('sec-fetch-dest') }, 'fetch_metadata.blocked');
+  res.status(403).end();
+}
+```
+
+</Code>
+
+Cette politique neutralise d'un coup la plupart des XS-Leaks qui reposent sur le chargement d'une ressource privée en sous-ressource (image, script, iframe, `fetch`), sans avoir à connaître la technique. Déploie-la d'abord en journalisation seule : les rejets révèlent les intégrations légitimes oubliées (un widget partenaire, un outil interne sur un autre domaine).
+
+## WebSockets
+
+La poignée de main WebSocket est une requête HTTP qui **envoie les cookies**. Sans vérification, un site tiers peut ouvrir une connexion authentifiée au nom de la victime (*cross-site WebSocket hijacking*). Les WebSockets ne sont pas soumis à la politique de même origine comme `fetch` : c'est au serveur de refuser. On vérifie l'en-tête `Origin` à la mise à niveau, et on préfère une authentification explicite (jeton de courte durée) à la simple présence du cookie.
+
+Avec la bibliothèque `ws`, le schéma recommandé par sa documentation est de traiter l'événement `upgrade` du serveur HTTP soi-même, pour authentifier **avant** d'accepter la connexion :
+
+<Code file="apps/api/src/realtime/server.ts">
+
+```ts
+const wss = new WebSocketServer({ noServer: true });
+const ALLOWED_ORIGINS = new Set(['https://app.novafact.example']);
+
+server.on('upgrade', async (req, socket, head) => {
+  const origin = req.headers.origin ?? '';
+  const ticket = new URL(req.url ?? '/', 'https://app.novafact.example').searchParams.get('ticket');
+  const user = ALLOWED_ORIGINS.has(origin) && ticket ? await consumeWsTicket(ticket) : null; // usage unique, 30 s
+  if (!user) {
+    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req, user));
+});
+```
+
+</Code>
+
+Le ticket est obtenu juste avant par un appel `fetch` authentifié (donc protégé par CORS et SameSite), stocké côté serveur avec une durée de vie de quelques secondes et consommé à la première utilisation. Même si l'`Origin` était un jour mal vérifié, un site tiers ne peut pas obtenir de ticket.
+
+## La recherche continue
+
+Les travaux de PortSwigger en 2026 continuent d'élargir la surface côté client : *CSS: the bomb inside your inbox* (Gareth Heyes) montre des attaques menées avec uniquement du CSS et du HTML, qui passent des assainisseurs CSS et des CSP durcies jusqu'à la prise de contrôle de webmails, et *What's in a tag name? JavaScript, apparently* montre que le nom même d'une balise peut transporter du code, dans tous les navigateurs, ce qui déjoue au passage des règles de WAF. Pour un défenseur, la conclusion est constante : **réduire ce qu'un HTML injecté peut faire** (assainissement strict par liste blanche, CSP stricte, Trusted Types, isolation) plutôt que d'énumérer les techniques. Une liste noire de balises ou de mots-clés ne survit pas à une recherche comme celle-ci ; une liste blanche de dix balises, si.
+
+## En pratique chez toi
+
+<Steps items={[
+  { title: "Inventorier les entrées HTML", text: "Lister chaque endroit où l'application accepte du HTML ou du Markdown (notes, modèles, messages), avec l'assainisseur et la configuration utilisés. Un tableau d'une page suffit, et il manque presque toujours une ligne." },
+  { title: "Passer DOM Invader", text: "Sur les parcours principaux de la SPA, en préproduction : les sinks remontés sont autant de cibles pour Trusted Types." },
+  { title: "Fetch Metadata en observation", text: "Activer la politique d'isolation en journalisation seule pendant deux semaines, puis bloquer." },
+  { title: "Tester les WebSockets", text: "Rejouer la poignée de main avec une autre Origin et sans ticket : les deux doivent recevoir 403, dans un test automatisé." },
+]} />
+
+<Recap items={[
+  "DOM clobbering et script gadgets transforment du HTML inoffensif en exécution ou en détournement de logique, même après assainissement.",
+  "DOMPurify se configure pour le besoin : liste blanche courte, pas d'id ni de name, SANITIZE_NAMED_PROPS en filet.",
+  "Une CSP par liste de domaines se contourne ; une CSP stricte à nonces, avec Trusted Types, ne dépend pas des domaines.",
+  "XS-Leaks : SameSite, politique d'isolation des ressources par Fetch Metadata, COOP, CORP et frame-ancestors.",
+  "WebSockets : vérifier Origin à la mise à niveau et authentifier par un ticket à usage unique.",
+  "La défense durable réduit ce qu'un HTML injecté peut faire, sans courir après chaque technique.",
+]} />
+
+<Lab id="ps-dom" />
+<Lab id="ps-websockets" />
+
+<Sources items={[
+  { title: "XS-Leaks Wiki", url: "https://xsleaks.dev/" },
+  { title: "Web Security Academy : DOM-based vulnerabilities", url: "https://portswigger.net/web-security/dom-based" },
+  { title: "PortSwigger Research : CSS, the bomb inside your inbox", url: "https://portswigger.net/research/css-the-bomb-inside-your-inbox" },
+  { title: "PortSwigger Research : What's in a tag name? JavaScript, apparently", url: "https://portswigger.net/research/whats-in-a-tag-name-javascript-apparently" },
+  { title: "web.dev : Fetch Metadata", url: "https://web.dev/articles/fetch-metadata" },
+  { title: "web.dev : Strict CSP", url: "https://web.dev/articles/strict-csp" },
+  { title: "DOMPurify", url: "https://github.com/cure53/DOMPurify", note: "SANITIZE_DOM et SANITIZE_NAMED_PROPS" },
+  { title: "ws : authentification lors de la mise à niveau", url: "https://github.com/websockets/ws" },
+  { title: "OWASP Cheat Sheet : WebSocket Security", url: "https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html" },
+]} />

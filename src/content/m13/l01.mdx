@@ -1,0 +1,177 @@
+export const questions = [
+  {
+    q: "Où placer un scan DAST authentifié complet de Novafact ?",
+    options: [
+      "En hook pre-commit, pour que le développeur voie les alertes avant de pousser",
+      "Sur chaque PR, contre l'environnement éphémère déployé pour la revue",
+      "Sur l'environnement de recette, en nightly ou avant une release",
+      "En production, seul environnement vraiment représentatif de la cible",
+    ],
+    answer: 2,
+    explain: "Le scan complet authentifié prend des heures : sur chaque PR, il transformerait une boucle de quelques minutes en attente — d'où un baseline rapide en PR et le scan complet la nuit. Et en production, un scan actif crée de vraies factures et envoie de vrais e-mails : la position de Novafact est scans actifs en recette, vérifications passives seulement en production.",
+  },
+  {
+    q: "À quoi sert l'OWASP WSTG dans une stratégie de test ?",
+    options: [
+      "Une méthodologie de conduite de pentest, du cadrage jusqu'au rapport final",
+      "Un référentiel d'exigences de sécurité vérifiables, gradué par niveau de rigueur",
+      "La liste des dix risques web les plus répandus, à couvrir en priorité",
+      "Un référentiel de cas de test web, pour bâtir un plan et mesurer la couverture",
+    ],
+    answer: 3,
+    explain: "La confusion à éviter est avec l'ASVS, qui énonce des exigences graduées par niveau (« l'application doit… »), et avec le Top 10, qui classe des risques. Le WSTG répond à une autre question : comment tester, catégorie par catégorie. C'est à lui qu'on rattache ses tests manuels et automatiques pour voir ce que rien ne couvre.",
+  },
+  {
+    q: "La matrice de traçabilité de Novafact montre une exigence « un lecteur ne peut pas émettre d'avoir » reliée à aucun test. Qu'est-ce que cela signifie ?",
+    options: [
+      "Que l'exigence est trop vague pour être testée et doit être reformulée",
+      "Que personne ne sait si l'exigence est respectée, ni si elle le restera",
+      "Qu'elle est couverte par le test d'autorisation générique sur le rôle lecteur",
+      "Qu'elle relève du pentest annuel plutôt que de la suite automatisée",
+    ],
+    answer: 1,
+    explain: "Les trois autres réponses expliquent le trou au lieu de le constater ; chacune peut se révéler vraie, mais aucune n'est lisible dans la matrice. Supposer qu'un test générique couvre l'exigence, ou qu'un pentest annuel s'en chargera, c'est exactement la manière dont une case vide se referme sans que rien n'ait jamais été vérifié.",
+  },
+  {
+    q: "Quel critère de sortie de recette est le plus utile pour une release de Novafact ?",
+    options: [
+      "« Zéro finding de toute gravité sur l'ensemble du périmètre de la release »",
+      "« Tous les tests de sécurité prévus au plan ont été exécutés sans erreur d'outil »",
+      "« Aucun finding critique ou élevé sans exception validée, tests de refus au vert »",
+      "« Le pentest de recette a été livré et ses constats sont enregistrés dans le suivi »",
+    ],
+    answer: 2,
+    explain: "« Zéro finding » est irréaliste, et apprend surtout aux équipes à ne plus rien signaler. « Les tests ont été exécutés » et « le pentest a été livré » portent sur l'activité, pas sur le résultat : on peut les cocher avec une release criblée de findings ouverts. Un bon critère est vérifiable et proportionné — il nomme un seuil de gravité, une voie d'exception et un état de tests.",
+  },
+];
+
+<YouKnow>
+Tu connais les techniques de test une par une. Ce module les assemble en une stratégie : qui teste quoi, quand, avec quel outil, et comment le résultat arrive au développeur.
+</YouKnow>
+
+## Tester, c'est vérifier des exigences
+
+Un test de sécurité vérifie une **exigence** (M7) : « un lecteur ne peut pas émettre d'avoir », « les jetons expirent en une heure ». Sans exigence, un test ne peut que chercher au hasard. La stratégie part donc des exigences et du threat model (M11), et choisit pour chacune la technique qui la vérifie le mieux.
+
+| Dimension | Options |
+| --- | --- |
+| **Fonctionnel ou non** | Un contrôle marche-t-il (fonctionnel) ; tient-il sous la charge, en panne, en concurrence (non fonctionnel) ? |
+| **Connaissance** | Boîte blanche (code), grise (comptes et documentation), noire (rien) |
+| **Exécution** | Statique (sans exécuter : SAST, SCA, revue) ou dynamique (DAST, fuzzing, pentest) |
+| **Auteur** | Développeur, outil, AppSec, pentesteur externe, chasseur de bugs |
+
+Aucune case n'est « la bonne ». La boîte noire mesure ce qu'un attaquant externe voit, mais gaspille le temps d'un pentesteur à redécouvrir ce que le code dit en une ligne ; la boîte blanche trouve plus, plus vite, et c'est le choix par défaut pour un test interne. Le statique voit tout le code mais pas la configuration réelle ; le dynamique voit le système tel qu'il tourne, mais seulement les chemins qu'il atteint. Une stratégie saine combine les deux, et sait ce que chacun ne voit pas.
+
+## La matrice de traçabilité
+
+La stratégie devient concrète dans une matrice qui relie chaque exigence à ses vérifications. Chez Novafact, elle vit dans le dépôt, à côté des exigences :
+
+| Exigence (ASVS ou maison) | Vérification | Technique | Moment |
+| --- | --- | --- | --- |
+| Un lecteur ne peut pas émettre d'avoir | `credit-notes.authz.test.ts` | Test d'intégration (supertest) | PR |
+| Isolation stricte entre tenants | Tests paramétrés inter-tenant, revue ciblée | Tests, revue (M12) | PR, avant release |
+| Aucune note de facture n'exécute de script | `note-xss.spec.ts`, CSP en mode strict | Test Playwright, DAST | PR, nightly |
+| Les jetons de session expirent en 1 h | Test unitaire de la configuration, DAST authentifié | Test, DAST | PR, nightly |
+| L'API refuse les corps de plus de 100 Ko | Test d'intégration, test de charge | Test, k6 | PR, release |
+| Aucune dépendance avec vulnérabilité critique atteignable | SCA avec atteignabilité | Outil (leçon 6) | PR, quotidien |
+
+Deux lectures de cette matrice sont utiles. Par ligne : une exigence sans vérification est une **intention**, pas un contrôle. Par colonne : si tout repose sur le pentest annuel, la stratégie arrive trop tard.
+
+## Les référentiels
+
+- L'**OWASP WSTG** (Web Security Testing Guide) liste les cas de test web par catégorie, avec des identifiants stables (`WSTG-ATHZ-04` pour les IDOR). C'est la grille idéale pour vérifier la couverture d'un plan, et pour demander à un prestataire ce qu'il a réellement testé.
+- L'**OSSTMM** (ISECOM) apporte une méthode plus générale de mesure de la sécurité opérationnelle, utile pour cadrer un test d'infrastructure ou de processus plus que d'application.
+- L'**ASVS** (M7), dans sa version 5.0 publiée en mai 2025, fournit les exigences que les tests vérifient : c'est la colonne de gauche de la matrice.
+
+WSTG et ASVS se complètent : l'un dit **comment tester**, l'autre **ce qui doit être vrai**.
+
+## Le plan de test
+
+Pour une release importante ou un nouveau produit, la stratégie se décline en un plan de quelques pages :
+
+<Steps items={[
+  { title: "Objectifs et périmètre", text: "Ce qui est testé, ce qui ne l'est pas, et pourquoi (le back-office est hors périmètre, testé le trimestre dernier)." },
+  { title: "Exigences couvertes", text: "Les lignes de la matrice concernées, avec leur niveau ASVS." },
+  { title: "Techniques et outils", text: "Tests automatiques, DAST, revue ciblée, pentest : qui fait quoi." },
+  { title: "Environnement et données", text: "Où l'on teste, avec quels comptes et quelles données (leçon 8)." },
+  { title: "Critères d'entrée et de sortie", text: "Quand on commence (fonctionnalité gelée, environnement stable), quand on considère la recette réussie." },
+  { title: "Rôles et calendrier", text: "Qui décide d'une exception, qui signe la mise en production (M14)." },
+]} />
+
+Le critère de sortie est la partie la plus souvent bâclée. « Zéro finding » est irréaliste et pousse à ne plus rien signaler. Un bon critère est vérifiable : aucun finding critique ou élevé ouvert sans exception validée, les tests de refus des exigences critiques au vert, le DAST authentifié sans nouvelle alerte élevée.
+
+## Chaque technique à son moment
+
+| Moment | Durée acceptable | Techniques |
+| --- | --- | --- |
+| **IDE et pre-commit** | Secondes | Lint sécurité, détection de secrets, TypeScript strict |
+| **PR** | Quelques minutes | SAST différentiel, SCA, tests unitaires et d'intégration, revue (M12) |
+| **Nightly** | Heures | SAST complet, DAST, fuzzing, scan IaC complet |
+| **Release** | Selon le risque | DAST authentifié, pentest ciblé, revue de conception |
+| **Production** | En continu | Bug bounty, détection (M18), tests de chaos |
+
+Dans GitHub Actions, la séparation se lit directement dans le workflow :
+
+<Code file=".github/workflows/security.yml" hl="3,5,16,24">
+
+```yaml
+name: security
+on:
+  pull_request:
+  schedule:
+    - cron: '0 2 * * *'                     # nightly à 2 h UTC
+permissions:
+  contents: read
+jobs:
+  pr-fast:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8   # v5.0.0
+        with: { fetch-depth: 0 }
+      - run: semgrep scan --config p/typescript --config ./rules --baseline-commit "origin/$BASE_REF" --error
+        env: { BASE_REF: "${{ github.base_ref }}" }         # jamais d'expression directement dans run (M14)
+  nightly-dast:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - run: >
+          docker run --rm ghcr.io/zaproxy/zaproxy:stable
+          zap-baseline.py -t https://recette.novafact.example -I
+```
+
+</Code>
+
+Le job de PR ne signale que ce que la PR introduit, en quelques minutes ; le job de nuit prend son temps sur l'environnement de recette. Le scan authentifié complet et ses réglages sont détaillés en leçon 7.
+
+<Callout kind="tip">
+La règle d'or : le retour le plus rapide possible, au plus près de celui qui peut corriger. Un finding en PR coûte quelques minutes ; le même finding en pentest coûte un cycle complet. Et un résultat de nuit que personne ne lit n'a aucune valeur : chaque job nocturne a un propriétaire et une destination (ticket, canal de l'équipe).
+</Callout>
+
+## L'environnement de test
+
+Les tests dynamiques ont besoin d'un environnement **représentatif** (même configuration, mêmes en-têtes, même WAF) mais **isolé** (pas de vraies données, pas de vrais secrets, leçon 8). Chez Novafact, chaque PR peut déployer un environnement éphémère, détruit à la fusion.
+
+Les écarts de représentativité sont une source classique de faux négatifs : un WAF absent en recette laisse passer ce qu'il bloquerait en production (et masque ce qu'il ne bloque pas), un flag de fonctionnalité activé d'un côté seulement, une version de Node différente, un proxy qui n'ajoute pas les mêmes en-têtes. Liste ces écarts dans le plan de test : ils disent ce que tes résultats ne prouvent pas.
+
+<Callout kind="debate">
+**Tester en production ?** Pour : c'est le seul environnement vraiment représentatif, et le bug bounty le fait déjà. Contre : un scan actif peut créer des milliers de factures, envoyer des e-mails à de vrais clients, déclencher des alertes et fausser la détection. La position de Novafact : scans actifs en recette uniquement ; en production, bug bounty avec des comptes dédiés et un tenant de test identifié, et vérifications passives (en-têtes, TLS, surface exposée).
+</Callout>
+
+<Recap items={[
+  "Un test de sécurité vérifie une exigence ; la stratégie part des exigences et du threat model.",
+  "La matrice de traçabilité relie chaque exigence à ses vérifications : une exigence sans test est une intention.",
+  "WSTG pour les cas de test web, ASVS pour les exigences, OSSTMM pour la méthode générale.",
+  "Un plan de test avec des critères de sortie vérifiables et proportionnés.",
+  "Chaque technique à son moment : secondes en pre-commit, minutes en PR, heures en nightly ; chaque job a un propriétaire.",
+  "Les tests dynamiques demandent un environnement représentatif et isolé, dont les écarts sont documentés.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Web Security Testing Guide", url: "https://owasp.org/www-project-web-security-testing-guide/" },
+  { title: "OSSTMM (ISECOM)", url: "https://www.isecom.org/OSSTMM.3.pdf" },
+  { title: "OWASP ASVS", url: "https://owasp.org/www-project-application-security-verification-standard/" },
+  { title: "ZAP : baseline scan", url: "https://www.zaproxy.org/docs/docker/baseline-scan/" },
+  { title: "GitHub Actions : événement schedule", url: "https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule" },
+]} />

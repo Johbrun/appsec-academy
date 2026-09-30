@@ -1,0 +1,194 @@
+{
+  "_a_propos": "Les deux jeux sur lesquels ta fonction `suspect()` est notée. « reels » sont des enregistrements extraits d’une vraie base : elle doit tous les signaler. « synthetiques » respectent les formats réservés aux tests : elle ne doit en signaler aucun. Les enregistrements que ton générateur produit sont ajoutés au second jeu.",
+  "formats_reserves": {
+    "email": "domaine example.com / example.org / example.net, ou TLD .test / .invalid / .localhost (RFC 2606 et 6761)",
+    "telephone": "plage de fiction française : +33 6 39 98 XX XX",
+    "iban": "doit ÉCHOUER le contrôle ISO 7064 mod 97 — un IBAN qui passe la clé peut être celui de quelqu’un",
+    "carte": "doit ÉCHOUER la clé de Luhn",
+    "siret": "doit ÉCHOUER la clé de Luhn"
+  },
+  "reels": [
+    {
+      "id": "R-01",
+      "nom": "Camille Dubreuil",
+      "email": "camille.dubreuil@gmail.com",
+      "telephone": "+33 6 12 45 88 01",
+      "iban": "FR1420041010050500013M02606",
+      "carte": "4532012345678902",
+      "siret": "44320287000020"
+    },
+    {
+      "id": "R-02",
+      "nom": "Yanis Bakkali",
+      "email": "y.bakkali@novafact.fr",
+      "telephone": "+33 6 77 09 23 54",
+      "iban": "FR8530003021450000020210154",
+      "carte": "5503412345678906",
+      "siret": "38038997100033"
+    },
+    {
+      "id": "R-03",
+      "nom": "Élodie Marchand",
+      "email": "elodie.marchand@orange.fr",
+      "telephone": "+33 6 88 41 70 12",
+      "iban": "DE89370400440532013000",
+      "carte": "3742454554000121",
+      "siret": "54282049900029"
+    },
+    {
+      "id": "R-04",
+      "nom": "Tarek Benali",
+      "email": "tarek.benali@outlook.com",
+      "telephone": "+33 6 03 55 92 44",
+      "iban": "BE68539007547034",
+      "carte": "6011000990136008",
+      "siret": "79298433200058"
+    },
+    {
+      "id": "R-05",
+      "nom": "Marion Leclercq",
+      "email": "m.leclercq@cabinet-leclercq.fr",
+      "telephone": "+33 6 24 18 63 77",
+      "iban": "ES9121000418450200051332",
+      "carte": "4532011999022227",
+      "siret": "40122987700014"
+    },
+    {
+      "id": "R-06",
+      "nom": "Hugo Pereira",
+      "email": "hugo.pereira@free.fr",
+      "telephone": "+33 6 91 30 47 05",
+      "iban": "PT50000201231234567890154",
+      "carte": "5503990011223347",
+      "siret": "83411225400083"
+    },
+    {
+      "id": "R-07",
+      "nom": "Sarah Nguyen",
+      "email": "sarah.nguyen@yahoo.fr",
+      "telephone": "+33 6 60 22 81 39",
+      "iban": "IT60X0542811101000000123456",
+      "carte": "3742450012345678",
+      "siret": "66210044300040"
+    },
+    {
+      "id": "R-08",
+      "nom": "Paul Ferrand",
+      "email": "p.ferrand@sfr.fr",
+      "telephone": "+33 6 15 73 04 26",
+      "iban": "NL91ABNA0417164300",
+      "carte": "4532987612345675",
+      "siret": "51022099100077"
+    },
+    {
+      "id": "R-09",
+      "nom": "Inès Roussel",
+      "email": "ines.roussel@laposte.net",
+      "telephone": "+33 6 49 66 12 88",
+      "iban": "FR4614508000405341262311456",
+      "carte": "5503123498765438",
+      "siret": "77883322100063"
+    },
+    {
+      "id": "R-10",
+      "nom": "Bastien Ollivier",
+      "email": "bastien@ollivier-conseil.com",
+      "telephone": "+33 6 07 84 55 19",
+      "iban": "LU280019400644750000",
+      "carte": "6011998877665546",
+      "siret": "90341177600037"
+    }
+  ],
+  "synthetiques": [
+    {
+      "id": "S-01",
+      "nom": "Client Exemple 01",
+      "email": "client01@example.com",
+      "telephone": "+33 6 39 98 01 01",
+      "iban": "FR76333301000000000000001",
+      "carte": "4000000000000102",
+      "siret": "10000000000101"
+    },
+    {
+      "id": "S-02",
+      "nom": "Client Exemple 02",
+      "email": "client02@example.com",
+      "telephone": "+33 6 39 98 02 02",
+      "iban": "FR76333302000000000000002",
+      "carte": "4000000000000202",
+      "siret": "10000000000202"
+    },
+    {
+      "id": "S-03",
+      "nom": "Client Exemple 03",
+      "email": "client03@example.com",
+      "telephone": "+33 6 39 98 03 03",
+      "iban": "FR76333303000000000000003",
+      "carte": "4000000000000303",
+      "siret": "10000000000303"
+    },
+    {
+      "id": "S-04",
+      "nom": "Client Exemple 04",
+      "email": "client04@example.com",
+      "telephone": "+33 6 39 98 04 04",
+      "iban": "FR76333304000000000000004",
+      "carte": "4000000000000404",
+      "siret": "10000000000405"
+    },
+    {
+      "id": "S-05",
+      "nom": "Client Exemple 05",
+      "email": "client05@example.com",
+      "telephone": "+33 6 39 98 05 05",
+      "iban": "FR76333305000000000000005",
+      "carte": "4000000000000505",
+      "siret": "10000000000505"
+    },
+    {
+      "id": "S-06",
+      "nom": "Client Exemple 06",
+      "email": "client06@example.com",
+      "telephone": "+33 6 39 98 06 06",
+      "iban": "FR76333306000000000000006",
+      "carte": "4000000000000607",
+      "siret": "10000000000606"
+    },
+    {
+      "id": "S-07",
+      "nom": "Client Exemple 07",
+      "email": "client07@example.com",
+      "telephone": "+33 6 39 98 07 07",
+      "iban": "FR76333307000000000000007",
+      "carte": "4000000000000707",
+      "siret": "10000000000707"
+    },
+    {
+      "id": "S-08",
+      "nom": "Client Exemple 08",
+      "email": "client08@example.com",
+      "telephone": "+33 6 39 98 08 08",
+      "iban": "FR76333308000000000000008",
+      "carte": "4000000000000808",
+      "siret": "10000000000808"
+    },
+    {
+      "id": "S-09",
+      "nom": "Client Exemple 09",
+      "email": "client09@example.com",
+      "telephone": "+33 6 39 98 09 09",
+      "iban": "FR76333309000000000000009",
+      "carte": "4000000000000909",
+      "siret": "10000000000900"
+    },
+    {
+      "id": "S-10",
+      "nom": "Client Exemple 10",
+      "email": "client10@example.com",
+      "telephone": "+33 6 39 98 10 10",
+      "iban": "FR76333310000000000000010",
+      "carte": "4000000000001010",
+      "siret": "10000000001010"
+    }
+  ]
+}

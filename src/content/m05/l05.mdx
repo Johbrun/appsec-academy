@@ -1,0 +1,210 @@
+export const questions = [
+  {
+    q: "Une vulnérabilité se trouve dans une dépendance transitive, et la dépendance directe n'a pas encore publié de mise à jour. Que fais-tu d'abord ?",
+    options: [
+      "Ouvrir une issue chez le mainteneur de la dépendance directe, puis attendre",
+      "Appliquer un patch local avec pnpm patch, seule voie sans version corrigée",
+      "Vérifier l'atteignabilité, puis forcer la version corrigée avec overrides",
+      "Remplacer la dépendance directe par une alternative non touchée",
+    ],
+    answer: 2,
+    explain: "L'atteignabilité vient d'abord : elle décide s'il faut agir aujourd'hui ou simplement tracer. Ensuite, overrides (npm) ou pnpm.overrides imposent la version corrigée de la dépendance transitive sans attendre le mainteneur, sous réserve de compatibilité validée par les tests. Le patch local répond au cas où aucune version corrigée n'existe : l'employer ici reviendrait à maintenir un correctif qu'on pouvait récupérer. Remplacer la dépendance directe est un dernier recours, réservé aux paquets abandonnés.",
+  },
+  {
+    q: "Quel est le principal défaut de npm audit pour prioriser ?",
+    options: [
+      "Il ne couvre que les avis GitHub et ignore les CVE publiées ailleurs",
+      "Il échoue le build sur la moindre vulnérabilité, quelle que soit sa sévérité",
+      "Il propose des montées de version majeures qui cassent l'application",
+      "Il liste ce qui est présent dans l'arbre, sans dire ce qui est atteignable",
+    ],
+    answer: 3,
+    explain: "npm audit répond à « ce paquet est-il dans mon arbre ? », pas à « le code vulnérable est-il appelé ? », et il mêle dépendances de production et de développement, d'où --omit=dev. Les autres reproches visent des comportements réglables : --audit-level fixe le seuil d'échec, et ce sont les montées majeures de npm audit fix --force qui cassent, pas l'audit. Quant à la couverture, la base d'avis du registre agrège largement les CVE : le problème n'est pas ce qu'elle sait, c'est ce qu'elle ne peut pas savoir de ton code.",
+  },
+  {
+    q: "La CI envoie chaque nuit les résultats Semgrep à DefectDojo avec import-scan (et non reimport-scan). Quel problème va apparaître ?",
+    options: [
+      "Chaque nuit crée un test : les findings déjà triés reviennent comme neufs",
+      "Les envois sont refusés : import-scan n'accepte pas les fichiers SARIF",
+      "DefectDojo écrase le test de la veille et perd les findings déjà corrigés",
+      "Les findings corrigés restent ouverts, mais le triage des autres est conservé",
+    ],
+    answer: 0,
+    explain: "import-scan crée un nouveau test à chaque envoi : c'est ce qu'on veut pour un pentest ponctuel, pas pour une CI quotidienne. On perd les deux à la fois, alors qu'on n'en imagine souvent qu'un : le triage n'est pas repris, et les findings disparus ne se ferment pas d'eux-mêmes. reimport-scan met à jour le même test — il garde le triage des findings encore présents, ferme les disparus avec close_old_findings et rouvre ceux qui reviennent.",
+  },
+  {
+    q: "Une vulnérabilité est corrigée dans @novafact/sdk 3.4.2. Des clients utilisent encore 3.4.1 et 2.9.0. Que fait l'équipe, en plus de publier 3.4.2 ?",
+    options: [
+      "Dépublier les versions vulnérables du registre npm pour forcer la migration",
+      "Rétroporter sur les branches supportées, déprécier, publier un avis de sécurité",
+      "Publier une version majeure qui refuse de démarrer sur les configurations touchées",
+      "Contacter directement les clients identifiés par les journaux d'appel du SDK",
+    ],
+    answer: 1,
+    explain: "Le correctif ne vaut que s'il atteint les utilisateurs : une version de patch sur chaque branche majeure encore supportée, donc en 2.x ; npm deprecate sur les versions vulnérables, qui avertit à l'installation sans casser les builds existants ; et un avis GHSA avec demande de CVE, qui alimente npm audit, Dependabot et les SCA des clients. Dépublier casserait les installations en place et n'est plus permis passé 72 heures. Prévenir directement les clients est un complément utile quand une version vulnérable reste très téléchargée, pas un substitut au signal automatique qu'attendent leurs outils.",
+  },
+];
+
+<YouKnow>
+Tu as déjà livré un rapport qui finissait dans un tableur. Ici on construit la plomberie qui fait avancer les findings sans effort manuel, et on regarde les particularités de npm.
+</YouKnow>
+
+## Agréger et suivre
+
+| Outil | Rôle |
+| --- | --- |
+| **DefectDojo** (OWASP) | Agrège les résultats de dizaines d'outils, dédoublonne, suit les SLA et synchronise avec le gestionnaire de tickets |
+| **Dependency-Track** (OWASP) | Analyse en continu les SBOM de chaque version déployée : nouvelles CVE, licences, politiques, statuts VEX |
+| Gestionnaire de tickets | Là où les équipes travaillent réellement : chaque finding validé y devient un ticket, avec un SLA |
+
+Le principe : les outils **poussent** dans l'agrégateur, l'agrégateur **dédoublonne et applique la grille** (leçon 3), puis crée les tickets dans le backlog des équipes. L'équipe AppSec pilote depuis l'agrégateur, les équipes travaillent dans leur outil habituel.
+
+## DefectDojo en pratique
+
+DefectDojo organise les résultats en niveaux emboîtés : un **produit** (l'API de facturation), des **engagements** (la CI continue, le pentest de mars), des **tests** (un par outil et par exécution) et des **findings**. La distinction qui compte pour l'automatisation est celle entre deux points d'API :
+
+- `import-scan` crée un **nouveau test** à chaque envoi : adapté à un pentest ou à un audit ponctuel ;
+- `reimport-scan` **met à jour** un test existant : les findings toujours présents gardent leur triage, ceux qui ont disparu sont fermés (option `close_old_findings`), ceux qui réapparaissent sont rouverts. C'est le bon choix pour une CI qui scanne chaque jour.
+
+<Code file=".github/workflows/security.yml" hl="7,9,10">
+
+```yaml
+      - name: Semgrep
+        run: semgrep scan --config p/javascript --sarif --output semgrep.sarif
+      - name: Envoi vers DefectDojo
+        run: |
+          curl -sf -X POST "$DD_URL/api/v2/reimport-scan/" \
+            -H "Authorization: Token $DD_TOKEN" \
+            -F scan_type="SARIF" -F file=@semgrep.sarif \
+            -F product_name="api-facturation" -F engagement_name="CI main" \
+            -F test_title="Semgrep" -F auto_create_context=true \
+            -F close_old_findings=true -F minimum_severity=Low
+        env:
+          DD_URL: ${{ vars.DEFECTDOJO_URL }}
+          DD_TOKEN: ${{ secrets.DEFECTDOJO_TOKEN }}
+```
+
+</Code>
+
+Deux réglages évitent de décevoir les équipes dès la première semaine : l'**algorithme de dédoublonnage** par type d'outil (identifiant fourni par l'outil quand il est stable, sinon une empreinte sur des champs choisis, leçon 1), et la **synchronisation des tickets** limitée aux findings confirmés. Pousser automatiquement chaque résultat brut dans le backlog des équipes est le moyen le plus rapide de leur apprendre à ignorer l'étiquette « security ».
+
+## Dependency-Track : suivre ce qui est déployé
+
+Un scan SCA dans la PR répond à la question « ce code introduit-il une dépendance vulnérable ? ». Il ne répond pas à « la version en production depuis trois semaines est-elle touchée par la CVE publiée ce matin ? ». C'est le rôle de Dependency-Track : il conserve le SBOM de chaque version **déployée** et le réévalue en continu contre les nouvelles vulnérabilités.
+
+<Code file=".github/workflows/deploy.yml">
+
+```yaml
+      - name: SBOM de la version déployée
+        run: npx @cyclonedx/cyclonedx-npm --omit dev --output-file sbom.json
+      - name: Envoi vers Dependency-Track
+        run: |
+          curl -sf -X POST "$DT_URL/api/v1/bom" \
+            -H "X-Api-Key: $DT_API_KEY" \
+            -F autoCreate=true -F projectName="api-facturation" \
+            -F projectVersion="${GITHUB_SHA::12}" -F bom=@sbom.json
+```
+
+</Code>
+
+Dependency-Track applique des **politiques** (licences interdites, composants bannis, sévérité maximale), accepte des déclarations **VEX** pour marquer une vulnérabilité comme non applicable, et envoie des notifications quand une nouvelle vulnérabilité touche un projet. C'est la brique qui rend possible l'inventaire en quelques minutes le jour d'une crise (leçon 7).
+
+## SLA et exceptions
+
+Un SLA ne vaut que s'il est **suivi et visible**. La grille de la leçon 3 donne les délais ; au-delà, trois mécanismes :
+
+- une **alerte** au propriétaire à mi-délai ;
+- une **escalade** automatique au dépassement ;
+- une **exception** formelle (M1, leçon 5) si le délai ne peut pas être tenu : justification, propriétaire du risque, date de revue.
+
+Le registre des exceptions mérite autant de soin que le backlog. Une exception sans date d'expiration est une acceptation de risque permanente qui ne dit pas son nom ; une exception expirée sans revue est une dette que personne ne voit. DefectDojo gère les acceptations de risque avec une date d'expiration : à l'échéance, le finding redevient actif et remonte dans les tableaux de bord. L'indicateur qui compte n'est pas le nombre d'exceptions, mais leur **âge** et leur taux de renouvellement sans changement.
+
+## Les particularités de npm
+
+`npm audit` compare l'arbre de dépendances aux avis de sécurité du registre (issus de la GitHub Advisory Database). C'est utile, mais trompeur pour prioriser :
+
+- il liste ce qui est **présent**, pas ce qui est **atteignable** ;
+- il mélange dépendances de **production** et de **développement** (`npm audit --omit=dev` réduit le bruit) ;
+- `npm audit fix --force` peut faire des montées de version majeures qui cassent l'application.
+
+D'autres sources complètent le tableau : **OSV** (base agrégée ouverte, avec l'outil OSV-Scanner), **deps.dev** de Google (graphe de dépendances et santé des paquets), et les outils SCA qui ajoutent l'atteignabilité.
+
+Deux commandes méritent une place dans la CI : `npm audit --omit=dev --audit-level=high`, qui n'échoue que sur les vulnérabilités hautes et critiques des dépendances de production (un garde-fou, pas un outil de priorisation), et `npm audit signatures`, qui vérifie les signatures du registre et les attestations de provenance des paquets installés. La seconde ne cherche pas des vulnérabilités : elle vérifie que ce que tu as installé vient bien du registre, tel qu'il a été publié.
+
+## Quand la correction n'existe pas encore
+
+<Diff file="package.json" hlBefore="" hlAfter="5-7">
+
+```json
+{
+  "dependencies": {
+    "pdf-renderer": "^4.2.0"
+  }
+}
+```
+
+```json
+{
+  "dependencies": {
+    "pdf-renderer": "^4.2.0"
+  },
+  "overrides": {
+    "xml-parser-lite": "2.3.4"
+  }
+}
+```
+
+</Diff>
+
+L'override ci-dessus s'applique à **toutes** les occurrences de `xml-parser-lite` dans l'arbre. Pour ne viser que celle qu'embarque `pdf-renderer`, npm accepte une forme imbriquée : `"pdf-renderer": { "xml-parser-lite": "2.3.4" }`. La forme ciblée limite les effets de bord ; la forme globale ferme la vulnérabilité partout d'un coup. Avec pnpm, l'équivalent se déclare dans `pnpm.overrides` (ou dans `pnpm-workspace.yaml` dans les versions récentes). Dans les deux cas, vérifie après installation que la version attendue est bien celle résolue (`npm ls xml-parser-lite`).
+
+| Option | Quand |
+| --- | --- |
+| `overrides` (npm) ou `pnpm.overrides` | La version corrigée de la dépendance transitive est compatible : on l'impose, les tests valident |
+| `patch-package` ou `pnpm patch` | Pas de version corrigée : on applique le correctif en local, versionné et revu |
+| Remplacer la dépendance | Paquet abandonné ou correctif trop lent (l'anti-pattern *unpatchable component* de Kohnfelder, M8) |
+| Mesure compensatoire | Le code vulnérable est atteignable mais on peut bloquer l'entrée (validation, WAF) en attendant |
+| VEX `not_affected` | Le code vulnérable n'est pas atteignable, et c'est démontré |
+
+<Callout kind="warn">
+Chaque `override` ou patch local est une dette : documente pourquoi il existe et quand le retirer. Un override oublié empêche plus tard une mise à jour légitime.
+</Callout>
+
+## Mettre à jour vite, mais pas n'importe quoi
+
+Renovate ou Dependabot proposent les mises à jour de sécurité sous forme de PR, avec les notes de version. Le réglage délicat est le **délai avant adoption** d'une nouvelle version (`minimumReleaseAge` dans Renovate et dans pnpm) : il protège contre un paquet piégé retiré du registre dans les heures qui suivent (leçon 8 du module 4), mais il retarde aussi l'arrivée d'un correctif de sécurité. L'arbitrage chez Novafact : un délai par défaut de trois jours, et une dérogation explicite, après lecture du diff du paquet, pour une vulnérabilité classée Act ou Attend.
+
+## Publier un correctif pour les autres
+
+Novafact est aussi **éditeur** : le SDK `@novafact/sdk` est installé par ses clients. Quand une vulnérabilité touche le SDK, le travail ne s'arrête pas au merge.
+
+<Steps items={[
+  { title: "Corriger et rétroporter", text: "Une version de correctif (patch semver) sur chaque branche majeure encore supportée, pas seulement sur la dernière." },
+  { title: "Publier de façon vérifiable", text: "Publication depuis la CI avec attestation de provenance (npm publish --provenance), pour que les clients puissent vérifier l'origine du correctif." },
+  { title: "Avertir à l'installation", text: "npm deprecate sur les versions vulnérables : un message s'affiche à chaque installation, sans casser les builds existants." },
+  { title: "Publier l'avis", text: "Un avis de sécurité GitHub (GHSA), avec demande de CVE : il alimente npm audit, Dependabot et les outils SCA des clients." },
+  { title: "Vérifier l'adoption", text: "Suivre les téléchargements par version : une version vulnérable encore très installée justifie une communication directe aux clients concernés." },
+]} />
+
+<Recap items={[
+  "Les outils poussent dans un agrégateur (DefectDojo), qui dédoublonne et crée les tickets ; reimport-scan pour la CI, import-scan pour le ponctuel.",
+  "Dependency-Track réévalue en continu les SBOM des versions déployées, avec politiques et VEX.",
+  "Un SLA vaut s'il est suivi : alerte, escalade, exception formelle avec date d'expiration.",
+  "npm audit liste la présence, pas l'atteignabilité ; --omit=dev et --audit-level en garde-fou, audit signatures pour la provenance.",
+  "Sans correctif : overrides (globaux ou ciblés), patch local, remplacement, mesure compensatoire ou VEX justifié.",
+  "Délai avant adoption des nouvelles versions, avec dérogation explicite pour les correctifs urgents.",
+  "Éditeur d'un paquet : rétroporter, publier avec provenance, déprécier, publier l'avis.",
+]} />
+
+<Sources items={[
+  { title: "OWASP DefectDojo", url: "https://github.com/DefectDojo/django-DefectDojo" },
+  { title: "DefectDojo : documentation de l'API v2", url: "https://docs.defectdojo.com/automation/api/api-v2-docs/" },
+  { title: "OWASP Dependency-Track", url: "https://dependencytrack.org/" },
+  { title: "Dependency-Track : intégration continue", url: "https://docs.dependencytrack.org/usage/cicd/" },
+  { title: "CycloneDX : cyclonedx-npm", url: "https://github.com/CycloneDX/cyclonedx-node-npm" },
+  { title: "npm : overrides", url: "https://docs.npmjs.com/cli/v11/configuring-npm/package-json#overrides" },
+  { title: "npm : npm audit", url: "https://docs.npmjs.com/cli/v11/commands/npm-audit" },
+  { title: "npm : générer des attestations de provenance", url: "https://docs.npmjs.com/generating-provenance-statements" },
+  { title: "OSV-Scanner", url: "https://google.github.io/osv-scanner/" },
+  { title: "deps.dev", url: "https://deps.dev/" },
+]} />

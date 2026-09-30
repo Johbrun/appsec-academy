@@ -1,0 +1,93 @@
+# Livrable de référence — challenge ssdf-attestation (M1).
+#
+# Une attestation honnête sur l'état livré du dépôt. Neuf tâches revendiquées
+# avec une preuve qui existe, une déclarée hors périmètre, douze déclarées non
+# mises en œuvre — parce qu'elles ne le sont pas.
+#
+# C'est la partie inconfortable de l'exercice : la tentation est de cocher, et
+# le signataire engage sa responsabilité. Ce que le harnais peut vérifier, c'est
+# que les chemins cités existent, et sur trois tâches que la preuve établit
+# vraiment ce qu'elle prétend. Ce qu'il ne peut pas vérifier, c'est si un
+# « partiel » méritait un « mis-en-oeuvre » — et c'est exactement la limite
+# d'une attestation.
+
+taches:
+  - id: PO.1.1
+    statut: partiel
+    preuves: [novafact/README.md]
+
+  - id: PO.3.2
+    statut: partiel
+    preuves: [novafact/.github/workflows/ci.yml]
+
+  - id: PO.5.1
+    statut: non-mis-en-oeuvre
+
+  - id: PO.5.2
+    statut: non-mis-en-oeuvre
+
+  - id: PS.1.1
+    statut: partiel
+    preuves: [novafact/.github/CODEOWNERS]
+
+  - id: PS.2.1
+    statut: non-mis-en-oeuvre
+
+  - id: PS.3.1
+    statut: partiel
+    preuves: [novafact/.github/workflows/release.yml]
+
+  - id: PS.3.2
+    statut: non-mis-en-oeuvre
+
+  - id: PW.1.1
+    statut: non-mis-en-oeuvre
+
+  - id: PW.1.2
+    statut: non-mis-en-oeuvre
+
+  - id: PW.4.1
+    statut: mis-en-oeuvre
+    preuves: [novafact/package.json, novafact/package-lock.json]
+
+  - id: PW.4.4
+    statut: non-mis-en-oeuvre
+
+  - id: PW.6.1
+    statut: partiel
+    preuves: [novafact/Dockerfile]
+
+  - id: PW.6.2
+    statut: non-applicable
+    justification: >-
+      Novafact est livrée en JavaScript interprété par Node : il n'y a pas
+      d'étape de compilation native, donc pas de protections de compilateur à
+      activer. Les protections équivalentes relèvent de l'exécution, traitées
+      par PW.9.1.
+
+  - id: PW.7.1
+    statut: non-mis-en-oeuvre
+
+  - id: PW.7.2
+    statut: partiel
+    preuves: [novafact/.github/CODEOWNERS]
+
+  - id: PW.8.2
+    statut: partiel
+    preuves: [novafact/.github/workflows/ci.yml]
+
+  - id: PW.9.1
+    statut: non-mis-en-oeuvre
+
+  - id: RV.1.1
+    statut: non-mis-en-oeuvre
+
+  - id: RV.1.3
+    statut: non-mis-en-oeuvre
+
+  - id: RV.2.2
+    statut: non-mis-en-oeuvre
+
+  - id: RV.3.3
+    statut: partiel
+    preuves: [verify/security.test.ts]

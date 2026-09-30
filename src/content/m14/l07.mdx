@@ -1,0 +1,140 @@
+export const questions = [
+  {
+    q: "Dans la compromission de tj-actions/changed-files (mars 2025), quel contrôle côté consommateur aurait empêché l'exécution du code malveillant ?",
+    options: [
+      "Utiliser la dernière version majeure publiée, plutôt qu'une version figée",
+      "Masquer les secrets dans les journaux du workflow avec add-mask",
+      "Limiter les permissions du GITHUB_TOKEN du job à la lecture du contenu",
+      "Épingler l'action par SHA complet : les tags avaient été réécrits",
+    ],
+    answer: 3,
+    explain: "Limiter le GITHUB_TOKEN est un bon durcissement, mais l'action lisait la mémoire du runner : elle y trouvait tous les secrets du job, pas seulement ce jeton. Le masquage, lui, avait été contourné par un double encodage base64. Quant à suivre la dernière version majeure, c'est précisément ce qui a exposé les victimes — les tags `v1` à `v45.0.7` pointaient soudain vers un autre commit, et seuls les dépôts épinglés par SHA exécutaient encore l'ancien code.",
+  },
+  {
+    q: "Qu'ont en commun Ultralytics (2024), Nx (2025) et TanStack (2026) ?",
+    options: [
+      "Un jeton de publication npm volé sur le poste d'un des mainteneurs",
+      "Un workflow privilégié déclenché par une contribution externe",
+      "Un mainteneur piégé par un courriel de hameçonnage ciblé",
+      "Une dépendance transitive compromise en amont de la chaîne",
+    ],
+    answer: 1,
+    explain: "Les trois autres scénarios existent bel et bien, et ils décrivent d'autres compromissions de 2024-2026 — mais pas celles-ci. Ici, rien n'a été volé sur un poste ni obtenu par hameçonnage : le point commun est un workflow qui mêle des données ou du code venus d'une PR aux privilèges de publication, exploité par injection ou par empoisonnement de cache. C'est pourquoi GitHub a durci `pull_request_target` et `actions/checkout` en 2025-2026.",
+  },
+  {
+    q: "Quelle évolution distingue les vers de la famille Shai-Hulud des compromissions ponctuelles précédentes ?",
+    options: [
+      "Ils se propagent seuls : chaque jeton volé sert à republier d'autres paquets",
+      "Ils ciblent les mainteneurs les plus populaires par hameçonnage automatisé",
+      "Ils s'installent dans les runners de CI plutôt que sur les postes de travail",
+      "Ils restent dormants plusieurs mois avant de déclencher leur charge utile",
+    ],
+    answer: 0,
+    explain: "Les trois autres propositions décrivent des techniques connues, mais aucune n'est la rupture : la nouveauté n'est ni la cible, ni le vecteur, ni la temporisation. C'est l'automatisation de la propagation — chaque jeton npm volé sert à republier les autres paquets du mainteneur, chaque jeton GitHub à persister dans ses dépôts. Un compte compromis devient des centaines de paquets en quelques heures, d'où l'urgence de sortir les jetons de publication des postes et des runners.",
+  },
+  {
+    q: "Pourquoi l'incident polyfill.io (2024) concerne-t-il aussi un SaaS qui n'utilise pas ce service ?",
+    options: [
+      "Parce que le paquet npm polyfill.io se retrouve en dépendance transitive",
+      "Parce que la vulnérabilité touchait Node.js et donc tous les serveurs",
+      "Parce qu'un script tiers exécute le code de qui contrôle son domaine",
+      "Parce qu'un CDN compromis peut servir des dépendances npm altérées au build",
+    ],
+    answer: 2,
+    explain: "polyfill.io n'était ni un paquet npm, ni une faille de Node : c'était un domaine racheté. La confusion avec un CDN de build est plus subtile, mais elle déplace le problème vers la chaîne de construction alors qu'il se joue dans le navigateur du client. Le fait générique est celui-ci : la confiance accordée à un domaine se transmet à son futur propriétaire — ce qui vaut pour le tag manager, l'analytics et le widget de chat de Novafact. Auto-héberger, épingler avec SRI ou isoler les scripts tiers (M4) sont les réponses.",
+  },
+];
+
+<YouKnow>
+Ces incidents, tu les as sûrement suivis en direct sur les réseaux. Relus à froid, ils racontent la même histoire en quelques variantes : une confiance implicite quelque part dans la chaîne, et un contrôle simple qui l'aurait rendue explicite. Le détail technique de chaque charge n'a pas d'intérêt ici ; la cause racine et le contrôle qui casse la chaîne, si.
+</YouKnow>
+
+## La grille de lecture
+
+| Année | Incident | Point d'entrée | Cause racine | Contrôle qui casse la chaîne le plus tôt |
+| --- | --- | --- | --- | --- |
+| 2018 | event-stream | Maintenance cédée à un inconnu | Confiance dans un mainteneur non vérifié | Revue des nouvelles dépendances transitives, délai d'adoption |
+| 2021 | ua-parser-js | Compte npm détourné | Publication possible sans second facteur | MFA résistante au phishing, trusted publishing |
+| 2021 | Codecov | Script d'upload modifié | Script téléchargé et exécuté sans vérification | Épinglage et vérification d'empreinte ou de signature |
+| 2024 | xz utils | Mainteneur de longue date malveillant | Archive publiée différente du dépôt relu | Builds reproductibles, provenance (M13, leçon 9) |
+| 2024 | polyfill.io | Domaine et projet rachetés | Script servi par un domaine tiers | Auto-hébergement, SRI (M4) |
+| 2024 | Ultralytics | Workflow `pull_request_target` | Injection et cache partagé avec la release | Pas de code de PR privilégié, pas de cache en release |
+| 2025 | tj-actions/changed-files | Jeton d'un mainteneur volé en cascade | Tags mobiles, PAT puissants | Épinglage SHA imposé |
+| 2025 | chalk, debug | Hameçonnage d'un mainteneur | 2FA contournable par un faux site | MFA résistante au phishing, staged publishing |
+| 2025 | Nx « s1ngularity » | Titre de PR injecté | Expression interpolée dans un workflow privilégié | Passage par `env`, zizmor |
+| 2025-2026 | Shai-Hulud et ses vagues | Jetons npm et GitHub volés | Jetons de publication sur les postes et runners, scripts d'installation | Trusted et staged publishing, scripts désactivés, délai d'adoption |
+
+## Mainteneurs et confiance
+
+**event-stream (2018)** : le mainteneur, qui ne s'occupait plus du paquet, en a confié la gestion à un inconnu qui s'était proposé. Celui-ci a ajouté une dépendance, `flatmap-stream`, dont une version contenait un code visant une application de portefeuille Bitcoin précise. Rien n'était techniquement « piraté » : la confiance a été transférée, sans que les millions d'utilisateurs en soient informés.
+
+**xz utils (2024)**, détaillé en M13 (leçon 9), pousse la logique à l'extrême : deux ans de contributions légitimes pour obtenir les droits de publication, puis une porte dérobée présente dans les archives de release mais pas dans le dépôt Git.
+
+La leçon défensive commune : la santé d'un projet (nombre de mainteneurs, changement de propriétaire) est un signal de risque (leçon 6), et **ce qui est construit doit être ce qui est relu** (leçon 9).
+
+## Comptes détournés
+
+**ua-parser-js (octobre 2021)** : le compte npm du mainteneur est détourné, trois versions publiées installent un mineur de cryptomonnaie et un voleur de mots de passe. **chalk et debug (septembre 2025)** : un e-mail imitant npm, envoyé depuis un domaine sosie, pousse un mainteneur très suivi à « mettre à jour sa 2FA » sur un faux site. L'attaquant publie des versions de 18 paquets totalisant plus de deux milliards de téléchargements hebdomadaires, avec un code qui détourne des transactions de cryptomonnaie dans le navigateur. Elles sont retirées en quelques heures.
+
+Une 2FA par code est hameçonnable. Les réponses : clés FIDO (résistantes au phishing), aucune publication possible par simple mot de passe et code, et depuis 2026 une approbation par version (staged publishing, leçon 5).
+
+## Pipelines compromis
+
+**Codecov (2021)** a montré que le pipeline exécute volontiers du code tiers non vérifié (leçon 1). Les incidents suivants visent directement les workflows GitHub Actions :
+
+- **Ultralytics (décembre 2024)** : une injection dans un workflow `pull_request_target`, combinée à l'empoisonnement du cache GitHub Actions, fait publier sur PyPI deux versions contenant un mineur. Les versions suivantes sont publiées avec un jeton d'API PyPI resté valide. La provenance, qui attestait que les deux premières venaient bien du workflow officiel, a servi à l'enquête : elle prouve **où** un paquet a été construit, pas que la construction était saine.
+- **Nx « s1ngularity » (août 2025)** : un workflow ajouté quelques jours plus tôt interpole le titre des PR dans un script, sous `pull_request_target`. Le jeton de publication npm est volé ; des versions malveillantes de Nx sont publiées pendant environ quatre heures. Leur script d'installation cherche des secrets, tente d'utiliser les CLI d'assistants d'IA installées localement pour fouiller le disque, et publie le butin dans un dépôt public créé sur le compte GitHub de la victime.
+- **TanStack (mai 2026)** : *pwn request*, cache empoisonné, puis le code malveillant obtient le jeton OIDC du workflow de release et publie 84 versions de 42 paquets en six minutes, malgré le trusted publishing (leçon 5).
+
+<Callout kind="case">
+**tj-actions/changed-files (mars 2025).** La chaîne commence fin 2024 : un workflow `pull_request_target` du projet SpotBugs laisse fuiter le jeton personnel d'un mainteneur, qui a aussi des droits sur le projet reviewdog. En mars 2025, l'attaquant réécrit le tag `v1` de `reviewdog/action-setup` ; cette action est utilisée, via une autre action, dans la CI de tj-actions, qui y expose son propre jeton. Le 14 mars, les tags de `tj-actions/changed-files` (utilisée par plus de 20 000 dépôts) sont redirigés vers un commit qui lit la mémoire du runner et écrit les secrets dans les logs, encodés deux fois en base64 pour échapper au masquage. Sur les dépôts publics, ces logs sont publics. La cible initiale était un projet de Coinbase. Leçons : épinglage par SHA (le seul contrôle qui neutralisait l'attaque côté consommateur), PAT remplacés par des GitHub Apps à portée limitée, et surveillance réseau des runners, qui a permis la détection.
+</Callout>
+
+## La distribution
+
+**polyfill.io (2024)** : un service de polyfills très utilisé, chargé par `<script>` depuis son propre domaine, est racheté avec son domaine. Quelques mois plus tard, le CDN sert à certains visiteurs mobiles un code qui les redirige vers des sites frauduleux ; plus de 100 000 sites l'intègrent. La confiance accordée à un domaine se transmet à son futur propriétaire. C'est le sujet de M4 : auto-héberger ce qui peut l'être, épingler avec SRI ce qui ne l'est pas, inventorier les scripts de la page de paiement.
+
+## Les vers : Shai-Hulud et ses vagues
+
+| Vague | Date | Ce qui change |
+| --- | --- | --- |
+| Shai-Hulud | septembre 2025 | Plus de 500 paquets ; script `postinstall` qui cherche les secrets (avec TruffleHog), les publie dans un dépôt public du compte de la victime, ajoute un workflow d'exfiltration et se republie avec les jetons npm trouvés |
+| Shai-Hulud 2.0 | novembre 2025 | Script `preinstall` (plus tôt, avant les contrôles), runtime Bun téléchargé pour échapper aux détections centrées sur Node ; environ 800 paquets ; machine enregistrée comme runner self-hosted pour garder un accès ; effacement de données en l'absence d'identifiants |
+| « Mini Shai-Hulud » | mai 2026 | TanStack et plus de 160 paquets npm et PyPI, entrée par un workflow de release (voir plus haut) |
+| CHAINDROP | août 2026 | Compte d'un mainteneur de `keyv` et de paquets voisins ; plus de 400 paquets en quelques heures ; persistance dans les dépôts via des configurations d'éditeur et d'assistant de code |
+
+Chaque vague a répondu aux défenses de la précédente, et l'écosystème a répondu à son tour : plan de sécurisation de npm annoncé en septembre 2025, jetons classiques révoqués, trusted publishing généralisé, staged publishing (mai 2026), npm 12 et ses scripts désactivés par défaut (juillet 2026), restriction des jetons qui contournent la 2FA (août 2026).
+
+## Ce qui se répète
+
+- Des **références mobiles** (tags, plages de versions, domaines) là où une référence immuable était possible.
+- Des **jetons longue durée et trop larges** (PAT, jetons npm, clés d'API) sur des postes et des runners.
+- Des **points d'exécution implicites** : scripts d'installation, tâches d'éditeur, hooks.
+- Des **workflows qui mêlent code non fiable et privilèges**.
+- Une détection venue **de l'extérieur** (un chercheur, un éditeur de sécurité) en quelques minutes ou heures, d'où l'efficacité du délai d'adoption.
+
+<Callout kind="novafact">
+Rétrospective (fictive) demandée par la direction : « aurions-nous été touchés ? ». tj-actions : oui, deux workflows l'utilisaient par tag, sans secret sensible heureusement. chalk et debug : oui, en dépendances transitives du front ; le lockfile relu et le délai d'adoption auraient évité les versions piégées. Nx : non. Shai-Hulud : trois développeurs avaient un jeton npm de publication dans `~/.npmrc`. Chaque ligne débouche sur un contrôle des leçons 2 à 5 et sur une entrée du playbook de la leçon 10.
+</Callout>
+
+<Callout kind="tip">
+Le jeu **Supply Chain Kill Chain** te fait remettre dans l'ordre les étapes d'incidents réels, puis placer le contrôle qui casse la chaîne le plus tôt : le même exercice que le tableau ci-dessus, en plus rapide.
+</Callout>
+
+<Recap items={[
+  "Les incidents se rangent en cinq familles : mainteneurs, comptes, pipelines, distribution, vers.",
+  "Les références mobiles et les jetons longue durée reviennent dans presque tous les cas.",
+  "`pull_request_target` mal utilisé est à l'origine d'Ultralytics, Nx et TanStack ; tj-actions a été neutralisé par l'épinglage SHA.",
+  "La provenance prouve où un paquet a été construit, pas que la construction était saine.",
+  "Les vers Shai-Hulud industrialisent la propagation ; les réponses sont le trusted et staged publishing, les scripts désactivés et le délai d'adoption.",
+]} />
+
+<Sources items={[
+  { title: "CISA : tj-actions/changed-files et reviewdog (mars 2025)", url: "https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction" },
+  { title: "PyPI : analyse de l'attaque Ultralytics", url: "https://blog.pypi.org/posts/2024-12-11-ultralytics-attack-analysis/" },
+  { title: "Nx : postmortem s1ngularity", url: "https://nx.dev/blog/s1ngularity-postmortem" },
+  { title: "TanStack : postmortem (mai 2026)", url: "https://tanstack.com/blog/npm-supply-chain-compromise-postmortem" },
+  { title: "CISA : Shai-Hulud (septembre 2025)", url: "https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem" },
+  { title: "Elastic Security Labs : CHAINDROP (août 2026)", url: "https://www.elastic.co/security-labs/shai-hulud-chaindrop-npm-supply-chain" },
+  { title: "Sansec : polyfill.io", url: "https://sansec.io/research/polyfill-supply-chain-attack" },
+]} />

@@ -1,0 +1,24 @@
+id: prompt-injection-external
+name: Appel d’outil dicté par un document et visant l’extérieur
+description: L’assistant a appelé un outil sortant sur instruction d’un document, pas de l’utilisateur.
+severity: high
+risk_score: 65
+tags:
+  - 'Domaine: IA'
+  - 'Tactique: Exfiltration'
+  - 'Technique: T1567'
+interval: 5m
+from: now-15m
+note: |-
+  ## Triage
+
+  1. Retrouver le document source.
+  2. Vérifier ce qui est sorti.
+query:
+  where:
+    - field: novafact.assistant.origin
+      op: eq
+      value: document
+    - field: novafact.assistant.target
+      op: eq
+      value: external

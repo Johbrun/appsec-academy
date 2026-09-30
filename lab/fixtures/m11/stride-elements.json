@@ -1,0 +1,14 @@
+{
+  "_": "Le schéma de référence sur lequel porte l'exercice STRIDE-par-élément. C'est une DONNÉE D'ENTRÉE : elle dit quels éléments analyser et de quel type ils sont. Ce qui est noté est ailleurs — la couverture des catégories applicables à chaque type, l'absence de catégorie hors-sujet, le rattachement des processus à un fichier de routeur réellement monté, et un contrôle qui désigne un fichier existant.",
+  "elements": [
+    { "id": "client-locataire", "type": "actor" },
+    { "id": "admin-novafact", "type": "actor" },
+    { "id": "api-authentification", "type": "process", "file": "server/routes/auth.ts" },
+    { "id": "api-factures", "type": "process", "file": "server/routes/invoices.ts" },
+    { "id": "api-pieces-jointes", "type": "process", "file": "server/routes/attachments.ts" },
+    { "id": "magasin-factures", "type": "store" },
+    { "id": "magasin-comptes", "type": "store" },
+    { "id": "flux-consultation-facture", "type": "flow" },
+    { "id": "flux-telechargement-piece-jointe", "type": "flow" }
+  ]
+}

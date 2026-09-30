@@ -1,0 +1,189 @@
+export const questions = [
+  {
+    q: "La variable Terraform `db_password` est déclarée avec `sensitive = true`. Le mot de passe est-il protégé dans le state ?",
+    options: [
+      "Oui : Terraform chiffre les attributs marqués `sensitive` dans le fichier d'état",
+      "Oui, si le backend S3 a le chiffrement côté serveur activé sur le bucket",
+      "Non : `sensitive` masque la valeur dans la sortie CLI, le state la contient en clair",
+      "Non : le state ne stocke que les identifiants de ressources, jamais leurs attributs",
+    ],
+    answer: 2,
+    explain: "`sensitive` est un attribut d'affichage : il masque la valeur dans le plan et dans les `output`, et rien de plus. Le chiffrement du backend est la réponse presque juste, et c'est celle qui endort : il protège le fichier au repos, mais quiconque peut lire le state — toute la CI, tout opérateur — lit le mot de passe. Le state enregistre bien tous les attributs, pas seulement les identifiants. La vraie parade est d'éviter que la valeur y entre : `manage_master_user_password` côté RDS, ou les arguments write-only `*_wo` depuis Terraform 1.11.",
+  },
+  {
+    q: "Qu'est-ce que la dérive (drift) d'une infrastructure décrite en IaC ?",
+    options: [
+      "Un bug du provider qui recrée une ressource à chaque plan sans raison",
+      "L'écart entre le code et l'état réel du compte, une règle ajoutée à la main par exemple",
+      "L'écart entre le fichier d'état et le code réel, que `terraform refresh` suffit à réconcilier",
+      "Le retard entre le merge de la PR et l'application effective du changement",
+    ],
+    answer: 1,
+    explain: "La dérive se mesure entre le code et l'infrastructure réelle, pas entre le code et le fichier d'état. Le state n'est qu'un cache, et le rafraîchir ne corrige rien : cela enregistre la dérive au lieu de l'effacer. C'est ce qui la rend dangereuse — les scanners IaC valident un code qui décrit un monde qui n'existe plus. Elle se détecte (plan en lecture seule, détection de dérive CloudFormation, AWS Config) et se prévient (console en lecture seule en production).",
+  },
+  {
+    q: "Pourquoi une baseline de configuration écrite en langage naturel ne suffit-elle pas ?",
+    options: [
+      "Parce qu'une exigence sans règle automatisée en face régresse sans que personne le voie",
+      "Parce qu'elle doit suivre un référentiel reconnu (CIS, NIST) pour valoir en audit",
+      "Parce qu'elle vieillit : sans revue annuelle, elle ne couvre plus les services récemment adoptés",
+      "Parce que les équipes ne la lisent pas : seule la revue de PR fait appliquer une règle",
+    ],
+    answer: 0,
+    explain: "Chaque ligne de la baseline doit pointer vers la règle qui la vérifie en CI et vers le contrôle détectif qui la surveille en production : sans ce lien, l'exigence est un vœu et sa régression est invisible. L'obsolescence et le manque de lecture sont des problèmes réels mais secondaires — une baseline lue et parfaitement à jour, qu'aucune règle n'applique, reste inappliquée. Le choix du référentiel ne change rien à l'affaire.",
+  },
+];
+
+<YouKnow>
+En pentest cloud, tu as trouvé des buckets publics, des security groups ouverts à `0.0.0.0/0` et des bases exposées. Quand l'infrastructure est décrite en code, chacune de ces erreurs existe d'abord dans un fichier relu en PR. L'IaC est à la fois une surface d'attaque et le meilleur endroit pour arrêter une misconfiguration avant qu'elle n'existe.
+</YouKnow>
+
+## Pourquoi l'IaC est une surface
+
+La **mauvaise configuration** est la deuxième catégorie de l'OWASP Top 10:2025 (A02). Dans le cloud, elle se produit à la vitesse du pipeline : un module copié-collé avec un bucket ouvert se retrouve dans dix environnements. L'IaC amplifie dans les deux sens, et elle crée ses propres risques :
+
+- **le dépôt décrit toute l'infrastructure** : noms de buckets, réseaux, rôles, parfois secrets. Un accès en lecture au dépôt IaC vaut une reconnaissance complète ;
+- **le state** (Terraform, OpenTofu) contient les valeurs réelles des ressources, y compris sensibles ;
+- **le pipeline qui applique** détient des droits d'administration sur les comptes (leçon 4) : c'est la cible la plus rentable ;
+- **la dérive** fait diverger le code de la réalité, et avec elle tout ce qu'on a vérifié sur le code.
+
+## Trois outils, trois modèles
+
+| | Terraform / OpenTofu | CloudFormation | AWS CDK (TypeScript) |
+| --- | --- | --- | --- |
+| Langage | HCL | YAML ou JSON | TypeScript, compilé (*synth*) en CloudFormation |
+| État | Fichier de state géré par toi (backend S3…) | Géré par AWS dans la pile | Celui de CloudFormation |
+| Multi-cloud et SaaS | Oui (providers) | AWS uniquement | AWS (plus des constructions tierces) |
+| Ce qu'on scanne | HCL et plan JSON | Template | Template synthétisé (`cdk.out`) et code TS |
+| Point d'attention sécurité | Secrets dans le state, providers et modules tiers | Paramètres et sorties qui exposent des secrets | Valeurs par défaut des constructions, *escape hatches* |
+
+**OpenTofu** est le fork de Terraform maintenu sous l'égide de la Linux Foundation, né du changement de licence de Terraform (BSL) en 2023. Pour la sécurité, les deux se valent à une différence près : OpenTofu sait **chiffrer le state** nativement.
+
+<Callout kind="novafact">
+Novafact utilise **Terraform** pour le socle (organisation, comptes, réseau, rôles d'Identity Center, bucket de state) et le **CDK en TypeScript** pour les piles applicatives (ECS, Lambda, buckets de factures, files), écrites par les équipes produit dans le même langage que l'API. Les deux passent par les mêmes contrôles : scanners (leçon 2), policy as code (leçon 3) et pipeline à rôles séparés (leçon 4).
+</Callout>
+
+## Les misconfigurations qui reviennent
+
+| Misconfiguration | Impact | Règle Checkov | Règle cdk-nag |
+| --- | --- | --- | --- |
+| Bucket S3 sans *Block Public Access* | Fuite de données | CKV2_AWS_6 | AwsSolutions-S2 |
+| Bucket sans TLS imposé | Accès en clair | (politique de bucket, leçon 3) | AwsSolutions-S10 |
+| Security group ouvert à `0.0.0.0/0` sur SSH | Exposition directe | CKV_AWS_24 | AwsSolutions-EC23 |
+| RDS publique ou non chiffrée | Fuite de base | CKV_AWS_17, CKV_AWS_16 | AwsSolutions-RDS2 |
+| IMDSv1 autorisé | Vol d'identifiants par SSRF (M15, leçon 3) | CKV_AWS_79 | |
+| Politique IAM qui permet une escalade | Compromission du compte | CKV_AWS_286 | AwsSolutions-IAM5 (jokers) |
+| CloudTrail désactivé dans certaines régions | Angle mort de détection | CKV_AWS_67 | |
+
+Le CDK a un avantage réel : ses constructions de niveau 2 portent de meilleures valeurs par défaut et des propriétés explicites. Mais il ne choisit pas pour toi :
+
+<Diff file="infra/cdk/lib/exports-bucket.ts" hlBefore="1" hlAfter="2,3,4,5,6,7,8,9" stack>
+
+```ts
+const exportsBucket = new s3.Bucket(this, 'Exports');
+```
+
+```ts
+const exportsBucket = new s3.Bucket(this, 'Exports', {
+  blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+  enforceSSL: true,                          // politique de bucket qui refuse aws:SecureTransport = false
+  encryption: s3.BucketEncryption.KMS,
+  encryptionKey: exportsKey,
+  versioned: true,
+  serverAccessLogsBucket: accessLogsBucket,
+  removalPolicy: RemovalPolicy.RETAIN,       // un `cdk destroy` ne détruit pas les exports clients
+});
+```
+
+</Diff>
+
+## Les secrets dans le code et dans le state
+
+Un secret dans un fichier `.tf` ou `.ts` est dans Git pour toujours (M13, leçon 7). Le piège plus sournois est le **state** : Terraform y enregistre tous les attributs des ressources gérées. L'option `sensitive = true` masque une valeur dans la sortie de la CLI, **pas** dans le state, qui reste un document JSON lisible par quiconque peut lire le bucket du backend.
+
+<Diff file="infra/terraform/accounts-db.tf" hlBefore="7,8,9" hlAfter="7,8,9,10" stack>
+
+```hcl
+resource "aws_db_instance" "accounts" {
+  identifier          = "novafact-accounts"
+  engine              = "postgres"
+  instance_class      = "db.t4g.medium"
+  allocated_storage   = 50
+  username            = "novafact_admin"
+  password            = var.db_password # finit en clair dans le state
+  storage_encrypted   = false
+  publicly_accessible = true
+}
+```
+
+```hcl
+resource "aws_db_instance" "accounts" {
+  identifier                  = "novafact-accounts"
+  engine                      = "postgres"
+  instance_class              = "db.t4g.medium"
+  allocated_storage           = 50
+  username                    = "novafact_admin"
+  manage_master_user_password = true # RDS crée et fait tourner le secret dans Secrets Manager
+  storage_encrypted           = true
+  kms_key_id                  = aws_kms_key.rds.arn
+  publicly_accessible         = false
+  deletion_protection         = true
+}
+```
+
+</Diff>
+
+Les autres outils, selon le cas :
+
+- **Terraform 1.11 et plus** : les arguments *write-only* (`password_wo` accompagné de `password_wo_version`) transmettent la valeur au provider sans l'écrire dans le plan ni dans le state, et se combinent avec les ressources *éphémères* (un mot de passe généré qui n'est jamais persisté) ;
+- **OpenTofu** : chiffrement du state et du plan avec une clé KMS, déclaré dans le bloc `terraform { encryption { … } }`, avec `enforced = true` pour refuser toute écriture en clair ;
+- **CloudFormation** : les *dynamic references* (`{{resolve:secretsmanager:…}}`) résolvent le secret au déploiement sans l'écrire dans le template ; `NoEcho` masque un paramètre dans la console mais ne le protège pas s'il est recopié dans une sortie ou des métadonnées ;
+- **CDK** : `rds.Credentials.fromGeneratedSecret('novafact_admin')` plutôt qu'une chaîne ; toute occurrence de `SecretValue.unsafePlainText` mérite une question en revue.
+
+Dans tous les cas, le state reste sensible : chiffré, versionné, accessible au seul pipeline (leçon 4).
+
+## La dérive
+
+La **dérive** est l'écart entre le code et la réalité. Ses causes sont banales : correctif fait « en urgence » dans la console, script d'un autre pipeline, remédiation automatique, service AWS qui ajoute un attribut. Ses effets le sont moins : le scanner valide un code qui ne décrit plus rien, et le prochain `apply` peut écraser un correctif ou réintroduire une ouverture.
+
+<Steps items={[
+  { title: "Détecter côté Terraform", text: "Un job planifié exécute `terraform plan -refresh-only` ou `terraform plan -detailed-exitcode` (code de sortie 2 quand il y a des changements) sur chaque workspace, et ouvre un ticket en cas d'écart." },
+  { title: "Détecter côté CloudFormation", text: "`aws cloudformation detect-stack-drift` puis `describe-stack-resource-drifts` sur les piles de production, planifié." },
+  { title: "Détecter en continu", text: "AWS Config enregistre chaque changement de configuration et l'identité qui l'a fait (leçon 5)." },
+  { title: "Prévenir", text: "En production, les humains n'ont qu'un accès en lecture (M15, leçon 2) : tout changement passe par le pipeline, y compris l'urgence, avec un chemin accéléré plutôt qu'un contournement." },
+]} />
+
+## Une configuration de référence
+
+La **baseline** est la liste des propriétés que toute ressource d'un type donné doit avoir chez Novafact. Elle part des référentiels existants (CIS AWS Foundations Benchmark, AWS Foundational Security Best Practices) et les adapte au contexte : ce qui est obligatoire, ce qui est recommandé, ce qui est interdit. Sa valeur tient à une règle : **chaque ligne pointe vers le contrôle qui la vérifie**.
+
+| Exigence de la baseline | Vérifiée en CI par | Surveillée en production par |
+| --- | --- | --- |
+| Tout bucket bloque l'accès public et impose TLS | CKV2_AWS_6, AwsSolutions-S2, S10, règle Rego | Contrôle Security Hub CSPM et AWS Config |
+| Toute base est chiffrée par une clé KMS gérée par Novafact et non publique | CKV_AWS_16, CKV_AWS_17 | AWS Config |
+| Aucune instance n'accepte IMDSv1 | CKV_AWS_79 | Politique déclarative EC2 (M15, leçon 6) |
+| Aucune politique IAM n'accorde d'action d'escalade | CKV_AWS_286, Access Analyzer | Analyseur d'accès non utilisés, règles CloudTrail |
+
+<Callout kind="tip">
+Le jeu **IaC Misconfig Hunt** te montre des extraits Terraform et CDK : repère les misconfigurations, puis choisis la règle qui les attrape sans faux positif.
+</Callout>
+
+<Recap items={[
+  "L'IaC concentre la carte de l'infrastructure, le state et le pipeline qui applique : trois cibles.",
+  "Terraform/OpenTofu, CloudFormation et CDK n'ont pas le même modèle d'état ni le même objet à scanner.",
+  "Le CDK aide avec de meilleures valeurs par défaut, mais les propriétés de sécurité restent à écrire.",
+  "sensitive = true ne protège pas le state : secret géré par le service, write-only, dynamic references, state chiffré.",
+  "La dérive se détecte (plan planifié, drift CloudFormation, Config) et se prévient (production en lecture seule).",
+  "Une baseline n'existe que si chaque exigence pointe vers une règle en CI et un contrôle en production.",
+]} />
+
+<Lab id="terragoat" />
+
+<Sources items={[
+  { title: "OWASP Top 10:2025 : A02 Security Misconfiguration", url: "https://owasp.org/Top10/2025/A02_2025-Security_Misconfiguration/" },
+  { title: "Terraform : manage sensitive data", url: "https://developer.hashicorp.com/terraform/language/manage-sensitive-data" },
+  { title: "Terraform : write-only arguments", url: "https://developer.hashicorp.com/terraform/language/manage-sensitive-data/write-only" },
+  { title: "OpenTofu : state and plan encryption", url: "https://opentofu.org/docs/language/state/encryption/" },
+  { title: "AWS CloudFormation : detect drift", url: "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-stack-drift.html" },
+  { title: "AWS CDK v2 : developer guide", url: "https://docs.aws.amazon.com/cdk/v2/guide/home.html" },
+]} />

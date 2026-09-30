@@ -1,0 +1,29 @@
+# Chronologie de l'incident — corrigé de référence.
+#
+# Quatorze lignes dans mille cinq cents. Les identifiants de corrélation sont
+# ce qui rend l'exercice faisable en minutes plutôt qu'en jours : la session
+# T-4417 tient les six premiers pas, puis l'attaquant se crée une clé d'API et
+# bascule sur T-8820. Le pivot entre les deux, ce sont l'utilisateur et
+# l'adresse source, qui ne changent pas.
+#
+# Par où c'est entré : une connexion réussie avec un identifiant volé, depuis
+# une adresse jamais vue pour ce compte.
+# Ce qui est sorti : dix-huit mille lignes, par le webhook de test.
+entree: l00300
+exfiltration: l00363
+
+evenements:
+  - l00300  # authn_login_success — identifiant volé, adresse inhabituelle
+  - l00302  # session_created
+  - l00307  # authz_fail — première tentative sur l'administration
+  - l00312  # malicious_direct_reference — facture d'un autre tenant
+  - l00321  # sensitive_read — 412 lignes
+  - l00334  # privilege_permissions_changed — accountant devient admin
+  - l00341  # authn_token_created — la persistance, et le changement de trace
+  - l00342  # sys_monitor_disabled — effacement des traces
+  - l00347  # authz_admin
+  - l00354  # sensitive_read — 18 402 lignes
+  - l00363  # webhook_sent — l'exfiltration
+  - l00370  # user_created — compte de secours
+  - l00374  # authn_token_created — clé du compte de secours
+  - l00377  # sys_monitor_enabled — on remet tout en place

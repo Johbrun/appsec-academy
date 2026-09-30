@@ -1,0 +1,54 @@
+# Le sous-ensemble ASVS 5.0 de Novafact, niveau L2.
+#
+# Quinze exigences retenues sur les quarante de niveau L2 du standard embarqué.
+# Le tri n'est pas un échantillon : chaque chapitre structurellement obligatoire
+# pour une plateforme de facturation multi-tenant est représenté, et rien n'est
+# retenu « au cas où ». Une exigence qu'on ne saura pas tester ne rend service à
+# personne — c'est la matrice de traçabilité qui le dira.
+
+exigences:
+  - id: V2.1.3
+    justification: >-
+      Les routes de facturation acceptent aujourd'hui des champs non déclarés, ce qui a déjà produit une élévation par mass assignment.
+  - id: V2.3.1
+    justification: >-
+      Les montants circulent en nombres flottants et les invariants de crédit sont vérifiés côté client : le cœur du métier en dépend.
+  - id: V2.4.2
+    justification: >-
+      Coupons et avoirs se dupliquent sous requêtes concurrentes, sur trois instances qui ne partagent aucun verrou applicatif.
+  - id: V6.2.1
+    justification: >-
+      La route d'authentification n'est pas limitée en débit, et Novafact est exposée à Internet avec des comptes nominatifs.
+  - id: V6.3.1
+    justification: >-
+      Les comptes d'administration de tenant peuvent exporter la comptabilité complète : le second facteur y est proportionné.
+  - id: V6.4.3
+    justification: >-
+      Le lien de réinitialisation est rejouable et sa durée de vie dépasse la journée, ce que le rapport de pentest a relevé.
+  - id: V7.2.1
+    justification: >-
+      La session n'est pas renouvelée après connexion, ce qui laisse la porte ouverte à la fixation de session.
+  - id: V7.3.1
+    justification: >-
+      La déconnexion se contente d'effacer le cookie : le jeton reste valide côté serveur jusqu'à son expiration naturelle.
+  - id: V8.1.2
+    justification: >-
+      Le cloisonnement entre tenants est réécrit route par route, et c'est la classe de défaut la plus représentée du dépôt.
+  - id: V8.2.1
+    justification: >-
+      Plusieurs décisions d'autorisation lisent un rôle transmis dans le corps de la requête plutôt que dans la session.
+  - id: V8.2.3
+    justification: >-
+      Les routes d'administration sont ouvertes par défaut et fermées au cas par cas, ce qui est l'inverse de l'échec sûr.
+  - id: V14.2.1
+    justification: >-
+      Aucune durée de conservation n'est déclarée, alors que la carte des données distingue quatre classes de sensibilité.
+  - id: V14.3.1
+    justification: >-
+      Les journaux applicatifs recopient des corps de requête, donc des adresses et des notes qui citent des personnes.
+  - id: V16.1.3
+    justification: >-
+      Une opération mutante sur six ne laisse aucune entrée d'audit, ce que le relevé du Gold Standard établit route par route.
+  - id: V16.2.1
+    justification: >-
+      Les erreurs renvoyées au client contiennent la pile d'appel en environnement de recette, qui est peuplé par une copie de production.

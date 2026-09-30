@@ -1,0 +1,182 @@
+export const questions = [
+  {
+    q: "Un workflow déclenché par `pull_request_target` fait un checkout du code de la PR puis lance `npm test`. À quel risque du Top 10 CI/CD cela correspond-il d'abord ?",
+    options: [
+      "CICD-SEC-3 : Dependency Chain Abuse, npm test installant des dépendances tierces",
+      "CICD-SEC-1 : Insufficient Flow Control, la PR ne passant par aucune approbation",
+      "CICD-SEC-4 : PPE, du code externe s'exécute avec les secrets du dépôt",
+      "CICD-SEC-5 : Insufficient PBAC, le job disposant de droits bien trop larges",
+    ],
+    answer: 2,
+    explain: "Les trois autres risques sont réellement présents dans ce workflow, et c'est ce qui rend la question piégeuse : les droits sont trop larges, les dépendances tierces s'installent, rien n'exige d'approbation. Mais ils aggravent un mécanisme qu'ils ne décrivent pas — le déclencheur donne les droits et les secrets du dépôt cible, le checkout y apporte du code contrôlé par un contributeur externe. C'est la définition de la Poisoned Pipeline Execution.",
+  },
+  {
+    q: "Pourquoi le pipeline est-il souvent une cible plus rentable que l'application en production ?",
+    options: [
+      "Parce qu'il cumule des identités puissantes et exécute beaucoup de code tiers",
+      "Parce que les runners partagés conservent un état entre les exécutions de jobs",
+      "Parce que ses journaux exposent les secrets utilisés pendant la construction",
+      "Parce qu'il est joignable depuis Internet, contrairement aux serveurs applicatifs",
+    ],
+    answer: 0,
+    explain: "Un runner hébergé n'est pas joignable depuis Internet, et les journaux masquent les secrets déclarés : ces deux réponses inversent la réalité. La persistance d'état entre jobs est un vrai problème, mais des runners self-hosted. Ce qui rend le pipeline rentable tient en une phrase : il concentre plus de privilèges qu'aucun serveur applicatif — déploiement AWS, publication npm, écriture sur le dépôt — tout en exécutant des centaines de dépendances et d'actions tierces.",
+  },
+  {
+    q: "Novafact télécharge un script d'upload de couverture avec `curl … | bash` dans chaque job. Quels risques du Top 10 sont concernés ?",
+    options: [
+      "CICD-SEC-3 (abus de la chaîne de dépendances) uniquement",
+      "CICD-SEC-2 (gestion des identités) et CICD-SEC-5 (PBAC insuffisant)",
+      "CICD-SEC-6 (hygiène des identifiants), le script accédant aux secrets du job",
+      "CICD-SEC-8 (service tiers non gouverné) et CICD-SEC-9 (intégrité non vérifiée)",
+    ],
+    answer: 3,
+    explain: "L'accès du script aux secrets du job est le dégât, pas le défaut — c'est très exactement ce qui s'est passé chez Codecov en 2021. Le défaut se situe en amont : un service tiers exécuté sans gouvernance, et un contenu téléchargé sans aucune vérification d'intégrité. HTTPS protège le transport, pas ce que le serveur décide de servir.",
+  },
+  {
+    q: "Quel contrôle répond le mieux à CICD-SEC-5 (Insufficient PBAC) dans GitHub Actions ?",
+    options: [
+      "Centraliser les secrets au niveau de l'organisation pour en simplifier la rotation",
+      "Donner à chaque job les seuls permissions, secrets et environnements nécessaires",
+      "Exiger une revue de code avant fusion sur toutes les branches protégées",
+      "Utiliser des runners self-hosted dédiés, isolés du reste de l'infrastructure",
+    ],
+    answer: 1,
+    explain: "Centraliser les secrets simplifie la rotation et élargit du même geste qui peut les lire : c'est le mouvement inverse de PBAC. La revue avant fusion relève de SEC-1, et des runners dédiés traitent l'isolation, pas les droits. PBAC désigne les droits du pipeline lui-même — jeton, secrets, accès réseau, identités cloud —, et le moindre privilège s'y règle par job, en séparant ceux qui exécutent du code non fiable de ceux qui déploient.",
+  },
+];
+
+<YouKnow>
+En test d'intrusion, trouver un jeton de CI dans un log ou une variable d'environnement, c'est souvent la fin de la mission : il ouvre le dépôt, l'AWS et parfois le registre npm. Le Top 10 CI/CD d'OWASP range ces situations en dix familles de risques, qu'on va lire avec les yeux du défenseur de Novafact.
+</YouKnow>
+
+## Le pipeline, un système de production à part entière
+
+Le pipeline de Novafact n'est pas un outil de confort : il **lit** tout le code, **exécute** des centaines de dépendances et d'actions tierces, **détient** un rôle AWS qui déploie l'API, et **publie** `@novafact/sdk` sur npm. Il cumule plus de privilèges que n'importe quel conteneur de production, avec une surface d'attaque bien plus large : chaque PR, chaque issue, chaque dépendance est une entrée potentielle.
+
+Le **OWASP Top 10 CI/CD Security Risks** (publié par l'équipe de Cider Security et repris par OWASP) nomme ces risques `CICD-SEC-1` à `CICD-SEC-10`. Il n'est pas spécifique à un outil ; on le transpose ici à GitHub Actions, que Novafact utilise pour tout.
+
+## Les dix risques, version GitHub Actions
+
+| ID | Risque | Ce que ça donne dans GitHub Actions | Contrôle principal |
+| --- | --- | --- | --- |
+| CICD-SEC-1 | Insufficient Flow Control Mechanisms | Un push direct sur `main` déclenche un déploiement sans revue ; un tag créé par n'importe qui lance une release | Rulesets (revue obligatoire, checks requis), environnements avec approbateurs |
+| CICD-SEC-2 | Inadequate Identity and Access Management | Comptes externes ou inactifs avec `write`, PAT personnels partagés, bots trop puissants | Revue des accès, SSO, GitHub Apps à la place des PAT |
+| CICD-SEC-3 | Dependency Chain Abuse | Paquet npm compromis, dependency confusion, typosquatting | Lockfile, `npm ci`, scopes, délai de quarantaine (leçon 5) |
+| CICD-SEC-4 | Poisoned Pipeline Execution | Une PR modifie un script exécuté par un workflow privilégié | Déclencheurs sûrs, pas de code non fiable dans un contexte privilégié (leçon 2) |
+| CICD-SEC-5 | Insufficient PBAC | `GITHUB_TOKEN` en écriture partout, tous les secrets visibles de tous les jobs | `permissions` par job, secrets d'environnement, OIDC |
+| CICD-SEC-6 | Insufficient Credential Hygiene | Clés AWS longue durée dans les secrets, secrets affichés dans les logs | OIDC, rotation, masquage, secret scanning |
+| CICD-SEC-7 | Insecure System Configuration | Runner self-hosted persistant sur un dépôt public, image de runner jamais mise à jour | Runners éphémères, durcissement, inventaire |
+| CICD-SEC-8 | Ungoverned Usage of 3rd Party Services | Application GitHub tierce avec accès à tous les dépôts, action Marketplace adoptée sans revue | Liste d'actions autorisées, revue des GitHub Apps |
+| CICD-SEC-9 | Improper Artifact Integrity Validation | Artefact déployé sans vérifier qui l'a construit, script téléchargé et exécuté tel quel | Épinglage SHA, attestations de provenance (leçon 9) |
+| CICD-SEC-10 | Insufficient Logging and Visibility | Aucun suivi des modifications de workflows, des runners enregistrés, des secrets créés | Journal d'audit GitHub envoyé au SIEM |
+
+Deux remarques pour lire ce tableau. D'abord, les risques s'**enchaînent** : une PPE (SEC-4) ne devient grave que parce que le job a trop de droits (SEC-5) et des secrets longue durée (SEC-6). Ensuite, la plupart des incidents réels de la leçon 7 touchent trois ou quatre lignes à la fois ; c'est ce qui rend le Top 10 utile comme grille d'analyse post-incident.
+
+## Les trois risques qui font le plus de dégâts
+
+### CICD-SEC-4 : Poisoned Pipeline Execution
+
+L'attaquant ne touche pas au workflow protégé : il modifie **ce que le workflow exécute**. Le Top 10 distingue trois variantes :
+
+- **D-PPE (directe)** : l'attaquant peut modifier le fichier de workflow lui-même, par exemple sur une branche qui déclenche un job avec des secrets.
+- **I-PPE (indirecte)** : le workflow est intact, mais il exécute un fichier contrôlé par l'attaquant (`package.json`, `Makefile`, configuration de test, script de build).
+- **3PE (publique)** : la même chose, déclenchée par n'importe qui via une PR sur un dépôt public.
+
+Dans l'écosystème JS, l'I-PPE est omniprésente : `npm install` exécute les scripts du `package.json` de la PR, `npm test` exécute la configuration de test de la PR. Tout workflow qui combine un contexte privilégié (`pull_request_target`, `workflow_run`, secrets) et le code d'une PR est suspect.
+
+### CICD-SEC-6 : l'hygiène des identifiants
+
+Le pipeline a besoin d'identités ; la question est leur **durée de vie** et leur **portée**. Une clé AWS stockée dans un secret de dépôt est valide jusqu'à ce que quelqu'un pense à la révoquer ; un rôle assumé par OIDC ne l'est que pour la durée du job, et seulement depuis le dépôt et l'environnement prévus. Le masquage des logs aide, mais il compare des chaînes littérales : un secret encodé en base64 ou découpé passe au travers, comme l'a montré tj-actions (leçon 7).
+
+### CICD-SEC-3 : la chaîne des dépendances
+
+Le pipeline installe des paquets npm, des actions, des images Docker et des outils téléchargés. Chacun est du code tiers qui s'exécute avec les droits du job. C'est le risque dont les vagues Shai-Hulud ont fait un phénomène de masse ; il est traité en détail aux leçons 5 et 7.
+
+<Callout kind="case">
+**Codecov, 2021.** Un attaquant a modifié le script *Bash Uploader* de Codecov, téléchargé et exécuté tel quel par des milliers de pipelines, pour qu'il envoie les variables d'environnement de la CI vers un serveur externe. La modification est restée en place environ deux mois (fin janvier à début avril), jusqu'à ce qu'un client remarque que l'empreinte du script ne correspondait pas à celle publiée. Grille Top 10 : SEC-8 (service tiers exécuté sans gouvernance), SEC-9 (aucune vérification d'intégrité), SEC-6 (des secrets longue durée dans l'environnement). La leçon défensive : tout ce que la CI télécharge est épinglé et vérifié, et un job ne voit que les secrets dont il a besoin.
+</Callout>
+
+## Contrôler le flux et les droits
+
+Les risques SEC-1, SEC-2 et SEC-5 se traitent ensemble, parce qu'ils répondent à la même question : **qui peut faire exécuter quoi, avec quels droits ?**
+
+<Code file=".github/workflows/ci.yml" hl="7,12,13,21,22">
+
+```yaml
+name: ci
+on:
+  pull_request:          # code de la PR, contexte non privilégié
+  push:
+    branches: [main]
+
+permissions: {}          # rien par défaut, chaque job déclare ses besoins
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read     # lecture du code, rien d'autre
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: npm ci
+      - run: npm test
+
+  deploy-preview:
+    needs: test
+    if: github.event_name == 'push'
+    environment: preview # secrets et règles de l'environnement, pas du dépôt
+    permissions:
+      contents: read
+      id-token: write    # OIDC vers AWS (leçon 2)
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "déploiement via rôle AWS assumé par OIDC"
+```
+
+</Code>
+
+Le principe : le job qui exécute le code de la PR n'a **ni secret, ni droit d'écriture, ni identité cloud**. Le job qui déploie ne tourne que sur `main`, après revue, dans un environnement qui porte ses propres secrets et ses propres approbateurs. La leçon 2 détaille chacun de ces réglages.
+
+## Ne pas oublier la visibilité (SEC-10)
+
+Un pipeline compromis se voit rarement dans les logs de l'application. Les signaux utiles sont dans le **journal d'audit GitHub** : modification d'un fichier `.github/workflows/`, création d'un secret, enregistrement d'un runner self-hosted, nouveau dépôt public, ajout d'une GitHub App, modification d'un ruleset. Sur GitHub Enterprise Cloud, ce journal peut être diffusé en continu (vers un bucket S3 par exemple) puis ingéré dans Elastic, à côté de CloudTrail. Côté AWS, chaque `AssumeRoleWithWebIdentity` venant de GitHub laisse une trace qui permet de relier un déploiement à un run précis (M18).
+
+<Callout kind="novafact">
+Première passe du Top 10 sur Novafact (constat fictif) : 14 dépôts, 61 workflows. Trois workflows utilisent `pull_request_target` (SEC-4), 40 n'ont pas de bloc `permissions` et héritent d'un jeton en écriture (SEC-5), deux clés AWS longue durée sont encore dans les secrets de `novafact/infra` (SEC-6), 23 actions tierces sont référencées par tag mobile (SEC-9), et le journal d'audit GitHub n'est pas envoyé dans Elastic (SEC-10). Aucun de ces points n'est une vulnérabilité exploitable à lui seul ; ensemble, ils forment une chaîne.
+</Callout>
+
+## Mener l'audit sur tes dépôts
+
+<Steps items={[
+  { title: "Inventorier", text: "Lister dépôts, workflows, déclencheurs, runners, secrets (dépôt, environnement, organisation) et GitHub Apps installées. Sans inventaire, pas de priorisation." },
+  { title: "Cartographier les identités", text: "Pour chaque workflow : quel jeton, quelles permissions, quels secrets, quel rôle AWS, quel droit de publication. C'est la carte de SEC-2, SEC-5 et SEC-6." },
+  { title: "Repérer les entrées non fiables", text: "PR de forks, titres et corps d'issues, noms de branches, artefacts d'autres workflows, caches : tout ce qui peut atteindre un contexte privilégié (SEC-4)." },
+  { title: "Vérifier ce qui est exécuté", text: "Actions, images, scripts téléchargés, dépendances : épinglés ? vérifiés ? relus ? (SEC-3, SEC-8, SEC-9)." },
+  { title: "Brancher la visibilité", text: "Journal d'audit GitHub et CloudTrail dans le SIEM, avec quelques règles simples sur les workflows modifiés et les runners enregistrés (SEC-10)." },
+  { title: "Outiller", text: "Transformer les constats en contrôles automatiques : zizmor, Scorecard et politiques d'organisation (leçon 4), pour que la dérive se voie à la PR suivante." },
+]} />
+
+<Callout kind="tip">
+Le jeu **Workflow Audit** te fait lire des workflows GitHub Actions et rattacher chaque ligne dangereuse au bon risque CICD-SEC : un bon entraînement avant de passer tes propres dépôts au crible.
+</Callout>
+
+<Recap items={[
+  "Le pipeline cumule code tiers et identités puissantes : c'est un système de production à part entière.",
+  "Les dix risques CICD-SEC s'enchaînent : une PPE devient grave à cause des droits (SEC-5) et des secrets longue durée (SEC-6).",
+  "En JS, la PPE indirecte est partout : `npm install` et `npm test` exécutent le code de la PR.",
+  "Le job qui exécute du code non fiable n'a ni secret, ni écriture, ni identité cloud ; le déploiement vit dans un environnement protégé.",
+  "Le journal d'audit GitHub, envoyé au SIEM, est la source principale pour voir une compromission du pipeline.",
+]} />
+
+<Lab id="cicd-goat" note="Les scénarios couvrent plusieurs risques du Top 10, dont la PPE directe et indirecte." />
+
+<Sources items={[
+  { title: "OWASP Top 10 CI/CD Security Risks", url: "https://owasp.org/www-project-top-10-ci-cd-security-risks/" },
+  { title: "OWASP CICD-SEC-4 : Poisoned Pipeline Execution", url: "https://owasp.org/www-project-top-10-ci-cd-security-risks/CICD-SEC-04-Poisoned-Pipeline-Execution" },
+  { title: "GitHub Docs : secure use reference (GitHub Actions)", url: "https://docs.github.com/en/actions/reference/security/secure-use" },
+  { title: "GitHub Security Lab : preventing pwn requests", url: "https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/" },
+  { title: "Codecov : Bash Uploader security update", url: "https://about.codecov.io/security-update/" },
+  { title: "GitHub Docs : journal d'audit de l'organisation", url: "https://docs.github.com/en/organizations/keeping-your-organization-secure/managing-security-settings-for-your-organization/reviewing-the-audit-log-for-your-organization" },
+]} />

@@ -1,0 +1,183 @@
+export const questions = [
+  {
+    q: "Que mesure le « taux d'échappement » ?",
+    options: [
+      "La part des vulnérabilités trouvées en production qu'un contrôle amont aurait dû voir",
+      "La part des vulnérabilités découvertes en production, toutes origines confondues",
+      "La part des findings qui sortent de leur SLA de correction sans être fermés",
+      "La part des alertes que les équipes classent en « faux positif »",
+    ],
+    answer: 0,
+    explain: "« Toutes origines confondues » est le distracteur à repérer : une vulnérabilité trouvée en production peut n'avoir été détectable par aucun contrôle amont, et la compter ne dit rien de leur efficacité. Le travail du taux d'échappement est précisément ce tri, finding par finding — et c'est ce tri, plus que le chiffre lui-même, qui te dit quelle règle améliorer.",
+  },
+  {
+    q: "Pourquoi « nombre de findings trouvés » est-il un mauvais indicateur de réussite ?",
+    options: [
+      "Parce qu'il monte aussi bien quand on scanne mieux que quand le code se dégrade",
+      "Parce qu'il mélange les criticités et noie les critiques sous les mineures",
+      "Parce qu'il dépend du périmètre scanné, donc n'est pas comparable d'une équipe à l'autre",
+      "Parce que les outils comptent plusieurs fois une même cause racine",
+    ],
+    answer: 0,
+    explain: "Les trois autres objections sont réelles, et toutes réparables : on fixe le périmètre, on ventile par criticité, on déduplique — et le compte reste un mauvais indicateur de réussite. Le défaut est ailleurs : c'est une métrique d'activité. Le même chiffre monte parce que la couverture s'améliore ou parce que la qualité se dégrade, et il ne dit rien de ce qui a été corrigé ni de ce qui n'est plus apparu.",
+  },
+  {
+    q: "Le MTTR des vulnérabilités hautes de Novafact passe de 40 à 12 jours en un trimestre, mais le nombre de hautes ouvertes depuis plus de 90 jours double. Quelle lecture est la bonne ?",
+    options: [
+      "Le programme progresse : les hautes anciennes viennent du stock hérité, pas des nouvelles arrivées",
+      "Les cas faciles partent vite, les difficiles vieillissent : le MTTR ne voit que les fermés",
+      "Les deux chiffres portent sur des populations différentes et ne sont pas comparables",
+      "La moyenne est tirée par les extrêmes : une médiane donnerait un tout autre résultat",
+    ],
+    answer: 1,
+    explain: "La médiane plutôt que la moyenne est une vraie précaution, mais elle ne créerait pas ce vieillissement : c'est un ajustement, pas une explication. Dire que les deux chiffres ne sont pas comparables passe à côté — c'est justement parce qu'ils portent sur des populations différentes qu'il faut les lire ensemble. Un MTTR ne compte que ce qui est fermé : il s'améliore dès qu'on ferme le facile et qu'on laisse le difficile ouvert.",
+  },
+  {
+    q: "Tu annonces que la prime des équipes dépendra du nombre de findings fermés. Quel effet dois-tu anticiper en priorité ?",
+    options: [
+      "Une course aux findings faciles, les plus coûteux restant ouverts plus longtemps",
+      "Une pression sur l'équipe AppSec pour requalifier les findings à la baisse",
+      "Un ralentissement des scans, pour éviter de gonfler le stock à traiter",
+      "Une hausse des clôtures en « faux positif » ou « ne sera pas corrigé »",
+    ],
+    answer: 3,
+    explain: "La course aux cas faciles arrivera aussi, et la pression sur ton équipe également — mais l'une et l'autre demandent encore du travail réel ou une négociation. Le chemin le moins coûteux pour faire monter le chiffre est de changer un statut, sans toucher au code. C'est la loi de Goodhart : dès qu'une mesure devient une cible, elle cesse d'être une bonne mesure. Si tu dois lier un indicateur à une incitation, suis les motifs de clôture et échantillonne-les.",
+  },
+];
+
+<YouKnow>
+En pentest, la métrique naturelle est le finding : combien, quelle criticité. En AppSec, cette métrique devient trompeuse, et il faut en changer.
+</YouKnow>
+
+## Activité contre résultat
+
+Une métrique d'**activité** dit ce que l'équipe fait : nombre de scans, de formations, de revues. Une métrique de **résultat** dit ce qui change pour le risque : ce qui n'arrive plus en production, ce qui est corrigé vite. Les directions regardent les premières parce qu'elles sont faciles à produire ; un programme se pilote avec les secondes.
+
+Les métriques d'activité ne sont pas inutiles pour autant : elles servent à piloter l'équipe AppSec elle-même (charge, capacité), et elles expliquent parfois un résultat. Le problème apparaît quand on les présente comme une preuve de progrès.
+
+## Les indicateurs qui comptent
+
+| Indicateur | Ce qu'il mesure | Point d'attention |
+| --- | --- | --- |
+| **MTTR par criticité** | Délai moyen entre la détection et la correction vérifiée | À suivre par criticité et par équipe, avec la médiane (moins sensible aux extrêmes) |
+| **Respect des SLA** | Part des vulnérabilités corrigées dans le délai prévu | Utile pour la conformité et les engagements clients |
+| **Taux d'échappement** | Part des vulnérabilités trouvées en production (pentest, bug bounty, incident) qu'un contrôle amont aurait pu attraper | Le meilleur signal sur l'efficacité des contrôles |
+| **Récurrence par classe** | Nombre de nouvelles occurrences d'une classe (ex. BOLA) après la mise en place d'un contrôle | Montre si un contrôle de classe fonctionne |
+| **Couverture** | Part des dépôts, services ou équipes couverts par chaque contrôle | Sans couverture, les autres chiffres mentent |
+| **Âge du backlog** | Distribution de l'âge des vulnérabilités ouvertes | Révèle la dette qui s'accumule |
+
+## Les définitions font la moitié du travail
+
+Deux équipes peuvent afficher le même « MTTR » en mesurant des choses différentes. Fixe par écrit :
+
+- **le point de départ** : la création du finding par l'outil, ou la confirmation après triage ? Partir de la confirmation flatte le chiffre et cache un triage lent ;
+- **le point d'arrivée** : la fusion du correctif, le déploiement en production, ou la vérification (scan ou test qui confirme la disparition) ? Seul le dernier dit que le risque a baissé ;
+- **le périmètre** : les findings clos en « faux positif » ou « risque accepté » comptent-ils ? En général non, mais leur volume se suit à part.
+
+<Callout kind="warn">
+Le MTTR a un biais structurel : il ne compte que ce qui est fermé. Une équipe qui corrige vite les cas faciles et laisse vieillir les difficiles voit son MTTR s'améliorer pendant que son risque augmente. Présente toujours le MTTR à côté de l'âge des vulnérabilités **encore ouvertes** (par exemple, le nombre de hautes ouvertes depuis plus de 90 jours).
+</Callout>
+
+Le script suivant calcule, à partir d'un export du gestionnaire de vulnérabilités, la médiane de correction et le respect des SLA par criticité, en gardant les ouverts à part. C'est le genre d'outil que tu écris en une heure et qui évite des débats sans fin sur « les bons chiffres ».
+
+<Code file="scripts/remediation-stats.ts" hl="6,17,18,23">
+
+```ts
+type Finding = { severity: 'critical' | 'high' | 'medium' | 'low'; detectedAt: string; verifiedFixedAt?: string };
+
+const SLA_DAYS = { critical: 7, high: 30, medium: 90, low: 180 } as const;
+const DAY = 86_400_000;
+
+const days = (from: string, to: string | number) => (new Date(to).getTime() - new Date(from).getTime()) / DAY;
+
+function median(values: number[]) {
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length === 0 ? null : s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+export function stats(findings: Finding[], now = Date.now()) {
+  return (Object.keys(SLA_DAYS) as Finding['severity'][]).map((sev) => {
+    const all = findings.filter((f) => f.severity === sev);
+    const closed = all.filter((f) => f.verifiedFixedAt).map((f) => days(f.detectedAt, f.verifiedFixedAt!));
+    const openAges = all.filter((f) => !f.verifiedFixedAt).map((f) => days(f.detectedAt, now));
+    return {
+      severity: sev,
+      medianDaysToFix: median(closed),
+      slaMet: closed.length ? closed.filter((d) => d <= SLA_DAYS[sev]).length / closed.length : null,
+      openOverSla: openAges.filter((d) => d > SLA_DAYS[sev]).length,
+    };
+  });
+}
+```
+
+</Code>
+
+Note le tri numérique explicite (`(a, b) => a - b`) : le `sort()` par défaut de JavaScript compare des chaînes, et classerait 10 avant 9. Les SLA ci-dessus sont ceux de Novafact ; les tiens dépendent de ton contexte et de tes engagements clients.
+
+## Le taux d'échappement en pratique
+
+Le taux d'échappement se calcule par classe : parmi les vulnérabilités d'une classe trouvées sur une période, quelle part l'a été **après** la mise en production (pentest, bug bounty, incident) plutôt qu'avant (PR, CI, staging) ? Il exige un travail que beaucoup d'équipes sautent : pour chaque finding tardif, décider si un contrôle amont **aurait dû** le voir. Ce retour d'expérience est précieux en lui-même, parce qu'il te dit quel contrôle améliorer.
+
+<Callout kind="novafact">
+Au premier semestre, Novafact a trouvé 14 injections (SQL et NoSQL) : 11 en PR grâce aux règles Semgrep, 3 par le pentest. Taux d'échappement : 3 sur 14, environ 21 % (chiffres fictifs). L'analyse des 3 montre qu'elles passaient par un helper de requête que la règle ne suivait pas. Correction de la règle, et le taux tombe à 1 sur 9 au semestre suivant.
+</Callout>
+
+Toutes les métriques utiles ne portent pas sur les vulnérabilités. Côté détection, l'indicateur qui compte est le **temps de résidence** — combien de temps un attaquant est resté inaperçu (M18) — et non le nombre d'alertes traitées, qui monte quand on ajoute des règles bruyantes. Il partage la propriété essentielle des bons indicateurs : il se dégrade honnêtement quand la couverture est mauvaise, au lieu de récompenser l'activité.
+
+## L'expérience développeur
+
+Un contrôle mal vécu finit contourné. Suis aussi :
+
+- le **temps ajouté** au pipeline par les contrôles de sécurité ;
+- le **taux de faux positifs** perçu (combien de findings sont marqués « faux positif » ou « ne sera pas corrigé ») ;
+- la **satisfaction** des équipes, par une question courte chaque trimestre.
+
+Si ton organisation suit déjà les métriques DORA de livraison (fréquence de déploiement, délai de mise en production des changements…), regarde l'effet de tes contrôles sur ces courbes. Un contrôle qui fait monter le délai de livraison sera attaqué tôt ou tard ; mieux vaut le savoir avant, chiffres en main.
+
+## KPI, OKR et KRI
+
+Les **KPI** suivent l'état permanent (MTTR, couverture). Les **OKR** portent un changement sur une période. Les **KRI** (indicateurs de risque) préviennent qu'un seuil de risque approche : nombre de critiques ouvertes au-delà du SLA, exceptions expirées non renouvelées. Exemple pour Novafact au premier semestre :
+
+<Callout kind="novafact">
+**Objectif** : rendre les failles d'autorisation rares dans l'API.
+**Résultats clés** : 100 % des routes de l'API passent par le middleware d'autorisation central ; zéro nouvelle BOLA trouvée par le pentest de juin ; règle Semgrep « route sans autorisation » bloquante dans toutes les PR.
+</Callout>
+
+Chaque public a besoin d'une vue différente :
+
+| Public | Ce qu'il doit voir | Fréquence |
+| --- | --- | --- |
+| Équipe de développement | Ses findings ouverts, leur âge, ce qui bloque ses PR | En continu |
+| Responsables d'ingénierie | MTTR et SLA par équipe, couverture, tendance | Mensuelle |
+| Direction | 3 indicateurs de résultat, les risques acceptés, l'avancement de la roadmap | Trimestrielle |
+
+<Callout kind="debate">
+Faut-il comparer les équipes entre elles ? Un classement crée de l'émulation, mais aussi de la triche et du ressentiment : une équipe qui maintient un vieux monolithe ne peut pas avoir le MTTR d'une équipe qui démarre un service neuf. La plupart des praticiens préfèrent comparer chaque équipe à elle-même dans le temps, et réserver les comparaisons à des revues privées avec les responsables. C'est une variante de la loi de Goodhart : quand une mesure devient une cible, elle cesse d'être une bonne mesure.
+</Callout>
+
+## OWASP DSOMM
+
+Le **DevSecOps Maturity Model** d'OWASP complète SAMM côté pipeline. Il décrit, par dimension (build et déploiement, culture et organisation, information collectée, implémentation, test et vérification), des activités classées par niveau. Il est très concret pour construire une feuille de route d'outillage : « activer la détection de secrets en pre-commit », « signer les artefacts », etc. Son application web permet de suivre l'état de mise en œuvre de chaque activité et relie chaque activité à d'autres référentiels, dont SAMM et ISO 27001.
+
+<Callout kind="tip">
+Commence avec trois indicateurs, pas quinze : MTTR des critiques et hautes, couverture des contrôles clés, taux d'échappement. Présente-les chaque mois, avec une phrase d'explication. Un tableau de bord que personne ne lit est pire qu'aucun tableau de bord.
+</Callout>
+
+<Recap items={[
+  "Pilote avec des métriques de résultat, pas d'activité.",
+  "MTTR par criticité, taux d'échappement, récurrence par classe et couverture sont les indicateurs clés.",
+  "Écris les définitions (départ, arrivée, périmètre) et lis toujours le MTTR avec l'âge des vulnérabilités ouvertes.",
+  "Le taux d'échappement se calcule par classe et dit quel contrôle améliorer.",
+  "L'expérience développeur se mesure aussi : temps ajouté, faux positifs, satisfaction.",
+  "Les KPI suivent l'état, les OKR portent un changement, les KRI préviennent ; chaque public a sa vue.",
+  "DSOMM donne une feuille de route concrète pour le pipeline.",
+]} />
+
+<Sources items={[
+  { title: "OWASP DSOMM", url: "https://dsomm.owasp.org/" },
+  { title: "OWASP SAMM : Strategy & Metrics", url: "https://owaspsamm.org/model/governance/strategy-and-metrics/" },
+  { title: "OWASP SAMM : Defect Management (Metrics and Feedback)", url: "https://owaspsamm.org/model/implementation/defect-management/" },
+  { title: "Hughes & Robinson, Effective Vulnerability Management (Wiley, 2024)", url: "https://www.wiley.com/en-us/Effective+Vulnerability+Management-p-9781394221202" },
+  { title: "DORA, les métriques de livraison logicielle", url: "https://dora.dev/guides/dora-metrics/" },
+]} />

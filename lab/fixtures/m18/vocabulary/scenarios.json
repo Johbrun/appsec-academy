@@ -1,0 +1,85 @@
+{
+  "_note": "Huit scénarios que l’application journalise aujourd’hui en texte libre. `context` est ce dont le code dispose au moment d’écrire la ligne.",
+  "scenarios": [
+    {
+      "id": "S1",
+      "line": "échec de connexion pour marie.dupont@acme.example",
+      "context": {
+        "user": "marie.dupont@acme.example",
+        "ip": "203.0.113.44",
+        "outcome": "failure",
+        "path": "/api/auth/login"
+      }
+    },
+    {
+      "id": "S2",
+      "line": "compte bloqué après 5 tentatives : lucas.martin@globex.example",
+      "context": {
+        "user": "lucas.martin@globex.example",
+        "ip": "203.0.113.44",
+        "outcome": "failure",
+        "path": "/api/auth/login"
+      }
+    },
+    {
+      "id": "S3",
+      "line": "accès refusé : rôle insuffisant sur /api/admin/settings",
+      "context": {
+        "user": "dev@acme.example",
+        "ip": "198.51.100.10",
+        "outcome": "failure",
+        "path": "/api/admin/settings"
+      }
+    },
+    {
+      "id": "S4",
+      "line": "facture INV-1003 demandée par un utilisateur d’un autre tenant",
+      "context": {
+        "user": "dev@acme.example",
+        "ip": "198.51.100.10",
+        "outcome": "failure",
+        "path": "/api/invoices/INV-1003"
+      }
+    },
+    {
+      "id": "S5",
+      "line": "trop de requêtes, appel rejeté",
+      "context": {
+        "user": "dev@acme.example",
+        "ip": "192.0.2.77",
+        "outcome": "failure",
+        "path": "/api/auth/login"
+      }
+    },
+    {
+      "id": "S6",
+      "line": "le rôle de compta@globex.example passe de accountant à admin",
+      "context": {
+        "user": "admin@novafact.example",
+        "ip": "203.0.113.9",
+        "outcome": "success",
+        "path": "/api/admin/users"
+      }
+    },
+    {
+      "id": "S7",
+      "line": "export de 412 factures",
+      "context": {
+        "user": "compta@globex.example",
+        "ip": "203.0.113.207",
+        "outcome": "success",
+        "path": "/api/invoices"
+      }
+    },
+    {
+      "id": "S8",
+      "line": "nouveau compte créé : support-backup@novafact.example",
+      "context": {
+        "user": "admin@novafact.example",
+        "ip": "203.0.113.9",
+        "outcome": "success",
+        "path": "/api/admin/users"
+      }
+    }
+  ]
+}

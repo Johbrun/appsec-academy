@@ -1,0 +1,202 @@
+export const questions = [
+  {
+    q: "Pourquoi les scanners trouvent-ils mal les BOLA ?",
+    options: [
+      "Parce que la requête et la réponse sont identiques pour un accès légitime et un accès abusif",
+      "Parce que le scanner n'a qu'un seul compte de test et ne peut pas comparer deux tenants",
+      "Parce que les identifiants d'objet sont souvent des UUID, non énumérables par un scanner",
+      "Parce que l'appartenance de l'objet est une règle métier que l'outil ignore",
+    ],
+    answer: 3,
+    explain: "Les trois autres raisons sont vraies, et elles se corrigent : on donne deux comptes au scanner, on lui fournit des identifiants valides. Il continuera pourtant à ne rien trouver, parce qu'il ne sait pas quelle réponse aurait dû être refusée. Techniquement, lire une facture par son identifiant est une requête légitime ; c'est l'appartenance de la facture qui fait la faille.",
+  },
+  {
+    q: "À quoi sert une table de décision d'autorisation lors d'une revue ?",
+    options: [
+      "À documenter les rôles tels qu'ils existent dans le code, pour la prochaine revue d'accès",
+      "À centraliser les vérifications d'autorisation dans un middleware unique",
+      "À lister ce qui est permis par action et par rôle, puis à confronter chaque route",
+      "À établir la matrice des données sensibles et de leur niveau de classification",
+    ],
+    answer: 2,
+    explain: "Le piège est de construire la table en lisant le code : on obtient alors la description de ce qui est, pas de ce qui devrait être, et la moindre faille d'autorisation y figure comme une règle légitime. La table s'écrit avec le métier, avant la lecture ; la revue confronte ensuite chaque route à la table.",
+  },
+  {
+    q: "Le worker d'envoi des factures reçoit d'une file SQS un message `{ invoiceId }` et charge la facture par son id. Quel est le problème ?",
+    options: [
+      "Le worker ne vérifie pas la signature du message, qui pourrait être forgé en transit",
+      "Le message ne porte pas le tenant : le worker ne peut pas vérifier l'appartenance",
+      "Le worker devrait valider le format de invoiceId avec un schéma avant de charger",
+      "Aucun problème : la file n'est accessible qu'aux services internes, déjà authentifiés",
+    ],
+    answer: 1,
+    explain: "Valider le format de l'identifiant et signer le message sont des contrôles réels, mais ils répondent à d'autres questions : un invoiceId parfaitement bien formé, envoyé par un service parfaitement authentifié, désigne quand même la facture d'un autre tenant. Un worker est un point d'entrée comme un autre — le message doit porter le contexte d'autorisation, et le worker doit le réappliquer au chargement.",
+  },
+  {
+    q: "Deux requêtes simultanées « émettre la facture » passent toutes les deux la vérification `status === 'draft'` puis écrivent `issued`, et deux numéros sont consommés. Quelle correction est la plus robuste ?",
+    options: [
+      "Une transition atomique : updateMany avec status: 'draft' dans le where",
+      "Envelopper la lecture puis l'écriture dans une transaction Prisma",
+      "Prendre un verrou distribué dans Redis pendant toute l'opération d'émission",
+      "Une contrainte d'unicité sur le numéro de facture, qui fera échouer la seconde écriture",
+    ],
+    answer: 0,
+    explain: "La transaction est le réflexe naturel, et c'est le piège : au niveau d'isolation par défaut (read committed), les deux transactions lisent `draft` et écrivent toutes les deux. La contrainte d'unicité n'aide pas davantage, puisque chaque exécution consomme un numéro différent. Il faut que la condition et l'écriture soient une seule opération en base, et vérifier ensuite que le nombre de lignes modifiées vaut 1.",
+  },
+];
+
+<YouKnow>
+La BOLA est probablement ton finding critique le plus fréquent. En revue de code, elle se trouve avec une méthode simple : une table de décision et une vérification systématique des accès aux objets.
+</YouKnow>
+
+## Pourquoi la revue est indispensable ici
+
+Lire une facture par son identifiant est une opération **légitime**. Ce qui fait la faille, c'est que la facture appartient à un autre tenant : une information métier qu'aucun outil générique ne possède. Les failles d'autorisation de l'OWASP API Security Top 10 (API1 pour les objets, API3 pour les propriétés, API5 pour les fonctions, M2) sont la catégorie où la revue apporte le plus.
+
+<Callout kind="case">
+En mai 2019, KrebsOnSecurity révélait que le site de First American Financial, assureur de titres immobiliers américain, exposait environ 885 millions de documents remontant à 2003 : relevés bancaires, numéros de sécurité sociale, pièces d'identité. Il suffisait de modifier un chiffre dans l'URL d'un document pour obtenir celui d'un autre client. Une vérification d'appartenance manquante, sur une seule route de consultation. La SEC a ensuite infligé une amende à l'entreprise pour des défaillances de ses procédures d'information (*disclosure controls*) autour de la faille.
+</Callout>
+
+## La table de décision
+
+Avant de relire, écris ce qui **doit** être vrai :
+
+| Action | Lecteur | Comptable | Administrateur du tenant | Autre tenant |
+| --- | --- | --- | --- | --- |
+| Lire une facture | ✓ | ✓ | ✓ | ✗ |
+| Créer une facture |  | ✓ | ✓ | ✗ |
+| Émettre un avoir |  | ✓ | ✓ | ✗ |
+| Exporter les factures |  | ✓ | ✓ | ✗ |
+| Changer les rôles |  |  | ✓ | ✗ |
+
+Puis vérifie **chaque** route contre cette table. Idéalement, la table n'est pas qu'un document : elle existe dans le code, et c'est la même source qui sert au contrôle et aux tests.
+
+<Code file="apps/api/src/authz/policy.ts">
+
+```ts
+export const POLICY = {
+  'invoices:read':        ['reader', 'accountant', 'tenant_admin'],
+  'invoices:create':      ['accountant', 'tenant_admin'],
+  'credit-notes:create':  ['accountant', 'tenant_admin'],
+  'invoices:export':      ['accountant', 'tenant_admin'],
+  'members:set-role':     ['tenant_admin'],
+} as const satisfies Record<string, readonly Role[]>;
+
+export type Permission = keyof typeof POLICY;
+export const can = (role: Role, permission: Permission) =>
+  (POLICY[permission] as readonly Role[]).includes(role);
+```
+
+</Code>
+
+La revue devient alors double : la table est-elle juste (question métier, à valider avec le produit) ? Chaque route déclare-t-elle la bonne permission (question de code) ? Et les tests paramétrés de M13 (leçon 2) parcourent la même table.
+
+## Ce que l'on vérifie pour chaque accès à un objet
+
+<Steps items={[
+  { title: "D'où vient l'identifiant ?", text: "D'un paramètre de la requête, d'un corps, d'un message de file : il est contrôlé par quelqu'un d'autre que toi." },
+  { title: "D'où vient le tenant ?", text: "De la session ou du jeton vérifié, jamais d'un paramètre ou d'un en-tête (M3, M8)." },
+  { title: "La requête filtre-t-elle par tenant ?", text: "findFirst({ where: { id, tenantId } }) plutôt que findUnique({ where: { id } }) ; ou la DAL, ou la RLS de Postgres." },
+  { title: "Le rôle est-il vérifié pour cette action ?", text: "Pas seulement l'authentification : la permission précise (BFLA)." },
+  { title: "Les propriétés sont-elles filtrées ?", text: "En entrée (mass assignment) et en sortie (exposition excessive) : API3." },
+]} />
+
+Le bug le plus courant tient en une ligne, et sa correction aussi. Depuis Prisma 5, `findUnique`, `update` et `delete` acceptent des champs non uniques dans leur `where`, ce qui permet d'ajouter le tenant sans changer de méthode :
+
+<Diff file="apps/api/src/dal/invoices.ts" hlBefore="2,6" hlAfter="2,6,7">
+
+```ts
+export async function getInvoice(id: string) {
+  return prisma.invoice.findUnique({ where: { id } });
+}
+
+export async function updateInvoice(id: string, data: Prisma.InvoiceUpdateInput) {
+  return prisma.invoice.update({ where: { id }, data });
+}
+```
+
+```ts
+export async function getInvoice(tenantId: string, id: string) {
+  return prisma.invoice.findUnique({ where: { id, tenantId } });
+}
+
+export async function updateInvoice(tenantId: string, id: string, input: InvoicePatch) {
+  const data = { dueDate: input.dueDate, note: input.note };       // champs autorisés, un par un
+  return prisma.invoice.update({ where: { id, tenantId }, data });
+}
+```
+
+</Diff>
+
+Trois choses ont changé : le tenant devient un **paramètre obligatoire** de la DAL (impossible de l'oublier à l'appel), la requête le filtre, et la mise à jour ne reçoit plus un objet arbitraire. Avec l'ancienne signature, un client pouvait envoyer `tenantId` ou `status` dans le corps et les voir écrits.
+
+<Callout kind="debate">
+**403 ou 404 pour l'objet d'un autre tenant ?** Le 404 ne confirme pas l'existence de la facture et rend l'énumération inutile ; c'est le choix de Novafact pour les objets d'un autre tenant. Le 403 est plus honnête pour un utilisateur du même tenant à qui il manque une permission, et plus facile à déboguer. L'important est d'être cohérent, et de ne pas révéler l'existence par un autre canal (temps de réponse, message d'erreur, code différent entre « inexistant » et « interdit »).
+</Callout>
+
+## Les endroits qu'on oublie
+
+Les BOLA se cachent là où l'on ne regarde pas :
+
+- les **routes secondaires** : téléchargement de PDF, pièces jointes, historique, prévisualisation ;
+- les **jobs et workers** qui traitent des identifiants reçus d'une file : le message doit porter le tenant, et le worker doit le réappliquer au chargement ;
+- les **webhooks**, qui identifient souvent l'objet par un identifiant externe (un identifiant de paiement Stripe) qu'il faut rattacher au bon tenant ;
+- les **exports asynchrones** et les **URL présignées S3** : une clé d'objet dérivée de l'identifiant de la facture, signée sans vérifier l'appartenance, est une BOLA avec une date d'expiration ;
+- les **résolveurs GraphQL** imbriqués, et les caches de type DataLoader instanciés une fois pour toute l'application au lieu d'une fois par requête, qui servent à l'un ce qu'ils ont chargé pour l'autre ;
+- les **outils de l'assistant IA** (M19), qui appellent l'API avec quels droits ?
+
+La méthode de la leçon 2 (lister tout ce qui ne passe pas par le contrôle central) les fait apparaître.
+
+## Les machines à états
+
+Pour la logique métier, relis les **transitions** : chaque changement d'état d'une facture passe-t-il par la fonction qui vérifie la transition (M10) ? Une route qui écrit directement `status: 'paid'` est un cas limite à examiner. Écris les transitions permises comme la table de décision :
+
+| De \ Vers | issued | paid | cancelled |
+| --- | --- | --- | --- |
+| **draft** | ✓ comptable | ✗ | ✓ comptable |
+| **issued** | | ✓ webhook de paiement seulement | ✓ admin, avec avoir |
+| **paid** | ✗ | | ✗ |
+
+Puis vérifie que la transition est **atomique**. Lire le statut, le tester, puis écrire laisse une fenêtre où deux requêtes concurrentes passent le même test :
+
+<Code file="apps/api/src/dal/invoices.ts" hl="3,6">
+
+```ts
+export async function issueInvoice(tenantId: string, id: string) {
+  const { count } = await prisma.invoice.updateMany({
+    where: { id, tenantId, status: 'draft' },               // la condition fait partie de l'écriture
+    data: { status: 'issued', issuedAt: new Date() },
+  });
+  if (count !== 1) throw new Conflict('invoice_not_in_draft'); // déjà émise, ou pas à ce tenant
+}
+```
+
+</Code>
+
+## En pratique chez toi
+
+<Steps items={[
+  { title: "Écrire la table", text: "Actions × rôles, validée avec le produit, rangée dans le code." },
+  { title: "Lister les accès aux objets", text: "Une recherche Semgrep sur les lectures et écritures par id (leçon 2), plus les workers, webhooks et exports." },
+  { title: "Vérifier chaque accès", text: "Origine de l'identifiant et du tenant, filtre, permission, propriétés." },
+  { title: "Relire les transitions", text: "Table des transitions, fonction unique, écriture conditionnelle atomique." },
+  { title: "Laisser des tests", text: "Un test de refus par ligne sensible de la table (M13)." },
+]} />
+
+<Recap items={[
+  "Les failles d'autorisation dépendent de règles métier que les outils ne connaissent pas.",
+  "Écrire une table de décision action × rôle, idéalement dans le code, puis vérifier chaque route contre elle.",
+  "Pour chaque accès : origine de l'identifiant, origine du tenant, filtre, permission, propriétés ; le tenant devient un paramètre obligatoire de la DAL.",
+  "Chercher dans les routes secondaires, workers, webhooks, exports, URL présignées, caches, résolveurs et outils d'IA.",
+  "Les transitions d'état se vérifient contre une table, et s'écrivent de façon atomique.",
+]} />
+
+<Lab id="ps-access-control" />
+
+<Sources items={[
+  { title: "OWASP API1:2023 BOLA", url: "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/" },
+  { title: "OWASP Cheat Sheet : Authorization", url: "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html" },
+  { title: "KrebsOnSecurity : First American Financial", url: "https://krebsonsecurity.com/2019/05/first-american-financial-corp-leaked-hundreds-of-millions-of-title-insurance-records/" },
+  { title: "Prisma : filtrer sur des champs non uniques dans findUnique (extendedWhereUnique, GA en 5.0)", url: "https://github.com/prisma/prisma/releases/tag/5.0.0" },
+  { title: "DataLoader", url: "https://github.com/graphql/dataloader", note: "une instance par requête" },
+]} />

@@ -1,0 +1,199 @@
+export const questions = [
+  {
+    q: "Quelle est la différence principale entre une règle Semgrep simple et une analyse CodeQL de taint tracking ?",
+    options: [
+      "Semgrep s'exécute sur le code source, CodeQL sur le binaire compilé",
+      "Semgrep cherche un motif ; CodeQL suit le flux de la source au sink",
+      "CodeQL est interprocédural, Semgrep ne peut pas dépasser une seule ligne",
+      "Semgrep analyse le fichier isolément, CodeQL exige un build complet",
+    ],
+    answer: 1,
+    explain: "La nuance est réelle mais mal placée : CodeQL construit une base à partir du code, souvent via un build, et Semgrep travaille surtout fichier par fichier — c'est une conséquence, pas la différence de fond. Et Semgrep n'est pas limité à une ligne : son mode taint suit lui aussi un flux. La distinction reste motif syntaxique d'un côté, raisonnement sur le flux de données de l'autre.",
+  },
+  {
+    q: "Pourquoi activer TypeScript strict fait-il partie de la stratégie SAST ?",
+    options: [
+      "Parce que les types stricts éliminent des classes de bugs avant l'analyse",
+      "Parce que les scanners exigent un projet typé pour construire leur graphe d'appels",
+      "Parce que le typage empêche l'injection en forçant l'échappement des chaînes",
+      "Parce que strict interdit les dépendances non typées, souvent moins maintenues",
+    ],
+    answer: 0,
+    explain: "Le typage n'échappe rien : une chaîne parfaitement typée reste une injection parfaitement valide. Et strict n'exclut aucune dépendance. Ce qu'il fait, c'est rendre impossibles des classes entières d'erreurs que les attaquants exploitent — valeur absente, index hors bornes, confusion de types — avant même que l'analyse de sécurité ne commence.",
+  },
+  {
+    q: "Dans les types d'Express, `req.body` est de type `any`. Pourquoi est-ce un problème de sécurité autant que de qualité ?",
+    options: [
+      "Parce que any désactive les règles no-unsafe-* de typescript-eslint sur le fichier",
+      "Parce que any empêche le SAST de suivre le flux de la donnée jusqu'au sink",
+      "Parce qu'un client peut envoyer un objet dont les clés viennent écraser le prototype",
+      "Parce que any se propage : une valeur non validée circule comme si elle était typée",
+    ],
+    answer: 3,
+    explain: "La pollution de prototype est un vrai risque, mais il existe avec ou sans any. Et any ne désactive pas les règles no-unsafe-* : ce sont elles, au contraire, qui le rendent visible. Le problème est la propagation silencieuse — la valeur traverse le code avec l'apparence du bon type, et le compilateur n'exige jamais la validation. Avec unknown, elle doit passer par un schéma avant d'être utilisée.",
+  },
+  {
+    q: "Une règle Semgrep bloquante produit 60 % de faux positifs depuis trois mois. Que fais-tu ?",
+    options: [
+      "Tu la gardes bloquante, en autorisant le nosemgrep justifié en commentaire",
+      "Tu la passes en WARNING et tu la laisses en l'état dans le tableau de bord",
+      "Tu la sors du jeu bloquant et tu la réécris avant de la remettre, avec des tests",
+      "Tu ajoutes des exclusions de chemins sur les répertoires qui produisent le plus de bruit",
+    ],
+    answer: 2,
+    explain: "Les exclusions de chemins font taire le bruit et, du même coup, les vrais positifs de ces répertoires — sans que personne ne s'en souvienne dans six mois. Passer en WARNING sans rien corriger installe le bruit à demeure, et autoriser le nosemgrep déplace le coût sur chaque développeur. Une règle est du code : on la corrige — motif plus précis, sanitizers, exclusions ciblées — et on la teste avant de la rendre bloquante à nouveau.",
+  },
+];
+
+<YouKnow>
+Tu as sans doute déjà lancé Semgrep ou CodeQL. Ici, on les configure pour une base JS réelle, et surtout on organise le tri pour que les développeurs ne les désactivent pas.
+</YouKnow>
+
+## Les couches de l'analyse statique JS
+
+| Couche | Outil | Ce qu'elle apporte |
+| --- | --- | --- |
+| **Types** | TypeScript `strict`, `noUncheckedIndexedAccess` | Élimine null inattendus, `any`, confusions de types |
+| **Lint** | ESLint avec `eslint-plugin-security`, `eslint-plugin-no-unsanitized`, règles React, typescript-eslint | Motifs dangereux dans l'IDE, en temps réel |
+| **SAST motifs** | **Semgrep** (règles `javascript`, `typescript`, `express`, `react`, `nextjs`) | Rapide, lisible, règles faciles à écrire |
+| **SAST flux** | **CodeQL** (JS/TS) | Taint tracking interprocédural, requêtes de variant analysis |
+
+Aucune couche ne voit tout. L'analyse statique lit le code, pas la configuration déployée (le WAF, les variables d'environnement, les politiques IAM), pas le comportement à l'exécution, et elle ne connaît pas les règles métier : une BOLA reste invisible tant qu'on n'a pas écrit la règle qui décrit « le tenant vient de la session » (leçon 4). C'est la raison d'être de la revue manuelle (M12) et du test dynamique (leçon 7).
+
+## Les types d'abord
+
+Le premier SAST est le compilateur. Les options qui comptent pour la sécurité :
+
+<Code file="tsconfig.base.json">
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,                        // dont strictNullChecks et useUnknownInCatchVariables
+    "noUncheckedIndexedAccess": true,      // obj[key] est T | undefined : l'absence doit être traitée
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true
+  }
+}
+```
+
+</Code>
+
+Le vrai piège est `any`. Dans les types d'Express, `req.body` est `any` : une valeur non validée entre dans le code et circule comme si elle avait le type attendu, sans que le compilateur dise rien. Les règles `no-unsafe-assignment`, `no-unsafe-member-access` et `no-unsafe-argument` de typescript-eslint signalent chaque usage d'une valeur `any` ; combinées avec un schéma zod en entrée de route, elles rendent la validation **obligatoire à la compilation** plutôt que recommandée dans un wiki.
+
+## Le lint de sécurité
+
+<Code file="eslint.config.js">
+
+```js
+import { defineConfig } from 'eslint/config';
+import tseslint from 'typescript-eslint';
+import security from 'eslint-plugin-security';
+import nounsanitized from 'eslint-plugin-no-unsanitized';
+
+export default defineConfig([
+  tseslint.configs.recommendedTypeChecked,
+  { languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } } },
+  security.configs.recommended,
+  nounsanitized.configs.recommended,
+  { rules: { 'security/detect-object-injection': 'off' } },   // très bruyante sur du code TypeScript typé
+]);
+```
+
+</Code>
+
+En CI, `eslint . --max-warnings 0` traite les avertissements comme des erreurs : sinon, les avertissements s'accumulent jusqu'à ce que personne ne les lise plus. Désactiver une règle trop bruyante, comme ci-dessus, est une décision légitime, à condition qu'elle soit écrite et motivée.
+
+## Semgrep
+
+Semgrep lit des règles en YAML qui ressemblent au code recherché. Le registre public fournit des milliers de règles ; en CI, le mode **différentiel** ne signale que les findings introduits par la PR, ce qui évite de noyer l'équipe sous la dette existante.
+
+```bash
+semgrep scan --config p/javascript --config p/typescript --config p/react --config ./rules \
+  --baseline-commit origin/main --error
+```
+
+Deux points de contexte à connaître. La **Community Edition** (gratuite, en ligne de commande) analyse le flux de données à l'intérieur d'une fonction ; l'analyse inter-fonctions et inter-fichiers est réservée au moteur Pro de la plateforme commerciale. Et fin 2024, Semgrep a placé les règles de son registre sous une licence propre qui restreint leur usage dans des produits concurrents ; en janvier 2025, un consortium d'éditeurs a lancé **Opengrep**, un fork de l'ancien moteur open source. Pour une équipe qui utilise l'outil en interne, les deux fonctionnent ; le choix dépend surtout du besoin d'analyse inter-fichiers et du support.
+
+## CodeQL
+
+CodeQL compile le code en base de données et l'interroge avec un langage de requêtes. Le **default setup** de GitHub code scanning l'active en quelques clics ; les suites `security-extended` et `security-and-quality` ajoutent des requêtes au jeu par défaut. Sa force : suivre une donnée de `req.query` jusqu'à `$queryRawUnsafe` à travers trois fichiers et deux fonctions utilitaires.
+
+Quand le default setup ne suffit plus, l'**advanced setup** (un workflow et un fichier de configuration) permet de choisir les suites et d'exclure le bruit :
+
+<Code file=".github/codeql/codeql-config.yml">
+
+```yaml
+name: novafact-codeql
+queries:
+  - uses: security-extended
+paths-ignore:
+  - '**/*.test.ts'
+  - 'apps/web/e2e'
+  - 'packages/**/generated'
+```
+
+</Code>
+
+Exclure les tests et le code généré réduit les alertes sans valeur. N'exclus pas pour autant les scripts d'outillage : un script de migration ou de déploiement exécuté en CI avec des secrets est du code de production du point de vue d'un attaquant (M14).
+
+Côté coût : CodeQL est gratuit sur les dépôts publics. Sur les dépôts privés, il demande **GitHub Code Security**, vendu séparément depuis avril 2025 (auparavant inclus dans GitHub Advanced Security). Tous les outils produisent du **SARIF**, le format standard que GitHub affiche en annotations de PR : Semgrep, ESLint (via un formateur) et CodeQL peuvent ainsi arriver au même endroit.
+
+## Trier les faux positifs
+
+Un outil désactivé ne protège rien. Le tri est ce qui le garde en vie :
+
+<Steps items={[
+  { title: "Commencer petit", text: "Un jeu restreint de règles à haute précision, bloquantes ; le reste en informatif." },
+  { title: "Traiter chaque faux positif", text: "Une annotation justifiée (// nosemgrep: id-de-la-règle avec la raison, dismiss motivé dans GitHub), ou mieux, une correction de la règle." },
+  { title: "Mesurer le taux de faux positifs par règle", text: "Une règle au-dessus de 50 % de faux positifs se réécrit ou sort du jeu bloquant." },
+  { title: "Rapprocher du code", text: "Les résultats en annotations de PR, pas dans une console que personne n'ouvre." },
+]} />
+
+Chaque finding reçoit une des quatre décisions suivantes, et la décision est tracée :
+
+| Décision | Quand | Ce qu'on fait |
+| --- | --- | --- |
+| **Vrai positif** | La donnée atteint vraiment le sink sans contrôle | Corriger, ajouter un test de régression |
+| **Faux positif** | L'outil se trompe (sanitizer non reconnu, chemin impossible) | Corriger la règle ou déclarer le sanitizer (leçon 4) ; à défaut, annotation motivée |
+| **Vrai mais non exploitable ici** | Le motif est dangereux, mais la donnée est constante ou interne | Annotation motivée, et souvent une correction quand même : le code sera copié ailleurs |
+| **Risque accepté** | Exploitable, correction différée | Ticket avec échéance et propriétaire (M5), pas un dismiss silencieux |
+
+<Callout kind="warn">
+Méfie-toi des annotations sans raison. Un `// nosemgrep` nu, ou un dismiss « Won't fix » sans commentaire, est un finding qui disparaît de tous les tableaux de bord. Une règle Semgrep maison peut d'ailleurs signaler les `nosemgrep` qui ne mentionnent pas d'identifiant de règle, et la revue (M12) les regarde de près, surtout dans les PR générées par IA.
+</Callout>
+
+## En pratique chez toi : introduire le SAST sur une base existante
+
+<Steps items={[
+  { title: "Mesurer sans bloquer", text: "Un scan complet en informatif pendant deux semaines : combien de findings, sur quelles règles, avec quel taux de faux positifs ?" },
+  { title: "Bloquer le neuf, pas l'ancien", text: "Mode différentiel en PR : aucune nouvelle occurrence des règles à haute précision. La dette existante ne bloque personne." },
+  { title: "Résorber par classe", text: "Plutôt que 140 corrections isolées, un contrôle de classe (DAL, composant sûr) qui fait disparaître une règle entière du backlog." },
+  { title: "Promouvoir les règles", text: "Une règle informative qui a fait ses preuves (précise, comprise, documentée) passe en bloquante." },
+]} />
+
+<Callout kind="novafact">
+Chez Novafact, le jeu bloquant en PR compte 25 règles Semgrep (dont 12 maison) et les requêtes CodeQL `security-extended` en informatif. Chaque règle bloquante a un propriétaire dans l'équipe AppSec et une documentation d'une ligne qui explique comment corriger. Le taux de faux positifs de chaque règle est revu chaque trimestre à partir des dismiss et des `nosemgrep`.
+</Callout>
+
+<Recap items={[
+  "Quatre couches : types stricts, lint, SAST par motifs, SAST par flux ; aucune ne voit la configuration ni les règles métier.",
+  "TypeScript strict et les règles no-unsafe-* rendent la validation obligatoire : req.body est any tant qu'on ne l'a pas validé.",
+  "Semgrep est rapide et lisible ; son mode différentiel ne montre que les nouveaux findings ; la Community Edition reste intra-fonction.",
+  "CodeQL suit les données à travers les fonctions et les fichiers ; payant sur les dépôts privés.",
+  "Le tri des faux positifs, avec des décisions tracées et motivées, décide de la survie de l'outil.",
+]} />
+
+<Lab id="semgrep-academy" />
+
+<Sources items={[
+  { title: "Semgrep : documentation", url: "https://semgrep.dev/docs/" },
+  { title: "Semgrep : analyse inter-fichiers (Pro)", url: "https://semgrep.dev/docs/semgrep-code/semgrep-pro-engine-intro" },
+  { title: "Opengrep", url: "https://github.com/opengrep/opengrep" },
+  { title: "CodeQL : documentation", url: "https://codeql.github.com/docs/" },
+  { title: "GitHub : code scanning default setup", url: "https://docs.github.com/en/code-security/code-scanning/enabling-code-scanning/configuring-default-setup-for-code-scanning" },
+  { title: "GitHub : Secret Protection et Code Security (changelog, mars 2025)", url: "https://github.blog/changelog/2025-03-04-introducing-github-secret-protection-and-github-code-security/" },
+  { title: "typescript-eslint : linting with type information", url: "https://typescript-eslint.io/getting-started/typed-linting/" },
+  { title: "eslint-plugin-security", url: "https://github.com/eslint-community/eslint-plugin-security" },
+  { title: "eslint-plugin-no-unsanitized (Mozilla)", url: "https://github.com/mozilla/eslint-plugin-no-unsanitized" },
+]} />

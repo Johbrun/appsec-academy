@@ -1,0 +1,62 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "RoleName": "novafact-deploy",
+  "Description": "Rôle assumé par l'intégration continue pour déployer l'API et le SDK.",
+  "AssumeRolePolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "IntegrationContinue",
+        "Effect": "Allow",
+        "Principal": {
+          "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+        },
+        "Action": "sts:AssumeRoleWithWebIdentity",
+        "Condition": {
+          "StringEquals": {
+            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+            "token.actions.githubusercontent.com:sub": "repo:novafact/novafact:ref:refs/heads/main"
+          }
+        }
+      }
+    ]
+  },
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DeployerLesFonctions",
+        "Effect": "Allow",
+        "Action": ["lambda:CreateFunction", "lambda:UpdateFunctionCode"],
+        "Resource": "arn:aws:lambda:eu-west-3:123456789012:function:novafact-*"
+      },
+      {
+        "Sid": "PasserLeRoleDExecution",
+        "Effect": "Allow",
+        "Action": "iam:PassRole",
+        "Resource": "*"
+      },
+      {
+        "Sid": "CreerLesRolesDuDeploiement",
+        "Effect": "Allow",
+        "Action": ["iam:CreateRole", "iam:TagRole"],
+        "Resource": "arn:aws:iam::123456789012:role/novafact-*"
+      },
+      {
+        "Sid": "AttacherLesPolitiques",
+        "Effect": "Allow",
+        "Action": ["iam:AttachRolePolicy", "iam:PutRolePolicy"],
+        "Resource": "arn:aws:iam::123456789012:role/novafact-*"
+      },
+      {
+        "Sid": "LivrerLesArtefacts",
+        "Effect": "Allow",
+        "Action": ["s3:PutObject", "s3:GetObject"],
+        "Resource": "arn:aws:s3:::novafact-artefacts/*",
+        "Condition": {
+          "StringEquals": { "aws:ResourceTag/Projet": "novafact-*" }
+        }
+      }
+    ]
+  }
+}

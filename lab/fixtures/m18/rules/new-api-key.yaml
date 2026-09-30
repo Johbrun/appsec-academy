@@ -1,0 +1,20 @@
+id: new-api-key
+name: Création d’une clé d’API
+description: Une clé d’API a été créée.
+severity: medium
+risk_score: 35
+tags:
+  - 'Domaine: Identité'
+  - 'Tactique: Persistence'
+  - 'Technique: T1098'
+interval: 5m
+from: now-15m
+note: |-
+  ## Triage
+
+  1. Rapprocher de la demande qui l’a motivée.
+query:
+  where:
+    - field: event.action
+      op: eq
+      value: authn_token_created

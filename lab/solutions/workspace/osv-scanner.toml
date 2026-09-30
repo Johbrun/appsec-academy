@@ -1,0 +1,33 @@
+# Livrable de référence — challenge risk-exception (M1).
+#
+# Trois exceptions, et trois seulement. Le scan remonte neuf vulnérabilités :
+#
+#   · quatre ont une version corrigée publiée — on ne les exempte pas, on les
+#     corrige. Une exception sur une vulnérabilité corrigeable, c'est de la
+#     dette qu'on rebaptise ;
+#   · deux figurent au catalogue d'exploitation connue (CVE-2026-3310 sur
+#     xlsx-lite et CVE-2026-7742 sur jsonwebtoken-compat). Pas de correctif
+#     publié et pourtant pas d'exception possible : quand une vulnérabilité est
+#     activement exploitée, le choix n'est pas « accepter ou corriger », c'est
+#     « retirer, contourner ou remplacer ». C'est le piège de l'exercice ;
+#   · restent trois vulnérabilités sans correctif et sans exploitation connue.
+#     Ce sont les seules qui se discutent.
+#
+# ⚠ Les dates ci-dessous doivent rester dans le futur et à moins de 90 jours :
+#    ce fichier de référence est à réactualiser quand elles approchent. C'est
+#    le point : une exception est un objet périssable.
+
+[[IgnoredVulns]]
+id = "CVE-2026-2207"
+ignoreUntil = 2026-11-30
+reason = "CVE-2026-2207 : pdf-render n'a pas de version corrigée. Le déni de service demande un PDF malformé, or l'import de PDF n'est ouvert qu'aux comptes authentifiés du tenant et passe par une file bornée. Retrait du composant planifié au T4, suivi par l'équipe Facturation."
+
+[[IgnoredVulns]]
+id = "CVE-2026-4488"
+ignoreUntil = 2026-11-30
+reason = "CVE-2026-4488 : tar-stream-legacy est utilisé uniquement pour lire des archives que Novafact produit elle-même, jamais des archives fournies par un utilisateur. L'écriture hors répertoire n'est donc pas atteignable depuis une entrée externe. Remplacement par tar natif au T4."
+
+[[IgnoredVulns]]
+id = "CVE-2026-5150"
+ignoreUntil = 2026-11-30
+reason = "CVE-2026-5150 : node-ical n'a pas de correctif publié. L'analyseur d'entités externes est désactivé par la configuration passée à l'appel, ce qui neutralise le vecteur, et l'import de calendrier est derrière un drapeau de fonctionnalité fermé en production. Réévaluation au 30/11."

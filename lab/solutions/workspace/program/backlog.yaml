@@ -1,0 +1,133 @@
+# Livrable de référence — challenge pentest-to-appsec (M1).
+#
+# Treize constats de prestataire, neuf classes de bugs. Le regroupement ne se
+# fait pas sur les titres du rapport mais sur la ligne de code qui explique le
+# constat : PT-01 et PT-11 sont deux champs de la même requête non typée,
+# PT-04 et PT-13 sont l'écriture et sa conséquence, PT-03 et PT-09 sont deux
+# routes qui ont oublié le même filtre.
+#
+# Ce fichier est UNE réponse, pas LA réponse : les équipes propriétaires et les
+# échéances sont des arbitrages. Ce que le harnais vérifie, c'est que chaque
+# constat est repris une fois, que la classe correspond au CWE du registre, que
+# le fichier cité est celui qui porte le défaut, que le test existe, et que les
+# délais respectent l'ordre des sévérités.
+
+rapport: PT-2026-NOVAFACT
+
+classes:
+  - classe: nosql-auth
+    cwe: CWE-943
+    fichier: server/routes/auth.ts
+    constats: [PT-01, PT-11]
+    correctif-structurel: >-
+      Valider le corps de la requête par schéma avant qu'il n'atteigne la couche
+      de données : type imposé sur chaque champ, refus de toute clé commençant
+      par un dollar. Le schéma est posé par le framework à l'entrée de chaque
+      route, pas rappelé route par route.
+    test: verify/security.test.ts
+    equipe: '@novafact/plateforme'
+    echeance: 2026-10-10
+
+  - classe: jwt-decode
+    cwe: CWE-347
+    fichier: server/lib/jwt.ts
+    constats: [PT-02]
+    correctif-structurel: >-
+      Une seule fonction de lecture de jeton dans le code, qui vérifie la
+      signature avant de rendre la moindre revendication, avec la liste des
+      algorithmes fixée côté serveur et le contrôle de l'émetteur, de
+      l'audience et de l'expiration. Le décodage sans vérification disparaît.
+    test: verify/security.test.ts
+    equipe: '@novafact/plateforme'
+    echeance: 2026-10-10
+
+  - classe: bola-invoice
+    cwe: CWE-639
+    fichier: server/routes/invoices.ts
+    constats: [PT-03, PT-09]
+    correctif-structurel: >-
+      Faire porter le cloisonnement par la couche d'accès aux données plutôt que
+      par chaque route : un dépôt qui exige le tenant en paramètre, ou une
+      politique de sécurité au niveau des lignes dans la base. Une route ne peut
+      alors plus l'oublier, parce qu'elle n'a plus le choix.
+    test: verify/security.test.ts
+    equipe: '@novafact/facturation'
+    echeance: 2026-10-31
+
+  - classe: mass-assignment
+    cwe: CWE-915
+    fichier: server/routes/profile.ts
+    constats: [PT-04, PT-13]
+    correctif-structurel: >-
+      Séparer l'objet de transfert d'entrée du modèle persisté : les champs
+      modifiables sont construits explicitement, un par un, et tout le reste du
+      corps est ignoré. Aucune fusion du corps brut dans une entité, nulle part
+      dans le code.
+    test: verify/security.test.ts
+    equipe: '@novafact/plateforme'
+    echeance: 2026-10-31
+
+  - classe: path-traversal
+    cwe: CWE-22
+    fichier: server/routes/attachments.ts
+    constats: [PT-05]
+    correctif-structurel: >-
+      Ne jamais dériver un chemin de fichier d'une entrée du client : un
+      identifiant opaque est résolu vers un chemin par un index tenu côté
+      serveur. À défaut, résolution puis vérification que le résultat reste sous
+      la racine autorisée, avant toute ouverture.
+    test: verify/security.test.ts
+    equipe: '@novafact/plateforme'
+    echeance: 2026-10-31
+
+  - classe: ssrf-imds
+    cwe: CWE-918
+    fichier: server/routes/webhooks.ts
+    constats: [PT-06]
+    correctif-structurel: >-
+      Sortir par un mandataire à destinations en liste blanche : résolution du
+      nom, vérification de l'adresse obtenue, nouvelle vérification après chaque
+      redirection, et aucune restitution du corps de la réponse à l'appelant. Le
+      service de métadonnées est exigé en version authentifiée côté instance.
+    test: verify/security.test.ts
+    equipe: '@novafact/plateforme'
+    echeance: 2026-10-31
+
+  - classe: dom-xss
+    cwe: CWE-79
+    fichier: src/pages/InvoiceDetail.tsx
+    constats: [PT-07, PT-12]
+    correctif-structurel: >-
+      Laisser le moteur de rendu échapper, et ne réintroduire du balisage que
+      par un assainisseur éprouvé appelé à un seul endroit du code. Politique de
+      sécurité de contenu stricte avec nonce et types de confiance en seconde
+      barrière, pour que l'oubli suivant ne s'exécute pas.
+    test: verify/security.test.ts
+    equipe: '@novafact/frontend'
+    echeance: 2026-11-28
+
+  - classe: no-rate-limit
+    cwe: CWE-307
+    fichier: server/routes/auth.ts
+    constats: [PT-08]
+    correctif-structurel: >-
+      Limitation de débit par compte, par adresse et par organisation, avec
+      réponses graduées plutôt que verrouillage — un verrouillage se retourne en
+      déni de service. Second facteur, et comparaison des mots de passe aux
+      corpus d'identifiants déjà divulgués.
+    test: verify/security.test.ts
+    equipe: '@novafact/plateforme'
+    echeance: 2026-11-28
+
+  - classe: money-float
+    cwe: CWE-681
+    fichier: server/routes/invoices.ts
+    constats: [PT-10]
+    correctif-structurel: >-
+      Représenter les montants en centimes entiers, imposer par schéma des
+      quantités entières strictement positives et des prix unitaires positifs,
+      recalculer le total côté serveur et vérifier l'invariant avant toute
+      persistance. Un montant ne se stocke pas en virgule flottante.
+    test: verify/security.test.ts
+    equipe: '@novafact/facturation'
+    echeance: 2026-11-28

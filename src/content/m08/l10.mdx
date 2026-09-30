@@ -1,0 +1,209 @@
+export const questions = [
+  {
+    q: "Comment traiter les fichiers téléversés par les clients (pièces jointes de factures) ?",
+    options: [
+      "Réception par l'API, analyse antivirus en ligne, puis écriture dans le bucket des factures",
+      "Stockage dans le bucket des factures, servi par des URL présignées de courte durée",
+      "Envoi direct vers un bucket de quarantaine, traitement isolé, service depuis un autre domaine",
+      "Contrôle du type MIME et de la signature magique avant tout enregistrement",
+    ],
+    answer: 2,
+    explain: "Chaque étape isole une conséquence : le fichier n'atteint jamais le processus de l'API, le traitement se fait à l'écart avec des droits minimaux, et le contenu est servi depuis une autre origine pour qu'un HTML piégé ne s'exécute pas dans le domaine de l'application. Analyser à la volée dans l'API est le schéma le plus répandu, et il place l'analyseur — le composant le plus exposé — au cœur du service. Vérifier type et signature est nécessaire mais ne dit rien du contenu.",
+  },
+  {
+    q: "Qu'apporte la tokenisation des données de carte ?",
+    options: [
+      "Le numéro est chiffré avec une clé propre au client, que Novafact conserve",
+      "Novafact ne manipule qu'un jeton sans valeur hors du prestataire qui l'a émis",
+      "Le numéro est remplacé par ses quatre derniers chiffres et le nom du réseau",
+      "Le prestataire signe la transaction, ce qui dispense de conserver la carte",
+    ],
+    answer: 1,
+    explain: "Un jeton n'a de valeur que pour le prestataire qui l'a émis : une fuite chez Novafact ne révèle aucune carte, et le périmètre PCI se réduit d'autant. La confusion classique est avec le chiffrement — si tu détiens la clé, tu détiens les cartes, et le périmètre reste entier — et avec le masquage, qui protège bien mais ne permet plus de rejouer un paiement.",
+  },
+  {
+    q: "L'API gateway de Novafact vérifie le JWT et transmet l'identité aux services dans un en-tête X-User-Id. Quel est le risque principal ?",
+    options: [
+      "Si un service est joignable hors de la gateway, n'importe qui peut forger cet en-tête",
+      "La gateway devient un point unique de panne pour l'authentification de tous les services",
+      "Les services ne peuvent plus vérifier l'expiration du jeton d'origine",
+      "Un proxy intermédiaire peut normaliser l'en-tête et en altérer la casse",
+    ],
+    answer: 0,
+    explain: "Un en-tête non signé ne vaut que par la topologie du réseau : il suffit d'un service compromis, d'une SSRF ou d'un port oublié pour que l'affirmation « je suis l'utilisateur 42 » devienne gratuite. Le point unique de panne est réel, mais c'est une question de disponibilité, et la gateway doit de toute façon rester le seul chemin. La réponse est un jeton interne signé, avec une audience, que chaque service vérifie où qu'il soit.",
+  },
+  {
+    q: "Pourquoi le worker qui convertit les PDF envoyés par les clients n'a-t-il ni rôle IAM large, ni accès réseau sortant, ni accès aux métadonnées d'instance en IMDSv1 ?",
+    options: [
+      "Parce que la bibliothèque de conversion n'a pas besoin du réseau pour fonctionner",
+      "Parce que le worker traite des données personnelles soumises au RGPD",
+      "Parce qu'IMDSv1 est déprécié par AWS et disparaîtra des nouvelles instances",
+      "Parce qu'un analyseur de format complexe est le point d'exécution le plus probable",
+    ],
+    answer: 3,
+    explain: "On suppose la compromission du composant le plus exposé et on borne ce qu'elle permet : pas de rôle large à voler, pas de canal d'exfiltration, pas d'identifiants au bout d'une simple requête vers 169.254.169.254. Dire que la conversion n'a pas besoin du réseau est vrai et c'est ce qui rend la mesure indolore, mais ce n'est pas ce qui la justifie : on la prendrait même si elle coûtait. Et IMDSv2 n'est pas qu'une question de cycle de vie, il exige un jeton obtenu par PUT, ce qu'une SSRF simple ne sait pas produire.",
+  },
+];
+
+<YouKnow>
+Tu as exploité des architectures où la passerelle faisait confiance à tout ce qui venait de l'intérieur, ou des uploads servis depuis le domaine principal. Cette leçon rassemble les patterns qui rendent ces erreurs difficiles à commettre.
+</YouKnow>
+
+## Les patterns d'architecture de Novafact
+
+| Pattern | Rôle en sécurité | Point d'attention |
+| --- | --- | --- |
+| **API gateway** | Authentification, limitation de débit, journalisation à l'entrée | Ne dispense pas les services de vérifier l'autorisation (Accept Security Responsibility) |
+| **BFF** (Backend for Frontend) | Garde les jetons OAuth côté serveur ; le navigateur n'a qu'un cookie de session | Protection CSRF sur le BFF (M9) |
+| **Services internes** | Chacun avec ses données et son rôle IAM | Authentification entre services, jamais « tout ce qui est interne est fiable » |
+| **Événements et files** (SQS, EventBridge) | Découplage, résilience | Valider le schéma des messages, contrôler qui peut publier, idempotence |
+| **Tokenisation** | Remplacer une donnée sensible par un jeton sans valeur hors du système émetteur | Le système de tokenisation devient critique |
+
+Chaque pattern **déplace** un contrôle vers un point où il est plus facile à appliquer uniformément. Le risque symétrique est de croire que le contrôle a disparu des autres endroits. Les sections suivantes regardent ce que chaque pattern fait vraiment, et ce qu'il ne fait pas.
+
+## La gateway : un filtre, pas une autorité
+
+Une API gateway fait bien ce qui est **uniforme** : terminer TLS, vérifier qu'un jeton est valide, limiter le débit, appliquer un WAF, journaliser, rejeter les requêtes hors schéma. Elle fait mal ce qui dépend du **métier** : savoir si la facture demandée appartient au tenant de l'appelant. Kohnfelder avertit contre la conception en « coque dure, intérieur mou » : elle ne tient que si rien ne contourne la coque.
+
+Le piège classique est l'en-tête d'identité posé par la gateway (`X-User-Id`, `X-Tenant-Id`) et cru sur parole par les services. Il suffit qu'un service soit joignable par un autre chemin (un autre service compromis, une SSRF, un port exposé par erreur) pour que n'importe qui forge l'en-tête. Novafact transmet plutôt un **jeton interne signé**, de courte durée, avec une audience par service, que chaque service vérifie :
+
+<Code file="services/billing/src/auth/internalToken.ts" hl="8,9">
+
+```ts
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
+const JWKS = createRemoteJWKSet(new URL('https://auth.internal.novafact.example/.well-known/jwks.json'));
+
+export async function verifyInternalToken(token: string) {
+  const { payload } = await jwtVerify(token, JWKS, {
+    issuer: 'https://auth.internal.novafact.example',
+    audience: 'billing',         // un jeton émis pour le service PDF ne vaut rien ici
+    maxTokenAge: '2m',
+    algorithms: ['EdDSA'],
+  });
+  return { userId: payload.sub!, tenantId: payload.tenant_id as string, scopes: payload.scope as string };
+}
+```
+
+</Code>
+
+## Authentifier entre services
+
+« C'est dans le VPC, donc c'est fiable » est un reflux de confiance en puissance. Les options :
+
+- **IAM** : les services AWS s'appellent avec leurs rôles (SigV4) ;
+- **jetons de service** courts, signés par un émetteur interne, avec audience (comme ci-dessus) ;
+- **mTLS** avec des identités de charge de travail (SPIFFE), pour des architectures plus larges.
+
+Et chaque service vérifie l'autorisation pour le compte de l'utilisateur d'origine, en propageant son contexte (anti *confused deputy*, leçon 3). Quand un service doit en appeler un autre au nom de l'utilisateur, l'échange de jetons (RFC 8693, M9) produit un jeton pour le service suivant, avec une audience et des droits réduits, plutôt que de relayer le jeton reçu.
+
+## Les événements et les files
+
+Un message dans une file est une **entrée non fiable** comme une autre : quelqu'un l'a publié, et ce quelqu'un a peut-être été compromis. Trois règles chez Novafact : la politique de la file SQS n'autorise que le producteur attendu à publier ; le consommateur valide chaque message avec un schéma ; et le traitement est **idempotent**, parce que SQS garantit au moins une livraison, pas exactement une.
+
+<Code file="services/notifications/src/handler.ts" hl="15,16,17">
+
+```ts
+import type { SQSEvent, SQSBatchResponse } from 'aws-lambda';
+import { z } from 'zod';
+
+const InvoiceSent = z.object({
+  eventId: z.string().uuid(),
+  tenantId: z.string().uuid(),
+  invoiceId: z.string().uuid(),
+}).strict();
+
+export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
+  const failures: { itemIdentifier: string }[] = [];
+  for (const record of event.Records) {
+    let body: unknown = null;
+    try { body = JSON.parse(record.body); } catch { /* corps malformé : traité comme invalide */ }
+    const parsed = InvoiceSent.safeParse(body);
+    if (!parsed.success) { logger.warn({ id: record.messageId }, 'message invalide'); continue; } // pas de rejeu infini
+    try { await notifyOnce(parsed.data); }                      // idempotent sur eventId
+    catch { failures.push({ itemIdentifier: record.messageId }); } // seul ce message sera relivré
+  }
+  return { batchItemFailures: failures };
+}
+```
+
+</Code>
+
+Un message invalide n'est pas relivré en boucle : il est journalisé (ou envoyé dans une file de lettres mortes) pour investigation. Un message valide dont le traitement échoue est signalé individuellement, pour ne pas rejouer tout le lot.
+
+## Le pipeline de téléversement
+
+<Steps items={[
+  { title: "Envoi direct", text: "Le navigateur envoie le fichier vers un bucket de quarantaine grâce à une URL présignée, limitée en taille, en type et en durée. Le fichier ne passe jamais par l'API." },
+  { title: "Analyse isolée", text: "Une fonction sans accès réseau sortant analyse le fichier (antivirus, type réel, taille) et le convertit si besoin (PDF aplati, image réencodée)." },
+  { title: "Publication", text: "Les fichiers validés sont copiés dans un bucket distinct ; la quarantaine est purgée automatiquement." },
+  { title: "Service", text: "Les fichiers sont servis depuis un domaine séparé (novafact-usercontent.example), avec Content-Disposition: attachment et un type forcé." },
+]} />
+
+Pour l'envoi, un **POST présigné** est plus strict qu'un PUT présigné : sa politique signée peut imposer une plage de taille et un type de contenu, que S3 vérifie lui-même.
+
+<Code file="apps/api/src/uploads/presign.ts" hl="9,10">
+
+```ts
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
+import { randomUUID } from 'node:crypto';
+
+export async function presignAttachment(tenantId: TenantId) {
+  const key = `quarantine/${tenantId}/${randomUUID()}`; // nom choisi par le serveur, jamais par le client
+  return createPresignedPost(s3, {
+    Bucket: 'novafact-uploads-quarantine',
+    Key: key,
+    Conditions: [
+      ['content-length-range', 1, 10 * 1024 * 1024], // 10 Mo maximum
+      { 'Content-Type': 'application/pdf' },
+    ],
+    Fields: { 'Content-Type': 'application/pdf' },
+    Expires: 300,
+  });
+}
+```
+
+</Code>
+
+Le type déclaré reste une déclaration : c'est l'analyse isolée qui vérifie le type **réel** du contenu.
+
+## Isoler ce qui est risqué
+
+Tout traitement de contenu non fiable complexe (rendu de PDF, conversion d'images, templates clients, code généré par l'IA) s'exécute **à l'écart** : une fonction ou un conteneur dédié, sans secrets, sans accès réseau inutile, avec des limites de temps et de mémoire. C'est la conclusion commune des modules 2 et 3 : l'isolation se fait au niveau du processus. Le raisonnement est celui de la leçon 1 : on **suppose** que l'analyseur le plus exposé finira par être compromis, et on borne ce que cette compromission permet.
+
+<Callout kind="case">
+**Capital One (2019)**. Un pare-feu applicatif mal configuré, hébergé sur EC2, permettait des requêtes de type SSRF. L'attaquante s'en est servie pour interroger le service de métadonnées de l'instance, en récupérer les identifiants temporaires du rôle IAM associé, puis lire des buckets S3. Capital One a annoncé environ 100 millions de personnes touchées aux États-Unis et 6 millions au Canada. Deux mesures structurelles auraient borné l'incident : un rôle IAM limité au strict besoin du pare-feu, et **IMDSv2**, qui exige un jeton de session obtenu par une requête PUT, ce qu'une SSRF simple ne sait généralement pas produire.
+</Callout>
+
+## La tokenisation
+
+La **tokenisation** remplace une donnée sensible par un jeton qui n'a de sens que pour le système qui l'a émis. Pour les cartes, Novafact utilise les champs de paiement hébergés de son prestataire : le numéro de carte ne transite jamais par ses serveurs, qui ne reçoivent qu'un jeton. Le périmètre PCI DSS se réduit fortement, sans disparaître : la page qui intègre le formulaire du prestataire reste concernée, notamment pour les scripts qu'elle charge (leçon 3).
+
+Le même pattern sert en interne pour les IBAN : un petit **service coffre-fort**, avec sa propre base, sa propre clé KMS et un rôle IAM que lui seul possède, stocke les IBAN et renvoie des jetons (`ibantok_…`). Les autres services manipulent des jetons ; seul le service de virement peut demander la valeur en clair, et chaque demande est journalisée. Une fuite de la base principale ne révèle plus aucun IBAN. Le coffre-fort devient en revanche un composant critique : sa disponibilité conditionne les virements, et son périmètre doit rester minuscule pour rester auditable.
+
+## Les propriétés non fonctionnelles
+
+La conception précise aussi les propriétés attendues sous contrainte : comportement en cas de panne d'un service (échec sûr), limites de charge, délais d'expiration, reprise après incident. Un appel sans délai d'expiration vers un service lent bloque des ressources jusqu'à l'épuisement ; un disjoncteur qui, en cas de panne du service d'autorisation, « laisse passer pour ne pas bloquer » transforme une panne en faille (leçon 2).
+
+L'**architecture opérationnelle** (topologie de déploiement, pipeline, accès d'exploitation) fait partie de la conception au même titre que le code (M14 et M17) : le pipeline qui déploie en production a plus de pouvoir que n'importe quel service, et mérite la même revue.
+
+<Recap items={[
+  "Chaque pattern déplace un contrôle ; il ne dispense pas les autres composants d'assumer leur part.",
+  "La gateway filtre, les services décident : un jeton interne signé avec audience plutôt qu'un en-tête d'identité cru sur parole.",
+  "Les messages de file sont des entrées non fiables : producteurs restreints, schéma validé, traitement idempotent.",
+  "Téléversement : POST présigné avec taille et type, quarantaine, analyse isolée sans réseau ni droits, domaine séparé.",
+  "Tokenisation (cartes chez le prestataire, IBAN dans un coffre-fort interne) et isolation bornent le pire cas.",
+]} />
+
+<Lab id="ps-file-upload" />
+
+<Sources items={[
+  { title: "OWASP Cheat Sheet : File Upload", url: "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Microservices Security", url: "https://cheatsheetseries.owasp.org/cheatsheets/Microservices_Security_Cheat_Sheet.html" },
+  { title: "AWS : URL présignées S3", url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html" },
+  { title: "AWS : politique d'un POST S3 (conditions)", url: "https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-HTTPPOSTConstructPolicy.html" },
+  { title: "AWS Lambda : erreurs partielles de lot SQS", url: "https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-errorhandling.html" },
+  { title: "AWS : configurer IMDSv2", url: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html" },
+  { title: "Krebs on Security : What We Can Learn from the Capital One Hack", url: "https://krebsonsecurity.com/2019/08/what-we-can-learn-from-the-capital-one-hack/" },
+  { title: "SPIFFE", url: "https://spiffe.io/" },
+]} />

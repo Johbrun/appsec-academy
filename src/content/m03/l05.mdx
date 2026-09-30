@@ -1,0 +1,181 @@
+export const questions = [
+  {
+    q: "Quelle est la cause racine d'une désynchronisation HTTP (request smuggling) ?",
+    options: [
+      "Un proxy réutilise une connexion amont pour plusieurs utilisateurs",
+      "Deux composants ne s'accordent pas sur la fin d'une requête",
+      "Le backend accepte à la fois Content-Length et Transfer-Encoding",
+      "Un WAF n'analyse pas les corps découpés en blocs (chunked)",
+    ],
+    answer: 1,
+    explain: "La réutilisation des connexions amont est ce qui rend l'attaque grave — sans elle, l'attaquant ne polluerait que sa propre requête — mais elle n'est pas le défaut : partager une connexion est parfaitement légitime. Le conflit Content-Length / Transfer-Encoding n'est qu'une variante parmi d'autres, à côté de CL.0, 0.CL et de celles autour d'Expect. La cause racine est plus haut : HTTP/1.1 laisse deux implémentations conformes délimiter un message différemment.",
+  },
+  {
+    q: "Quelle recommandation d'architecture ressort de « HTTP/1.1 must die » (2025) ?",
+    options: [
+      "Parler HTTP/2 en amont, entre le proxy et le backend",
+      "Imposer HTTP/2 ou HTTP/3 aux navigateurs, côté client",
+      "Désactiver la réutilisation des connexions entre proxy et backend",
+      "Ajouter une règle WAF pour chaque variante de désynchronisation connue",
+    ],
+    answer: 0,
+    explain: "Imposer HTTP/2 côté navigateur est l'erreur de lecture la plus répandue : ces connexions ne sont presque jamais partagées entre utilisateurs, donc leur protocole importe peu. Couper la réutilisation amont supprime bien le vecteur, mais c'est une mesure locale et coûteuse en performance, pas l'architecture cible. Et les règles par variante ne suivent pas le rythme de la recherche. HTTP/2 délimite chaque message sans ambiguïté.",
+  },
+  {
+    q: "Quel mode de protection de l'ALB n'accepte que des requêtes conformes à la RFC ?",
+    options: ["Monitor", "Defensive", "Strictest", "Compliant"],
+    answer: 2,
+    explain: "« Compliant » est une classification de requête, pas un mode : l'ALB étiquette chaque requête Compliant, Acceptable, Ambiguous ou Severe. Monitor se contente de classer et de journaliser. Defensive, le mode par défaut, bloque les Severe et ferme les connexions client et cible sur les Ambiguous. Seul Strictest ne laisse passer que ce qui est classé Compliant, d'où l'intérêt de mesurer en Monitor avant de basculer.",
+  },
+  {
+    q: "Le CDN de Novafact parle HTTP/2 avec les navigateurs, puis réécrit les requêtes en HTTP/1.1 vers l'origine. Est-ce une protection contre la désynchronisation ?",
+    options: [
+      "Oui : le client ne peut plus envoyer de requête ambiguë au CDN",
+      "Oui, à condition que l'origine refuse tout en-tête Transfer-Encoding",
+      "Non, mais seulement si le CDN ne normalise pas les en-têtes recopiés",
+      "Non : c'est la connexion amont qui compte, et la conversion ajoute des variantes",
+    ],
+    answer: 3,
+    explain: "« Le client ne peut plus envoyer de requête ambiguë » est vrai pour ce premier saut, et sans effet : la connexion navigateur-CDN n'étant pas partagée, une désynchronisation n'y toucherait que l'attaquant lui-même. Refuser Transfer-Encoding à l'origine ferme une famille de variantes, pas celles qui jouent sur Content-Length ou sur Expect. Et la conversion vers HTTP/1.1 crée ses propres pièges, H2.CL et H2.TE.",
+  },
+];
+
+<YouKnow>
+Tu as fait les labs de request smuggling (CL.TE, TE.CL, H2.CL, client-side desync) et tu as peut-être suivi les présentations de James Kettle. On se concentre ici sur la cause racine, l'architecture qui l'élimine, ce qu'on fait quand on ne peut pas l'éliminer, et la détection.
+</YouKnow>
+
+## Le mécanisme, en une phrase
+
+Une requête HTTP/1.1 traverse plusieurs composants (CDN, load balancer, serveur Node) qui **réutilisent des connexions** entre eux. Si deux composants ne délimitent pas une requête de la même façon, par exemple parce qu'ils ne résolvent pas pareil un conflit entre `Content-Length` et `Transfer-Encoding`, des octets de la requête d'un attaquant sont lus par le backend comme **le début de la requête suivante**, qui peut être celle d'un autre utilisateur.
+
+Les conséquences : contourner des contrôles appliqués par le front, capturer la requête d'une victime (et ses cookies), empoisonner des caches, ou désaligner la file des réponses pour que des utilisateurs reçoivent les réponses destinées à d'autres.
+
+Pourquoi HTTP/1.1 est-il si fragile ? Parce qu'il existe **trois façons** d'indiquer la fin d'un message (longueur explicite, découpage en blocs, fermeture de connexion), plus des cas particuliers (`HEAD`, `Expect: 100-continue`, en-têtes `Connection`) qui interagissent entre eux. Un proxy doit tous les interpréter exactement comme le composant suivant. Chaque divergence, même minuscule, devient une faille critique, car elle touche une connexion **partagée entre utilisateurs**.
+
+## L'évolution de la recherche
+
+| Période | Apport |
+| --- | --- |
+| 2019 | Remise au goût du jour des désynchronisations CL.TE et TE.CL |
+| 2021 | Désynchronisations via la rétrogradation de HTTP/2 vers HTTP/1.1 par le front |
+| 2022 | Désynchronisations côté client (dans le navigateur de la victime) et basées sur les pauses |
+| 2025 | *HTTP/1.1 must die* : nouvelles classes (dont 0.CL et variantes autour de `Expect`) qui ont touché des CDN majeurs |
+| 2026 | *CRLF-Powered Desync Attacks*, et un système d'IA (*HTTP Terminator*) qui invente des variantes (leçon 13) |
+
+La conclusion de 2025 est une thèse d'architecture : **l'ambiguïté est inhérente à HTTP/1.1** dès qu'on enchaîne des composants. Corriger variante par variante ne suit pas le rythme. HTTP/2 délimite les messages sans ambiguïté : c'est un protocole binaire où chaque trame annonce sa longueur. Il aura ses bugs d'implémentation, mais la probabilité qu'un bug donne une désynchronisation exploitable est bien plus faible.
+
+<Callout kind="case">
+Dans *HTTP/1.1 must die*, Kettle décrit une divergence dans l'ALB d'AWS : un en-tête `Host` malformé et légèrement obfusqué est ignoré par l'ALB mais lu par certains backends (une divergence « caché d'un côté, visible de l'autre »). AWS connaissait le comportement et ne l'a pas corrigé par défaut, pour ne pas casser d'anciens clients HTTP/1 qui envoient des requêtes malformées. La parade tient en deux attributs de l'ALB : `routing.http.drop_invalid_header_fields.enabled` et `routing.http.desync_mitigation_mode = strictest`. La leçon qu'il en tire vaut pour tout service managé : **adopter un proxy cloud, c'est importer la dette technique d'un autre dans ta posture de sécurité**, et les réglages sûrs ne sont pas toujours ceux par défaut.
+</Callout>
+
+## Une idée reçue : HTTP/2 côté client suffit
+
+Beaucoup d'équipes voient « HTTP/2 » dans la console du CDN et se croient protégées. Or le danger est sur les connexions **amont**, réutilisées entre utilisateurs. Les connexions navigateur vers CDN ne sont presque jamais partagées : les laisser en HTTP/1.1 n'est pas le problème. À l'inverse, un front qui parle HTTP/2 au client puis **rétrograde** en HTTP/1.1 vers l'origine n'apporte presque rien, et ouvre les variantes H2.CL et H2.TE, où la longueur annoncée en HTTP/2 et les en-têtes recopiés en HTTP/1.1 se contredisent.
+
+## Ce que l'infrastructure permet vraiment
+
+Chez Novafact, la chaîne est CloudFront, puis l'ALB, puis Node. En relisant la documentation AWS, l'équipe a découvert deux contraintes qui empêchent « HTTP/2 de bout en bout » :
+
+| Saut | Protocole possible | Source de la contrainte |
+| --- | --- | --- |
+| Navigateur vers CloudFront | HTTP/2 ou HTTP/3 | Sans enjeu : connexion non partagée |
+| CloudFront vers ALB | **HTTP/1.1 uniquement** | La documentation CloudFront indique qu'il transmet aux origines personnalisées en HTTP/1.1 ; Kettle cite CloudFront parmi les fournisseurs sans HTTP/2 amont |
+| ALB vers Node | HTTP/1.1, ou HTTP/2 si la requête entrante est en HTTP/2 | Un target group en version HTTP/2 renvoie une erreur pour une requête reçue en HTTP/1.1, et exige un écouteur HTTPS |
+
+Conséquence : derrière CloudFront, le target group doit rester en HTTP/1.1, et toute la partie amont de la chaîne est en HTTP/1.1. La recommandation de principe (HTTP/2 en amont) reste la cible, mais il faut une stratégie pour **survivre en HTTP/1.1** en attendant.
+
+## Survivre avec HTTP/1.1 en amont
+
+<Steps items={[
+  { title: "Moins de maillons", text: "Chaque proxy supplémentaire est un parser supplémentaire. Évite les proxys HTTP/1.1 maison entre l'ALB et Node, et demande-toi si chaque couche est nécessaire : une API non cachable a-t-elle besoin du CDN ?" },
+  { title: "Normalisation maximale au front", text: "ALB en mode strictest et suppression des en-têtes invalides : les requêtes ambiguës sont bloquées avant d'atteindre une connexion partagée." },
+  { title: "Parsers stricts au backend", text: "Le parser HTTP de Node (llhttp) est strict par défaut : ne jamais activer --insecure-http-parser ni l'option insecureHTTPParser, même pour « dépanner » un client." },
+  { title: "Refuser les corps inattendus", text: "Rejeter et fermer la connexion pour un GET, HEAD ou OPTIONS qui annonce un corps : c'est la matière première de nombreuses variantes (CL.0, 0.CL)." },
+  { title: "Connexions non partagées si besoin", text: "Pour un backend exposé qui ne peut pas être durci, désactiver la réutilisation des connexions amont supprime le vecteur, au prix de la performance." },
+  { title: "Scanner régulièrement", text: "Passer HTTP Request Smuggler (extension Burp de Kettle) sur les environnements de préproduction après chaque changement d'infrastructure." },
+]} />
+
+<Code file="infra/alb.tf">
+
+```hcl
+resource "aws_lb" "api" {
+  name                       = "novafact-api"
+  load_balancer_type         = "application"
+  subnets                    = var.public_subnets
+  security_groups            = [aws_security_group.alb_from_cloudfront.id]
+  desync_mitigation_mode     = "strictest"
+  drop_invalid_header_fields = true
+
+  access_logs {
+    bucket  = aws_s3_bucket.lb_logs.id
+    prefix  = "api"
+    enabled = true
+  }
+}
+```
+
+</Code>
+
+<Code file="apps/api/src/middleware/noBodyOnSafeMethods.ts">
+
+```ts
+const BODYLESS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+// Un GET avec corps n'a pas d'usage légitime chez Novafact : on refuse et on coupe la connexion.
+export function noBodyOnSafeMethods(req: Request, res: Response, next: NextFunction) {
+  const len = Number(req.headers['content-length'] ?? 0);
+  if (BODYLESS.has(req.method) && (len > 0 || req.headers['transfer-encoding'])) {
+    logger.warn({ method: req.method, len, te: req.headers['transfer-encoding'] }, 'http.unexpected_body');
+    res.set('Connection', 'close');
+    return res.status(400).end();
+  }
+  next();
+}
+```
+
+</Code>
+
+Le `Connection: close` n'est pas décoratif : après une requête dont on n'est pas sûr de la fin, la seule attitude sûre est de ne **pas** réutiliser la connexion. C'est d'ailleurs ce que fait l'ALB en mode `defensive` pour les requêtes classées ambiguës : il les transmet, mais ferme les connexions client et cible.
+
+## Détecter
+
+L'ALB classe chaque requête non conforme (`Acceptable`, `Ambiguous`, `Severe`) et écrit cette classification dans ses **journaux d'accès**, avec un code de raison (`BothTeClPresent`, `MultipleContentLength`, `SuspiciousHeader`…). La métrique CloudWatch `DesyncMitigationMode_NonCompliant_Request_Count` donne la tendance. Envoie les journaux dans Elastic (M18), où l'intégration AWS les range dans `aws.elb.classification` et `aws.elb.classification_reason` :
+
+<Code file="detections/alb-desync-probing.esql">
+
+```sql
+FROM logs-aws.elb_logs-*
+| WHERE aws.elb.classification IN ("Ambiguous", "Severe")
+| STATS requests = COUNT(*), reasons = VALUES(aws.elb.classification_reason) BY source.ip
+| WHERE requests > 20
+| SORT requests DESC
+```
+
+</Code>
+
+Une montée soudaine des requêtes ambiguës depuis quelques adresses est un signal clair de sondage. La même requête, lancée **avant** le passage en `strictest`, mesure les clients légitimes qui seraient bloqués : c'est elle qui transforme un réglage risqué en décision chiffrée.
+
+<Callout kind="novafact">
+Audit de la chaîne Novafact : CloudFront, puis l'ALB, puis Node, avec un proxy nginx ajouté un jour pour réécrire des URL. Décisions : supprimer nginx (réécritures déplacées dans CloudFront Functions), ALB en `monitor` pendant deux semaines pour mesurer, puis `strictest` avec suppression des en-têtes invalides (trois intégrateurs partenaires envoyaient des en-têtes non conformes, prévenus avant la bascule), middleware de refus des corps inattendus, et scan HTTP Request Smuggler trimestriel. HTTP/2 en amont reste inscrit dans la feuille de route, à réévaluer à chaque évolution de CloudFront.
+</Callout>
+
+<Recap items={[
+  "La désynchronisation vient de deux composants qui ne délimitent pas une requête de la même façon, sur une connexion partagée.",
+  "Conséquences : contournement de contrôles, vol de requêtes d'autres utilisateurs, empoisonnement de cache, réponses mélangées.",
+  "La cible est HTTP/2 en amont ; HTTP/2 côté client seul, ou rétrogradé, ne protège pas.",
+  "Sur AWS, CloudFront parle HTTP/1.1 aux origines et un target group HTTP/2 refuse les requêtes HTTP/1.1 : il faut savoir survivre en HTTP/1.1.",
+  "Survivre : moins de maillons, ALB strictest et en-têtes invalides supprimés, parsers stricts, corps inattendus refusés, scans réguliers.",
+  "La classification des journaux de l'ALB sert à détecter les sondages et à mesurer l'impact des réglages.",
+]} />
+
+<Lab id="ps-smuggling" note="Fais les labs avancés et browser-powered, puis relis chacun en te demandant quel réglage de la chaîne Novafact l'aurait rendu impossible." />
+
+<Sources items={[
+  { title: "PortSwigger Research : HTTP/1.1 must die", url: "https://portswigger.net/research/http1-must-die" },
+  { title: "Web Security Academy : HTTP request smuggling", url: "https://portswigger.net/web-security/request-smuggling" },
+  { title: "AWS : attributs de l'ALB (desync mitigation mode)", url: "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html" },
+  { title: "AWS : HTTP Desync Guardian", url: "https://github.com/aws/http-desync-guardian" },
+  { title: "AWS : journaux d'accès de l'ALB (classification et codes de raison)", url: "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-access-logs.html" },
+  { title: "AWS : target groups et version de protocole", url: "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html" },
+  { title: "AWS : comportement de CloudFront avec une origine personnalisée", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RequestAndResponseBehaviorCustomOrigin.html", note: "section HTTP version" },
+]} />

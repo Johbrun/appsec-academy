@@ -1,0 +1,253 @@
+# Modèle de flux de données de Novafact — livrable de référence.
+#
+# Un flux n'est pas une route : c'est un faisceau de routes qui partagent une
+# source, une destination et un niveau de confiance. Ce qui compte, c'est
+# qu'aucune route montée ne reste dehors.
+name: Novafact
+
+boundaries:
+  - id: internet
+    label: Internet — tout ce qui vient du navigateur d'un client
+  - id: vpc
+    label: VPC Novafact — les processus applicatifs
+  - id: aws
+    label: Plan de contrôle AWS — hors de l'application, joignable depuis elle
+
+elements:
+  - id: visiteur-anonyme
+    type: actor
+    boundary: internet
+    label: Visiteur non authentifié
+  - id: client-locataire
+    type: actor
+    boundary: internet
+    label: Utilisateur d'un tenant
+  - id: admin-novafact
+    type: actor
+    boundary: internet
+    label: Administrateur Novafact
+  - id: api-plateforme
+    type: process
+    boundary: vpc
+    label: Point d’entrée Express et santé
+    file: server/index.ts
+  - id: api-administration
+    type: process
+    boundary: vpc
+    label: Console d’administration Novafact
+    file: server/routes/admin.ts
+  - id: api-assistant
+    type: process
+    boundary: vpc
+    label: Assistant « Ask Novafact » et ses outils
+    file: server/routes/assistant.ts
+  - id: api-pieces-jointes
+    type: process
+    boundary: vpc
+    label: Dépôt et téléchargement des pièces jointes
+    file: server/routes/attachments.ts
+  - id: api-authentification
+    type: process
+    boundary: vpc
+    label: Connexion, inscription, réinitialisation
+    file: server/routes/auth.ts
+  - id: api-identite-visuelle
+    type: process
+    boundary: vpc
+    label: Identité visuelle servie derrière un cache
+    file: server/routes/branding.ts
+  - id: api-avoirs
+    type: process
+    boundary: vpc
+    label: Avoirs et remboursements
+    file: server/routes/credits.ts
+  - id: api-facturation
+    type: process
+    boundary: vpc
+    label: Cycle de vie des factures
+    file: server/routes/invoices.ts
+  - id: api-profil
+    type: process
+    boundary: vpc
+    label: Profil de l’utilisateur connecté
+    file: server/routes/profile.ts
+  - id: api-reglages
+    type: process
+    boundary: vpc
+    label: Réglages du tenant et export comptable
+    file: server/routes/settings.ts
+  - id: api-webhooks
+    type: process
+    boundary: vpc
+    label: Webhooks sortants vers les systèmes du client
+    file: server/routes/webhooks.ts
+    client_controlled_url: true
+  - id: magasin-factures
+    type: store
+    boundary: vpc
+    label: Factures, lignes et avoirs
+    encrypted: false
+    tenant_scoped: false
+  - id: magasin-comptes
+    type: store
+    boundary: vpc
+    label: Comptes, mots de passe et jetons
+    encrypted: false
+    tenant_scoped: true
+  - id: magasin-pieces-jointes
+    type: store
+    boundary: vpc
+    label: Pièces jointes des factures
+    encrypted: false
+    tenant_scoped: false
+  - id: imds
+    type: external
+    boundary: aws
+    label: Service de métadonnées d'instance (IMDSv1)
+    metadata_service: true
+
+flows:
+  - id: f01-api-plateforme-anon
+    from: visiteur-anonyme
+    to: api-plateforme
+    authenticated: false
+    routes:
+      - "GET /api/debug/config"
+      - "GET /api/health"
+  - id: f02-api-administration-admin
+    from: admin-novafact
+    to: api-administration
+    authenticated: true
+    routes:
+      - "GET /api/admin/audit"
+      - "GET /api/admin/users"
+  - id: f03-api-administration-anon
+    from: visiteur-anonyme
+    to: api-administration
+    authenticated: false
+    routes:
+      - "GET /api/admin/exports/ledger"
+      - "POST /api/internal/rotate-keys"
+  - id: f04-api-assistant-auth
+    from: client-locataire
+    to: api-assistant
+    authenticated: true
+    routes:
+      - "GET /api/assistant/pending"
+      - "GET /api/assistant/tools"
+      - "POST /api/assistant"
+      - "POST /api/assistant/approve"
+      - "POST /api/assistant/review"
+  - id: f05-api-pieces-jointes-auth
+    from: client-locataire
+    to: api-pieces-jointes
+    authenticated: true
+    routes:
+      - "GET /api/attachments/*"
+      - "GET /api/attachments/logo/:tenantId"
+      - "GET /api/attachments/u/:id"
+      - "POST /api/attachments"
+      - "POST /api/attachments/logo"
+  - id: f06-api-authentification-anon
+    from: visiteur-anonyme
+    to: api-authentification
+    authenticated: false
+    routes:
+      - "GET /api/auth/directory"
+      - "GET /api/auth/prefs"
+      - "POST /api/auth/forgot"
+      - "POST /api/auth/login"
+      - "POST /api/auth/logout"
+      - "POST /api/auth/prefs"
+      - "POST /api/auth/register"
+      - "POST /api/auth/register/partner"
+      - "POST /api/auth/reset"
+  - id: f07-api-authentification-auth
+    from: client-locataire
+    to: api-authentification
+    authenticated: true
+    routes:
+      - "GET /api/auth/deployment/:tenantId/whoami"
+  - id: f08-api-identite-visuelle-anon
+    from: visiteur-anonyme
+    to: api-identite-visuelle
+    authenticated: false
+    routes:
+      - "GET /api/branding"
+  - id: f09-api-avoirs-auth
+    from: client-locataire
+    to: api-avoirs
+    authenticated: true
+    routes:
+      - "GET /api/credits"
+      - "POST /api/credits/apply"
+      - "POST /api/credits/drafts"
+      - "POST /api/credits/drafts/:id/issue"
+      - "POST /api/credits/drafts/:id/lines"
+  - id: f10-api-facturation-auth
+    from: client-locataire
+    to: api-facturation
+    authenticated: true
+    routes:
+      - "DELETE /api/invoices/:id"
+      - "GET /api/invoices"
+      - "GET /api/invoices/:id"
+      - "GET /api/invoices/:id/share"
+      - "GET /api/invoices/:id/view"
+      - "GET /api/invoices/lookup"
+      - "GET /api/invoices/search"
+      - "GET /api/invoices/track.gif"
+      - "PATCH /api/invoices/:id"
+      - "POST /api/invoices"
+      - "POST /api/invoices/:id/pay"
+      - "POST /api/invoices/:id/refund"
+      - "POST /api/invoices/:id/reissue"
+      - "POST /api/invoices/:id/send"
+      - "POST /api/invoices/query"
+  - id: f11-api-profil-auth
+    from: client-locataire
+    to: api-profil
+    authenticated: true
+    routes:
+      - "GET /api/me"
+      - "PATCH /api/me"
+  - id: f12-api-reglages-auth
+    from: client-locataire
+    to: api-reglages
+    authenticated: true
+    routes:
+      - "GET /api/export"
+      - "GET /api/platform"
+      - "GET /api/settings"
+      - "POST /api/settings/penalty"
+      - "PUT /api/settings"
+  - id: f13-api-webhooks-auth
+    from: client-locataire
+    to: api-webhooks
+    authenticated: true
+    routes:
+      - "POST /api/webhooks/deliver"
+      - "POST /api/webhooks/test"
+  # Les flux internes ne portent pas de route : ils disent où vont les données.
+  - id: f-facturation-magasin
+    from: api-facturation
+    to: magasin-factures
+    authenticated: true
+    routes: []
+  - id: f-auth-comptes
+    from: api-authentification
+    to: magasin-comptes
+    authenticated: true
+    routes: []
+  - id: f-pieces-jointes-magasin
+    from: api-pieces-jointes
+    to: magasin-pieces-jointes
+    authenticated: true
+    routes: []
+  # La menace que personne n'avait vue : l'URL du webhook est fournie par le
+  # client, et le service de métadonnées est joignable depuis la tâche.
+  - id: f-webhook-imds
+    from: api-webhooks
+    to: imds
+    authenticated: false
+    routes: []

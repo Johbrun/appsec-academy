@@ -1,0 +1,50 @@
+{
+  "_a_propos": "Cinq vulnérabilités à trancher. Deux points de décision sont des FAITS, pas des jugements : « exploitation » se déduit du catalogue KEV et de l’existence d’une preuve de concept publique (active > poc > none) ; « exposure » est l’exposition constatée en production, donnée ici. « utility » et « human_impact » relèvent de ton appréciation : ils ne sont pas notés — seule la décision qu’ils produisent dans la table l’est.",
+  "cas": [
+    {
+      "id": "SSVC-1",
+      "cve": "CVE-2026-50188",
+      "composant": "vm2",
+      "version": "3.9.11",
+      "contexte": "Le moteur de règles de facturation évalue des expressions clients dans ce bac à sable, derrière l’API publique.",
+      "exposition_constatee": "open",
+      "preuve_de_concept_publique": true
+    },
+    {
+      "id": "SSVC-2",
+      "cve": "CVE-2026-40155",
+      "composant": "jsonwebtoken",
+      "version": "8.5.1",
+      "contexte": "Bibliothèque de vérification des jetons de l’API publique de Novafact.",
+      "exposition_constatee": "open",
+      "preuve_de_concept_publique": true
+    },
+    {
+      "id": "SSVC-3",
+      "cve": "CVE-2026-22014",
+      "composant": "semver",
+      "version": "7.3.5",
+      "contexte": "Utilitaire de construction, utilisé uniquement par le pipeline. Aucun flux entrant.",
+      "exposition_constatee": "small",
+      "preuve_de_concept_publique": false
+    },
+    {
+      "id": "SSVC-4",
+      "cve": "CVE-2026-48002",
+      "composant": "braces",
+      "version": "3.0.2",
+      "contexte": "Service interne de rapprochement bancaire, joignable depuis le réseau d’entreprise seulement.",
+      "exposition_constatee": "controlled",
+      "preuve_de_concept_publique": true
+    },
+    {
+      "id": "SSVC-5",
+      "cve": "CVE-2026-11902",
+      "composant": "node-fetch",
+      "version": "2.6.6",
+      "contexte": "Tâche de fond qui pousse les webhooks sortants. Aucun port en écoute.",
+      "exposition_constatee": "small",
+      "preuve_de_concept_publique": true
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+# Revue de la PR 42 — livrable de référence.
+#
+# Un verdict par constat : bloquant, a-corriger, suggestion, acceptable. Le
+# harnais sait quelles lignes portent un défaut bloquant et lesquelles sont des
+# leurres — un bloquant manqué échoue, un leurre marqué bloquant échoue aussi.
+
+pr: 42
+findings:
+  - file: server/routes/ledger.ts
+    line: 20
+    verdict: bloquant
+    cwe: CWE-347
+    raison: >-
+      decode() lit les revendications sans vérifier la signature. N'importe qui
+      peut donc se présenter avec le rôle admin et le tenant de son choix.
+      verifyStrict() existe dans le même module et n'est appelé qu'à la fin,
+      pour décorer la réponse.
+
+  - file: server/routes/ledger.ts
+    line: 28
+    verdict: bloquant
+    cwe: CWE-639
+    raison: >-
+      Le tenant exporté est pris dans la query string. Un compte d'un tenant
+      obtient les factures de n'importe quel autre en changeant un paramètre.
+      Le tenant doit venir du jeton vérifié, et de lui seul.
+
+  - file: server/routes/ledger.ts
+    line: 31
+    verdict: bloquant
+    cwe: CWE-863
+    raison: >-
+      Le contrôle de rôle journalise puis laisse passer. Un contrôle qui ne
+      refuse pas n'est pas un contrôle — il faut répondre 403 dans cette branche.
+
+  - file: server/routes/ledger.ts
+    line: 35
+    verdict: suggestion
+    raison: >-
+      Une trace applicative devrait passer par le journal structuré plutôt que
+      par console.log, pour être exploitable côté détection.
+
+  - file: server/routes/ledger.ts
+    line: 38
+    verdict: acceptable
+    raison: >-
+      Math.random() dans un identifiant d'affichage n'est pas un défaut de
+      sécurité — cette référence ne protège rien et n'est pas un jeton.
+
+  - file: server/routes/ledger.ts
+    line: 45
+    verdict: a-corriger
+    raison: >-
+      Comparaison lâche entre deux chaînes. Sans conséquence ici, mais c'est le
+      genre de ligne qui devient un défaut quand le type d'entrée change.

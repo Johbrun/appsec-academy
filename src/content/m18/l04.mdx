@@ -1,0 +1,328 @@
+export const questions = [
+  {
+    q: "Tu veux être alerté la première fois qu'un utilisateur exporte des factures, sans fixer de seuil. Quel type de règle Elastic convient ?",
+    options: [
+      "New terms sur `user.id`, avec une fenêtre d'historique de 30 jours",
+      "Threshold sur `user.id` avec un seuil à 1 sur une fenêtre de 30 jours",
+      "Indicator match contre une liste des utilisateurs déjà connus",
+      "Custom query sur l'action d'export, avec suppression d'alertes par `user.id`",
+    ],
+    answer: 0,
+    explain: "New terms compare chaque valeur à un historique et ne se déclenche que sur la nouveauté, sur un à trois champs combinés. Un seuil à 1 alerterait à chaque export, pour tout le monde, tous les jours. La suppression d'alertes par `user.id` est le piège le plus fin : elle regroupe les alertes sur une durée choisie — quelques heures au plus — donc elle réduit le bruit sans jamais dire si la valeur est nouvelle, et le même utilisateur réalertera le lendemain.",
+  },
+  {
+    q: "Tu convertis la règle Sigma « AWS CloudTrail Important Change » vers Elastic avec pySigma, sans pipeline de traitement. La requête produite ne trouve jamais rien sur tes données. Pourquoi ?",
+    options: [
+      "pySigma ne produit que du Lucene, que les règles Elastic n'acceptent plus",
+      "Les valeurs de la règle sont sensibles à la casse, et CloudTrail varie sur ce point",
+      "La règle vise `eventSource` et `eventName`, qu'Elastic range ailleurs",
+      "La règle cible l'index `cloudtrail-*`, alors qu'Elastic utilise des flux de données",
+    ],
+    answer: 2,
+    explain: "Une règle Sigma est portable parce qu'elle décrit une logique ; la correspondance avec les noms de champs de ton SIEM est justement le rôle des pipelines de traitement. Sans pipeline, la requête cherche `eventSource` et `eventName`, que l'intégration Elastic a rangés dans `event.provider` et `event.action` : elle interroge des champs inexistants, donc elle ne remonte jamais rien. Le motif d'index est un problème voisin, réel, et corrigé par le même pipeline — mais il produirait une erreur visible, pas un silence.",
+  },
+  {
+    q: "La page de couverture ATT&CK d'Elastic montre une case bien colorée pour « Disable or Modify Cloud Log ». Qu'est-ce que cela garantit ?",
+    options: [
+      "Que la technique a été rejouée et détectée lors du dernier exercice d'émulation",
+      "Que les sources de données nécessaires à la technique sont bien ingérées",
+      "Que la règle associée s'est déclenchée au moins une fois sur tes données",
+      "Qu'une règle installée et activée est associée à cette technique, rien de plus",
+    ],
+    answer: 3,
+    explain: "La couverture mesure des associations entre règles et techniques, pas de l'efficacité. Elle ne dit rien des sources de données : une règle peut être associée, activée, et tourner sur un flux qui n'arrive plus (leçon 2) — c'est la confusion la plus coûteuse, parce qu'elle colore une case en vert sur la foi d'une étiquette. Seul un test le prouve : rejouer la technique avec Stratus Red Team ou Atomic Red Team, et observer l'alerte arriver.",
+  },
+  {
+    q: "Dans le framework ADS de Palantir, pourquoi la section « Blind Spots and Assumptions » est-elle obligatoire ?",
+    options: [
+      "Elle recense les faux positifs connus et la conduite à tenir pour l'analyste",
+      "Elle écrit ce que la règle ne voit pas et ce dont elle dépend",
+      "Elle liste les techniques ATT&CK que la règle ne couvre pas encore",
+      "Elle justifie la sévérité retenue auprès du responsable de la détection",
+    ],
+    answer: 1,
+    explain: "Une règle a toujours des angles morts : une source qu'elle suppose présente, un champ qu'elle suppose rempli, un comportement qu'elle suppose normal. Les écrire noir sur blanc évite la fausse confiance et fournit la liste des cas à tester ou à couvrir par une autre règle. Les faux positifs connus et la conduite à tenir existent bien dans le format ADS, mais dans d'autres sections : les confondre revient à documenter ce que la règle fait quand elle se déclenche, jamais ce qu'elle laisse passer en silence.",
+  },
+];
+
+<YouKnow>
+Tu as déjà transformé un finding en règle Semgrep ou en template Nuclei pour qu'il ne revienne pas (M13). Le detection engineering applique la même discipline à la production : une règle de détection est un test qui tourne en permanence sur des données réelles, et comme tout code, elle s'écrit, se revoit, se teste et se maintient.
+</YouKnow>
+
+## Le cycle : hypothèse, règle, test, réglage
+
+Une règle écrite « parce qu'on a vu un article » finit désactivée au bout de trois semaines. Une règle utile naît d'une hypothèse et vit dans une boucle.
+
+<Steps items={[
+  { title: "Hypothèse", text: "Une phrase testable, issue du threat model (M11), d'un incident, d'un finding de pentest ou de la threat intel : « un attaquant qui a volé une session exportera les factures d'un compte qui n'en exporte jamais »." },
+  { title: "Règle", text: "Le type de règle adapté, les données nécessaires (existent-elles ?), la requête, la sévérité, la correspondance ATT&CK et le guide d'investigation." },
+  { title: "Test", text: "Un cas positif (le comportement visé déclenche l'alerte) et des cas négatifs (l'activité normale ne la déclenche pas), rejoués dans un environnement dédié." },
+  { title: "Réglage", text: "Exceptions pour les faux positifs connus, suppression des doublons, ajustement du seuil ou de la fenêtre, puis mesure du volume réel d'alertes." },
+  { title: "Revue", text: "À intervalle fixe et après chaque incident : la règle a-t-elle aidé, raté quelque chose, coûté trop de temps d'analyse ?" },
+]} />
+
+## Choisir le type de règle
+
+Elastic Security propose sept types de règles. Le choix découle de la question posée :
+
+| Type | Se déclenche quand… | Exemple Novafact |
+| --- | --- | --- |
+| **Custom query** (KQL ou Lucene) | Un événement correspond | Tout accès à la route piège `/api/v1/admin/export-all` (leçon 5) |
+| **Threshold** | Le nombre d'événements par groupe atteint un seuil, avec une contrainte de cardinalité optionnelle | 50 refus `authz_fail` par `user.id` touchant au moins 25 `novafact.object_id` distincts |
+| **EQL** | Une séquence ordonnée se produit | Connexion, désactivation de la MFA, export (leçon 3) |
+| **ES\|QL** | La requête renvoie des lignes (chacune devient une alerte) | Plus de 20 identifiants distincts tentés depuis une IP en une heure |
+| **New terms** | Une valeur, ou une combinaison de une à trois valeurs, n'a jamais été vue dans la fenêtre d'historique | Premier export de factures pour un utilisateur |
+| **Indicator match** | Un champ correspond à un indicateur de threat intel | `source.ip` présente dans un flux d'adresses malveillantes |
+| **Machine learning** | Un job d'anomalie dépasse un score | Volume d'exports inhabituel pour un tenant |
+
+Deux réflexes à prendre. D'abord, **préférer la règle la plus simple** qui répond à l'hypothèse : une custom query se relit en dix secondes, une ES|QL de vingt lignes non. Ensuite, penser au bruit dès la conception : la **suppression d'alertes** regroupe les alertes par champ (un seul signal par `user.id` et par heure plutôt que cinquante), et les **exceptions** retirent les cas légitimes connus (le compte de test du DAST nocturne, par exemple).
+
+## Documenter : le framework ADS
+
+Palantir a publié son framework **ADS** (*Alerting and Detection Strategy*) : aucune règle ne part en production sans un document qui remplit neuf sections, revu par un pair. Voici l'ADS abrégé de la règle « premier export de factures » :
+
+| Section | Contenu |
+| --- | --- |
+| **Goal** | Détecter l'exfiltration de factures par une session volée ou un compte détourné |
+| **Categorization** | ATT&CK T1213 *Data from Information Repositories* (Collection) |
+| **Strategy Abstract** | New terms sur `user.id` pour l'action `invoice_export` réussie, historique de 30 jours |
+| **Technical Context** | L'export produit un CSV de toutes les factures d'une période ; seuls les comptables et administrateurs du tenant y ont droit |
+| **Blind Spots and Assumptions** | Ne voit pas un attaquant qui prend un compte exportant déjà ; suppose que l'événement est journalisé aussi par l'API publique |
+| **False Positives** | Nouveau comptable, clôture annuelle, migration vers un autre logiciel |
+| **Validation** | Test d'intégration qui exporte avec un compte neuf en recette et attend l'alerte |
+| **Priority** | Moyenne, élevée si l'alerte suit un changement de MFA ou d'e-mail |
+| **Response** | Vérifier l'historique de connexion du compte, contacter l'administrateur du tenant par un canal connu, révoquer les sessions si doute |
+
+La section la plus précieuse est **Blind Spots and Assumptions** : elle dit ce que la règle ne voit pas. C'est la liste des tests à écrire, et souvent la justification d'une deuxième règle.
+
+## Detection-as-code avec elastic/detection-rules
+
+Elastic maintient ses règles prêtes à l'emploi dans le dépôt public `elastic/detection-rules`, au format TOML, avec une CLI Python qui valide, teste, importe et exporte. Le même outillage gère des **règles maison**, rangées dans un dossier séparé décrit par un `_config.yaml` (créé par `python -m detection_rules custom-rules setup-config`) et désigné par la variable `CUSTOM_RULES_DIR`.
+
+<Code file="detections/rules/collection_novafact_first_invoice_export.toml" hl="22,23,39,40,41,42,43,44">
+
+```toml
+[metadata]
+creation_date = "2026/09/27"
+maturity = "production"
+updated_date = "2026/09/27"
+
+[rule]
+author = ["Novafact AppSec"]
+description = """
+Premier export de factures réussi pour un utilisateur, sur une fenêtre de 30 jours.
+Peut signaler une session volée utilisée pour exfiltrer les factures d'un tenant.
+"""
+false_positives = ["Nouveau comptable, clôture annuelle, migration vers un autre logiciel."]
+from = "now-9m"
+index = ["logs-novafact.api-*"]
+language = "kuery"
+license = "Proprietary"
+name = "Novafact - Premier export de factures pour un utilisateur"
+risk_score = 47
+rule_id = "4f7c2a9e-3b61-4d8e-9a0f-6c1d2e3b4a5f"
+severity = "medium"
+tags = ["Domain: Application", "Data Source: Novafact API", "Tactic: Collection", "Rule Type: New Terms"]
+timestamp_override = "event.ingested"
+type = "new_terms"
+query = '''
+event.dataset: "novafact.api" and event.action: "invoice_export" and event.outcome: "success"
+'''
+
+[[rule.threat]]
+framework = "MITRE ATT&CK"
+[[rule.threat.technique]]
+id = "T1213"
+name = "Data from Information Repositories"
+reference = "https://attack.mitre.org/techniques/T1213/"
+[rule.threat.tactic]
+id = "TA0009"
+name = "Collection"
+reference = "https://attack.mitre.org/tactics/TA0009/"
+
+[rule.new_terms]
+field = "new_terms_fields"
+value = ["user.id"]
+[[rule.new_terms.history_window_start]]
+field = "history_window_start"
+value = "now-30d"
+```
+
+</Code>
+
+Quelques détails qui comptent :
+
+- **`rule_id`** est un UUID stable : c'est lui qui relie le fichier à la règle dans Kibana, d'une version à l'autre. Le changer revient à créer une nouvelle règle.
+- **`timestamp_override = "event.ingested"`** fait porter la fenêtre de la règle sur la date d'ingestion. Les logs CloudWatch arrivent parfois avec plusieurs minutes de retard : sur `@timestamp`, un événement arrivé tard tomberait hors de toutes les fenêtres et ne serait jamais évalué.
+- **`from = "now-9m"`** avec une exécution toutes les cinq minutes crée un recouvrement volontaire ; Elastic dédoublonne les alertes.
+- Les champs maison (`novafact.*`) ne sont pas dans les schémas connus de l'outil : l'option `auto_gen_schema_file` du `_config.yaml` génère le schéma pour que la validation de la requête passe. De même, les tests intégrés appliquent les conventions d'Elastic (format des tags, guide d'investigation) ; les options `bypass_*` du `_config.yaml` désactivent celles qui ne concernent pas tes règles.
+
+Le pipeline (M14) fait le reste : validation et tests à chaque pull request, import dans Kibana après fusion.
+
+<Code file=".github/workflows/detections.yml">
+
+```yaml
+name: detections
+on:
+  pull_request:
+    paths: ["detections/**"]
+  push:
+    branches: [main]
+    paths: ["detections/**"]
+permissions:
+  contents: read
+env:
+  CUSTOM_RULES_DIR: ${{ github.workspace }}/detections
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4            # épinglé par SHA en vrai (M14)
+      - uses: actions/checkout@v4
+        with:
+          repository: elastic/detection-rules
+          ref: ${{ vars.DETECTION_RULES_REF }}   # version figée, montée volontairement
+          path: detection-rules
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ".[dev]" lib/kql lib/kibana
+        working-directory: detection-rules
+      - run: python -m detection_rules test
+        working-directory: detection-rules
+  deploy:
+    needs: validate
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: elastic-prod                   # approbation requise
+    steps:
+      # mêmes étapes checkout, setup-python et pip install que ci-dessus
+      - run: python -m detection_rules kibana --space security import-rules -d "$CUSTOM_RULES_DIR/rules" --overwrite
+        working-directory: detection-rules
+        env:
+          DR_KIBANA_URL: ${{ vars.KIBANA_URL }}
+          DR_API_KEY: ${{ secrets.KIBANA_DETECTIONS_API_KEY }}
+```
+
+</Code>
+
+La clé d'API utilisée n'a que les privilèges de gestion des règles dans l'espace `security` : le pipeline qui déploie les détections est lui-même une cible, puisqu'il peut les désactiver toutes.
+
+<Callout kind="debate">
+**Tout passer par Git ?** Le detection-as-code apporte revue, historique et retour arrière. Mais un analyste qui ajoute une exception à 3 heures du matin, pendant un incident, le fera dans Kibana. Les équipes qui durent acceptent les deux chemins et réconcilient : `kibana export-rules` et `import-rules-to-repo` ramènent dans le dépôt ce qui a été changé dans l'interface, et un contrôle quotidien signale les écarts.
+</Callout>
+
+## Sigma : des règles portables
+
+**Sigma** est un format YAML de règles indépendant du SIEM, maintenu par SigmaHQ, avec des milliers de règles communautaires, dont une série pour CloudTrail. La conversion passe par **pySigma** et un *backend* (pour Elastic : `lucene`, `eql` ou `esql`), via la CLI `sigma`.
+
+Le piège est toujours le même : les règles CloudTrail de SigmaHQ utilisent les **noms de champs bruts** (`eventSource`, `eventName`), alors que l'intégration Elastic les range dans `event.provider` et `event.action`. Un **pipeline de traitement** fait la correspondance :
+
+<Code file="detections/sigma/ecs-cloudtrail.yml">
+
+```yaml
+name: CloudTrail brut vers ECS (intégration Elastic AWS)
+priority: 100
+transformations:
+  - id: cloudtrail_vers_ecs
+    type: field_name_mapping
+    mapping:
+      eventSource: event.provider
+      eventName: event.action
+      errorCode: aws.cloudtrail.error_code
+      userIdentity.arn: aws.cloudtrail.user_identity.arn
+      userIdentity.type: aws.cloudtrail.user_identity.type
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: cloudtrail
+```
+
+</Code>
+
+```bash
+python -m pipx install sigma-cli
+sigma plugin install elasticsearch
+sigma convert -t lucene -f siem_rule_ndjson -p detections/sigma/ecs-cloudtrail.yml \
+  -o sigma-cloudtrail.ndjson sigma/rules/cloud/aws/cloudtrail/
+```
+
+La sortie s'importe dans Kibana, ou sert de point de départ à une règle TOML maison. Sigma est précieux pour **ne pas réinventer** les détections génériques ; les détections applicatives de Novafact, elles, n'existent dans aucun dépôt public.
+
+## Tester avec de vraies attaques
+
+Une règle jamais déclenchée est une hypothèse, pas une détection. Trois outils couvrent les cas :
+
+- **Stratus Red Team** (Datadog) rejoue des techniques d'attaque cloud, de façon granulaire et réversible : chaque technique a une phase de préparation (`warmup`), une exécution (`detonate`) et un nettoyage (`cleanup`). Exemples utiles pour Novafact : `aws.defense-evasion.cloudtrail-stop`, `aws.exfiltration.s3-backdoor-bucket-policy`, `aws.credential-access.secretsmanager-retrieve-secrets`, `aws.initial-access.console-login-without-mfa`.
+- **Atomic Red Team** (Red Canary) propose des tests atomiques rangés par technique ATT&CK, surtout pour les postes et serveurs, avec une partie cloud (plateforme `iaas:aws`).
+- **Tes propres tests** pour les détections applicatives : un script de recette rejoue le parcours (connexion, export avec un compte neuf) et attend l'alerte.
+
+```bash
+export AWS_PROFILE=detection-lab   # compte bac à sable dédié, jamais la production
+stratus detonate aws.defense-evasion.cloudtrail-stop
+# vérifier l'alerte dans Elastic, puis :
+stratus cleanup aws.defense-evasion.cloudtrail-stop
+```
+
+<Code file="detections/tests/wait-for-alert.ts">
+
+```ts
+import { Client } from '@elastic/elasticsearch';
+
+const es = new Client({ node: process.env.ES_URL!, auth: { apiKey: process.env.ES_API_KEY! } });
+
+export async function waitForAlert(ruleId: string, since: string, timeoutMs = 15 * 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const res = await es.search({
+      index: '.alerts-security.alerts-security',
+      size: 1,
+      query: { bool: { filter: [
+        { term: { 'kibana.alert.rule.rule_id': ruleId } },
+        { range: { '@timestamp': { gte: since } } },
+      ] } },
+    });
+    if (res.hits.hits.length > 0) return res.hits.hits[0];
+    await new Promise((resolve) => setTimeout(resolve, 30_000));
+  }
+  throw new Error(`Aucune alerte pour la règle ${ruleId} depuis ${since}`);
+}
+```
+
+</Code>
+
+Les alertes vivent dans l'index `.alerts-security.alerts-<espace>` ; Novafact travaille dans l'espace `security`. Le test échoue si l'alerte n'arrive pas en quinze minutes : c'est ainsi qu'une modification de pipeline qui casse un champ se voit en recette, pas pendant un incident.
+
+<Lab id="stratus" note="Rejoue une technique dans un compte bac à sable et vérifie que ta règle se déclenche." />
+
+## La couverture ATT&CK, sans s'y tromper
+
+La page **MITRE ATT&CK coverage** d'Elastic Security affiche, par tactique et technique, les règles installées et associées à ATT&CK. Elle sert à repérer les trous et à activer des règles prêtes à l'emploi. Deux limites :
+
+- une case colorée signifie qu'une règle **existe**, pas qu'elle **fonctionne** sur tes données ;
+- les règles maison associées à une tactique ou une technique **dépréciée** n'y apparaissent pas. ATT&CK v19 (avril 2026) a scindé la tactique *Defense Evasion* en *Stealth* et *Defense Impairment* : les correspondances des règles maison doivent suivre, ce que la CLI de detection-rules sait convertir.
+
+Mesure plutôt la couverture **testée** : pour chaque technique prioritaire du threat model, une règle et un test qui l'a vue se déclencher.
+
+<Callout kind="tip">
+Le jeu **Detection Builder** te fait assembler une règle et la tester sur des événements, en observant précision et rappel : la même boucle que ce cycle, en accéléré.
+</Callout>
+
+<Recap items={[
+  "Une détection naît d'une hypothèse testable et vit dans une boucle : règle, test, réglage, revue.",
+  "Choisis le type de règle le plus simple qui répond à la question ; prévois suppression et exceptions dès la conception.",
+  "ADS impose neuf sections revues par un pair ; Blind Spots and Assumptions donne la liste des tests à écrire.",
+  "elastic/detection-rules gère aussi tes règles maison en TOML, validées en CI et importées dans Kibana.",
+  "Sigma évite de réinventer les règles génériques, à condition de mapper les champs vers ECS.",
+  "Stratus Red Team, Atomic Red Team et tes tests de recette prouvent qu'une règle se déclenche ; la couverture ATT&CK seule ne le prouve pas.",
+]} />
+
+<Sources items={[
+  { title: "Elastic Security : choisir le type de règle", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/choose-the-right-rule-type" },
+  { title: "elastic/detection-rules : règles maison", url: "https://github.com/elastic/detection-rules/blob/main/docs-dev/custom-rules-management.md" },
+  { title: "Palantir : Alerting and Detection Strategies Framework", url: "https://github.com/palantir/alerting-detection-strategy-framework" },
+  { title: "pySigma : backend Elasticsearch", url: "https://github.com/SigmaHQ/pySigma-backend-elasticsearch" },
+  { title: "Stratus Red Team", url: "https://stratus-red-team.cloud/" },
+  { title: "Elastic Security : couverture MITRE ATT&CK", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/mitre-attack-coverage" },
+  { title: "MITRE ATT&CK : mise à jour d'avril 2026 (v19)", url: "https://attack.mitre.org/resources/updates/updates-april-2026/" },
+]} />

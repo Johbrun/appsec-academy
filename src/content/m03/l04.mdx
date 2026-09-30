@@ -1,0 +1,143 @@
+export const questions = [
+  {
+    q: "Un open redirect est classé « faible » dans le backlog. Quand faut-il revoir cette priorité ?",
+    options: [
+      "Quand il est atteignable sans authentification depuis le domaine principal",
+      "Quand il devient un maillon, par exemple avec un redirect_uri validé par préfixe",
+      "Quand le paramètre de redirection accepte aussi un schéma javascript:",
+      "Quand un rapport de pentest lui attribue un score CVSS plus élevé",
+    ],
+    answer: 1,
+    explain: "Le schéma javascript: ne relève pas la priorité de l'open redirect, il change sa nature : c'est une XSS, à trier comme telle. L'accessibilité sans authentification aggrave l'exposition sans rien dire de l'impact. Un CVSS revu à la hausse n'apporte aucune information nouvelle, puisque CVSS note des vulnérabilités isolées — c'est exactement sa limite ici. Ce qui change la priorité, c'est la chaîne.",
+  },
+  {
+    q: "Face à plusieurs chaînes possibles, quel correctif prioriser ?",
+    options: [
+      "Le maillon au score CVSS le plus élevé, pris isolément",
+      "Le maillon le moins coûteux à corriger, quelle que soit sa place",
+      "Le dernier maillon de chaque chaîne, celui qui porte l'impact",
+      "Le maillon présent dans le plus grand nombre de chaînes",
+    ],
+    answer: 3,
+    explain: "Casser le dernier maillon est très tentant : c'est lui qui porte l'impact, et ProxyShell montre que ça fonctionne — Microsoft a restreint les extensions autorisées plutôt que supprimer l'écriture arbitraire. Mais la primitive reste, et une autre chaîne peut la rejoindre. Le coût compte dans la décision, et un CVSS isolé ne dit rien d'une chaîne. Le correctif le plus rentable est celui qui apparaît dans le plus de chaînes, souvent un contrôle de classe.",
+  },
+  {
+    q: "Un bug ancien (le moteur PDF charge n'importe quelle URL présente dans le HTML) avait été classé « sans impact », car seuls les employés de Novafact écrivaient les modèles. Une nouvelle fonctionnalité laisse les clients personnaliser leurs modèles. Que faut-il faire ?",
+    options: [
+      "Réévaluer l'ancien bug : la fonctionnalité invalide son hypothèse de triage",
+      "Ajouter un filtre SSRF sur le moteur PDF et laisser l'ancien ticket fermé",
+      "Lancer un threat model dédié à la nouvelle fonctionnalité de personnalisation",
+      "Ouvrir la personnalisation en bêta restreinte pour observer les abus réels",
+    ],
+    answer: 0,
+    explain: "Poser un filtre SSRF sur le moteur PDF corrige ce cas précis, et c'est ce qui manque : on referme sans relier le correctif à l'hypothèse tombée, donc le prochain bug dormant du même genre repassera inaperçu. Le threat model de la nouvelle fonctionnalité regarde devant lui et ne rouvre pas les tickets classés « sans impact ». La bêta observe l'abus au lieu de l'empêcher. La question à ajouter en revue : quelles hypothèses de triage cette fonctionnalité invalide-t-elle ?",
+  },
+  {
+    q: "Comment le guide utilisateur de CVSS 3.1 recommande-t-il de traiter une chaîne de vulnérabilités ?",
+    options: [
+      "Scorer chaque maillon, et publier en plus un score de la chaîne",
+      "Scorer la chaîne comme une vulnérabilité unique, en remplaçant les maillons",
+      "Ne scorer que le maillon final, dont l'impact est celui de la chaîne",
+      "Refléter l'effet de la chaîne dans les métriques environnementales",
+    ],
+    answer: 0,
+    explain: "Passer par les métriques environnementales est la tentation de l'expert CVSS : elles ajustent un score au contexte d'un déploiement, pas à la présence d'une autre vulnérabilité. Remplacer les maillons par un score unique fait perdre ce qu'il faut corriger, et ne garder que le dernier les efface du backlog. Le guide conserve les scores individuels et y ajoute un score de chaîne, calculé par l'analyste — c'est une recommandation, pas une métrique formelle.",
+  },
+];
+
+<YouKnow>
+C'est ton quotidien de pentester : enchaîner des findings mineurs jusqu'à un impact critique. Côté AppSec, la question devient : comment en tenir compte dans le triage, la conception et le suivi, alors que les outils et les métriques raisonnent maillon par maillon ?
+</YouKnow>
+
+## Des gués dans la rivière
+
+Kohnfelder (K8) décrit les **chaînes de vulnérabilités** avec une image : une rivière trop large pour être sautée, mais où quelques pierres affleurent. Aucune pierre n'est un pont, mais ensemble, elles permettent de traverser. Des bugs qui ne sont pas des vulnérabilités, ou des vulnérabilités mineures, forment ensemble un chemin vers un actif précieux.
+
+Son exemple est instructif parce que personne n'y commet de faute spectaculaire. Un vieux bug de logique métier est rangé en priorité basse, parce qu'il suppose une valeur que le client ne peut pas modifier. Des années plus tard, une évolution rend justement cette valeur modifiable, et la personne qui la livre juge le changement inoffensif. Chaque décision était défendable isolément ; c'est leur combinaison, que personne n'a regardée, qui crée la faille. Kohnfelder insiste : dire qu'un bug « n'arrivera jamais » est une opinion, pas une démonstration.
+
+Il ajoute une nuance importante avec l'**entropie des bugs** : certains défauts (concurrence, états incohérents) perturbent le système de façon imprévisible, et offrent aux attaquants des possibilités difficiles à évaluer à l'avance. L'automatisation permet de rejouer mille fois une tentative peu probable. Un bug « bizarre mais sans impact démontré » mérite parfois plus d'attention qu'on ne croit, et les développeurs ont tendance à fuir ces bugs difficiles à reproduire, qui persistent donc longtemps.
+
+## Trois chaînes chez Novafact
+
+| Maillons | Impact de la chaîne |
+| --- | --- |
+| Open redirect sur `app.novafact.example` + `redirect_uri` OAuth validé par préfixe | Vol du code d'autorisation, prise de contrôle de compte |
+| Self-XSS dans le champ « notes » + absence de protection CSRF sur la mise à jour de profil | XSS stockée chez une victime, déclenchée à distance |
+| Message d'erreur qui révèle un nom d'hôte interne + filtre SSRF qui ne revalide pas les redirections | Accès à un service interne, puis aux métadonnées du cloud |
+
+Pris isolément, chacun de ces six findings serait probablement classé faible ou moyen.
+
+<Callout kind="case">
+**ProxyShell** (Orange Tsai, DEVCORE, Pwn2Own 2021) enchaîne trois CVE de Microsoft Exchange : une confusion de chemin qui contourne l'authentification (CVE-2021-34473), une élévation de privilèges dans le backend PowerShell (CVE-2021-34523), puis une écriture de fichier arbitraire après authentification (CVE-2021-31207). Le résultat est une exécution de code sans authentification. Détail parlant : pour le dernier maillon, Microsoft n'a pas supprimé l'écriture arbitraire, mais restreint les extensions autorisées. La chaîne est coupée, la primitive reste. Un correctif de chaîne n'est pas forcément un correctif de classe.
+</Callout>
+
+## Ce que ça change pour le triage
+
+<Steps items={[
+  { title: "Ne pas juger un maillon seul", text: "À chaque finding faible, se demander avec quoi il pourrait se combiner. Ton réflexe de pentester est ici un avantage décisif." },
+  { title: "Écrire les hypothèses du triage", text: "« Faible, car seuls les employés écrivent les modèles. » L'hypothèse devient une donnée du ticket, que l'on peut retrouver quand une évolution la contredit." },
+  { title: "Documenter les chaînes", text: "Un finding peut référencer une chaîne ; sa priorité devient celle de la chaîne." },
+  { title: "Casser le maillon partagé", text: "Le correctif le plus rentable est celui qui apparaît dans le plus de chaînes, souvent un contrôle de classe (validation stricte des redirections, CSRF systématique)." },
+  { title: "Se méfier de la sous-estimation", text: "Kohnfelder rappelle qu'on sous-estime plus facilement une menace qu'on ne la surestime (K13)." },
+]} />
+
+Les métriques ne t'aident pas spontanément. CVSS évalue des vulnérabilités **individuelles**. Le guide utilisateur de CVSS 3.1 consacre pourtant une section au *vulnerability chaining* : ce n'est pas une métrique formelle, mais une recommandation. L'analyste identifie les maillons, publie leurs scores respectifs **et** un score de la chaîne. Dans ton outil de suivi (DefectDojo, Jira), cela se traduit par un finding « chaîne » qui référence les maillons, porte le score de la chaîne, et dont la fermeture exige que **au moins un** maillon soit corrigé et vérifié.
+
+| Contrôle de classe | Chaînes coupées chez Novafact |
+| --- | --- |
+| Un seul helper de redirection, qui n'accepte que des chemins relatifs du même site | Toutes celles qui passent par un open redirect (OAuth, phishing, contournement de filtre SSRF par redirection) |
+| `redirect_uri` comparé exactement, PKCE obligatoire | Vol de code OAuth, même si un open redirect réapparaît |
+| CSRF systématique (SameSite plus jeton ou Fetch Metadata) | Transformation d'une self-XSS en XSS stockée |
+| IMDSv2 obligatoire et rôles minimaux | Passage d'une SSRF à des identifiants cloud |
+| Messages d'erreur génériques en production | La reconnaissance qui alimente beaucoup de chaînes |
+
+<Code file="apps/web/src/lib/redirect.ts">
+
+```ts
+const APP_ORIGIN = new URL(process.env.APP_URL!).origin;
+
+// Toutes les redirections applicatives passent ici ; une règle Semgrep interdit res.redirect(req.query.*).
+export function safeRedirectTarget(raw: unknown, fallback = '/'): string {
+  if (typeof raw !== 'string' || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return fallback;
+  const url = new URL(raw, APP_ORIGIN);              // l'analyseur retire tabulations et retours à la ligne
+  return url.origin === APP_ORIGIN ? url.pathname + url.search + url.hash : fallback;
+}
+```
+
+</Code>
+
+Le contrôle de l'origine **après** analyse est ce qui rend le helper robuste : les vérifications de préfixe sur la chaîne brute ratent les variantes que l'analyseur d'URL normalise (barres obliques inversées, caractères de contrôle). On ne compare jamais une chaîne ; on compare ce que le navigateur comprendra.
+
+<Callout kind="debate">
+Faut-il corriger un maillon qui n'a aucun impact seul ? Certains programmes répondent non : Google, par exemple, considère qu'un redirecteur ouvert isolé présente très peu de risque pratique et préfère investir dans la détection du phishing. L'argument se tient pour un géant qui maîtrise ses flux OAuth. Pour une équipe comme celle de Novafact, qui ne sait pas énumérer toutes les chaînes possibles, un maillon bon marché à supprimer (une redirection réécrite avec le helper) vaut presque toujours d'être corrigé. La vraie question est le **coût** du correctif, pas l'impact isolé.
+</Callout>
+
+## Ce que ça change pour la conception
+
+Les chaînes montrent l'intérêt de la **défense en profondeur** (M8) : chaque couche qui tient casse des chaînes qu'on n'a pas imaginées. Une validation exacte des `redirect_uri`, une CSP stricte ou un IMDSv2 obligatoire coupent des familles entières de chaînes, y compris celles qui passent par des bugs pas encore découverts.
+
+En revue de conception, ajoute une question à ta liste : **quelles hypothèses de triage cette fonctionnalité invalide-t-elle ?** Une nouvelle surface (un champ désormais éditable par le client, un contenu qui devient public, un service qui s'ouvre aux partenaires) réveille les bugs dormants qui supposaient cette surface fermée. Chez Novafact, l'ouverture des modèles de factures aux clients a ainsi fait remonter un vieux ticket : le moteur PDF chargeait toutes les URL présentes dans le HTML. Tant que seuls les employés écrivaient les modèles, c'était « sans impact » ; avec des modèles clients, c'était une SSRF (leçon 11). Le ticket a été relié à la chaîne, et sa correction mise comme prérequis de la fonctionnalité.
+
+## Détecter les chaînes en cours
+
+Une chaîne laisse souvent une suite de signaux faibles, chacun ignoré seul : un paramètre de redirection pointant vers un domaine externe, puis une requête de callback OAuth avec un `state` inconnu, puis une connexion depuis un nouvel appareil. Dans Elastic (M18), une règle de séquence (EQL) sur un même utilisateur et une fenêtre courte transforme ces signaux faibles en alerte. C'est le pendant défensif du raisonnement en chaîne.
+
+<Callout kind="tip">
+Le jeu **Stepping Stones** entraîne exactement ce réflexe : relier des findings faibles en une chaîne, puis choisir le correctif unique qui en casse le plus.
+</Callout>
+
+<Recap items={[
+  "Des bugs mineurs peuvent former ensemble un chemin vers un actif précieux (K8) ; « ça n'arrivera jamais » est une opinion.",
+  "Certains bugs perturbent le système de façon imprévisible : l'entropie des bugs.",
+  "Le triage évalue les chaînes ; CVSS 3.1 recommande de publier les scores des maillons et un score de chaîne.",
+  "Écrire les hypothèses du triage permet de réveiller les bugs dormants quand une fonctionnalité les invalide.",
+  "Le correctif le plus rentable casse le maillon partagé ; un contrôle de classe vaut mieux qu'un correctif de chaîne.",
+  "Une règle de séquence dans le SIEM relie les signaux faibles d'une chaîne en cours.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 8, Vulnerability Chains" },
+  { title: "OWASP Cheat Sheet : Unvalidated Redirects and Forwards", url: "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html" },
+  { title: "FIRST : CVSS v3.1 User Guide", url: "https://www.first.org/cvss/v3.1/user-guide", note: "section 3.4, Vulnerability Chaining" },
+  { title: "ZDI : ProxyShell, a new attack surface on Microsoft Exchange (Orange Tsai)", url: "https://www.zerodayinitiative.com/blog/2021/8/17/from-pwn2own-2021-a-new-attack-surface-on-microsoft-exchange-proxyshell" },
+]} />

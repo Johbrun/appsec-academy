@@ -1,0 +1,239 @@
+export const questions = [
+  {
+    q: "Que renvoie (1.005).toFixed(2) en JavaScript ?",
+    options: ["\"1.01\"", "\"1.00\"", "\"1.005\"", "\"1.0\""],
+    answer: 1,
+    explain: "« 1.01 » est la réponse que tout le monde donne, et c'est celle qu'un arrondi décimal exact produirait. Mais 1.005 n'est pas représentable en binaire : le double le plus proche vaut un peu moins, donc toFixed arrondit vers le bas. « 1.005 » supposerait que toFixed ignore le nombre de décimales demandé, « 1.0 » qu'il supprime les zéros de fin — il complète toujours. D'où la règle : jamais de montants en flottants.",
+  },
+  {
+    q: "Comment représenter un montant de facture dans Novafact ?",
+    options: [
+      "Un entier en centimes ou un décimal, calculé côté serveur",
+      "Une colonne numeric(12,2) en base, et un Number côté application",
+      "Un Number en centimes, fourni par le client puis vérifié côté serveur",
+      "Un Number en euros, arrondi à deux décimales au moment de l'enregistrement",
+    ],
+    answer: 0,
+    explain: "La colonne numeric est le distracteur le plus solide : le stockage est correct, mais dès que le code manipule la valeur en Number on retrouve 19.99 * 100 = 1998.9999999999998 — le type de la base ne protège pas les calculs. « Fourni par le client puis vérifié » inverse l'autorité : le serveur recalcule à partir des prix de référence, il ne valide pas un total reçu. Et arrondir un Number à l'enregistrement ne fait que figer l'erreur déjà commise.",
+  },
+  {
+    q: "Pourquoi utiliser Object.hasOwn(obj, key) plutôt que key in obj pour valider une clé fournie par l'utilisateur ?",
+    options: [
+      "in remonte la chaîne de prototypes : 'toString' in {} vaut true",
+      "hasOwn ignore les propriétés non énumérables, contrairement à in",
+      "hasOwn est plus rapide sur les objets à nombreuses propriétés",
+      "in échoue sur un objet créé avec Object.create(null)",
+    ],
+    answer: 0,
+    explain: "L'inversion à connaître : c'est obj.hasOwnProperty() qui casse sur un objet créé par Object.create(null), pas l'opérateur in — et c'est justement une des raisons d'utiliser Object.hasOwn, qui fonctionne dans les deux cas. L'énumérabilité n'entre pas en jeu, ni pour l'un ni pour l'autre. Le vrai motif est la chaîne de prototypes : une clé comme toString ou constructor passerait une vérification naïve.",
+  },
+  {
+    q: "Le calcul d'un avoir produit -2,5 centimes de TVA. Pourquoi Math.round n'est-il pas un bon choix ici ?",
+    options: [
+      "Math.round arrondit toujours les négatifs vers l'entier inférieur",
+      "Math.round tronque vers zéro, ce qui avantage systématiquement le client",
+      "Math.round arrondit les demis vers +∞ : -2,5 donne -2, mais 2,5 donne 3",
+      "Math.round opère sur des flottants et perd de la précision sous le centime",
+    ],
+    answer: 2,
+    explain: "« Toujours vers l'entier inférieur » a le bon soupçon mais le mauvais sens : Math.round(-2.5) vaut -2, donc vers le haut. Et Math.round ne tronque pas, c'est Math.trunc. Le défaut est l'asymétrie autour de zéro : 2,5 devient 3, -2,5 devient -2, donc une facture et l'avoir qui l'annule laissent un centime d'écart. Le mode d'arrondi n'est pas un détail d'implémentation, c'est une règle métier qui s'écrit et se teste.",
+  },
+];
+
+<YouKnow>
+Tu as déjà joué avec les conversions implicites de JavaScript et les nombres négatifs dans un panier. Ici on les regarde comme des classes de bugs à rendre impossibles, dans une application où tout tourne autour de l'argent.
+</YouKnow>
+
+## Les footguns du langage
+
+Kohnfelder (K8) appelle *footgun* une fonctionnalité qui rend facile de se tirer une balle dans le pied : le code dit une chose, le moteur en fait une autre. JavaScript en a beaucoup, et certains ont un impact de sécurité direct.
+
+| Expression | Résultat | Risque |
+| --- | --- | --- |
+| `0 == ''` | `true` | Comparaisons laxistes dans une vérification |
+| `Number('')`, `Number(' ')` | `0` | Un champ vide devient un montant nul valide |
+| `parseInt('12abc')` | `12` | Une entrée invalide est acceptée silencieusement |
+| `parseInt(0.0000005)` | `5` | Le nombre est d'abord converti en chaîne (`'5e-7'`) |
+| `null >= 0` | `true` | Un garde `amount >= 0` laisse passer `null` |
+| `[10, 9, 1].sort()` | `[1, 10, 9]` | Tri lexicographique par défaut |
+| `'toString' in {}` | `true` | Vérification de clé qui voit les propriétés héritées |
+| `typeof null` | `'object'` | Garde de type qui laisse passer `null` |
+| `String(['send'])` | `'send'` | Un tableau se fait passer pour une chaîne |
+| `req.query.email.toLowerCase()` | Exception si `email` est un tableau | Plantage de la route (A10), voire du processus |
+
+La réponse n'est pas de mémoriser la liste, mais de **fermer les portes** : `===` imposé par le lint, validation par schéma qui fixe les types (M2 leçon 2), `Object.hasOwn` pour les clés, TypeScript strict.
+
+Ce dernier point mérite une précision. TypeScript ne voit que ce qu'on lui déclare : si `req.body` est typé à la main, le compilateur fait confiance à la déclaration. Sa valeur vient des options et des règles qui ferment des footguns précis, **à condition que les types viennent d'un schéma validé** :
+
+| Option ou règle | Ce qu'elle ferme |
+| --- | --- |
+| `strict` (dont `strictNullChecks`) | L'oubli de `null` et `undefined` |
+| `noUncheckedIndexedAccess` | `obj[key]` supposé défini alors qu'il peut manquer |
+| ESLint `eqeqeq` | Les comparaisons laxistes |
+| `@typescript-eslint/restrict-plus-operands` | `'10' + 5` qui donne `'105'` |
+| `@typescript-eslint/require-array-sort-compare` | Le tri sans comparateur |
+
+## Les dates, un footgun à part entière
+
+Une application de facturation manipule des échéances, des périodes et des dates d'émission. L'objet `Date` cumule les pièges :
+
+- **Il ne rejette pas les dates impossibles.** Dans V8 (donc Node et Chrome), `new Date('2024-02-30')` donne le 1er mars, sans erreur. Une date d'échéance saisie au 30 février devient silencieusement une autre date.
+- **Il déborde en silence.** Ajouter un mois au 31 janvier avec `setUTCMonth(getUTCMonth() + 1)` donne le 3 mars (en 2026). Une échéance « à un mois » calculée ainsi saute février.
+- **Le fuseau dépend du format.** `'2026-01-15'` (date seule) est lu en UTC, `'2026-01-15T00:00'` (sans décalage) en heure locale du serveur. La même facture peut changer de jour selon la machine qui la traite.
+- **Les autres formats dépendent du moteur.** Hors du format ISO, l'analyse est laissée à l'implémentation.
+
+Les règles pour Novafact : n'accepter en entrée que des dates ISO validées par schéma (`z.string().date()` en zod 3, `z.iso.date()` en zod 4), vérifier l'aller-retour (la date reformatée doit être identique à la chaîne reçue), stocker en UTC, et confier l'arithmétique calendaire (fins de mois, jours ouvrés) à une bibliothèque dédiée plutôt qu'à `Date`.
+
+## Les nombres
+
+Un `Number` JavaScript est un flottant double précision. Deux conséquences.
+
+**Les entiers au-delà de 2⁵³ perdent en précision.** `Number.MAX_SAFE_INTEGER` vaut 9 007 199 254 740 991. Un identifiant numérique plus grand, reçu en JSON, est silencieusement arrondi : `JSON.parse('{"id": 9007199254740993}').id` vaut `9007199254740992`, et deux objets différents peuvent obtenir le même identifiant côté client. Transporte les grands identifiants en chaîne, ou utilise `BigInt` côté serveur.
+
+`BigInt` a ses propres pièges : `JSON.stringify` lève une `TypeError` sur un `BigInt` (une colonne `BigInt` de Prisma renvoyée telle quelle fait planter la sérialisation de la réponse), on ne peut pas mélanger `BigInt` et `Number` dans une opération, et la division tronque vers zéro (`-7n / 2n` vaut `-3n`).
+
+**Les décimaux ne sont pas exacts.** `0.1 + 0.2` vaut `0.30000000000000004`, et `(1.005).toFixed(2)` vaut `"1.00"`. Plus sournois : `19.99 * 100` vaut `1998.9999999999998`. Convertir un prix saisi en euros vers des centimes par une multiplication, puis tronquer, fait perdre un centime. Dans une application de facturation, ces écarts deviennent des centimes qui manquent, des totaux qui ne correspondent pas aux lignes, ou des arrondis exploitables en répétant une opération.
+
+La conversion sûre part de la **chaîne** et ne passe jamais par un flottant :
+
+<Code file="apps/api/src/billing/parse.ts">
+
+```ts
+// "19.99" -> 1999, "19,9" -> 1990, "-0.5" -> -50. Rejette tout le reste.
+export function parseEurosToCents(input: string): number {
+  const m = /^(-?)(\d{1,9})(?:[.,](\d{1,2}))?$/.exec(input.trim());
+  if (!m) throw new RangeError('Montant invalide');
+  const cents = Number(m[2]) * 100 + Number((m[3] ?? '').padEnd(2, '0'));
+  return m[1] ? -cents : cents;
+}
+```
+
+</Code>
+
+## L'argent chez Novafact
+
+<Diff file="apps/api/src/billing/total.ts" hlBefore="2-3" hlAfter="2-6">
+
+```ts
+export function invoiceTotal(lines: { price: number; qty: number }[], vatRate: number) {
+  const ht = lines.reduce((s, l) => s + l.price * l.qty, 0);
+  return +(ht * (1 + vatRate)).toFixed(2);
+}
+```
+
+```ts
+// Montants en centimes (entiers), taux en points de base (2000 = 20 %).
+export function invoiceTotalCents(lines: { unitCents: number; qty: number }[], vatBps: number) {
+  const ht = lines.reduce((s, l) => s + l.unitCents * l.qty, 0);
+  const vat = mulDivRound(ht, vatBps);
+  if (!Number.isSafeInteger(ht + vat)) throw new RangeError('Montant hors limites');
+  return { ht, vat, ttc: ht + vat };
+}
+```
+
+</Diff>
+
+Les points de base ne sont pas un caprice : les taux de TVA français incluent 5,5 % et 2,1 %, qui s'écrivent 550 et 210 en entiers. Reste l'arrondi. `Math.round` arrondit les demis vers +∞ : `Math.round(2.5)` vaut 3 mais `Math.round(-2.5)` vaut -2. Une facture et l'avoir qui l'annule ne se compensent plus exactement. Le mode d'arrondi est une **règle métier**, et elle s'écrit :
+
+<Code file="apps/api/src/billing/round.ts">
+
+```ts
+// amount × bps / 10 000, arrondi au plus proche, demi s'éloignant de zéro, en arithmétique entière.
+export function mulDivRound(amountCents: number, bps: number): number {
+  const num = amountCents * bps;
+  if (!Number.isSafeInteger(num)) throw new RangeError('Dépassement');
+  const abs = Math.abs(num);
+  const q = Math.floor(abs / 10_000);
+  const r = abs - q * 10_000;
+  return Math.sign(num) * (r * 2 >= 10_000 ? q + 1 : q);
+}
+```
+
+</Code>
+
+Deuxième décision à écrire : arrondit-on la TVA **par ligne** ou **sur le total** ? Trois lignes à 0,99 € HT à 5,5 % donnent 5 centimes de TVA chacune (15 au total) si on arrondit ligne par ligne, mais 16 centimes si on arrondit le total (297 × 5,5 % = 16,335). Aucun des deux n'est « faux » ; ce qui est faux, c'est que la facture, le PDF et l'export comptable n'appliquent pas la même règle. Une seule fonction, testée, utilisée partout.
+
+Trois règles à imposer :
+
+<Steps items={[
+  { title: "Représentation", text: "Entiers en centimes, ou une bibliothèque décimale (decimal.js, big.js) quand les taux l'exigent. Côté base, une colonne entière ou numeric (Prisma renvoie alors un Prisma.Decimal), jamais un float. Jamais de float pour l'argent." },
+  { title: "Autorité", text: "Le serveur recalcule tout à partir des prix de référence. Un prix ou un total envoyé par le client est ignoré." },
+  { title: "Invariants", text: "Quantités entières et positives, remises bornées, totaux cohérents. Le schéma les impose à l'entrée (z.number().int().positive().max(…)), avec une borne métier explicite." },
+]} />
+
+<Callout kind="warn">
+`.int()` ne suffit pas comme borne. Selon la version de zod, un entier comme `1e300` peut passer la validation, et `quantité × prix unitaire` dépasse alors 2⁵³ sans que personne ne le voie. Fixe toujours un `.max()` métier (par exemple 1 000 000 unités par ligne), et garde la vérification `Number.isSafeInteger` sur le résultat : c'est elle qui transforme un dépassement silencieux en erreur visible.
+</Callout>
+
+Les quantités fractionnaires (1,5 jour de prestation) suivent la même logique : on les stocke en millièmes entiers et on les convertit une seule fois, au calcul, avec la même fonction d'arrondi.
+
+<Callout kind="novafact">
+Un audit de Novafact révèle qu'un avoir peut porter une quantité négative, ce qui transforme un remboursement en paiement. Ce n'est pas une faille « technique » : c'est un invariant métier manquant. Le module 10 revient sur ces invariants, et le module 3 sur ce qui se passe quand deux requêtes arrivent en même temps.
+</Callout>
+
+## Tester les invariants plutôt que des exemples
+
+Des tests unitaires avec trois montants choisis à la main ne trouvent pas les cas limites de l'arithmétique. Les **tests de propriétés** génèrent des centaines d'entrées et vérifient qu'une propriété tient toujours. Avec fast-check :
+
+<Code file="apps/api/test/billing.property.test.ts">
+
+```ts
+import fc from 'fast-check';
+import { test } from 'vitest';
+import { mulDivRound } from '../src/billing/round';
+
+const cents = fc.integer({ min: 0, max: 10_000_000_00 });
+const rates = fc.constantFrom(2000, 1000, 550, 210);
+
+test('un avoir annule exactement la facture', () => {
+  fc.assert(fc.property(cents, rates, (ht, bps) => mulDivRound(ht, bps) + mulDivRound(-ht, bps) === 0));
+});
+
+test('la TVA ne dépasse jamais le montant HT', () => {
+  fc.assert(fc.property(cents, rates, (ht, bps) => mulDivRound(ht, bps) <= ht));
+});
+```
+
+</Code>
+
+La première propriété aurait échoué immédiatement avec `Math.round`. C'est le bon réflexe pour tout code qui manipule de l'argent : énoncer les invariants (symétrie, bornes, somme des lignes égale au total) et laisser l'outil chercher le contre-exemple. Le module 13 approfondit le fuzzing et les tests de propriétés.
+
+## Clés dynamiques
+
+Accéder à `config[req.query.key]` ou `handlers[req.body.action]()` avec une clé fournie par le client ouvre la porte à `__proto__`, `constructor` ou `toString`. Deux protections simples : une `Map` plutôt qu'un objet pour les tables indexées par une entrée externe, et une liste blanche des clés acceptées.
+
+```ts
+const ACTIONS = new Map([
+  ['send', sendInvoice],
+  ['archive', archiveInvoice],
+]);
+const { action } = z.object({ action: z.enum(['send', 'archive']) }).parse(req.body);
+const run = ACTIONS.get(action);
+if (!run) return res.status(400).json({ error: 'action inconnue' });
+```
+
+Le schéma évite au passage un piège discret : un `String(req.body.action)` naïf accepterait `["send"]`, puisqu'un tableau d'un élément se convertit en sa seule valeur.
+
+<Callout kind="debate">
+Centimes entiers ou bibliothèque décimale ? Les entiers sont rapides, sans dépendance, et suffisent pour une seule devise à deux décimales. Mais dès qu'arrivent des devises à zéro ou trois décimales, des prix unitaires à quatre décimales (énergie, API facturées à l'appel) ou des taux de change, les entiers obligent à gérer une échelle par champ, et c'est là que les bugs reviennent. Beaucoup d'équipes choisissent les entiers pour les montants stockés et une bibliothèque décimale pour les calculs intermédiaires, avec une seule fonction de conversion entre les deux.
+</Callout>
+
+<Recap items={[
+  "Un footgun est une fonctionnalité où le code dit une chose et le moteur en fait une autre.",
+  "On ferme les portes plutôt que de mémoriser : ===, schémas typés, Object.hasOwn, TypeScript strict et règles typescript-eslint.",
+  "Date accepte le 30 février et déborde en silence : dates ISO validées, UTC, bibliothèque pour le calendaire.",
+  "Au-delà de 2⁵³, les entiers perdent en précision : grands identifiants en chaîne ou BigInt, qui ne se sérialise pas en JSON.",
+  "L'argent se calcule en entiers (centimes) ou en décimal, côté serveur, avec un mode d'arrondi écrit et une seule fonction partout.",
+  "Les tests de propriétés trouvent les cas limites de l'arithmétique que les exemples manquent.",
+  "Les tables indexées par une entrée externe sont des Map avec une liste blanche.",
+]} />
+
+<Sources items={[
+  { title: "MDN : Number.MAX_SAFE_INTEGER", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER" },
+  { title: "MDN : Object.hasOwn()", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn" },
+  { title: "MDN : Math.round()", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/round" },
+  { title: "MDN : Date, formats de date et fuseaux", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date" },
+  { title: "typescript-eslint : require-array-sort-compare", url: "https://typescript-eslint.io/rules/require-array-sort-compare/" },
+  { title: "fast-check", url: "https://fast-check.dev/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 8 et 9" },
+]} />

@@ -1,0 +1,30 @@
+# Organisation de Novafact — données embarquées.
+#
+# Sert de référentiel d'équipes à plusieurs challenges : un livrable ne peut pas
+# désigner un propriétaire inventé. C'est le minimum pour qu'un backlog ou un
+# fichier CODEOWNERS veuille dire quelque chose : une ligne qui route vers une
+# équipe qui n'existe pas ne route nulle part.
+
+equipes:
+  - handle: '@novafact/plateforme'
+    nom: Plateforme
+    perimetre: API, couche de données, authentification applicative
+  - handle: '@novafact/facturation'
+    nom: Facturation
+    perimetre: Domaine métier factures, avoirs, export comptable
+  - handle: '@novafact/frontend'
+    nom: Front
+    perimetre: Interface React, page de paiement, rendu des documents
+  - handle: '@novafact/securite'
+    nom: Sécurité applicative
+    perimetre: AppSec, revue des chemins sensibles, outillage de la chaîne
+  - handle: '@novafact/sre'
+    nom: SRE
+    perimetre: Infrastructure, pipeline, exploitation, sauvegardes
+  - handle: '@novafact/produit'
+    nom: Produit
+    perimetre: Documentation, spécifications fonctionnelles
+
+# L'équipe qui doit apparaître sur les chemins sensibles. Une seule : « la
+# sécurité », c'est celle-là, pas n'importe quel nom qui contient le mot.
+securite: '@novafact/securite'

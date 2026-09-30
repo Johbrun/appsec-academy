@@ -1,0 +1,15 @@
+# Pièges à miel — corrigé de référence.
+#
+# Trois leurres : une route d'export total, une facture qui n'existe que dans
+# le HTML, une clé d'API qui n'a jamais été distribuée. Aucun usage légitime ne
+# les atteint — d'où le meilleur rapport signal sur bruit du métier.
+#
+# L'égalité stricte est le point : le corpus légitime contient `/api/admin/export`,
+# `/api/admin/export-status`, `INV-9998` et une clé qui partage le préfixe du
+# leurre. Un `starts_with` ferait trente-neuf faux positifs.
+id: honeytoken-access
+where:
+  - any_of:
+      - { field: url.path, op: eq, value: /api/admin/export-all }
+      - { field: url.path, op: eq, value: /api/invoices/INV-9999 }
+      - { field: novafact.api_key.id, op: eq, value: nvf_live_ht_7d2c91 }

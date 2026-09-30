@@ -1,0 +1,29 @@
+# VULNÉRABLE — fixture du lab. Ne pas réutiliser.
+name: Release du SDK
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: deps-${{ github.head_ref }}
+
+      - run: npm ci && npm run build
+
+      - name: Publier sur npm
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  notify:
+    needs: publish
+    uses: ./.github/workflows/notify.yml
+    secrets: inherit

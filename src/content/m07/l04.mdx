@@ -1,0 +1,225 @@
+export const questions = [
+  {
+    q: "À quoi sert une matrice de traçabilité des exigences de sécurité (SRTM) ?",
+    options: [
+      "À suivre les vulnérabilités ouvertes jusqu'à leur correction",
+      "À planifier la couverture des prochains pentests par périmètre",
+      "À mesurer la part du code couverte par les tests de sécurité",
+      "À relier chaque exigence à sa conception, son code, son test et sa preuve",
+    ],
+    answer: 3,
+    explain: "La SRTM répond à la question « comment sais-tu que cette exigence est satisfaite ? », exigence par exigence, et se lit aussi à rebours pour expliquer pourquoi un contrôle existe. Elle ne remplace ni le suivi des vulnérabilités, qui part des défauts trouvés au lieu des propriétés attendues, ni la couverture de code, qui compte des lignes exécutées sans rien savoir de ce qu'elles garantissent.",
+  },
+  {
+    q: "Où tenir la matrice pour qu'elle reste à jour ?",
+    options: [
+      "Dans l'outil de gestion des exigences, tenu par l'équipe qualité",
+      "Dans le dépôt : catalogue versionné, annotations dans les tests, génération",
+      "Dans le rapport d'audit annuel, régénéré à chaque certification",
+      "Dans le tableau de bord de l'AppSec, alimenté depuis l'agrégateur de findings",
+    ],
+    answer: 1,
+    explain: "Une matrice générée à partir d'un catalogue versionné et des annotations des tests reste vraie à chaque build ; tout ce qui se saisit à la main se périme au sprint suivant. Le point n'est pas l'outil mais la source : un référentiel d'exigences ou un tableau de bord alimenté par ailleurs décrit ce que quelqu'un a déclaré, pas ce que le code prouve aujourd'hui. Et une régénération annuelle ne dit rien des onze autres mois.",
+  },
+  {
+    q: "La matrice générée affiche NOVA-AUTHZ-01 « couverte » : un test porte l'annotation. Pourtant la BOLA revient en production. Quelle cause est la plus plausible ?",
+    options: [
+      "Le test annoté ne vérifie pas ce qu'il prétend, ou ne couvre qu'une route",
+      "L'exigence a changé de numéro lors du passage à ASVS 5.0",
+      "La génération de la matrice n'a pas été relancée depuis le dernier build",
+      "L'annotation pointe vers une exigence absente du catalogue versionné",
+    ],
+    answer: 0,
+    explain: "La traçabilité prouve qu'un lien existe entre une exigence et un test, pas que ce test est bon : un test qui vérifie seulement que la route répond, ou qui ne couvre qu'une route sur six, affiche « couverte » sans rien garantir. Les autres causes sont écartées par le générateur lui-même — il ignore les fichiers dont les tests sont désactivés, échoue sur les annotations inconnues et tourne à chaque build — et un changement de numérotation ASVS ne touche que la colonne de référence, jamais l'identifiant interne stable. La matrice dit où regarder, la revue des tests dit quoi conclure.",
+  },
+  {
+    q: "Pourquoi la traçabilité « à rebours » (du contrôle vers l'exigence) est-elle utile ?",
+    options: [
+      "Elle mesure la part du code couverte par au moins une exigence",
+      "Elle permet de répondre plus vite aux questionnaires de sécurité des clients",
+      "Elle explique pourquoi un contrôle existe, et le protège d'un refactoring",
+      "Elle signale les exigences dont plus aucun test ne prouve la couverture",
+    ],
+    answer: 2,
+    explain: "Un middleware ou une règle dont personne ne sait plus pourquoi il existe finit supprimé « pour simplifier » : le lien vers l'exigence documente l'intention et protège le contrôle — et, symétriquement, révèle un contrôle qui ne répond plus à rien, donc candidat à la suppression. Les deux autres bénéfices cités sont réels, mais relèvent du sens inverse, de l'exigence vers la preuve : réponses aux questionnaires clients et repérage des exigences devenues sans test.",
+  },
+];
+
+<YouKnow>
+Un client ou un auditeur te demande : « comment prouvez-vous que les mots de passe sont bien stockés avec argon2id ? ». Sans traçabilité, la réponse est « faites-nous confiance ».
+</YouKnow>
+
+## Le principe
+
+Une **matrice de traçabilité des exigences de sécurité** (SRTM, *Security Requirements Traceability Matrix*) relie chaque exigence à tout ce qui la met en œuvre et la prouve :
+
+| Exigence | Conception | Code | Test | Preuve |
+| --- | --- | --- | --- | --- |
+| NOVA-AUTHZ-01 (ASVS `v5.0.0-8.2.2`) : chaque accès à une facture vérifie le tenant | Design doc facturation, §5 | `repositories/invoices.ts` | `invoices.authz.test.ts` | CI verte, rapport de couverture |
+| NOVA-CRYPTO-03 (ASVS `v5.0.0-11.4.2`) : mots de passe stockés avec une fonction de hachage de mot de passe adaptée | ADR-012 (argon2id) | `auth/password.ts` | `password.test.ts` | Revue de code signée |
+| NOVA-AUDIT-02 (ASVS `v5.0.0-16.3.2`) : les refus d'autorisation sont journalisés | Design doc audit | `audit/logger.ts` | `audit.e2e.test.ts` | Tableau de bord Elastic |
+
+Elle répond à la question qu'un auditeur, un client ou un nouvel ingénieur finira par poser : **comment sais-tu que c'est vrai ?**
+
+La matrice se lit dans les deux sens, et chaque sens répond à un besoin différent :
+
+- **vers l'avant** (de l'exigence vers la preuve) : chaque exigence retenue est-elle implémentée et vérifiée ? Les trous forment un backlog ;
+- **à rebours** (du code ou du test vers l'exigence) : pourquoi ce contrôle existe-t-il ? Un middleware dont personne ne connaît la raison finit supprimé lors d'un refactoring « de simplification ». Le lien vers l'exigence le protège et documente son intention. À l'inverse, un contrôle qui ne répond plus à aucune exigence est peut-être du code mort.
+
+## La tenir dans le dépôt
+
+Un tableur manuel se périme au sprint suivant. La matrice reste vraie si elle est **générée** à partir du code. Il faut deux ingrédients : un **catalogue d'exigences** versionné, et des **annotations** dans les tests.
+
+<Code file="security/requirements.yaml">
+
+```yaml
+- id: NOVA-AUTHZ-01
+  title: Isolation des factures par tenant
+  asvs: v5.0.0-8.2.2
+  level: L1
+  verification: automated
+- id: NOVA-CRYPTO-03
+  title: Mots de passe hachés avec argon2id (paramètres ADR-012)
+  asvs: v5.0.0-11.4.2
+  level: L2
+  verification: automated
+- id: NOVA-OPS-07
+  title: Recertification trimestrielle des accès à la production
+  asvs: null
+  level: L2
+  verification: manual
+  evidence: docs/evidence/access-review/   # un compte rendu daté par trimestre
+  maxAgeDays: 100
+```
+
+</Code>
+
+<Code file="apps/api/test/invoices.authz.test.ts">
+
+```ts
+// @requirement NOVA-AUTHZ-01 Isolation des factures par tenant (ASVS 5.0, chapitre V8)
+describe('GET /invoices/:id', () => {
+  it('refuse la facture d’un autre tenant', async () => {
+    const res = await asTenant('A').get(`/invoices/${invoiceOfB.id}`);
+    expect(res.status).toBe(404);
+  });
+});
+```
+
+</Code>
+
+Un petit script parcourt les tests, extrait les annotations `@requirement`, et produit la matrice à chaque build : exigences couvertes, exigences sans test, tests orphelins. Les exigences qui ne se testent pas automatiquement (un choix d'architecture, une procédure) renvoient vers leur ADR ou leur document.
+
+<Code file="tools/srtm/generate.mjs" hl="15,16,26,27,28,29">
+
+```js
+import fs from 'node:fs';
+import path from 'node:path';
+import { parse } from 'yaml';
+
+const reqs = parse(fs.readFileSync('security/requirements.yaml', 'utf8'));
+const known = new Set(reqs.map((r) => r.id));
+const links = new Map(reqs.map((r) => [r.id, []]));
+const orphans = [];
+
+const testFiles = fs.readdirSync('apps', { recursive: true })
+  .filter((f) => /\.test\.tsx?$/.test(f)).map((f) => path.join('apps', f));
+
+for (const file of testFiles) {
+  const src = fs.readFileSync(file, 'utf8');
+  // Un fichier dont les tests sont désactivés ne prouve rien : on l'ignore.
+  if (/\b(it|describe|test)\.(skip|todo)\(/.test(src)) continue;
+  for (const [, id] of src.matchAll(/@requirement\s+([A-Z]+-[A-Z]+-\d+)/g)) {
+    if (known.has(id)) links.get(id).push(file); else orphans.push(`${file} → ${id}`);
+  }
+}
+
+const now = Date.now();
+const problems = [];
+for (const r of reqs) {
+  if (r.verification === 'automated' && links.get(r.id).length === 0) problems.push(`${r.id} : aucun test`);
+  if (r.verification === 'manual') {
+    const dir = r.evidence && fs.existsSync(r.evidence) ? fs.readdirSync(r.evidence) : [];
+    const newest = Math.max(0, ...dir.map((f) => fs.statSync(path.join(r.evidence, f)).mtimeMs));
+    if (now - newest > r.maxAgeDays * 86_400_000) problems.push(`${r.id} : preuve manuelle absente ou périmée`);
+  }
+}
+for (const o of orphans) problems.push(`annotation inconnue : ${o}`);
+
+fs.writeFileSync('srtm.json', JSON.stringify({ generatedAt: new Date(now).toISOString(), links: Object.fromEntries(links), problems }, null, 2));
+if (problems.length) { console.error(problems.join('\n')); process.exit(1); }
+```
+
+</Code>
+
+Trois choix de conception méritent d'être relevés :
+
+- **un test désactivé ne compte pas** : sinon, un `it.skip` ajouté un soir de livraison ferait de la matrice un mensonge ;
+- **une preuve manuelle a une date de péremption** : un compte rendu de recertification des accès vieux d'un an ne prouve rien sur le trimestre en cours. La date de modification du fichier est une approximation ; une date écrite dans le document lui-même est plus robuste ;
+- **une annotation inconnue échoue** : une faute de frappe dans l'identifiant produirait sinon une exigence faussement non couverte et un test orphelin.
+
+<Callout kind="tip">
+Donne à chaque exigence de Novafact un identifiant stable (`NOVA-AUTHZ-01`) qui renvoie vers l'exigence ASVS d'origine. ASVS recommande de citer ses exigences avec la version, sous la forme `v5.0.0-<chapitre>.<section>.<exigence>`, car la numérotation change d'une version à l'autre.
+</Callout>
+
+Ce dernier point n'est pas théorique : entre ASVS 4.0 et 5.0, les chapitres ont été réorganisés. Le stockage des mots de passe, par exemple, relève en 5.0 du chapitre V11 (cryptographie), exigence `11.4.2`. Un référentiel interne qui citait des numéros sans version pointe désormais vers d'autres exigences. L'identifiant interne stable, lui, ne bouge pas : seule la colonne `asvs` est à remettre à jour, une fois, lors du changement de version.
+
+## Quels types de preuve
+
+Toutes les exigences ne se prouvent pas de la même façon. Nommer le type de preuve attendu évite les débats au moment de l'audit :
+
+| Type de preuve | Exemple chez Novafact | Fraîcheur |
+| --- | --- | --- |
+| Test automatisé en CI | Isolation des factures par tenant | À chaque build |
+| Contrôle de configuration (IaC, politique) | Buckets S3 sans accès public, vérifié par une règle sur le code CDK (M16) | À chaque déploiement |
+| Détection en production | Alerte Elastic sur les refus d'autorisation en série | Continue |
+| Revue manuelle datée | Revue du design doc de l'export comptable | À chaque évolution majeure |
+| Évaluation externe | Pentest annuel, constat par constat | Annuelle |
+
+## Les limites
+
+<Callout kind="warn">
+La matrice prouve qu'un **lien** existe entre une exigence et un test, pas que le test est bon. Un test annoté qui vérifie seulement que la route répond, ou qui ne couvre qu'une route sur six, affiche une exigence « couverte » alors qu'elle ne l'est pas. La revue des tests de sécurité (M12) et les tests de variantes (M6, leçon 2) restent indispensables : la matrice dit où regarder, pas quoi conclure.
+</Callout>
+
+Deux autres dérives à surveiller : la matrice qui devient un **objectif** (on annote pour faire monter le pourcentage), et le catalogue d'exigences qui **grossit sans jamais maigrir** (des exigences sur des fonctionnalités supprimées, qui restent « non couvertes » et polluent le tableau). Une revue annuelle du catalogue, en même temps que la mise à jour de la version d'ASVS, règle le second problème.
+
+## Ce qu'elle apporte
+
+- **Des réponses rapides** aux questionnaires de sécurité des clients.
+- **Une vision des manques** : les exigences sans test deviennent un backlog.
+- **Une protection des contrôles** : la traçabilité à rebours empêche de supprimer un contrôle sans savoir pourquoi il existe.
+- **Une base pour le CSSLP** et pour tout audit : c'est exactement ce que ces référentiels demandent de démontrer.
+
+<Callout kind="novafact">
+Un prospect grand compte envoie un questionnaire de sécurité de 140 questions. Avant la matrice, il fallait trois semaines et cinq personnes. Avec `srtm.json`, l'AppSec répond en deux jours à la majorité des questions techniques, en citant pour chacune l'exigence, le test et la date du dernier build vert. Les questions sans réponse révèlent deux exigences absentes du catalogue (rotation des clés d'API des clients, durée de rétention des journaux applicatifs), ajoutées au backlog.
+</Callout>
+
+## En pratique chez toi
+
+Inutile de viser la matrice complète dès le premier jour. Un démarrage qui tient en un sprint :
+
+<Steps items={[
+  { title: "Dix exigences, pas cent", text: "Choisis les dix exigences qui comptent le plus pour ton produit (isolation des tenants, stockage des mots de passe, journalisation des refus, gestion des secrets) et donne-leur un identifiant stable." },
+  { title: "Annoter l'existant", text: "Beaucoup de tests de sécurité existent déjà sans le dire. Les annoter coûte quelques minutes et fait apparaître une couverture souvent meilleure qu'on ne le pensait." },
+  { title: "Générer, sans bloquer", text: "Lance le script en CI en mode information pendant quelques semaines : les trous deviennent visibles sans casser les builds." },
+  { title: "Bloquer sur les régressions", text: "Une fois la base propre, fais échouer la CI quand une exigence couverte perd son dernier test : c'est le cas qui compte vraiment." },
+  { title: "Étendre au fil des stories", text: "Chaque nouvelle story qui touche à la sécurité arrive avec son exigence et son annotation, par la Definition of Done (leçon précédente)." },
+]} />
+
+Le modèle de PR peut aider : une ligne « exigences concernées » invite l'auteur à citer les identifiants touchés, et le relecteur à vérifier que le test correspondant a évolué avec le code.
+
+<Recap items={[
+  "Une SRTM relie chaque exigence à sa conception, son code, son test et sa preuve.",
+  "Elle se lit dans les deux sens : vers la preuve (les manques) et à rebours (pourquoi ce contrôle existe).",
+  "Tenue dans le dépôt : un catalogue versionné, des annotations dans les tests, une génération qui échoue sur les trous.",
+  "Tests désactivés ignorés, preuves manuelles datées, annotations inconnues refusées.",
+  "Citer ASVS avec sa version : la numérotation change entre versions.",
+  "La matrice prouve un lien, pas la qualité du test.",
+]} />
+
+<Sources items={[
+  { title: "OWASP ASVS 5.0", url: "https://github.com/OWASP/ASVS" },
+  { title: "OWASP ASVS 5.0 : What is the ASVS (niveaux et format de référence)", url: "https://github.com/OWASP/ASVS/blob/master/5.0/en/0x03-What-is-the-ASVS.md" },
+  { title: "ISC2 CSSLP Exam Outline, domaine 3", url: "https://www.isc2.org/certifications/csslp/csslp-certification-exam-outline" },
+]} />

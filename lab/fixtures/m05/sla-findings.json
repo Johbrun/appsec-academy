@@ -1,0 +1,195 @@
+{
+  "_a_propos": "Constats horodatés de la file de remédiation. « ssvc » est la décision déjà rendue, « kev » dit si la vulnérabilité figure au catalogue d’exploitation connue. Les dates sont des jours calendaires UTC. C’est à ta politique de dire lesquels sont hors délai.",
+  "aujourdhui": "2026-09-28",
+  "constats": [
+    {
+      "id": "F-01",
+      "cve": "CVE-2026-50188",
+      "composant": "novafact-api",
+      "ssvc": "immediate",
+      "kev": true,
+      "constate_le": "2026-09-25",
+      "corrige_le": null
+    },
+    {
+      "id": "F-02",
+      "cve": "CVE-2026-21801",
+      "composant": "novafact-api",
+      "ssvc": "immediate",
+      "kev": true,
+      "constate_le": "2026-09-24",
+      "corrige_le": null
+    },
+    {
+      "id": "F-03",
+      "cve": "CVE-2026-40155",
+      "composant": "novafact-api",
+      "ssvc": "out-of-cycle",
+      "kev": false,
+      "constate_le": "2026-09-14",
+      "corrige_le": null
+    },
+    {
+      "id": "F-04",
+      "cve": "CVE-2026-18877",
+      "composant": "novafact-api",
+      "ssvc": "out-of-cycle",
+      "kev": false,
+      "constate_le": "2026-09-13",
+      "corrige_le": null
+    },
+    {
+      "id": "F-05",
+      "cve": "CVE-2026-13044",
+      "composant": "novafact-api",
+      "ssvc": "scheduled",
+      "kev": false,
+      "constate_le": "2026-07-30",
+      "corrige_le": null
+    },
+    {
+      "id": "F-06",
+      "cve": "CVE-2026-29334",
+      "composant": "novafact-api",
+      "ssvc": "scheduled",
+      "kev": false,
+      "constate_le": "2026-07-29",
+      "corrige_le": null
+    },
+    {
+      "id": "F-07",
+      "cve": "CVE-2026-27718",
+      "composant": "novafact-api",
+      "ssvc": "defer",
+      "kev": false,
+      "constate_le": "2025-08-24",
+      "corrige_le": null
+    },
+    {
+      "id": "F-08",
+      "cve": "CVE-2026-22014",
+      "composant": "novafact-api",
+      "ssvc": "defer",
+      "kev": false,
+      "constate_le": "2026-05-31",
+      "corrige_le": null
+    },
+    {
+      "id": "F-09",
+      "cve": "CVE-2025-48795",
+      "composant": "novafact-api",
+      "ssvc": "scheduled",
+      "kev": true,
+      "constate_le": "2026-09-14",
+      "corrige_le": null
+    },
+    {
+      "id": "F-10",
+      "cve": "CVE-2026-48002",
+      "composant": "novafact-api",
+      "ssvc": "scheduled",
+      "kev": true,
+      "constate_le": "2026-09-13",
+      "corrige_le": null
+    },
+    {
+      "id": "F-11",
+      "cve": "CVE-2026-30791",
+      "composant": "novafact-api",
+      "ssvc": "immediate",
+      "kev": true,
+      "constate_le": "2026-09-25",
+      "corrige_le": null
+    },
+    {
+      "id": "F-12",
+      "cve": "CVE-2025-30066",
+      "composant": "novafact-api",
+      "ssvc": "immediate",
+      "kev": true,
+      "constate_le": "2026-09-24",
+      "corrige_le": null
+    },
+    {
+      "id": "F-13",
+      "cve": "CVE-2026-10233",
+      "composant": "novafact-api",
+      "ssvc": "out-of-cycle",
+      "kev": false,
+      "constate_le": "2026-08-29",
+      "corrige_le": "2026-09-11"
+    },
+    {
+      "id": "F-14",
+      "cve": "CVE-2026-37622",
+      "composant": "novafact-api",
+      "ssvc": "out-of-cycle",
+      "kev": false,
+      "constate_le": "2026-08-29",
+      "corrige_le": "2026-09-13"
+    },
+    {
+      "id": "F-15",
+      "cve": "CVE-2026-24511",
+      "composant": "novafact-api",
+      "ssvc": "scheduled",
+      "kev": false,
+      "constate_le": "2026-06-30",
+      "corrige_le": "2026-08-28"
+    },
+    {
+      "id": "F-16",
+      "cve": "CVE-2026-11902",
+      "composant": "novafact-api",
+      "ssvc": "scheduled",
+      "kev": false,
+      "constate_le": "2026-06-30",
+      "corrige_le": "2026-08-30"
+    },
+    {
+      "id": "F-17",
+      "cve": "CVE-2026-19064",
+      "composant": "novafact-api",
+      "ssvc": "immediate",
+      "kev": false,
+      "constate_le": "2026-09-18",
+      "corrige_le": "2026-09-21"
+    },
+    {
+      "id": "F-18",
+      "cve": "CVE-2026-44190",
+      "composant": "novafact-api",
+      "ssvc": "immediate",
+      "kev": false,
+      "constate_le": "2026-09-18",
+      "corrige_le": "2026-09-22"
+    },
+    {
+      "id": "F-19",
+      "cve": "CVE-2026-15873",
+      "composant": "novafact-api",
+      "ssvc": "defer",
+      "kev": true,
+      "constate_le": "2026-09-08",
+      "corrige_le": null
+    },
+    {
+      "id": "F-20",
+      "cve": "CVE-2026-33420",
+      "composant": "novafact-api",
+      "ssvc": "out-of-cycle",
+      "kev": true,
+      "constate_le": "2026-09-14",
+      "corrige_le": null
+    },
+    {
+      "id": "F-21",
+      "cve": "CVE-2026-31118",
+      "composant": "novafact-api",
+      "ssvc": "defer",
+      "kev": false,
+      "constate_le": "2021-04-07",
+      "corrige_le": null
+    }
+  ]
+}

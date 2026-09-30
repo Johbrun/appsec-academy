@@ -1,0 +1,49 @@
+{
+  "_comment": "CORRIGÉ : deux défauts vivaient dans ce fichier — un principal universel sans condition (c'est-à-dire une publication), et un opérateur d'ensemble qui échouait en ouvert. À compléter par le blocage d'accès public au niveau du compte, qui rattrape la prochaine politique mal écrite.",
+  "Bucket": "novafact-invoices",
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "_comment": "CORRIGÉ : la lecture passe par le contrôle d'accès d'origine de la distribution CloudFront, et la condition sur l'ARN source vérifie que c'est bien NOTRE distribution qui appelle. Et s3:ListBucket a disparu : le droit de lister est ce qui transforme une fuite en inventaire — c'est le premier niveau de flAWS.",
+        "Sid": "LectureParLaDistributionCloudFront",
+        "Effect": "Allow",
+        "Principal": { "Service": "cloudfront.amazonaws.com" },
+        "Action": "s3:GetObject",
+        "Resource": "arn:aws:s3:::novafact-invoices/factures/*",
+        "Condition": {
+          "StringEquals": {
+            "AWS:SourceArn": "arn:aws:cloudfront::123456789012:distribution/E1NOVAFACTLAB01"
+          }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ : « ForAllValues:StringEquals » sur aws:PrincipalArn renvoyait VRAI quand la clé était absente — un appelant anonyme n'a pas d'ARN de principal, donc il passait. Les opérateurs d'ensemble échouent en ouvert sur une clé absente. Ici le principal est nommé directement ; l'autre correction acceptable est de garder l'opérateur en ajoutant « \"Null\": {\"aws:PrincipalArn\": \"false\"} », ou un Deny qui traite l'absence de la clé.",
+        "Sid": "EcritureReserveeAuRoleDeTache",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::123456789012:role/novafact-task-role" },
+        "Action": ["s3:PutObject"],
+        "Resource": "arn:aws:s3:::novafact-invoices/factures/*",
+        "Condition": {
+          "StringEquals": {
+            "aws:PrincipalArn": "arn:aws:iam::123456789012:role/novafact-task-role"
+          }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ : un refus en filet, qui ne dépend d'aucune des instructions ci-dessus.",
+        "Sid": "RefuserHorsTls",
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": "s3:*",
+        "Resource": [
+          "arn:aws:s3:::novafact-invoices",
+          "arn:aws:s3:::novafact-invoices/*"
+        ],
+        "Condition": {
+          "Bool": { "aws:SecureTransport": "false" }
+        }
+      }
+    ]
+  }
+}

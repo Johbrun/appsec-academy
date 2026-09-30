@@ -1,0 +1,273 @@
+export const questions = [
+  {
+    q: "Dans Express 4, une route async lève une exception sur une entrée inattendue et rien ne l'attrape. Sur Node récent, que se passe-t-il par défaut ?",
+    options: [
+      "La promesse rejetée n'est pas gérée : Node arrête le processus",
+      "Express renvoie une 500 via son gestionnaire d'erreur par défaut",
+      "Node journalise un avertissement et poursuit l'exécution normalement",
+      "La requête reste en attente jusqu'au délai d'expiration du client",
+    ],
+    answer: 0,
+    explain: "L'avertissement suivi d'une poursuite était le comportement de Node avant la version 15 ; depuis, le défaut est l'arrêt du processus, et c'est ce qui transforme une entrée inattendue en déni de service. La 500 automatique, elle, est bien réelle pour une exception synchrone en Express 4 — mais le middleware d'erreur ne voit pas une promesse rejetée. Express 5 corrige ce point, uniquement pour la promesse renvoyée par le handler.",
+  },
+  {
+    q: "Quel code illustre un « fail open » ?",
+    options: [
+      "Un middleware qui journalise l'erreur puis renvoie 500 sans continuer",
+      "Un contrôle d'autorisation dont l'exception est attrapée, puis next()",
+      "Un délai d'expiration sur le service de politique, qui renvoie alors 503",
+      "Une transaction annulée dès qu'une étape échoue, sans effet partiel",
+    ],
+    answer: 1,
+    explain: "Les trois autres échouent tous fermé, et c'est précisément ce qu'on cherche : la 500, le 503 sur délai dépassé et l'annulation de transaction refusent ou ne laissent aucun effet. Le timeout est le plus instructif, parce qu'il transforme une dépendance lente en refus explicite plutôt qu'en attente indéfinie. Le fail open attrape l'exception d'un contrôle et laisse la requête continuer : ne pas pouvoir vérifier devient une autorisation.",
+  },
+  {
+    q: "Pourquoi comparer un HMAC reçu avec crypto.timingSafeEqual plutôt qu'avec === ?",
+    options: [
+      "Parce que === compare deux Buffers par référence, pas par contenu",
+      "Parce que timingSafeEqual vérifie aussi que les longueurs concordent",
+      "Pour que la durée ne révèle pas la longueur du préfixe correct",
+      "Parce que === sur une chaîne hexadécimale est sensible à la casse",
+    ],
+    answer: 2,
+    explain: "« timingSafeEqual vérifie aussi les longueurs » inverse la réalité : il lève une exception quand les deux Buffers n'ont pas la même taille, c'est à toi de comparer les longueurs avant de l'appeler. La comparaison par référence est exacte entre deux Buffers, mais pas entre deux chaînes hexadécimales, où === compare bien le contenu. Le motif réel est le temps : une comparaison classique s'arrête au premier octet différent, et cette durée se mesure.",
+  },
+  {
+    q: "Une route Express 5 appelle sendInvoiceEmail(invoice) sans await ni catch, « pour répondre plus vite ». Le serveur SMTP tombe. Que se passe-t-il ?",
+    options: [
+      "Express 5 la transmet au middleware d'erreur, qui journalise après coup",
+      "Node journalise le rejet ; la requête déjà répondue n'est pas affectée",
+      "Le handler est terminé, donc la promesse est abandonnée par le moteur",
+      "La promesse n'est rattachée à rien : rejet non géré, le processus s'arrête",
+    ],
+    answer: 3,
+    explain: "Surestimer Express 5 est l'erreur la plus fréquente : il ne gère que la promesse renvoyée par le handler, pas une promesse lancée et oubliée à côté. Une promesse ne s'abandonne pas non plus quand le handler se termine, elle vit jusqu'à son rejet. Et ce rejet arrête le processus depuis Node 15 : la réponse est certes déjà partie, mais toutes les autres requêtes en cours tombent avec. La règle no-floating-promises le détecte ; la bonne conception est une file d'attente.",
+  },
+];
+
+<YouKnow>
+Tu as déjà obtenu des traces de pile, fait planter un service avec une entrée inattendue ou profité d'une vérification qui échouait « en ouvert ». C'est précisément ce que vise la nouvelle catégorie A10 du Top 10:2025.
+</YouKnow>
+
+## A10 : Mishandling of Exceptional Conditions
+
+La nouvelle catégorie du Top 10:2025 regroupe ce qui se passe quand le code rencontre une situation imprévue : entrée d'un type inattendu, dépendance qui échoue, délai dépassé, exception au milieu d'une opération. Trois conséquences classiques : **l'indisponibilité** (le processus s'arrête), **la fuite d'informations** (traces de pile, requêtes SQL dans les messages) et **l'échec en ouvert** (le contrôle de sécurité saute). Parmi les CWE rattachées, trois résument bien le sujet : CWE-209 (message d'erreur contenant des informations sensibles), CWE-636 (ne pas échouer de façon sûre) et CWE-755 (mauvaise gestion des conditions exceptionnelles).
+
+L'intérêt de cette catégorie pour un développeur Node est qu'elle nomme un défaut que les autres listes dispersaient. Une injection se voit dans une ligne de code ; une mauvaise gestion d'erreur se voit dans l'**absence** de code, ou dans un `catch` trop large. C'est pour ça qu'on la traite par des conventions et des outils plutôt que par la vigilance.
+
+## Les promesses non gérées
+
+Dans Express 4, une route `async` qui lève une exception n'est pas attrapée par le middleware d'erreur. Depuis Node 15, un rejet de promesse non géré **arrête le processus** par défaut. Une simple entrée inattendue devient un déni de service, surtout si le service tourne avec peu d'instances.
+
+**Express 5** corrige ce point : une promesse rejetée dans un handler est transmise au middleware d'erreur. Si Novafact est encore en Express 4, un wrapper `asyncHandler` sur toutes les routes, ou la migration, s'impose.
+
+Express 5 ne règle pas tout pour autant. Il ne voit que la promesse **renvoyée** par le handler. Une promesse lancée sans `await` (« pour répondre plus vite ») n'est rattachée à rien : si elle échoue, c'est de nouveau un rejet non géré. Même chose pour un callback d'événement ou un `setTimeout` qui lève une exception. Deux règles typescript-eslint ferment la classe : `no-floating-promises` (toute promesse doit être attendue, renvoyée ou explicitement gérée) et `no-misused-promises` (pas de fonction `async` là où un callback synchrone est attendu).
+
+Et si malgré tout une exception remonte jusqu'au processus ? La documentation de Node est claire : reprendre le fonctionnement normal après `uncaughtException` n'est pas sûr, l'état de l'application est inconnu. On journalise, on arrête proprement, et on laisse l'orchestrateur (ECS chez Novafact) redémarrer une tâche saine.
+
+<Code file="apps/api/src/server.ts">
+
+```ts
+const server = app.listen(PORT);
+
+function crash(kind: string, err: unknown) {
+  logger.fatal({ err, kind }, 'process crash');
+  server.close(() => process.exit(1));        // termine les requêtes en cours
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+process.on('uncaughtException', (err) => crash('uncaughtException', err));
+process.on('unhandledRejection', (err) => crash('unhandledRejection', err));
+```
+
+</Code>
+
+Un crash n'est acceptable que si le service a **plusieurs instances** et que le redémarrage est rapide. Sinon, la moindre entrée pathologique rejouée en boucle maintient le service à terre : c'est aussi pour ça que chaque crash doit remonter en alerte (M18).
+
+## Les délais sont des conditions exceptionnelles
+
+Une dépendance lente est plus dangereuse qu'une dépendance en panne : sans délai, les requêtes s'accumulent, la mémoire monte, et c'est l'API entière qui tombe. Les délais par défaut du `fetch` de Node se comptent en minutes, bien trop pour une API : chaque appel sortant porte son propre délai, et chaque timeout aboutit à une décision explicite (réessayer, dégrader, refuser).
+
+```ts
+const res = await fetch(`${PAYMENTS_URL}/status/${paymentId}`, { signal: AbortSignal.timeout(3_000) });
+```
+
+## Des erreurs qui ne fuient pas
+
+<Diff file="apps/api/src/middleware/errors.ts" hlBefore="2" hlAfter="3-5">
+
+```ts
+app.use((err, req, res, next) => {
+  res.status(500).json({ error: err.message, stack: err.stack });
+});
+```
+
+```ts
+app.use((err, req, res, next) => {
+  const status = err instanceof ZodError ? 400 : err.status ?? 500;
+  req.log.error({ err, requestId: req.id }, 'request failed');
+  res.status(status).json({ error: status === 400 ? 'Requête invalide' : 'Erreur interne', requestId: req.id });
+});
+```
+
+</Diff>
+
+Le détail va dans les **logs** (M18), l'utilisateur reçoit un message générique et un **identifiant de requête** pour le support. Vérifie aussi que `NODE_ENV=production` est bien positionné : le gestionnaire d'erreur par défaut d'Express affiche la pile en développement.
+
+Le message générique a un défaut : il n'aide pas l'utilisateur légitime. La solution n'est pas de renvoyer `err.message`, qui peut contenir n'importe quoi (une requête SQL, un chemin, le contenu d'un champ), mais de distinguer deux familles d'erreurs. Les erreurs **prévues** portent un code et un message rédigés pour le client ; toutes les autres sont des erreurs internes, dont rien ne sort. Le mot-clé `cause` d'ES2022 permet de garder la chaîne complète dans les logs sans l'exposer.
+
+<Code file="apps/api/src/lib/errors.ts">
+
+```ts
+export class AppError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,          // stable, documenté : 'INVOICE_ALREADY_SENT'
+    readonly publicMessage: string, // rédigé pour le client
+    options?: { cause?: unknown },
+  ) {
+    super(code, options);
+  }
+}
+
+// Dans un service :
+throw new AppError(409, 'INVOICE_ALREADY_SENT', 'Cette facture a déjà été envoyée.', { cause: err });
+```
+
+</Code>
+
+Le middleware d'erreur ne renvoie `publicMessage` que pour une `AppError` ; pour tout le reste, « Erreur interne ». Une fuite devient alors impossible par oubli.
+
+## Échouer de façon sûre
+
+Kohnfelder (K4) range *Fail Securely* parmi les patterns de minimisation de l'exposition : en cas de doute, refuser. L'anti-pattern le plus courant en Node :
+
+<Diff file="apps/api/src/middleware/authz.ts" hlBefore="4-6" hlAfter="4-7">
+
+```ts
+export const canAccessInvoice = async (req, res, next) => {
+  try {
+    await policy.assert(req.user, 'invoice:read', req.params.id);
+  } catch (e) {
+    req.log.warn(e); // le service de politique est lent, on laisse passer
+  }
+  next();
+};
+```
+
+```ts
+export const canAccessInvoice = async (req, res, next) => {
+  try {
+    await policy.assert(req.user, 'invoice:read', req.params.id);
+    next();
+  } catch (e) {
+    req.log.warn({ err: e }, 'authz denied or failed');
+    res.status(403).json({ error: 'Accès refusé' });
+  }
+};
+```
+
+</Diff>
+
+L'échec en ouvert prend des formes moins visibles qu'un `catch` vide. À chercher en revue :
+
+| Forme | Exemple | Version sûre |
+| --- | --- | --- |
+| Valeur par défaut permissive | `switch (role)` dont le `default` autorise | `default` qui refuse, et TypeScript qui exige l'exhaustivité |
+| Liste noire de rôles | `if (role !== 'viewer') allow()` | Liste blanche : `if (['owner', 'accountant'].includes(role))` |
+| Dépendance indisponible | Service anti-fraude en panne, le paiement passe | Décision métier écrite : refuser, ou mettre en attente de revue |
+| Erreur convertie en booléen | `isValid = await verify(sig).catch(() => true)` | `.catch(() => false)` et un log |
+| Configuration absente | `if (process.env.AUTH_ENABLED !== 'false')` inversé | Démarrage refusé si la configuration de sécurité manque |
+
+<Callout kind="debate">
+Échouer fermé a un coût : si le service de politique tombe, plus personne ne consulte ses factures. Certaines équipes acceptent un échec ouvert **borné** pour des lectures peu sensibles (un cache de décisions récentes, valable quelques minutes). La position défendable : jamais d'échec ouvert sur une écriture ou une donnée d'un autre tenant, et toute exception à cette règle est une décision de risque documentée (M1 leçon 7), pas une ligne de code dans un `catch`.
+</Callout>
+
+## État incohérent et atomicité
+
+Une opération en plusieurs étapes (débiter un crédit, créer la facture, envoyer l'e-mail) qui échoue au milieu laisse des données incohérentes. Les **transactions** de la base garantissent le tout ou rien ; pour ce qui sort de la base (e-mail, webhook), on écrit l'intention dans la transaction et un processus séparé l'exécute (pattern *outbox*).
+
+<Code file="apps/api/src/billing/issue.ts" hl="2,9">
+
+```ts
+export async function issueInvoice(ctx: TenantContext, draftId: string) {
+  return prisma.$transaction(async (tx) => {
+    const draft = await tx.invoice.findFirstOrThrow({ where: { id: draftId, tenantId: ctx.tenantId, status: 'DRAFT' } });
+    const number = await nextInvoiceNumber(tx, ctx.tenantId);
+    const invoice = await tx.invoice.update({ where: { id: draft.id }, data: { status: 'ISSUED', number } });
+    await tx.outbox.create({ data: { type: 'invoice.email', payload: { invoiceId: invoice.id } } });
+    return invoice;
+  });
+  // Une exception à n'importe quelle ligne annule tout : pas de numéro consommé, pas d'e-mail en attente.
+}
+```
+
+</Code>
+
+Avec MongoDB, les transactions multi-documents existent aussi, mais exigent un replica set : un environnement de développement en instance unique ne les exerce pas, et le bug n'apparaît qu'en production.
+
+Kohnfelder (K8) insiste sur l'**atomicité** et sur la fenêtre entre une vérification et une action (TOCTOU). En Node, deux exemples courants :
+
+- `fs.existsSync(p)` puis `fs.writeFileSync(p)` : entre les deux, un autre acteur peut créer le fichier. Utilise le drapeau `wx` qui crée et échoue de façon atomique.
+- « l'e-mail n'existe pas » puis « insérer l'utilisateur » : deux requêtes simultanées passent la vérification. Seule une **contrainte d'unicité** en base garantit l'invariant. Le module 3 approfondit ces race conditions.
+
+Le même outil protège contre le double paiement, l'un des scénarios cités par A10 : le client envoie une **clé d'idempotence** avec chaque paiement, stockée sous contrainte d'unicité. Une nouvelle tentative après un délai dépassé tombe sur la contrainte (code `P2002` chez Prisma) et renvoie le résultat du premier essai au lieu de payer deux fois.
+
+## Comparaisons à temps constant
+
+Comparer un secret (signature de webhook, jeton) avec `===` s'arrête au premier caractère différent : la durée peut révéler la longueur du préfixe correct. `crypto.timingSafeEqual` compare en temps constant, mais exige deux Buffers de **même longueur** (sinon il lève une exception). Comparer deux condensats HMAC règle ce problème.
+
+<Code file="apps/api/src/webhooks/verify.ts" hl="6-7,10">
+
+```ts
+import crypto from 'node:crypto';
+
+// Monté avec express.raw({ type: 'application/json' }) : on signe les octets reçus, pas un JSON re-sérialisé.
+export function verifyWebhook(rawBody: Buffer, header: string | undefined, secret: string): boolean {
+  const [ts, sig] = (header ?? '').split(',');                   // format : "<timestamp>,<hex>"
+  const t = Number(ts);
+  if (!sig || !Number.isInteger(t) || Math.abs(Date.now() / 1000 - t) > 300) return false;  // anti-rejeu : 5 min
+  const expected = crypto.createHmac('sha256', secret).update(`${t}.`).update(rawBody).digest();
+  const received = Buffer.from(sig, 'hex');
+  return received.length === expected.length && crypto.timingSafeEqual(received, expected);
+}
+```
+
+</Code>
+
+Trois détails qui comptent : signer le **corps brut** (un `JSON.stringify` de `req.body` ne redonne pas forcément les mêmes octets), inclure un **horodatage** dans la signature pour empêcher le rejeu, et retourner `false` dans tous les cas douteux plutôt que de lever une exception. Note aussi le `Number.isInteger` : sans lui, un horodatage illisible donne `NaN`, et `Math.abs(NaN) > 300` vaut `false`. Le contrôle d'anti-rejeu passerait en silence : un échec en ouvert de plus, logé dans une comparaison.
+
+Le temps de réponse fuit aussi ailleurs que dans les comparaisons. Sur une route de connexion, si l'utilisateur n'existe pas, le code répond immédiatement ; s'il existe, il calcule un hash de mot de passe volontairement lent. La différence de durée suffit à énumérer les comptes. La parade : vérifier un hash factice quand l'utilisateur est introuvable, pour que les deux chemins coûtent autant. Et pour les jetons d'API, stocke un condensat SHA-256 et cherche par condensat : la recherche en base ne compare alors jamais le secret lui-même.
+
+## Sérialisation
+
+`JSON.parse` est sûr : il ne produit que des données. Les dangers viennent des formats qui **reconstruisent des types ou du code** : `node-serialize` (qui évalue des fonctions), les anciennes versions de `js-yaml` avec des types JavaScript (retirés du schéma par défaut depuis la version 4), ou toute désérialisation qui instancie des classes arbitraires. La règle : des formats de données purs, puis une validation par schéma.
+
+## En pratique chez toi
+
+<Steps items={[
+  { title: "Lint", text: "Active no-floating-promises et no-misused-promises en erreur ; interdis les catch vides (no-empty)." },
+  { title: "Middleware d'erreur unique", text: "Une classe AppError pour les erreurs prévues, « Erreur interne » pour tout le reste, un identifiant de requête partout." },
+  { title: "Processus", text: "Journaliser et redémarrer sur exception non gérée, avec au moins deux instances et une alerte sur chaque crash." },
+  { title: "Délais", text: "Un timeout explicite sur chaque appel sortant, et une décision écrite quand il expire." },
+  { title: "Revue", text: "Chercher les échecs en ouvert : catch qui continue, défauts permissifs, dépendances optionnelles dans un contrôle." },
+]} />
+
+<Recap items={[
+  "A10:2025 couvre l'indisponibilité, la fuite d'informations et l'échec en ouvert face aux situations imprévues.",
+  "Promesses non gérées : Express 5 ou un wrapper, plus no-floating-promises pour les promesses oubliées ; après uncaughtException, on redémarre.",
+  "Détails dans les logs, message générique ou message prévu (AppError) pour l'utilisateur, identifiant de requête.",
+  "Un contrôle de sécurité qui échoue refuse ; les défauts permissifs et les listes noires sont des échecs en ouvert déguisés.",
+  "Transactions, outbox, drapeau wx, contraintes d'unicité et clés d'idempotence pour l'atomicité.",
+  "timingSafeEqual sur des condensats de même longueur, corps brut et horodatage pour les webhooks, chemins de même durée à la connexion.",
+  "Des formats de données purs, jamais de désérialisation qui reconstruit du code.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Top 10:2025, A10 Mishandling of Exceptional Conditions", url: "https://top10.owasp.org/2025/A10_2025-Mishandling_of_Exceptional_Conditions/" },
+  { title: "Express : gestion des erreurs", url: "https://expressjs.com/en/guide/error-handling.html" },
+  { title: "Node.js : événement uncaughtException", url: "https://nodejs.org/api/process.html#event-uncaughtexception" },
+  { title: "typescript-eslint : no-floating-promises", url: "https://typescript-eslint.io/rules/no-floating-promises/" },
+  { title: "Prisma : transactions interactives", url: "https://www.prisma.io/docs/orm/prisma-client/queries/transactions" },
+  { title: "Node.js : crypto.timingSafeEqual", url: "https://nodejs.org/api/crypto.html#cryptotimingsafeequala-b" },
+  { title: "OWASP Cheat Sheet : Error Handling", url: "https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html" },
+]} />

@@ -1,0 +1,163 @@
+export const questions = [
+  {
+    q: "Qu'est-ce qui a changé le 1er septembre 2026 pour les entreprises françaises en matière de facturation ?",
+    options: [
+      "Toutes les entreprises doivent émettre leurs factures via une plateforme agréée",
+      "Les PME et microentreprises doivent émettre des factures électroniques",
+      "Toutes doivent pouvoir recevoir ; grandes entreprises et ETI doivent émettre",
+      "Les factures papier deviennent interdites entre entreprises françaises",
+    ],
+    answer: 2,
+    explain: "La réforme se déploie en deux temps : au 01/09/2026, toutes les entreprises doivent pouvoir recevoir des factures électroniques via une plateforme agréée, et seules les grandes entreprises et les ETI doivent en émettre ; les PME et microentreprises suivront au 01/09/2027. Confondre les deux échéances fait croire à une obligation d'émission généralisée dès 2026 — l'erreur la plus répandue, et celle qui décale le plus le planning d'un éditeur de facturation.",
+  },
+  {
+    q: "Comment l'iframe de paiement d'un prestataire aide-t-elle Novafact vis-à-vis de PCI DSS ?",
+    options: [
+      "Elle réduit fortement le périmètre, sans exonérer la page qui l'intègre",
+      "Elle transfère la responsabilité au prestataire, qui répond du paiement",
+      "Elle place Novafact hors du champ de PCI DSS, comme n'importe quel marchand SAQ A",
+      "Elle n'a pas d'effet : le périmètre dépend du volume de transactions",
+    ],
+    answer: 0,
+    explain: "Les données de carte ne transitent plus par Novafact : le périmètre se réduit fortement, et c'est le levier le plus puissant de la conformité. Mais la page qui intègre l'iframe reste concernée — ses scripts relèvent du critère d'éligibilité du SAQ A depuis janvier 2025, parce qu'un script présent sur cette page peut remplacer l'iframe par un faux formulaire. Le prestataire répond de ce qu'il sert, pas de ta page ; et le volume de transactions détermine le niveau de marchand, pas le contenu du périmètre.",
+  },
+  {
+    q: "L'authentification multifacteur (MFA) sur les accès d'administration de Novafact répond à la fois à une mesure de NIS2 (article 21), à une attente des questionnaires clients et à une exigence interne. Comment l'organiser ?",
+    options: [
+      "Un projet de conformité par texte, chacun avec ses preuves propres",
+      "Un contrôle décrit une fois, relié à chaque exigence et à sa preuve",
+      "Une exigence interne unique, dont on dérive les réponses aux textes",
+      "Une preuve par audit, produite au moment précis où l'auditeur la réclame",
+    ],
+    answer: 1,
+    explain: "Les textes se recoupent largement : un catalogue de contrôles, chacun relié aux exigences qu'il satisfait et à la preuve qui le démontre, évite de produire trois fois la même chose et garde une seule vérité. Le piège est de faire de l'exigence interne le pivot : elle est l'une des exigences satisfaites, pas le contrôle — et une clause contractuelle peut en demander davantage, par exemple une MFA résistante à l'hameçonnage. Quant à produire la preuve à la demande, c'est découvrir l'écart devant l'auditeur.",
+  },
+  {
+    q: "Pour NIS2, en quoi le rythme de notification d'un incident important ressemble-t-il à celui du CRA pour une vulnérabilité activement exploitée ?",
+    options: [
+      "NIS2 laisse 72 heures et le CRA 24 heures : les rythmes sont opposés",
+      "Les deux imposent un rapport unique, sous 14 jours après le correctif",
+      "Aucun rapport : NIS2 vise les incidents, le CRA les vulnérabilités",
+      "Les deux prévoient une alerte sous 24 h, puis une notification sous 72 h",
+    ],
+    answer: 3,
+    explain: "NIS2 (article 23) enchaîne alerte précoce sous 24 heures, notification sous 72 heures et rapport final dans le mois ; le CRA suit le même rythme 24 h / 72 h, avec un rapport final au plus tard 14 jours après la mise à disposition d'un correctif. L'objection sur la nature des faits — un incident pour NIS2, une vulnérabilité exploitée pour le CRA — est exacte, et c'est justement pourquoi le rythme commun est utile : un seul circuit d'astreinte, avec des modèles de message distincts, tient les deux obligations.",
+  },
+];
+
+<YouKnow>
+Tu as croisé la conformité surtout comme un prétexte à pentest annuel. Côté AppSec, elle devient une source d'exigences et, bien utilisée, un levier de budget.
+</YouKnow>
+
+## Une source d'exigences
+
+La conformité impose des exigences de quatre types : **réglementaires** (lois), **légales** (contrats, responsabilité), **sectorielles** (normes d'un secteur) et **internes** (politiques de l'entreprise). Pour Novafact, les principales :
+
+| Texte | Ce qu'il impose côté logiciel |
+| --- | --- |
+| **RGPD** | Minimisation, sécurité adaptée, droits des personnes, notification des violations (leçon précédente) |
+| **Cyber Resilience Act** | Sécurité dès la conception, gestion des vulnérabilités, SBOM, signalement depuis le 11/09/2026 (M1) |
+| **NIS2** | Mesures de gestion des risques et notification d'incidents pour les entités essentielles et importantes, selon la taille et le secteur : à qualifier avec un juriste |
+| **PCI DSS 4.0.1** | Protection des données de carte ; périmètre réduit par la tokenisation et l'iframe du prestataire ; exigences sur les scripts des pages de paiement (M4) |
+| **Réforme de la facturation électronique** | Depuis le 01/09/2026, toutes les entreprises françaises doivent pouvoir **recevoir** des factures électroniques via une plateforme agréée, et les grandes entreprises et ETI doivent en **émettre** ; les PME suivront le 01/09/2027 |
+
+Les exigences **légales** sont les plus souvent oubliées parce qu'elles ne portent pas de nom de norme : ce sont les clauses de sécurité des contrats avec les clients grands comptes (délai de notification d'incident, droit d'audit, localisation des données, taux de disponibilité). Elles engagent Novafact autant qu'une loi, et elles sont parfois plus strictes. Une notification d'incident « sous 24 heures » promise à un client dans une annexe contractuelle s'impose à l'équipe de réponse, même si la loi laisse 72 heures.
+
+## NIS2 vu par l'AppSec
+
+NIS2 s'applique aux entités « essentielles » et « importantes » de secteurs listés, selon leur taille. Pour un SaaS, la qualification dépend de ce qu'il fait et de qui sont ses clients : c'est une question juridique. Mais si Novafact est concernée, trois articles touchent directement le travail de l'AppSec :
+
+- **l'article 21** liste des mesures minimales de gestion des risques. Plusieurs sont du ressort direct de l'AppSec : la sécurité de la **chaîne d'approvisionnement** (21.2.d), la sécurité de l'acquisition, du **développement** et de la maintenance des systèmes, y compris le **traitement et la divulgation des vulnérabilités** (21.2.e), la cryptographie (21.2.h), le contrôle d'accès (21.2.i) et l'**authentification multifacteur** (21.2.j) ;
+- **l'article 23** impose, pour un incident important, une **alerte précoce sous 24 heures**, une **notification sous 72 heures**, puis un **rapport final dans le mois** ;
+- **l'article 20** rend les organes de direction responsables de l'approbation et de la supervision de ces mesures, avec une obligation de formation (M6, leçon 4).
+
+En France, la transposition passe par le projet de loi dit « Résilience », dont il faut suivre l'avancement. L'ANSSI a publié en document de travail **ReCyF**, un référentiel de cybersécurité prévu par ce texte, que les futures entités assujetties pourront choisir d'appliquer.
+
+## La facturation électronique, un enjeu direct pour Novafact
+
+Pour un SaaS de facturation, la réforme change la donne : Novafact s'intègre à l'écosystème des **plateformes agréées**, échange des flux de factures structurées, et devient un maillon d'une chaîne où l'intégrité et la disponibilité sont critiques. Une facture altérée ou un flux interrompu n'est plus seulement un bug : c'est un problème fiscal pour les clients.
+
+Côté conception, cela se traduit par des exigences concrètes : authentifier et journaliser chaque échange avec la plateforme agréée, garantir que le contenu structuré d'une facture ne change pas entre sa génération et sa transmission (empreinte calculée à l'émission et vérifiée à l'envoi), rejouer sans doublon un envoi interrompu (idempotence), et surveiller la file de transmission comme un service critique (M18).
+
+## Réduire le périmètre plutôt que tout protéger
+
+Le levier le plus puissant de la conformité est souvent la **réduction du périmètre** :
+
+- **Tokenisation** : les données de carte restent chez le prestataire de paiement, Novafact ne manipule que des jetons ;
+- **Minimisation** : ne pas collecter une donnée la sort du périmètre du RGPD pour ce traitement ;
+- **Isolation** : un service qui traite les données sensibles, séparé du reste, limite le périmètre des audits.
+
+La réduction de périmètre a un coût de conception, et il se paie une fois. Le périmètre qu'on laisse s'étendre se paie chaque année, à chaque audit, en contrôles appliqués à des systèmes qui n'avaient pas besoin de toucher la donnée. Pour PCI DSS, l'iframe du prestataire fait sortir le traitement des numéros de carte du périmètre de Novafact ; il reste la page qui l'intègre, soumise à des exigences sur ses scripts (M4, leçon 7).
+
+## Un contrôle, plusieurs textes
+
+Les textes se recoupent largement : la MFA sur les accès d'administration est une mesure de NIS2, une question de chaque questionnaire client, et une règle interne. Gérer la conformité texte par texte produit trois fois les mêmes preuves, et trois versions de la vérité. La pratique qui tient : un **catalogue de contrôles**, chacun relié aux exigences qu'il satisfait et à sa preuve, dans le prolongement de la matrice de traçabilité (leçon 4).
+
+<Code file="security/controls.yaml">
+
+```yaml
+- id: CTRL-IAM-02
+  title: MFA résistante à l'hameçonnage sur tous les accès d'administration
+  owner: platform
+  satisfies:
+    - NOVA-AUTH-05          # exigence interne (catalogue de la leçon 4)
+    - NIS2 art. 21.2.j
+    - Contrat grands comptes, annexe sécurité §3.2
+  evidence:
+    - type: automated
+      source: rapport IAM Identity Center (utilisateurs sans MFA = 0), généré chaque nuit
+    - type: manual
+      source: docs/evidence/access-review/   # recertification trimestrielle (leçon 8)
+
+- id: CTRL-VULN-01
+  title: Traitement et divulgation des vulnérabilités
+  owner: appsec
+  satisfies:
+    - NIS2 art. 21.2.e
+    - CRA art. 14 (signalement)            # pour le SDK
+    - PCI DSS 4.0.1, exigence 6.3          # identification et traitement des vulnérabilités
+  evidence:
+    - type: automated
+      source: DefectDojo, respect des SLA (M5)
+    - type: document
+      source: https://novafact.example/.well-known/security.txt
+```
+
+</Code>
+
+Quand un questionnaire client arrive, ou qu'un nouveau texte s'applique, la question devient « quels contrôles existants le couvrent, et que manque-t-il ? » plutôt que « lançons un projet de conformité ».
+
+## Exigences envers les fournisseurs
+
+Les obligations de Novafact s'étendent à ses **sous-traitants** : un prestataire de paiement, un fournisseur d'e-mails, un fournisseur d'IA qui traitent des données pour son compte doivent respecter des exigences équivalentes (clauses RGPD, notification d'incident, droit d'audit). Le module 14 détaille l'évaluation des fournisseurs.
+
+Les points qui comptent dans le contrat, au-delà des clauses types :
+
+- un **délai de notification d'incident** compatible avec tes propres délais : si Novafact doit alerter sous 24 heures, un fournisseur qui a 72 heures pour la prévenir rend la promesse intenable ;
+- la **liste des sous-traitants ultérieurs** et l'obligation de prévenir avant d'en ajouter un ;
+- la **localisation des données** et des accès de support ;
+- la **restitution et la suppression** des données en fin de contrat, avec une attestation.
+
+<Callout kind="debate">
+La conformité est-elle l'alliée ou l'ennemie de la sécurité ? Alliée : elle fixe des échéances, débloque des budgets et donne une légitimité aux demandes de l'AppSec auprès des équipes. Ennemie : elle pousse à produire des preuves plutôt qu'à réduire le risque, et un contrôle conforme peut être inefficace (une formation annuelle cochée, un pentest au périmètre étroit). La position la plus utile : utiliser la conformité comme un **argument** et un **calendrier** pour financer des contrôles utiles, jamais comme un **objectif**. Un programme conçu uniquement pour cocher des cases passe à côté des vrais risques.
+</Callout>
+
+<Recap items={[
+  "Quatre sources d'exigences : réglementaires, légales (dont les contrats clients), sectorielles, internes.",
+  "RGPD, CRA, NIS2, PCI DSS et réforme de la facture électronique concernent directement Novafact.",
+  "NIS2 : mesures de l'article 21 (chaîne d'approvisionnement, développement et vulnérabilités, MFA), notification 24 h / 72 h / un mois.",
+  "Depuis le 01/09/2026, réception obligatoire pour toutes les entreprises ; émission pour les PME au 01/09/2027.",
+  "Réduire le périmètre (tokenisation, minimisation, isolation) est le levier le plus puissant.",
+  "Un catalogue de contrôles reliés aux exigences et aux preuves évite de refaire la conformité texte par texte.",
+  "Les obligations s'étendent aux sous-traitants, avec des délais compatibles avec les tiens.",
+]} />
+
+<Sources items={[
+  { title: "economie.gouv.fr : facturation électronique entre entreprises", url: "https://www.economie.gouv.fr/actualites/facturation-electronique-entre-entreprises-coup-denvoi-de-la-reforme" },
+  { title: "PCI Security Standards Council", url: "https://www.pcisecuritystandards.org/" },
+  { title: "Commission européenne : CRA", url: "https://digital-strategy.ec.europa.eu/en/policies/cra-reporting" },
+  { title: "ANSSI : la directive NIS 2", url: "https://cyber.gouv.fr/la-directive-nis-2" },
+  { title: "Directive NIS2, article 21 (texte consolidé)", url: "https://www.nis-2-directive.com/NIS_2_Directive_Article_21.html" },
+  { title: "Directive NIS2, article 23 (texte consolidé)", url: "https://www.nis-2-directive.com/NIS_2_Directive_Article_23.html" },
+  { title: "CNIL : guide RGPD du développeur", url: "https://www.cnil.fr/fr/guide-rgpd-du-developpeur" },
+]} />

@@ -1,0 +1,91 @@
+{
+  "_comment": "CORRIGÉ : trois défauts vivaient dans ce fichier — un joker sous un opérateur d'égalité, un iam:PassRole sans borne, et une création de rôle sans limite de permission. Les escalades IAM ne viennent presque jamais d'une permission unique : elles viennent de combinaisons que personne n'a regardées ensemble.",
+  "RoleName": "novafact-deploy",
+  "Description": "Rôle assumé par l'intégration continue pour déployer l'API et le SDK.",
+  "AssumeRolePolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "IntegrationContinue",
+        "Effect": "Allow",
+        "Principal": {
+          "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+        },
+        "Action": "sts:AssumeRoleWithWebIdentity",
+        "Condition": {
+          "StringEquals": {
+            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+            "token.actions.githubusercontent.com:sub": "repo:novafact/novafact:ref:refs/heads/main"
+          }
+        }
+      }
+    ]
+  },
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DeployerLesFonctions",
+        "Effect": "Allow",
+        "Action": ["lambda:CreateFunction", "lambda:UpdateFunctionCode"],
+        "Resource": "arn:aws:lambda:eu-west-3:123456789012:function:novafact-*"
+      },
+      {
+        "_comment": "CORRIGÉ : le chemin d'escalade était « passer n'importe quel rôle » + « créer une fonction ». Deux permissions anodines, une porte vers l'administration. On nomme le seul rôle qu'on a le droit de passer, et on borne le service destinataire. Retirer l'action entièrement convient tout autant.",
+        "Sid": "PasserLeRoleDExecution",
+        "Effect": "Allow",
+        "Action": "iam:PassRole",
+        "Resource": "arn:aws:iam::123456789012:role/novafact-lambda-exec",
+        "Condition": {
+          "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ : sans limite de permission, « créer un rôle » vaut « devenir administrateur » en deux appels. La condition borne ce que le rôle créé pourra obtenir, quelle que soit la politique qu'on lui attache ensuite.",
+        "Sid": "CreerLesRolesDuDeploiement",
+        "Effect": "Allow",
+        "Action": ["iam:CreateRole", "iam:TagRole"],
+        "Resource": "arn:aws:iam::123456789012:role/novafact-*",
+        "Condition": {
+          "StringEquals": {
+            "iam:PermissionsBoundary": "arn:aws:iam::123456789012:policy/novafact-boundary"
+          }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ : la même condition sur l'ATTACHEMENT. Ne la poser que sur la création laisserait attacher une politique d'administration à un rôle déjà créé sans limite — c'est la moitié du correctif qu'on voit le plus souvent.",
+        "Sid": "AttacherLesPolitiques",
+        "Effect": "Allow",
+        "Action": ["iam:AttachRolePolicy", "iam:PutRolePolicy"],
+        "Resource": "arn:aws:iam::123456789012:role/novafact-*",
+        "Condition": {
+          "StringEquals": {
+            "iam:PermissionsBoundary": "arn:aws:iam::123456789012:policy/novafact-boundary"
+          }
+        }
+      },
+      {
+        "_comment": "CORRIGÉ : une limite de permission ne vaut que si personne ne peut la retirer ni la réécrire.",
+        "Sid": "ProtegerLaLimiteDePermission",
+        "Effect": "Deny",
+        "Action": [
+          "iam:DeleteRolePermissionsBoundary",
+          "iam:DeleteUserPermissionsBoundary",
+          "iam:CreatePolicyVersion",
+          "iam:SetDefaultPolicyVersion"
+        ],
+        "Resource": "arn:aws:iam::123456789012:policy/novafact-boundary"
+      },
+      {
+        "_comment": "CORRIGÉ : un joker exige l'opérateur de correspondance de motif. Sous StringEquals, « novafact-* » était comparé au pied de la lettre — la condition ne correspondait jamais, et on la retire au premier incident de production en croyant qu'elle gêne.",
+        "Sid": "LivrerLesArtefacts",
+        "Effect": "Allow",
+        "Action": ["s3:PutObject", "s3:GetObject"],
+        "Resource": "arn:aws:s3:::novafact-artefacts/*",
+        "Condition": {
+          "StringLike": { "aws:ResourceTag/Projet": "novafact-*" }
+        }
+      }
+    ]
+  }
+}

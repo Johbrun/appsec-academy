@@ -1,0 +1,151 @@
+export const questions = [
+  {
+    q: "Une vulnérabilité critique est publiée dans React. Quelle est la toute première question à trancher ?",
+    options: [
+      "Sommes-nous affectés : quelles applications, quelles versions, déployées où ?",
+      "Quelle règle WAF déployer pour contenir en attendant le correctif",
+      "Quels score CVSS et score EPSS retenir pour classer le finding",
+      "Faut-il couper le back-office avant d'avoir évalué l'exposition",
+    ],
+    answer: 0,
+    explain: "Tout le reste dépend de cette réponse : sans SBOM des versions déployées, l'inventaire prend des jours et aucune décision de confinement n'est calibrée. Le virtual patching et la coupure d'accès viennent juste après — encore faut-il savoir quoi couper. Quant à scorer, l'avis annonce déjà CVSS 10 et l'exploitation démarre dans les 24 heures : le chiffre n'apprend rien.",
+  },
+  {
+    q: "Quel indicateur mesure le mieux la capacité de réaction de Novafact face à ce type de crise ?",
+    options: [
+      "Le nombre de dépendances critiques suivies dans Dependency-Track",
+      "La part des services dont le SBOM est archivé à chaque déploiement en production",
+      "Le temps jusqu'à l'inventaire complet, puis jusqu'au correctif en production",
+      "Le délai moyen de correction des vulnérabilités hautes du backlog",
+    ],
+    answer: 2,
+    explain: "Ce sont deux durées de bout en bout, mesurables d'une crise à l'autre et directement réductibles. La couverture SBOM est un bon indicateur avancé — c'est même elle qui fait baisser le premier chiffre — mais elle mesure un moyen, pas le résultat. Et le délai moyen du backlog dit autre chose : la capacité à traiter le flux ordinaire, à un rythme sans rapport avec celui d'une CVSS 10 exploitée en 24 heures.",
+  },
+  {
+    q: "Pour savoir quelles applications sont touchées par React2Shell, l'équipe cherche les paquets react-server-dom-* dans les SBOM. Le back-office Next.js n'apparaît pas. Est-il hors de danger ?",
+    options: [
+      "Oui, si le back-office n'expose aucune Server Function déclarée",
+      "Non : Next.js embarque sa propre copie ; il faut chercher la version de next",
+      "Non, mais seulement si le back-office utilise encore le Pages Router",
+      "Oui : l'absence du paquet dans le SBOM vaut preuve de non-affectation",
+    ],
+    answer: 1,
+    explain: "Next.js intègre une copie compilée des paquets React côté serveur dans son propre paquet : le SBOM liste next, pas react-server-dom-webpack, et le correctif passe par une montée de version de next. L'argument « aucune Server Function déclarée » est explicitement écarté par l'avis de React, puisque la seule prise en charge des Server Components suffit. Et c'est l'App Router qui était concerné, en 15.x et 16.x : l'exclusion par le Pages Router est à l'envers.",
+  },
+  {
+    q: "Le correctif de React2Shell est en production à H+10. Une semaine plus tard, de nouvelles CVE touchent les mêmes paquets et le premier correctif d'une d'entre elles s'avère incomplet. Qu'en retenir ?",
+    options: [
+      "Que le correctif initial aurait dû attendre une version consolidée",
+      "Que la veille doit maintenant se reporter sur les autres dépendances critiques",
+      "Que le premier correctif a été inutile, puisqu'il a fallu redéployer ensuite",
+      "Qu'une crise ne se clôt pas au premier correctif : la veille reste active",
+    ],
+    answer: 3,
+    explain: "Un composant sous les projecteurs attire les chercheurs, et les correctifs écrits dans l'urgence sont relus de près : trois CVE ont suivi le 11 décembre 2025, dont un déni de service dû à un premier correctif incomplet. Le déploiement de H+10 n'a rien d'inutile — il a fermé une RCE déjà exploitée, et attendre une version consolidée aurait laissé cette porte ouverte plusieurs jours. Ce qu'il faut en tirer : veille renforcée sur ce composant pendant des semaines, et capacité à redéployer une deuxième fois aussi vite.",
+  },
+];
+
+<YouKnow>
+Tu as sans doute vu passer React2Shell en décembre 2025, peut-être testé des cibles. Cette leçon rejoue la première journée du côté de l'éditeur, qui doit répondre en heures.
+</YouKnow>
+
+## Le cas React2Shell
+
+Le 3 décembre 2025, Meta publie **CVE-2025-55182** : une désérialisation non sûre dans le protocole Flight des React Server Components permet une **exécution de code à distance sans authentification**, sur tout serveur exposant un endpoint de Server Function. CVSS 10. Des acteurs commencent à l'exploiter **dans les 24 heures**, souvent pour déployer des mineurs de cryptomonnaie ou des web shells.
+
+Pour Novafact, dont le back-office tourne sur Next.js avec l'App Router, la question n'est pas « si » mais « combien de temps ».
+
+Les détails comptent pour l'inventaire. Les paquets touchés sont `react-server-dom-webpack`, `react-server-dom-parcel` et `react-server-dom-turbopack`, en versions 19.0.0, 19.1.0, 19.1.1 et 19.2.0. L'avis de React précise qu'une application peut être vulnérable même sans Server Function déclarée, dès lors qu'elle prend en charge les Server Components. Côté frameworks, Next.js 15.x et 16.x avec l'App Router étaient concernés, avec des versions corrigées publiées le même jour ; le Pages Router et Next.js 14 stable ne l'étaient pas. Amazon a signalé des tentatives d'exploitation par des groupes liés à l'État chinois quelques heures seulement après la publication.
+
+## La première journée, heure par heure
+
+<Steps items={[
+  { title: "H+0 à H+2 : qualifier", text: "Interroger l'inventaire : quelles applications embarquent les paquets react-server-dom-* et quelles versions de Next.js, déployées où ? Sans SBOM des versions en production, cette étape prend des jours." },
+  { title: "H+2 à H+4 : contenir", text: "Activer les règles WAF publiées par les fournisseurs (virtual patching), restreindre l'accès au back-office (liste d'adresses, VPN) le temps de corriger." },
+  { title: "H+4 à H+12 : corriger", text: "Monter vers une version corrigée (React 19.0.1, 19.1.2 ou 19.2.1 et la version de Next.js correspondante), tests, déploiement. La vitesse du pipeline devient un contrôle de sécurité." },
+  { title: "En parallèle : chasser", text: "Dans Elastic : processus lancés par Node, connexions sortantes inhabituelles, nouveaux fichiers, pics de CPU. Une exploitation antérieure au correctif reste une compromission." },
+  { title: "H+12 à H+24 : communiquer", text: "Clients, page de statut, équipe support. Si Novafact est exploitée, les obligations de notification démarrent (NIS2 pour le service si Novafact y est soumise, RGPD sous 72 h si des données personnelles sont touchées, CRA pour les produits dans son champ)." },
+  { title: "J+7 : apprendre", text: "Post-mortem sans reproche : temps d'inventaire, temps de correction, ce qui a manqué." },
+]} />
+
+## Qualifier : le piège de la dépendance vendorisée
+
+Un inventaire naïf cherche le nom du paquet vulnérable dans les SBOM. Pour React2Shell, il passe à côté de l'application la plus exposée : **Next.js embarque sa propre copie compilée** des paquets React côté serveur, dans son propre paquet `next`. Le SBOM du back-office liste `next`, pas `react-server-dom-webpack`. C'est pour cette raison que Next.js a publié son propre avis, et que le correctif passait par une montée de version de `next`.
+
+La recherche doit donc porter sur **les deux** : le composant vulnérable et les frameworks connus pour l'intégrer. Sur les SBOM archivés à chaque déploiement (leçon 5), une requête suffit :
+
+<Code file="tools/crisis/who-is-affected.sh" hl="4">
+
+```bash
+#!/usr/bin/env bash
+# Usage : ./who-is-affected.sh sboms/   (un SBOM CycloneDX par service et par version déployée)
+for f in "$1"/*.json; do
+  jq -r --arg f "$(basename "$f")" '.components[]?
+    | select(.name | test("^(react-server-dom-(webpack|parcel|turbopack)|next)$"))
+    | "\($f)\t\(.name)@\(.version)"' "$f"
+done | sort
+```
+
+</Code>
+
+Dependency-Track fait la même chose depuis son interface, en recherchant un composant sur tous les projets. Dans les deux cas, la question porte sur les versions **déployées**, pas sur les branches : une correction mergée mais pas encore en production ne compte pas.
+
+## Contenir : ce que le virtual patching achète
+
+Plusieurs fournisseurs de WAF et d'hébergement ont déployé des règles dans les heures qui ont suivi la publication. Elles achètent du temps, rien de plus : l'avis de React demande explicitement de ne pas s'appuyer sur ces protections temporaires. Une règle WAF reconnaît des formes de requêtes ; les variantes qui la contournent apparaissent vite, et la surface réelle reste ouverte jusqu'au correctif.
+
+La mesure de confinement la plus efficace pour Novafact est ailleurs : le back-office n'a pas besoin d'être joignable depuis tout Internet. Le restreindre au VPN de l'entreprise (ou à une liste d'adresses au niveau de l'ALB) pendant quelques heures coupe la surface d'attaque sans dépendre de la qualité d'une signature. C'est une décision qui a un coût (les commerciaux en déplacement perdent l'accès) : elle doit pouvoir être prise à 23 h par quelqu'un qui en a l'autorité.
+
+## Chasser : supposer l'exploitation antérieure
+
+Entre la publication et le correctif, le back-office a été exposé plusieurs heures. La chasse répond à une question simple : quelqu'un a-t-il exécuté du code sur ces conteneurs ? Si une télémétrie de processus est collectée dans les tâches ECS, la requête de départ cherche les processus inhabituels lancés par Node :
+
+```text
+process where event.type == "start" and
+  process.parent.name == "node" and
+  process.name in ("sh", "bash", "dash", "curl", "wget", "nc", "python3")
+```
+
+À compléter par les journaux de flux VPC (connexions sortantes vers des destinations nouvelles), la consommation CPU des tâches (les mineurs se voient) et l'intégrité des fichiers de l'image. Si le moindre doute subsiste, on traite l'environnement comme compromis : redéploiement depuis une image saine, et **rotation de tous les secrets accessibles au processus** (variables d'environnement, identifiants du rôle de tâche, clés d'API). Une exécution de code sur le serveur donne accès à tout ce que le serveur sait.
+
+## La deuxième vague
+
+La crise ne s'est pas arrêtée au premier correctif. Le 11 décembre 2025, React a publié trois nouvelles vulnérabilités dans les mêmes paquets : deux dénis de service (CVE-2025-55184 et CVE-2025-67779, cette dernière parce que le premier correctif du déni de service était incomplet) et une exposition du code source des Server Functions (CVE-2025-55183), qui pouvait révéler des secrets écrits en dur. Les versions à atteindre sont devenues 19.0.3, 19.1.4 et 19.2.3. Un autre déni de service (CVE-2026-23864) a suivi en janvier 2026.
+
+La leçon est générale : un composant sous les projecteurs attire les chercheurs, et les correctifs faits dans l'urgence sont examinés de près. Le processus de crise prévoit donc une **veille renforcée** sur le composant pendant plusieurs semaines, et une capacité à redéployer une deuxième fois aussi vite que la première.
+
+## Ce qui fait la différence
+
+| Capacité | Pourquoi |
+| --- | --- |
+| **Inventaire à jour** (SBOM par version déployée, Dependency-Track) | Répondre « suis-je affecté ? » en minutes |
+| **Pipeline rapide et fiable** | Corriger en heures sans prendre de risque de régression |
+| **Détection en production** | Savoir si l'on a été exploité avant le correctif |
+| **Circuit de décision et d'astreinte** | Quelqu'un peut décider de couper le back-office à 23 h |
+| **Modèles de communication** | Ne pas écrire le message aux clients dans l'urgence |
+
+Le circuit de décision mérite d'être écrit avant la crise. Trois rôles suffisent : un **responsable de l'incident** qui tranche et tient le journal des décisions (heure, décision, qui, pourquoi), un **responsable technique** qui pilote inventaire, correctif et chasse, et un **responsable de la communication** qui gère clients, support et autorités. Le journal des décisions sert deux fois : pendant la crise, pour éviter de rediscuter ce qui est tranché ; après, pour le post-mortem et pour les éventuels rapports aux autorités.
+
+<Callout kind="novafact">
+Post-mortem simulé de Novafact : temps d'inventaire de 9 heures (aucun SBOM, recherche manuelle dans 14 dépôts), correctif en production à H+20. Objectifs pour la prochaine crise : inventaire en moins d'une heure grâce à Dependency-Track, correctif en production en moins de 8 heures. Le jeu **Crise J+0** rejoue ce scénario avec des décisions sous horloge. Actions retenues : SBOM archivé à chaque déploiement, liste des frameworks qui vendorisent des dépendances critiques, procédure écrite de restriction du back-office au VPN, et rotation des secrets du back-office automatisée.
+</Callout>
+
+<Recap items={[
+  "React2Shell (décembre 2025) : RCE sans authentification, CVSS 10, exploitée dans les 24 h.",
+  "La première question : sommes-nous affectés, où et en quelle version ? En cherchant aussi les frameworks qui vendorisent le composant (next).",
+  "Qualifier, contenir, corriger, chasser, communiquer, apprendre ; le virtual patching achète du temps, la restriction d'accès coupe la surface.",
+  "Supposer l'exploitation antérieure : chasse, redéploiement, rotation des secrets accessibles au processus.",
+  "Prévoir la deuxième vague : nouvelles CVE et correctifs incomplets dans les semaines suivantes.",
+  "On mesure et on réduit le temps d'inventaire et le temps de correction d'une crise à l'autre.",
+]} />
+
+<Sources items={[
+  { title: "React : Critical Security Vulnerability in React Server Components", url: "https://react.dev/blog/2025/12/03/critical-security-vulnerability-in-react-server-components" },
+  { title: "React : Denial of Service and Source Code Exposure in React Server Components", url: "https://react.dev/blog/2025/12/11/denial-of-service-and-source-code-exposure-in-react-server-components" },
+  { title: "Next.js : Security Advisory CVE-2025-66478", url: "https://nextjs.org/blog/CVE-2025-66478" },
+  { title: "AWS Security Blog : China-nexus cyber threat groups rapidly exploit React2Shell", url: "https://aws.amazon.com/blogs/security/china-nexus-cyber-threat-groups-rapidly-exploit-react2shell-vulnerability-cve-2025-55182/" },
+  { title: "Rapid7 : React2Shell CVE-2025-55182", url: "https://www.rapid7.com/blog/post/etr-react2shell-cve-2025-55182-critical-unauthenticated-rce-affecting-react-server-components/" },
+  { title: "Unit 42 : exploitation de CVE-2025-55182", url: "https://unit42.paloaltonetworks.com/cve-2025-55182-react-and-cve-2025-66478-next/" },
+  { title: "Cloudflare : React2Shell threat brief", url: "https://blog.cloudflare.com/react2shell-rsc-vulnerabilities-exploitation-threat-brief/" },
+  { title: "Google Cloud : Responding to CVE-2025-55182", url: "https://cloud.google.com/blog/products/identity-security/responding-to-cve-2025-55182" },
+]} />

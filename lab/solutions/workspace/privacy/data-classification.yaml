@@ -1,0 +1,54 @@
+# La carte des données de Novafact, confrontée au modèle et aux réponses de l'API.
+#
+# Chaque champ de `interface User`, `Invoice`, `Client` et `Mail` figure ici. La
+# sensibilité est une énumération fermée — public, client, interne, secret — parce
+# qu'une chaîne libre rendrait la carte indécidable dès la deuxième relecture.
+#
+# Règle qui découle de la classification : rien de classé « interne » ou « secret »
+# ne sort par l'API. Le harnais le vérifie en appelant les routes, pas en nous croyant.
+
+champs:
+  # ── User ──────────────────────────────────────────────────────────────────
+  - { entite: User, champ: id, sensibilite: client, proprietaire: '@novafact/plateforme', conservation: duree-du-compte, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: User, champ: email, sensibilite: client, proprietaire: '@novafact/plateforme', conservation: duree-du-compte, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: User, champ: password, sensibilite: secret, proprietaire: '@novafact/securite', conservation: duree-du-compte, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: User, champ: name, sensibilite: client, proprietaire: '@novafact/plateforme', conservation: duree-du-compte, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: User, champ: tenantId, sensibilite: client, proprietaire: '@novafact/plateforme', conservation: duree-du-compte, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: User, champ: role, sensibilite: client, proprietaire: '@novafact/plateforme', conservation: duree-du-compte, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: User, champ: mfa, sensibilite: client, proprietaire: '@novafact/securite', conservation: duree-du-compte, donnee-personnelle: non, base-legale: non-applicable }
+
+  # ── Invoice ───────────────────────────────────────────────────────────────
+  - { entite: Invoice, champ: id, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Invoice, champ: tenantId, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Invoice, champ: ref, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Invoice, champ: client, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: oui, base-legale: obligation-legale }
+  - { entite: Invoice, champ: status, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Invoice, champ: lines, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Invoice, champ: total, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  # La note est un champ libre : elle finit par contenir des appréciations sur des
+  # personnes. Classée « client » parce qu'elle sort déjà par l'API — c'est ce
+  # décalage entre l'usage réel et la classe souhaitable qui alimente le backlog.
+  - { entite: Invoice, champ: note, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: oui, base-legale: interets-legitimes }
+  - { entite: Invoice, champ: attachment, sensibilite: interne, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Invoice, champ: clientId, sensibilite: interne, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Invoice, champ: paid, sensibilite: interne, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Invoice, champ: refunded, sensibilite: interne, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+
+  # ── Client ────────────────────────────────────────────────────────────────
+  - { entite: Client, champ: id, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Client, champ: tenantId, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Client, champ: name, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: Client, champ: email, sensibilite: client, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: Client, champ: siret, sensibilite: interne, proprietaire: '@novafact/facturation', conservation: 10 ans, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Client, champ: iban, sensibilite: secret, proprietaire: '@novafact/securite', conservation: 36 mois, donnee-personnelle: oui, base-legale: contrat }
+
+  # ── Mail ──────────────────────────────────────────────────────────────────
+  # Le harnais compare des NOMS de champs, pas des couples entité.champ : « id »
+  # sort déjà par /invoices, donc aucun « id » ne peut être classé interne sans
+  # que la confrontation le signale. La classe suit l'exposition réelle.
+  - { entite: Mail, champ: id, sensibilite: client, proprietaire: '@novafact/plateforme', conservation: 12 mois, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Mail, champ: to, sensibilite: interne, proprietaire: '@novafact/plateforme', conservation: 12 mois, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: Mail, champ: subject, sensibilite: interne, proprietaire: '@novafact/plateforme', conservation: 12 mois, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: Mail, champ: body, sensibilite: interne, proprietaire: '@novafact/plateforme', conservation: 12 mois, donnee-personnelle: oui, base-legale: contrat }
+  - { entite: Mail, champ: at, sensibilite: interne, proprietaire: '@novafact/plateforme', conservation: 12 mois, donnee-personnelle: non, base-legale: non-applicable }
+  - { entite: Mail, champ: via, sensibilite: interne, proprietaire: '@novafact/sre', conservation: 12 mois, donnee-personnelle: non, base-legale: non-applicable }

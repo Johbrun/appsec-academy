@@ -1,0 +1,195 @@
+# STRIDE par élément — livrable de référence.
+#
+# La règle n'est pas au choix — une entité externe porte S et R, un flux T, I et
+# D (jamais E — un flux n'a pas de privilège à élever), un magasin T, R, I et D,
+# un processus les six. Zéro trou, zéro catégorie hors-sujet.
+#
+# Ce qui est noté — la couverture, le rattachement des processus au code, et un
+# contrôle qui désigne un fichier existant. Pas la pertinence des menaces.
+
+elements:
+  - id: client-locataire
+    type: actor
+    threats:
+      - category: S
+        threat: Un tiers se fait passer pour l'utilisateur d'un tenant en rejouant un jeton dérobé dans un journal ou un cache de navigateur.
+        mitigation: Jetons de courte durée liés à l'appareil, révocation à la déconnexion, et aucun jeton dans une URL.
+        control: solutions/server/lib/jwt.ts
+      - category: R
+        threat: L'utilisateur nie avoir émis une facture qu'il a pourtant créée, et rien dans les traces ne permet de trancher.
+        mitigation: Journal d'audit applicatif horodaté, immuable, qui enregistre l'acteur et l'objet de chaque écriture.
+        control: server/store.ts
+
+  - id: admin-novafact
+    type: actor
+    threats:
+      - category: S
+        threat: Un attaquant obtient le rôle administrateur en forgeant un jeton dont l'algorithme est « none ».
+        mitigation: Algorithme fixé côté serveur, signature vérifiée avant toute lecture de revendication.
+        control: solutions/server/lib/jwt.ts
+      - category: R
+        threat: Une action d'administration sur le compte d'un client ne laisse aucune trace attribuable à la personne qui l'a menée.
+        mitigation: Journalisation séparée des actions d'administration, avec revue périodique par une autre personne.
+        control: server/routes/admin.ts
+
+  - id: api-authentification
+    type: process
+    file: server/routes/auth.ts
+    route: POST /api/auth/login
+    threats:
+      - category: S
+        threat: Un opérateur de requête passé à la place d'un mot de passe fait correspondre le premier compte venu.
+        mitigation: Schéma strict avant la couche de données, qui impose le type chaîne et refuse toute clé d'opérateur.
+        control: solutions/server/routes/auth.ts
+      - category: T
+        threat: Le lien de réinitialisation est construit à partir d'un en-tête de la requête, donc modifiable par l'appelant.
+        mitigation: Origine publique issue de la configuration, jamais de la requête entrante.
+        control: solutions/server/routes/auth.ts
+      - category: R
+        threat: Les échecs d'authentification sont comptés mais pas conservés — impossible de reconstituer une campagne après coup.
+        mitigation: Événement d'authentification structuré, conservé assez longtemps pour couvrir la fenêtre d'une campagne.
+        control: server/store.ts
+      - category: I
+        threat: La réponse distingue « compte inconnu » de « mot de passe faux », ce qui énumère les comptes existants.
+        mitigation: Réponse et durée identiques quelle que soit l'issue, côté connexion comme côté réinitialisation.
+        control: solutions/server/routes/auth.ts
+      - category: D
+        threat: Sans limitation, une rafale de tentatives sature la vérification de mot de passe et rend la connexion indisponible.
+        mitigation: Limitation par compte et par adresse, avec fenêtre glissante et réponses graduées.
+        control: solutions/server/routes/auth.ts
+      - category: E
+        threat: Le jeton émis porte le rôle demandé par le client au lieu du rôle stocké pour ce compte.
+        mitigation: Revendications construites à partir de l'entité persistée seule, jamais du corps de la requête.
+        control: solutions/server/routes/auth.ts
+
+  - id: api-factures
+    type: process
+    file: server/routes/invoices.ts
+    route: GET /api/invoices/:id
+    threats:
+      - category: S
+        threat: Une requête portant un jeton d'un autre tenant est servie parce que la route ne regarde que l'authentification.
+        mitigation: Identité du tenant extraite du jeton vérifié et injectée dans chaque accès aux données.
+        control: solutions/server/routes/invoices.ts
+      - category: T
+        threat: Le montant d'une facture déjà payée reste modifiable, et la remise accepte une valeur négative.
+        mitigation: Machine à états côté serveur, champs figés après paiement, total recalculé et invariant vérifié avant persistance.
+        control: solutions/server/routes/invoices.ts
+      - category: R
+        threat: Une facture change de montant sans qu'aucune trace ne dise qui l'a modifiée ni depuis quelle valeur.
+        mitigation: Journal d'écriture avec valeur avant et après, rattaché à l'identifiant de la facture.
+        control: server/store.ts
+      - category: I
+        threat: L'identifiant de facture est séquentiel — demander l'identifiant voisin suffit à lire la facture d'un autre client.
+        mitigation: Cloisonnement par tenant dans la couche d'accès aux données, pour qu'aucune route ne puisse l'oublier.
+        control: solutions/server/routes/invoices.ts
+      - category: D
+        threat: La recherche valide la référence avec une expression à quantificateurs imbriqués, sur la boucle d'événements.
+        mitigation: Expression linéaire, longueur d'entrée bornée avant le test, ou moteur à temps garanti.
+        control: solutions/server/routes/invoices.ts
+      - category: E
+        threat: Le statut de la facture est envoyé par le client, ce qui permet de rouvrir une facture payée pour la rééditer.
+        mitigation: Transitions autorisées déclarées côté serveur, annulation par avoir plutôt que par édition.
+        control: solutions/server/routes/invoices.ts
+
+  - id: api-pieces-jointes
+    type: process
+    file: server/routes/attachments.ts
+    route: GET /api/attachments/*
+    threats:
+      - category: S
+        threat: Un lien de téléchargement partagé vaut identité — quiconque l'obtient est servi comme son destinataire.
+        mitigation: Lien signé de courte durée, lié au compte destinataire et révocable.
+        control: solutions/server/routes/attachments.ts
+      - category: T
+        threat: Le nom de fichier fourni par le client entre dans le chemin, ce qui permet d'écrire ou de lire hors du dossier.
+        mitigation: Identifiant opaque résolu depuis un index côté serveur, jamais de chemin dérivé de l'entrée.
+        control: solutions/server/routes/attachments.ts
+      - category: R
+        threat: Le téléchargement d'une pièce jointe confidentielle ne laisse aucune trace exploitable.
+        mitigation: Journalisation de chaque accès à un document, avec le tenant et l'identifiant du document.
+        control: server/store.ts
+      - category: I
+        threat: Une traversée de chemin fait servir un fichier du serveur — dont les identifiants d'accès à l'infrastructure.
+        mitigation: Chemin résolu puis comparé à la racine autorisée, séparateur compris, avant toute ouverture.
+        control: solutions/server/routes/attachments.ts
+      - category: D
+        threat: Un téléchargement répété de gros documents sature la lecture disque et la bande passante de la tâche.
+        mitigation: Quota par tenant, diffusion en flux et délégation du transfert au stockage objet.
+        control: novafact/infra/terraform/storage.tf
+      - category: E
+        threat: Le dossier des pièces jointes est servi par le même processus que l'application, avec ses droits.
+        mitigation: Séparation du service de fichiers, exécution sans privilège et système de fichiers en lecture seule.
+        control: novafact/Dockerfile
+
+  - id: magasin-factures
+    type: store
+    threats:
+      - category: T
+        threat: Une écriture directe dans le magasin change un montant sans passer par les règles de l'application.
+        mitigation: Accès au magasin réservé au rôle applicatif, écritures contraintes par la base elle-même.
+        control: novafact/infra/iam/task-role.json
+      - category: R
+        threat: Aucune trace ne relie une modification en base à l'opération applicative qui l'a produite.
+        mitigation: Journal des modifications côté base, conservé hors du compte qui exploite l'application.
+        control: novafact/infra/terraform/logging.tf
+      - category: I
+        threat: Les factures de tous les locataires cohabitent sans cloisonnement, et une requête oubliée les expose toutes.
+        mitigation: Cloisonnement imposé par la base — politique de sécurité au niveau des lignes — et non par chaque requête.
+        control: novafact/infra/terraform/database.tf
+      - category: D
+        threat: La suppression du magasin ou de ses sauvegardes rend la facturation inexploitable.
+        mitigation: Sauvegardes immuables, restauration testée, et suppression soumise à double contrôle.
+        control: novafact/infra/terraform/backup.tf
+
+  - id: magasin-comptes
+    type: store
+    threats:
+      - category: T
+        threat: Le rôle d'un compte est modifiable directement en base, ce qui contourne tout contrôle applicatif.
+        mitigation: Droits d'écriture séparés des droits de lecture, et changement de rôle passant par une opération auditée.
+        control: novafact/infra/iam/app-policy.json
+      - category: R
+        threat: L'élévation d'un compte au rôle administrateur ne laisse aucune trace attribuable.
+        mitigation: Journalisation obligatoire du changement de rôle, avec l'auteur et la valeur précédente.
+        control: server/store.ts
+      - category: I
+        threat: Les mots de passe sont conservés tels quels — une copie du magasin livre tous les comptes.
+        mitigation: Empreintes mémoire-dures avec sel par compte, et chiffrement au repos avec une clé gérée séparément.
+        control: novafact/infra/iam/kms-key-policy.json
+      - category: D
+        threat: Un verrouillage massif des comptes, déclenché par une campagne, empêche les clients légitimes de se connecter.
+        mitigation: Ralentissement progressif plutôt que verrouillage dur, et voie de recours hors du canal attaqué.
+        control: solutions/server/routes/auth.ts
+
+  - id: flux-consultation-facture
+    type: flow
+    threats:
+      - category: T
+        threat: Un intermédiaire modifie la réponse en transit et change le montant affiché au client.
+        mitigation: TLS imposé de bout en bout, redirection permanente et en-tête de transport strict.
+        control: novafact/infra/terraform/alb.tf
+      - category: I
+        threat: La réponse est mise dans un cache partagé alors qu'elle dépend de l'identité de l'appelant.
+        mitigation: Interdiction de mise en cache partagée pour ce qui dépend de l'appelant, clé de cache conçue explicitement.
+        control: solutions/server/routes/branding.ts
+      - category: D
+        threat: Une rafale de consultations sature le lien et fait tomber la consultation pour tous les locataires.
+        mitigation: Pare-feu applicatif en amont avec limitation par source, et mise à l'échelle indépendante de la lecture.
+        control: novafact/infra/terraform/cloudfront.tf
+
+  - id: flux-telechargement-piece-jointe
+    type: flow
+    threats:
+      - category: T
+        threat: Le document est remplacé en transit par un fichier fabriqué, sans que le client puisse s'en apercevoir.
+        mitigation: Empreinte du document transmise hors bande et vérifiée à la réception.
+        control: novafact/infra/terraform/storage.tf
+      - category: I
+        threat: Le document transite en clair vers le stockage objet, à l'intérieur du réseau, où il est lisible.
+        mitigation: Chiffrement en transit exigé jusqu'au stockage, y compris pour les appels internes.
+        control: novafact/infra/terraform/network.tf
+      - category: D
+        threat: Le transfert d'un document volumineux bloque la boucle d'événements et gèle les autres requêtes.
+        mitigation: Transfert délégué au stockage objet par lien signé, hors du processus applicatif.
+        control: novafact/infra/terraform/storage.tf

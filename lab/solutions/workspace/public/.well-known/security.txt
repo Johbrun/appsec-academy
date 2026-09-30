@@ -1,0 +1,12 @@
+# Politique de divulgation de Novafact — RFC 9116
+# Ce fichier est daté : il se renouvelle, sinon il ment.
+
+Contact: mailto:security@novafact.example
+Contact: https://novafact.example/securite/signaler
+Expires: 2027-08-31T23:59:59.000Z
+Encryption: https://novafact.example/.well-known/pgp-key.txt
+Acknowledgments: https://novafact.example/securite/remerciements
+Preferred-Languages: fr, en
+Canonical: https://novafact.example/.well-known/security.txt
+Policy: https://novafact.example/securite/politique-de-divulgation
+Hiring: https://novafact.example/carrieres

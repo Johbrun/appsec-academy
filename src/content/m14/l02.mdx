@@ -1,0 +1,218 @@
+export const questions = [
+  {
+    q: "Pourquoi passer le titre d'une PR par une variable d'environnement plutôt que d'écrire `${{ github.event.pull_request.title }}` directement dans `run:` ?",
+    options: [
+      "Parce que GitHub échappe automatiquement les variables d'environnement du runner",
+      "Parce que le titre peut dépasser la longueur maximale d'une ligne de commande",
+      "Parce que l'expression est substituée dans le script : le titre devient du code",
+      "Parce que les variables d'environnement ne sont pas écrites dans les journaux du job",
+    ],
+    answer: 2,
+    explain: "GitHub n'échappe rien : l'expression `${{ }}` est remplacée textuellement dans le script généré, avant même que le shell ne le lise. Un titre de PR contenant une substitution de commande devient donc une commande. Passer par `env`, puis citer la variable entre guillemets, change la nature de la valeur : le shell la lit comme une donnée, pas comme de la syntaxe.",
+  },
+  {
+    q: "Le rôle AWS de déploiement de Novafact fait confiance à `token.actions.githubusercontent.com` avec la condition `sub` = `repo:novafact/*`. Quel est le problème ?",
+    options: [
+      "Le jeton OIDC expire trop vite pour un déploiement complet, il faut l'allonger",
+      "Il manque la condition sur l'audience, sans laquelle n'importe quel émetteur passe",
+      "Aucun problème : GitHub garantit que le sub correspond bien au dépôt appelant",
+      "N'importe quel workflow d'un dépôt Novafact peut assumer le rôle de production",
+    ],
+    answer: 3,
+    explain: "La réponse tentante est qu'il n'y a pas de problème, puisque GitHub garantit bien la véracité du `sub` : le jeton ne ment pas. Le défaut n'est pas dans son authenticité mais dans la largeur de ce qu'on accepte — un joker sur le dépôt englobe la branche d'un stagiaire et le job qui exécute du code de PR. Le `sub` doit désigner le dépôt et l'environnement : `repo:novafact/api:environment:production`.",
+  },
+  {
+    q: "Qu'apporte la politique d'organisation qui impose l'épinglage par SHA (août 2025) ?",
+    options: [
+      "Tout workflow qui référence une action par tag échoue, le tag n'agissant plus",
+      "Les actions cessent d'être mises à jour automatiquement, ce qui fige les correctifs",
+      "Les actions sont vérifiées par signature Sigstore avant leur exécution",
+      "Les actions du marketplace sont bloquées, seules celles de l'organisation passent",
+    ],
+    answer: 0,
+    explain: "Figer les correctifs est le coût de l'épinglage, pas son apport — et Dependabot le compense en proposant les montées de SHA. La politique n'ajoute ni signature ni liste d'actions autorisées, qui relèvent d'autres réglages. Ce qu'elle garantit tient à une seule chose : une référence par SHA complet ne bouge pas. C'est le contrôle qui aurait neutralisé tj-actions, dont les tags avaient été réécrits vers un commit malveillant.",
+  },
+  {
+    q: "Le workflow de release de Novafact restaure un cache `node_modules` également alimenté par les workflows de PR. Quel risque et quelle correction ?",
+    options: [
+      "Le cache peut être périmé et faire publier une version construite sur d'anciens modules",
+      "Empoisonnement du cache : la release doit tourner sans cache, ou sur le sien",
+      "Aucun risque : GitHub isole les caches par branche et par clé de restauration",
+      "Il suffit d'épingler le SHA de actions/cache et de vérifier l'intégrité de l'archive",
+    ],
+    answer: 1,
+    explain: "L'isolation par branche est réelle mais incomplète : une clé qui ne correspond pas retombe sur le cache de la branche par défaut, alimentée par des workflows moins fiables. Épingler `actions/cache` ne change rien — l'action n'est pas en cause, son contenu l'est. Un cache est une entrée non fiable dès qu'un contexte moins fiable peut l'écrire : c'est ainsi qu'Ultralytics (2024) et TanStack (mai 2026) ont été compromis.",
+  },
+];
+
+<YouKnow>
+Tu connais la *pwn request* et l'injection de commande côté attaque. Ici, on les ferme une par une dans les workflows de Novafact, puis on ajoute les politiques d'organisation qui empêchent qu'elles reviennent.
+</YouKnow>
+
+## Le jeton et les permissions
+
+Chaque job reçoit un `GITHUB_TOKEN`. Selon le réglage de l'organisation, il peut avoir l'écriture sur le code, les packages, les issues et les PR. Deux réglages, dans cet ordre :
+
+1. Au niveau de l'organisation, régler les *workflow permissions* par défaut sur **lecture seule**.
+2. Dans chaque workflow, écrire `permissions: {}` au niveau racine, puis accorder par job le strict nécessaire (`contents: read`, `id-token: write`, `pull-requests: write`…).
+
+Ajoute `persist-credentials: false` à `actions/checkout` : sinon le jeton reste écrit dans `.git/config` pour toute la durée du job, à la portée de n'importe quelle étape ou dépendance, et parfois dans un artefact si le dossier est uploadé.
+
+## Pwn requests : le code de la PR dans un contexte privilégié
+
+`pull_request` sur une PR venue d'un fork s'exécute **sans secrets** et avec un jeton en lecture : c'est le déclencheur sûr pour tester du code externe. `pull_request_target` et `workflow_run` s'exécutent dans le contexte du dépôt cible, **avec** secrets et jeton en écriture. Ils sont utiles pour commenter ou étiqueter une PR, et dangereux dès qu'ils exécutent le code de la PR.
+
+GitHub a resserré ce déclencheur en deux temps :
+
+- depuis le **8 décembre 2025**, `pull_request_target` prend toujours le fichier de workflow et la référence de la **branche par défaut**, et les règles de branche des environnements sont évaluées sur cette référence ;
+- depuis juin 2026, **`actions/checkout` v7** refuse par défaut d'extraire le code d'une PR de fork dans `pull_request_target` et dans un `workflow_run` déclenché par une PR (enforcement rétroporté le 16 juillet 2026 sur les versions majeures maintenues). L'échappatoire s'appelle `allow-unsafe-pr-checkout` : un nom fait pour sauter aux yeux en revue et pour être interdit par une règle.
+
+Le schéma sûr quand on a besoin des deux mondes : un workflow `pull_request` sans privilège construit et teste, produit un artefact (rapport, taille du bundle) ; un workflow `workflow_run` privilégié lit cet artefact **comme une donnée** (JSON validé), sans jamais l'exécuter ni l'extraire dans un chemin sensible.
+
+## L'injection d'expressions
+
+Les expressions `${{ }}` sont remplacées **textuellement** dans le script avant que le shell ne l'exécute. Titre de PR, corps d'issue, nom de branche, message de commit, auteur : tout champ sous le contrôle d'un utilisateur devient du code.
+
+<Diff file=".github/workflows/triage.yml" hlBefore="4" hlAfter="4,5,6">
+
+```yaml
+      - name: Étiqueter selon le titre
+        run: |
+          # le titre est injecté dans le script avant l'exécution
+          if [[ "${{ github.event.pull_request.title }}" == fix* ]]; then gh pr edit "$PR" --add-label bug; fi
+```
+
+```yaml
+      - name: Étiqueter selon le titre
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}   # donnée, pas code
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [[ "$PR_TITLE" == fix* ]]; then gh pr edit "$PR" --add-label bug; fi
+```
+
+</Diff>
+
+La même règle vaut pour `actions/github-script` (n'interpole pas d'expression dans `script:`, passe par `process.env`) et pour les écritures dans `$GITHUB_ENV` ou `$GITHUB_OUTPUT` à partir de données externes, qui permettent d'injecter des variables dans les étapes suivantes. La compromission de Nx en août 2025 (leçon 7) est partie exactement de là : un titre de PR interpolé dans un workflow `pull_request_target`.
+
+## Cache poisoning
+
+Le cache GitHub Actions est partagé entre les runs d'un dépôt selon des règles de portée par branche, et une branche peut restaurer les entrées de la branche par défaut. Si un workflow peu fiable peut **écrire** une entrée que la release **restaure**, l'attaquant fait exécuter son code dans le job le plus privilégié. C'est la chaîne d'Ultralytics (décembre 2024) et de TanStack (mai 2026), où une *pwn request* a empoisonné le store pnpm restauré ensuite par le workflow de publication.
+
+Les défenses :
+
+- **pas de cache dans les jobs qui publient ou déploient** ; quelques secondes de plus valent mieux qu'une release compromise ;
+- la clé `cache-mode` (disponible depuis septembre 2026, au niveau du workflow ou du job) : `read`, `write`, `write-only` ou `none`, appliquée côté service. Depuis juin 2026, les déclencheurs peu fiables comme `pull_request_target` n'ont par défaut qu'un accès en lecture ;
+- ne jamais mettre en cache ce qui s'exécute sans vérification (binaires téléchargés, `node_modules` complets) quand le lecteur est plus privilégié que l'écrivain.
+
+## Runners self-hosted
+
+Un runner self-hosted **persistant** conserve fichiers, processus et identifiants entre deux jobs : le premier job malveillant contamine les suivants. Règles pour Novafact :
+
+- jamais de runner self-hosted sur un dépôt public ;
+- des runners **éphémères** (un job, puis destruction), par exemple via Actions Runner Controller sur Kubernetes ou des runners *just-in-time* ;
+- des **groupes de runners** limités à des dépôts nommés, séparés entre CI de PR et déploiement ;
+- aucun identifiant sur l'hôte : le runner obtient son rôle AWS par OIDC comme un runner hébergé.
+
+## Environnements et OIDC vers AWS
+
+Un **environnement** GitHub porte ses propres secrets, ses **approbateurs requis** (avec interdiction de s'auto-approuver), ses règles de branches ou de tags autorisés et un éventuel délai d'attente. Le job de déploiement en production déclare `environment: production` : sans approbation, il ne démarre pas et ne voit pas les secrets.
+
+L'**OIDC** supprime les clés AWS longue durée. Le job demande un jeton signé par GitHub, que STS échange contre des identifiants temporaires si la *trust policy* du rôle accepte ses revendications.
+
+<Code file="infra/iam/novafact-api-deploy-trust.json" hl="10,11">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+        "token.actions.githubusercontent.com:sub": "repo:novafact/api:environment:production"
+      }
+    }
+  }]
+}
+```
+
+</Code>
+
+<Code file=".github/workflows/deploy-api.yml" hl="4,8,10,11,12">
+
+```yaml
+name: deploy-api
+on:
+  push: { branches: [main] }
+permissions: {}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production        # approbation requise, secrets d'environnement
+    permissions: { contents: read, id-token: write }
+    cache-mode: none               # rien de restauré dans le job qui déploie
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::111122223333:role/novafact-api-deploy
+          aws-region: eu-west-3
+      - run: ./scripts/deploy.sh
+```
+
+</Code>
+
+Les erreurs de *trust policy* (`sub` en joker, absence de condition `aud`, rôle partagé entre dépôts) sont traitées côté attaque en M15.
+
+## Rulesets et CODEOWNERS
+
+Les **rulesets** protègent `main` et les tags de release : PR obligatoire, approbations, checks requis (dont zizmor, leçon 4), pas de *force push*, création des tags `v*` réservée à l'équipe release. Le fichier **CODEOWNERS** attribue `.github/` à l'équipe plateforme et sécurité ; avec « revue des code owners requise », aucune modification de workflow n'entre sans elle.
+
+```text
+# .github/CODEOWNERS
+/.github/            @novafact/platform-security
+/infra/              @novafact/platform-security
+/package-lock.json   @novafact/platform-security @novafact/api
+```
+
+## Les politiques d'organisation
+
+| Politique | Depuis | Effet |
+| --- | --- | --- |
+| Épinglage SHA imposé | août 2025 | Tout workflow qui référence une action sans SHA complet échoue ; les entrées préfixées par `!` bloquent une action ou une version |
+| Immutable releases | GA en octobre 2025 | Les assets et le tag d'une release immuable ne peuvent plus être modifiés ; la release reçoit une attestation |
+| Workflow execution protections | GA le 17 septembre 2026 | Règles d'acteurs (qui peut déclencher) et d'événements (quels déclencheurs), avec un mode évaluation ; une règle par défaut désactive `pull_request_target` sur les dépôts **publics**, appliquée à partir du 2 novembre 2026 |
+| Verrouillage des dépendances de workflow | feuille de route 2026 | Une section `dependencies:` verrouille actions directes et transitives par SHA, comme un lockfile ; aperçu public annoncé à 3-6 mois en mars 2026 |
+
+<Callout kind="novafact">
+Plan de durcissement de Novafact (fictif, sur six semaines) : jeton en lecture seule par défaut et `permissions: {}` partout ; suppression des trois `pull_request_target`, remplacés par le couple `pull_request` + `workflow_run` ; migration des deux clés AWS vers OIDC avec un rôle par dépôt et par environnement ; politique d'épinglage SHA activée en mode évaluation puis bloquante, Dependabot se chargeant de mettre à jour les SHA et leur commentaire de version ; caches retirés des workflows de release.
+</Callout>
+
+<Callout kind="warn">
+Épingler par SHA ne vérifie pas le contenu : cela garantit seulement que le code ne change pas sans que tu le voies. Une action épinglée peut elle-même télécharger un binaire ou appeler une autre action par tag. Relis ce qu'une action fait avant de l'adopter, et préfère les actions composites ou le script maison pour les tâches triviales.
+</Callout>
+
+<Recap items={[
+  "Jeton en lecture seule par défaut, `permissions: {}` puis droits par job, `persist-credentials: false`.",
+  "Jamais de code de PR dans `pull_request_target` ou `workflow_run` ; checkout v7 le refuse désormais par défaut.",
+  "Les expressions `${{ }}` passent par `env` et se citent dans le shell ; même règle pour `github-script` et `GITHUB_ENV`.",
+  "Pas de cache dans les jobs de release ; `cache-mode` pour appliquer le moindre privilège au cache.",
+  "OIDC vers AWS avec un `sub` précis (dépôt + environnement), environnements avec approbateurs, rulesets et CODEOWNERS sur `.github/`.",
+  "Politiques d'organisation : épinglage SHA imposé, immutable releases, execution protections, et bientôt le verrouillage des dépendances de workflow.",
+]} />
+
+<Lab id="gh-securitylab" note="Les articles « Keeping your GitHub Actions and workflows secure » sur les pwn requests et les entrées non fiables." />
+
+<Sources items={[
+  { title: "GitHub Docs : secure use reference", url: "https://docs.github.com/en/actions/reference/security/secure-use" },
+  { title: "GitHub Docs : OIDC dans AWS", url: "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws" },
+  { title: "GitHub Changelog : blocage et épinglage SHA imposé (août 2025)", url: "https://github.blog/changelog/2025-08-15-github-actions-policy-now-supports-blocking-and-sha-pinning-actions/" },
+  { title: "GitHub Changelog : checkout v7 et pull_request_target (juin 2026)", url: "https://github.blog/changelog/2026-06-18-safer-pull_request_target-defaults-for-github-actions-checkout/" },
+  { title: "GitHub Changelog : cache-mode (septembre 2026)", url: "https://github.blog/changelog/2026-09-10-control-github-actions-cache-access-with-cache-mode/" },
+  { title: "GitHub Changelog : workflow execution protections GA (septembre 2026)", url: "https://github.blog/changelog/2026-09-17-workflow-execution-protections-in-github-actions-generally-available/" },
+  { title: "GitHub : feuille de route sécurité Actions 2026", url: "https://github.blog/news-insights/product-news/whats-coming-to-our-github-actions-2026-security-roadmap/" },
+]} />

@@ -1,0 +1,186 @@
+export const questions = [
+  {
+    q: "Pourquoi SRI (Subresource Integrity) ne convient-il pas à un tag manager ?",
+    options: [
+      "Parce que son contenu change à chaque publication, et SRI fige une empreinte",
+      "Parce que SRI ne vérifie l'empreinte qu'au premier chargement, pas ensuite",
+      "Parce qu'un script chargé en async ou defer échappe à la vérification SRI",
+      "Parce que SRI ne vaut que pour les ressources servies par la même origine que la page",
+    ],
+    answer: 0,
+    explain: "SRI compare une empreinte fixe au fichier servi : il convient à une version figée d'une bibliothèque, pas à un conteneur republié à chaque changement de balise — et il ne couvre pas davantage les scripts que ce conteneur charge ensuite. Les autres options inversent des faits réels : SRI vérifie à chaque chargement, s'applique à async comme à defer, et vise justement les ressources d'une autre origine, avec crossorigin=anonymous et les en-têtes CORS du serveur.",
+  },
+  {
+    q: "Quelle combinaison isole le mieux un widget tiers qui n'a besoin que d'exécuter du JavaScript ?",
+    options: [
+      "Une iframe sandbox=allow-scripts allow-same-origin servie depuis ta propre origine",
+      "Une iframe sandbox=allow-scripts allow-same-origin sur un sous-domaine de novafact.example",
+      "Une iframe sandbox=allow-scripts servie depuis un autre domaine enregistrable",
+      "Une iframe sans sandbox servie par le fournisseur : l'autre origine suffit à isoler",
+    ],
+    answer: 2,
+    explain: "Sans allow-same-origin, le contenu reçoit une origine opaque : ni cookies ni stockage. Le combiner avec allow-scripts sur ta propre origine laisse le contenu retirer lui-même son sandbox ; sur un sous-domaine, à peine mieux, puisqu'il reste same-site, reçoit les cookies SameSite du parent et peut en poser pour lui. L'iframe sans sandbox isole bien le DOM, mais laisse le tiers ouvrir des fenêtres et rediriger la page parente.",
+  },
+  {
+    q: "Un développeur défend le CDN public pour une bibliothèque : « les visiteurs l'ont déjà en cache grâce aux autres sites ». Qu'en penser ?",
+    options: [
+      "C'est exact : le cache partagé reste le principal intérêt d'un CDN public",
+      "C'est faux : les navigateurs partitionnent leur cache par site depuis 2020",
+      "C'est exact, mais seulement si la bibliothèque porte un attribut integrity",
+      "C'est faux : le cache n'a jamais été partagé entre sites, même avant 2020",
+    ],
+    answer: 1,
+    explain: "L'argument était vrai — c'est ce qui le rend tentant — et ne l'est plus : les navigateurs majeurs isolent le cache HTTP par site de premier niveau depuis 2020-2021, pour fermer des fuites entre sites. Un fichier chargé par un autre site ne sert donc plus au tien. Reste la bande passante, que ton propre CDN couvre aussi bien, et la dépendance à un tiers, que SRI atténue sans l'annuler.",
+  },
+  {
+    q: "L'attribut integrity d'une bibliothèque externe ne correspond plus au fichier servi par le CDN. Que se passe-t-il ?",
+    options: [
+      "Le navigateur exécute le script et signale l'écart dans la console",
+      "Le navigateur rejoue la requête, puis exécute la version qu'on lui renvoie",
+      "Le navigateur exécute le script si une directive de rapport est configurée",
+      "Le navigateur refuse d'exécuter le script : la fonctionnalité casse",
+    ],
+    answer: 3,
+    explain: "SRI échoue fermé, sans repli ni mode rapport — c'est là qu'il diffère de CSP, dont le report-only laisse passer ce qu'il signale. Le blocage est le comportement voulu, mais il crée un risque de disponibilité : supervise cette erreur, sinon une attaque ressemblera à une panne de CDN et sera traitée comme telle.",
+  },
+];
+
+<YouKnow>
+Tu sais qu'un script tiers compromis vaut une XSS. Cette leçon donne les leviers pour réduire la confiance qu'on lui accorde, du plus radical au plus fin.
+</YouKnow>
+
+## Du plus radical au plus fin
+
+<Steps items={[
+  { title: "Supprimer", text: "Le script le plus sûr est celui qui n'est pas là. Chaque script d'une page sensible doit justifier sa présence." },
+  { title: "Auto-héberger", text: "Une bibliothèque versionnée (installée par npm, livrée avec le bundle) passe par ta chaîne de revue et ton lockfile, au lieu d'un CDN que tu ne contrôles pas." },
+  { title: "Figer avec SRI", text: "Pour un fichier externe versionné, l'attribut integrity garantit que le navigateur refuse une version modifiée." },
+  { title: "Isoler dans une iframe", text: "Un widget qui a besoin de s'exécuter mais pas d'accéder à ta page vit dans une iframe d'une autre origine, avec sandbox." },
+  { title: "Restreindre par politique", text: "CSP (leçon 4) et Permissions-Policy limitent ce que les scripts présents peuvent charger et faire." },
+]} />
+
+L'ordre compte. Chaque étape est moins efficace que la précédente, mais plus facile à obtenir. En pratique, une page sensible combine plusieurs niveaux : on supprime ce qui peut l'être, on auto-héberge les bibliothèques, on isole les widgets, et la CSP ferme ce qui reste.
+
+## Auto-héberger : ce que tu gagnes, ce que tu prends en charge
+
+Installer une bibliothèque par npm plutôt que de la charger depuis un CDN public fait entrer son code dans ta chaîne : lockfile, revue des mises à jour, scan de dépendances, build reproductible. Le code servi aux visiteurs est celui que ton pipeline a construit.
+
+<Diff file="apps/web/index.html" hlBefore="1" hlAfter="1">
+
+```html
+<script src="https://cdn.example/chart-lib@4/dist/chart-lib.min.js"></script>
+```
+
+```html
+<!-- chart-lib installée par pnpm, importée dans le code et livrée avec le bundle -->
+```
+
+</Diff>
+
+L'argument historique du CDN public (« le visiteur l'a déjà en cache ») ne tient plus : les navigateurs majeurs **partitionnent leur cache HTTP par site** depuis 2020-2021. Une bibliothèque chargée depuis un CDN par un autre site ne sert pas au tien. Il reste un argument de bande passante, que ton propre CDN (CloudFront chez Novafact) couvre aussi bien.
+
+La contrepartie est réelle : tu deviens responsable des mises à jour. Une bibliothèque copiée à la main dans `public/vendor/` et jamais mise à jour devient un *unpatchable component* (Kohnfelder, K4). L'auto-hébergement ne vaut que par npm et le lockfile, avec un outil qui propose les mises à jour.
+
+## SRI et ses limites
+
+```html
+<script src="https://cdn.example/lib@4.2.1/lib.min.js"
+        integrity="sha384-…"
+        crossorigin="anonymous"></script>
+```
+
+SRI convient à un fichier **figé** (une version précise d'une bibliothèque). Il ne convient pas à un script qui **change** (tag manager, chat, analytics mis à jour en continu) ni aux scripts qu'un script charge **dynamiquement**. Pour ceux-là, l'isolation ou la suppression sont les seules vraies réponses.
+
+Trois détails à connaître :
+
+- l'empreinte se calcule sur le fichier exact servi : `openssl dgst -sha384 -binary lib.min.js | openssl base64 -A` ;
+- pour une ressource d'une autre origine, `crossorigin="anonymous"` est nécessaire, et le serveur doit répondre avec les en-têtes CORS : sans eux, le navigateur ne peut pas vérifier l'empreinte et bloque le script ;
+- SRI **échoue fermé** : un fichier modifié n'est pas exécuté. La fonctionnalité casse, ce qui est voulu, mais prévois la supervision de cette erreur pour ne pas confondre une attaque avec une panne.
+
+Côté Next.js, une prise en charge **expérimentale** (`experimental.sri` dans `next.config.js`) ajoute des attributs `integrity` aux scripts générés au build. Elle sert surtout à garder une CSP stricte sur des pages statiques, sans nonce (leçon 4).
+
+## Garder un tag manager sous contrôle
+
+Quand le tag manager reste sur des pages non sensibles, il faut le traiter comme ce qu'il est : un système de déploiement de code en production, parallèle au tien.
+
+- **Droits** : dans Google Tag Manager, les rôles d'un conteneur vont de la lecture à la publication. Peu de personnes publient, et elles utilisent un compte avec MFA.
+- **Revue** : une balise HTML personnalisée est du JavaScript arbitraire. Elle passe par une validation, comme une PR.
+- **Restriction technique** : GTM permet de déclarer dans le `dataLayer` des clés `gtm.allowlist` et `gtm.blocklist` qui empêchent certains types de balises de s'exécuter, quelle que soit la configuration du conteneur. Bloquer les balises HTML personnalisées depuis ton code retire au conteneur la capacité d'injecter du code libre.
+- **Périmètre** : le conteneur n'est pas chargé sur les pages de paiement et d'authentification.
+
+## Isoler le paiement
+
+La meilleure décision d'architecture pour une page de paiement : **les données de carte ne passent jamais par ta page**. Le prestataire de paiement fournit des champs hébergés (*hosted fields*) ou une page de paiement dans une iframe servie depuis **son** origine. Même compromise, ta page ne peut pas lire ce qui est saisi dans l'iframe (politique de même origine).
+
+Ça réduit aussi fortement le périmètre PCI DSS (leçon 7), sans le supprimer : ta page peut toujours remplacer l'iframe par une fausse. Deux directives CSP réduisent ce risque : `frame-src` limité à l'origine du prestataire empêche de charger une iframe d'imitation venue d'ailleurs, et un `script-src` strict empêche le script qui dessinerait un faux formulaire directement dans la page.
+
+## Les iframes en sandbox
+
+Pour un widget tiers (chat, aide), une iframe avec l'attribut `sandbox` retire par défaut presque tous les droits : scripts, formulaires, fenêtres, navigation du parent. On ajoute ensuite le strict nécessaire.
+
+| Jeton | Ce qu'il rend | À accorder quand |
+| --- | --- | --- |
+| `allow-scripts` | L'exécution de JavaScript | Le widget en a besoin (presque toujours) |
+| `allow-forms` | L'envoi de formulaires | Le widget contient un formulaire |
+| `allow-popups` | L'ouverture de fenêtres | Lien vers une aide externe, par exemple |
+| `allow-same-origin` | L'origine réelle du contenu (cookies, stockage) | Le widget a besoin de son stockage, et il est servi depuis une **autre** origine |
+| `allow-top-navigation` | Le droit de rediriger la page parente | Presque jamais |
+
+Sans `allow-same-origin`, le contenu reçoit une **origine opaque** : il ne peut lire ni les cookies ni le stockage d'aucune origine, y compris la sienne. C'est l'isolation la plus forte, mais beaucoup de widgets de chat en ont besoin pour garder une session. La combinaison `allow-scripts allow-same-origin` est alors acceptable **si et seulement si** l'iframe est servie depuis une origine différente de la page.
+
+<Callout kind="warn">
+Ne combine jamais `allow-scripts` et `allow-same-origin` pour un contenu servi depuis **ta** origine : le contenu peut alors retirer lui-même l'attribut sandbox. L'isolation repose sur une **origine différente**, et de préférence sur un **domaine enregistrable distinct** (comme `widgets.novafact-usercontent.example`) plutôt qu'un sous-domaine de `novafact.example` : un sous-domaine reste « same-site », reçoit les cookies `SameSite` du domaine parent et peut en poser pour lui.
+</Callout>
+
+<Diff file="apps/web/src/components/SupportWidget.tsx" hlBefore="1" hlAfter="2-6">
+
+```tsx
+<script src="https://chat.vendor.example/widget.js" async></script>
+```
+
+```tsx
+<iframe
+  src="https://widgets.novafact-usercontent.example/support"
+  sandbox="allow-scripts allow-forms allow-same-origin"
+  allow=""
+  referrerPolicy="no-referrer"
+  title="Aide Novafact"
+/>
+```
+
+</Diff>
+
+Dans cette version, le fournisseur de chat s'exécute sur une origine que Novafact contrôle mais qui ne partage rien avec l'application. Le widget communique avec la page par `postMessage`, avec une vérification stricte de `event.origin` des deux côtés (M2).
+
+## Permissions-Policy
+
+L'en-tête `Permissions-Policy` coupe l'accès aux fonctionnalités sensibles du navigateur pour la page et ses iframes : caméra, micro, géolocalisation, paiement, capteurs.
+
+```text
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://pay.psp.example")
+```
+
+La politique fonctionne à deux niveaux : l'en-tête fixe ce que la page et ses descendants **peuvent** obtenir, et l'attribut `allow` d'une iframe délègue explicitement une fonctionnalité à ce cadre. L'iframe du prestataire a donc besoin de `allow="payment"` **et** d'une origine autorisée dans l'en-tête. `helmet` ne pose pas cet en-tête : dans Express, ajoute-le toi-même, sur toutes les réponses HTML.
+
+<Callout kind="novafact">
+Bilan de la page de paiement après ce travail : zéro script tiers dans l'origine, le formulaire de carte dans l'iframe du prestataire (`frame-src` limité à son origine), le widget d'aide retiré de la page et isolé ailleurs sur un domaine dédié, et un `Permissions-Policy` qui ne délègue que `payment` au prestataire.
+</Callout>
+
+<Recap items={[
+  "Supprimer, auto-héberger, figer avec SRI, isoler, restreindre par politique : du plus radical au plus fin, et on les combine.",
+  "Auto-héberger par npm et lockfile ; le cache partagé des CDN publics n'existe plus depuis le partitionnement du cache.",
+  "SRI protège un fichier figé, échoue fermé, et exige CORS pour une ressource d'une autre origine.",
+  "Un tag manager est un système de déploiement : droits, revue, allowlist et exclusion des pages sensibles.",
+  "Les données de carte restent dans l'iframe du prestataire ; frame-src et script-src empêchent de la remplacer.",
+  "Sandbox + origine différente (domaine enregistrable distinct) ; jamais allow-scripts avec allow-same-origin sur ta propre origine.",
+  "Permissions-Policy coupe les fonctionnalités sensibles, et l'attribut allow les délègue au cas par cas.",
+]} />
+
+<Sources items={[
+  { title: "MDN : Subresource Integrity", url: "https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity" },
+  { title: "MDN : attribut sandbox des iframes", url: "https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#sandbox" },
+  { title: "MDN : Permissions-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy" },
+  { title: "Chrome for Developers : partitionnement du cache HTTP", url: "https://developer.chrome.com/blog/http-cache-partitioning" },
+  { title: "Google Tag Manager : restreindre le déploiement des balises", url: "https://developers.google.com/tag-platform/tag-manager/restrict" },
+  { title: "Next.js : CSP et SRI expérimental", url: "https://nextjs.org/docs/app/guides/content-security-policy" },
+]} />

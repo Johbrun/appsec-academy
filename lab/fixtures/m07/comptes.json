@@ -1,0 +1,22 @@
+{
+  "_comment": "Comptes et droits accordés sur Novafact — données embarquées du challenge access-recertification (M7). Comptes humains et comptes de service, avec les droits accordés à la création. Personne ne les a revus depuis.",
+  "periode": { "du": "2026-06-01", "au": "2026-09-01" },
+  "comptes": [
+    { "identifiant": "marie.dubois@novafact.example", "type": "humain", "equipe": "@novafact/facturation",
+      "droits": ["factures:lire", "factures:ecrire", "export:comptable", "clients:lire"] },
+    { "identifiant": "karim.benali@novafact.example", "type": "humain", "equipe": "@novafact/plateforme",
+      "droits": ["factures:lire", "admin:utilisateurs", "admin:audit"] },
+    { "identifiant": "lea.moreau@novafact.example", "type": "humain", "equipe": "@novafact/frontend",
+      "droits": ["factures:lire", "reglages:ecrire"] },
+    { "identifiant": "thomas.roy@novafact.example", "type": "humain", "equipe": "@novafact/sre",
+      "droits": ["admin:audit", "infra:deployer", "secrets:lire", "export:comptable"] },
+    { "identifiant": "svc-facturx@novafact.example", "type": "service", "equipe": "@novafact/facturation",
+      "droits": ["factures:lire", "factures:ecrire", "pieces-jointes:ecrire"] },
+    { "identifiant": "svc-analytics@novafact.example", "type": "service", "equipe": "@novafact/produit",
+      "droits": ["factures:lire", "clients:lire", "admin:utilisateurs"] },
+    { "identifiant": "svc-sauvegarde@novafact.example", "type": "service", "equipe": "@novafact/sre",
+      "droits": ["factures:lire", "clients:lire", "secrets:lire"] },
+    { "identifiant": "stage2025@novafact.example", "type": "humain", "equipe": "@novafact/produit",
+      "droits": ["factures:lire", "clients:lire", "export:comptable"] }
+  ]
+}

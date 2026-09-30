@@ -1,0 +1,165 @@
+export const questions = [
+  {
+    q: "Depuis quand les exigences PCI DSS 6.4.3 et 11.6.1 sont-elles obligatoires ?",
+    options: [
+      "Depuis mars 2022, date de publication de PCI DSS 4.0",
+      "Depuis juin 2024, avec la révision 4.0.1 qui les a précisées",
+      "Depuis janvier 2025, quand le SAQ A a été remanié",
+      "Depuis le 31 mars 2025, fin de la période de bonnes pratiques",
+    ],
+    answer: 3,
+    explain: "PCI DSS 4.0 a bien été publiée en mars 2022, mais ces deux exigences y figuraient comme bonnes pratiques jusqu'au 31 mars 2025 : c'est cette fin de transition qui les rend opposables. La révision 4.0.1 de juin 2024 les a clarifiées sans toucher à l'échéance, et le remaniement du SAQ A de janvier 2025 a introduit un critère d'éligibilité, pas une date d'entrée en vigueur.",
+  },
+  {
+    q: "Novafact intègre l'iframe de paiement d'un prestataire. Est-elle dispensée de toute question sur les scripts de sa page ?",
+    options: [
+      "Oui : les scripts de la page sortent du périmètre dès que la saisie est isolée",
+      "Oui, si le prestataire fournit une attestation de conformité pour sa solution",
+      "Non : le SAQ A exige désormais de confirmer que la page intégrante est protégée",
+      "Non : dès qu'une page de paiement existe, c'est le SAQ A-EP qui s'applique",
+    ],
+    answer: 2,
+    explain: "6.4.3 et 11.6.1 ont été retirées du SAQ A en janvier 2025, mais remplacées par un critère d'éligibilité : la page qui intègre l'iframe doit être protégée contre les attaques par script, puisqu'un script présent sur cette page peut remplacer l'iframe par un faux formulaire. L'attestation du prestataire ne suffit pas telle quelle — elle ne vaut que si elle porte explicitement sur la protection de la page intégrante ; sinon Novafact applique elle-même des mesures équivalentes.",
+  },
+  {
+    q: "Novafact s'appuie uniquement sur les rapports CSP pour 11.6.1. Un attaquant qui contrôle le déploiement retire l'en-tête CSP de la page de paiement. Que voit Novafact ?",
+    options: [
+      "Rien : sans en-tête, plus de politique appliquée, donc plus de rapports",
+      "Une baisse du volume de rapports, visible sur le tableau de bord Elastic",
+      "Des erreurs dans la console des visiteurs, remontées par le suivi d'erreurs",
+      "Une alerte du prestataire, qui vérifie les en-têtes à chaque appel de l'iframe",
+    ],
+    answer: 0,
+    explain: "Sans en-tête, le navigateur n'applique plus rien et n'envoie plus rien : le silence ressemble à une journée calme. Guetter une baisse du volume ne sauve pas, car une page saine ne produit déjà presque aucun rapport — on ne distingue pas zéro de zéro. C'est pourquoi 11.6.1 vise les en-têtes tels que reçus par le navigateur : un contrôle externe doit constater que la politique est encore là, au lieu d'écouter ce qu'elle rapporte.",
+  },
+  {
+    q: "À quelle fréquence le mécanisme de 11.6.1 doit-il s'exécuter ?",
+    options: [
+      "À chaque déploiement, puisque c'est le moment où les scripts de la page changent",
+      "Au moins chaque semaine, ou selon une analyse de risque ciblée documentée",
+      "Au moins une fois par trimestre, comme les scans de vulnérabilités ASV",
+      "En continu : la norme impose une détection en temps réel sur cette page",
+    ],
+    answer: 1,
+    explain: "La norme fixe un plancher hebdomadaire, qu'une analyse de risque ciblée (exigence 12.3.1) permet d'ajuster à condition de la documenter. La confusion la plus fréquente est avec le rythme trimestriel des scans ASV, qui relève d'une autre exigence. Rien n'interdit d'aller plus vite, et un contrôle à chaque déploiement est un bon complément — mais il ne voit rien de ce qui change entre deux déploiements, c'est-à-dire précisément le cas du script tiers compromis.",
+  },
+];
+
+<YouKnow>
+Tu as peut-être déjà audité des pages de paiement ou croisé des skimmers. Cette leçon traduit les exigences PCI DSS sur les scripts en contrôles concrets pour une SPA React.
+</YouKnow>
+
+## Deux exigences pour les pages de paiement
+
+PCI DSS 4.0 (révision 4.0.1, juin 2024) a introduit deux exigences contre les attaques de type Magecart. Elles sont **obligatoires depuis le 31 mars 2025**.
+
+| Exigence | Ce qu'elle demande |
+| --- | --- |
+| **6.4.3** | Un **inventaire** de tous les scripts exécutés sur la page de paiement, avec pour chacun une **justification** et une **autorisation**, et un mécanisme qui garantit leur **intégrité** |
+| **11.6.1** | Un mécanisme de **détection de modification** qui alerte en cas de changement non autorisé des scripts et des **en-têtes HTTP de sécurité** tels que reçus par le navigateur, vérifié au moins chaque semaine |
+
+Lues de près, les deux exigences se partagent le travail. 6.4.3 est **préventive** : décider de ce qui a le droit de s'exécuter, et empêcher le reste. 11.6.1 est **détective** : constater que ce que le navigateur reçoit réellement correspond encore à ce qui a été décidé. La nuance « tels que reçus par le navigateur » est importante : l'état du dépôt Git ou du bucket S3 ne suffit pas, puisqu'une modification peut intervenir plus loin (CDN, tiers, en-têtes réécrits).
+
+Quelques précisions du texte :
+
+- l'intégrité n'impose **aucun mécanisme précis** : CSP, SRI ou un autre moyen, tant qu'il est justifié ;
+- 11.6.1 doit alerter sur les indicateurs de compromission, les modifications, les ajouts et les suppressions ;
+- la fréquence est d'**au moins une fois par semaine**, ou celle définie par une **analyse de risque ciblée** (exigence 12.3.1) si l'entité en choisit une autre et la documente.
+
+## Le cas des iframes de paiement
+
+Beaucoup de marchands intègrent le paiement via l'iframe d'un prestataire et relèvent du **SAQ A**, le questionnaire le plus léger. En janvier 2025, le PCI SSC a **retiré 6.4.3 et 11.6.1 du SAQ A**, mais les a remplacées par un **critère d'éligibilité** : le marchand doit confirmer que ses pages, **y compris celle qui intègre l'iframe**, ne sont pas exposées aux attaques par script. En effet, un script malveillant sur ta page peut remplacer l'iframe du prestataire par un faux formulaire.
+
+Deux façons de satisfaire ce critère : appliquer toi-même des protections équivalentes à 6.4.3 et 11.6.1 sur la page, ou obtenir du prestataire une confirmation écrite que sa solution intégrée protège contre ces attaques.
+
+La révision 4.0.1 a aussi clarifié le partage des responsabilités hors SAQ A. Les scripts de **ta** page qui intègre l'iframe sont dans le périmètre de 6.4.3. Les scripts **à l'intérieur** de l'iframe du prestataire relèvent du prestataire, dont tu peux attendre des preuves de conformité. Chacun répond de l'origine qu'il sert.
+
+## Ce que ça impose à Novafact
+
+<Steps items={[
+  { title: "Inventaire versionné", text: "Un fichier dans le dépôt liste chaque script de la page de paiement : source, usage, propriétaire, date d'autorisation. Toute modification passe en revue de code." },
+  { title: "Intégrité", text: "Bundle auto-hébergé et construit par le pipeline, SRI pour les rares fichiers externes figés, CSP stricte à nonces (leçon 4) qui refuse tout script non prévu." },
+  { title: "Détection de modification", text: "Rapports CSP collectés dans Elastic, et un contrôle automatisé qui charge la page et compare scripts et en-têtes à la référence, au moins chaque semaine." },
+  { title: "Preuves", text: "Inventaire, politique CSP, rapports et historique des alertes : ce qu'un évaluateur QSA demandera." },
+]} />
+
+L'inventaire le plus utile est celui qui est **vérifié par la machine**. Chez Novafact, il vit à côté du code de la page, et la CI échoue si la page observée dans un navigateur charge un script absent de la liste.
+
+<Code file="apps/web/security/payment-scripts.yml">
+
+```yaml
+# Inventaire PCI DSS 6.4.3 : page /pay. Toute modification exige l'approbation de @novafact/appsec (CODEOWNERS).
+page: https://app.novafact.example/pay
+scripts:
+  - match: https://app.novafact.example/assets/pay-*.js
+    kind: first-party
+    justification: Application de paiement (bundle Vite construit par le pipeline)
+    owner: equipe-paiement
+    authorized: 2026-06-12
+    integrity: CSP nonce + build signé
+  - match: https://js.psp.example/v3/embed.js
+    kind: third-party
+    justification: Chargeur de l'iframe du prestataire de paiement
+    owner: equipe-paiement
+    authorized: 2026-06-12
+    integrity: SRI sha384 (version figée v3.14.2)
+headers:
+  content-security-policy: required
+  permissions-policy: required
+```
+
+</Code>
+
+Trois mécanismes se renforcent : le fichier est protégé par `CODEOWNERS` (l'**autorisation** est l'approbation de la PR, horodatée), la CI compare la page réelle au fichier (un script ajouté sans mise à jour de l'inventaire casse le build), et la surveillance de la leçon 8 fait la même comparaison en production.
+
+| Exigence | Contrôle chez Novafact | Preuve pour l'évaluateur |
+| --- | --- | --- |
+| 6.4.3 inventaire et justification | `payment-scripts.yml` | Fichier et historique Git |
+| 6.4.3 autorisation | Approbation obligatoire de la PR par l'AppSec | PR approuvées, règles de protection de branche |
+| 6.4.3 intégrité | CSP à nonces, SRI sur le chargeur du prestataire, bundle construit par la CI | En-têtes de réponse, configuration du pipeline |
+| 11.6.1 détection | Contrôle synthétique toutes les heures, rapports CSP dans Elastic | Historique d'exécution, règles d'alerte |
+| 11.6.1 alerte et traitement | Alerte vers l'astreinte, ticket d'investigation | Tickets, comptes rendus |
+
+<Callout kind="debate">
+**La CSP suffit-elle pour 11.6.1 ?** Certains la présentent comme la réponse complète : chaque script non autorisé génère un rapport. Deux angles morts s'y opposent. Un script **autorisé** dont le contenu change (le chargeur du prestataire compromis, sans SRI) ne déclenche aucune violation. Et si l'en-tête CSP lui-même disparaît, les rapports s'arrêtent : le silence ressemble alors à une journée calme. La CSP est un excellent capteur, pas un mécanisme de détection de modification à elle seule. Le contrôle externe des empreintes et des en-têtes comble ces angles morts.
+</Callout>
+
+<Callout kind="info">
+Novafact doit aussi se demander dans quel rôle elle se trouve vis-à-vis de PCI DSS : marchand pour ses propres abonnements, et prestataire pour ses clients qui encaissent via sa plateforme. La réponse change le questionnaire applicable : fais-la valider par un évaluateur qualifié.
+</Callout>
+
+## Les pièges d'une première évaluation
+
+- **Oublier les scripts indirects** : l'inventaire doit couvrir ce que le navigateur exécute, y compris ce que charge un autre script.
+- **Justifier par l'usage, pas par le besoin** : « le marketing l'utilise » n'est pas une justification technique ou métier pour la page de saisie de carte.
+- **Une page de paiement qui n'est pas celle qu'on croit** : dans une SPA, le « paiement » est une route du même bundle que le reste de l'application. Tout le code chargé sur cette route compte, y compris les modules partagés et les scripts chargés dès l'accueil.
+- **Des alertes que personne ne lit** : 11.6.1 demande d'alerter le personnel ; l'évaluateur vérifiera qu'une alerte a déjà été traitée, pas seulement qu'elle existe.
+
+Le troisième piège pousse vers une décision d'architecture : servir la page de paiement comme une **application séparée**, minimale, avec son propre bundle. L'inventaire tient alors en quelques lignes et la surface de modification est réduite.
+
+## Quand le prestataire met à jour son script
+
+Le chargeur du prestataire pose une question pratique. Si le prestataire publie des versions figées, SRI s'applique et chaque mise à jour devient une PR : nouvelle empreinte, nouvelle date d'autorisation, approbation. Certains prestataires imposent au contraire de charger leur script depuis leur domaine, sans version figée, pour pouvoir le corriger à tout moment : SRI devient impossible. L'intégrité repose alors sur trois éléments documentés ensemble : la CSP qui limite l'origine autorisée, l'engagement écrit du prestataire sur la sécurité de son script, et la détection par empreinte, qui alertera à chaque mise à jour du prestataire. Ces alertes-là sont attendues : prévois un circuit court (vérifier l'annonce du prestataire, comparer le comportement réseau, valider) pour qu'elles ne deviennent pas du bruit que l'on finit par ignorer.
+
+## Au-delà de la conformité
+
+Ces exigences formalisent ce que les leçons précédentes recommandaient déjà : inventorier, justifier, figer, isoler, surveiller. La conformité fournit surtout **un argument et un calendrier** pour obtenir les moyens de le faire.
+
+Le PCI SSC a publié en 2025 un supplément d'information consacré à ces deux exigences (*Payment Page Security and Preventing E-Skimming*) : il détaille les approches acceptables et reste la meilleure lecture avant de discuter avec un évaluateur.
+
+<Recap items={[
+  "6.4.3 (préventive) : inventaire, justification, autorisation et intégrité des scripts de la page de paiement.",
+  "11.6.1 (détective) : détection des modifications de scripts et d'en-têtes tels que reçus par le navigateur, au moins hebdomadaire ou selon une analyse de risque ciblée.",
+  "Obligatoires depuis le 31/03/2025 ; aucun mécanisme imposé, mais une justification attendue.",
+  "SAQ A : critère d'éligibilité depuis janvier 2025, la page qui intègre l'iframe doit être protégée ; les scripts dans l'iframe relèvent du prestataire.",
+  "Inventaire versionné et vérifié par la CI, autorisation par CODEOWNERS, CSP stricte, contrôle synthétique et rapports dans Elastic.",
+  "La CSP seule ne voit ni le contenu modifié d'un script autorisé, ni la disparition de son propre en-tête.",
+]} />
+
+<Sources items={[
+  { title: "PCI Security Standards Council", url: "https://www.pcisecuritystandards.org/" },
+  { title: "PCI SSC : supplément Payment Page Security and Preventing E-Skimming", url: "https://blog.pcisecuritystandards.org/new-information-supplement-payment-page-security-and-preventing-e-skimming" },
+  { title: "Jscrambler : PCI DSS 4.0.1, changements sur 6.4.3 et 11.6.1", url: "https://jscrambler.com/blog/pci-dss-4-0-1/" },
+  { title: "Feroot : SAQ A et SAQ A-EP sous PCI DSS 4", url: "https://www.feroot.com/blog/pci-4-saq-a-saq-a-ep-everything-merchants-need-to-know-to-master-pci-dss-4-compliance/" },
+  { title: "GitHub : fichier CODEOWNERS", url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners" },
+]} />

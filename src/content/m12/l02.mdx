@@ -1,0 +1,182 @@
+export const questions = [
+  {
+    q: "Par quoi commencer la revue d'une base Express inconnue ?",
+    options: [
+      "Lancer un SAST et partir de ses alertes pour orienter la lecture",
+      "Lire les tests, qui décrivent le comportement attendu du système",
+      "Lire d'abord le module d'authentification, puisque c'est le contrôle le plus critique",
+      "Cartographier les routes, les middlewares globaux, les modèles et la configuration",
+    ],
+    answer: 3,
+    explain: "Les alertes du SAST et le module d'authentification sont des lectures utiles, mais elles arrivent après : partir des alertes ne montre que ce que l'outil sait chercher, et lire auth.ts sans savoir quelles routes y passent ne dit rien de celles qui l'évitent. La carte donne cet ordre de bataille.",
+  },
+  {
+    q: "Qu'est-ce qu'un « sink » dans une revue de code ?",
+    options: [
+      "Un point où une donnée produit un effet dangereux si elle n'est pas maîtrisée",
+      "Un point d'entrée par lequel une donnée non fiable arrive dans le code",
+      "Une fonction qui neutralise une donnée avant son usage, comme un échappement",
+      "Un chemin complet d'une entrée utilisateur jusqu'à une requête SQL",
+    ],
+    answer: 0,
+    explain: "Source, sanitizer et sink sont trois rôles distincts sur le même chemin : l'arrivée de la donnée, sa neutralisation, son effet. Confondre le sink avec la source est la méprise la plus fréquente, et elle fait chercher au mauvais bout du flux : on recense les `req.body` au lieu des `db.raw`.",
+  },
+  {
+    q: "Dans app.ts, le routeur des webhooks est monté avant le middleware d'authentification. Qu'en conclus-tu ?",
+    options: [
+      "C'est une vulnérabilité : tu bloques la PR tant que le routeur n'est pas remonté après l'authentification",
+      "C'est peut-être voulu ; le routeur doit alors porter son propre contrôle de signature",
+      "Rien à signaler : l'ordre des app.use ne change pas les routes protégées dans Express",
+      "Il faut monter l'authentification en premier et exempter les webhooks par une liste de chemins",
+    ],
+    answer: 1,
+    explain: "Un middleware Express ne s'applique qu'aux routes montées après lui : l'ordre compte bien. Mais bloquer d'office est excessif, car un webhook n'a pas de session et le déplacer casserait l'intégration. La vraie question est de savoir ce qui l'authentifie à la place — et c'est ce qu'on va lire en priorité.",
+  },
+  {
+    q: "Pourquoi une valeur lue dans la base de données peut-elle être une source ?",
+    options: [
+      "Seulement si elle n'a pas été validée à l'écriture ; sinon la relecture est sûre",
+      "Seulement dans les bases NoSQL, où un document peut contenir des opérateurs",
+      "Parce qu'un utilisateur a pu l'écrire plus tôt : second ordre, XSS stockée",
+      "Parce que l'ORM n'échappe que les valeurs qu'il écrit, pas celles qu'il relit",
+    ],
+    answer: 2,
+    explain: "Le plus tentant est de croire qu'une validation à l'écriture referme la question. Elle ne la referme pas : une valeur parfaitement acceptable en base — une apostrophe dans une raison sociale — redevient dangereuse dans un sink différent de celui qu'on avait en tête. La confiance dépend de qui a écrit la donnée, pas de l'endroit où elle est rangée.",
+  },
+];
+
+<YouKnow>
+Tu fais déjà de la revue de code en boîte blanche. Cette leçon formalise une méthode reproductible sur une base Node inconnue, pour qu'elle soit transmissible aux champions.
+</YouKnow>
+
+## Avant de lire : cadrer
+
+Une revue sans question tourne à la lecture au hasard. Avant d'ouvrir le dépôt, fixe trois choses : **ce qu'on protège** (les factures, les coordonnées bancaires, les rôles), **contre qui** (un client d'un autre tenant, un utilisateur non authentifié, un employé curieux), et **ce qu'on sait déjà** (threat model de M11, pentests précédents, incidents). Fais tourner l'application en local si tu le peux : une route que tu as appelée se lit deux fois plus vite qu'une route que tu imagines.
+
+## Étape 1 : cartographier
+
+Avant de lire une ligne en détail, dresse la carte :
+
+| Question | Où chercher dans Express | Où chercher dans Next.js |
+| --- | --- | --- |
+| Quels sont les points d'entrée ? | `router.get/post/…`, `app.use`, `app.param`, gestionnaires de webhooks, consommateurs de files | `app/**/route.ts`, fonctions `'use server'`, `pages/api/`, `middleware.ts` (renommé `proxy.ts` depuis Next.js 16) |
+| Quels contrôles globaux ? | Middlewares montés dans `app.ts` : authentification, autorisation, validation, CORS, limites | Le fichier `middleware.ts` ou `proxy.ts`, et la couche d'accès aux données (DAL) |
+| Quelles données sensibles ? | Modèles Prisma et Mongoose, champs sensibles (M7) | Idem, plus ce qui franchit la frontière vers les Client Components |
+| Quelle configuration ? | Variables d'environnement, `trust proxy`, `query parser`, cookies, en-têtes | `next.config`, variables `NEXT_PUBLIC_*` (exposées au navigateur) |
+| Quelles dépendances clés ? | ORM, moteur de templates, bibliothèques d'authentification | Idem |
+
+```bash
+rg -n "router\.(get|post|put|patch|delete|all)\(" apps/api/src   # les routes
+rg -n "app\.(use|param)\(" apps/api/src                            # middlewares et paramètres globaux
+rg -ln "^['\"]use server['\"]" apps/admin                          # fichiers de Server Actions
+rg -n "queryRawUnsafe|\.raw\(|exec\(|innerHTML|res\.redirect|fetch\(" apps  # des sinks
+```
+
+Dans Express, **l'ordre de montage est une décision de sécurité** : un middleware ne s'applique qu'à ce qui est monté après lui. Lis `app.ts` de haut en bas, comme un pare-feu :
+
+<Code file="apps/api/src/app.ts" hl="5,6,9">
+
+```ts
+const app = express();
+app.set('trust proxy', 1);                                  // un seul ALB devant : req.ip est fiable
+app.use(helmet());
+
+app.use('/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhooks); // avant l'auth
+app.use('/public', express.static('public'));
+
+app.use(express.json({ limit: '100kb' }));
+app.use(requireSession);                                     // tout ce qui suit exige une session
+app.use('/invoices', invoicesRouter);
+app.use('/exports', exportsRouter);
+app.use(errorHandler);                                       // 4 arguments : le gestionnaire d'erreurs
+```
+
+</Code>
+
+La ligne 5 est légitime : un webhook Stripe n'a pas de session et a besoin du corps brut pour vérifier sa signature. Mais elle crée une zone hors du contrôle central, et ta carte doit la noter : « `/webhooks/stripe` : pas de session, contrôle = signature, à vérifier ». Même raisonnement pour la ligne 6 (qu'y a-t-il dans `public/` ?) et pour la ligne 2 (combien de proxys y a-t-il vraiment devant l'API ? Si la valeur est fausse, `req.ip` devient contrôlable par le client, et le rate limiting de M10 avec lui).
+
+## Étape 2 : sources et sinks
+
+| Sources (non fiables) | Sinks (dangereux) |
+| --- | --- |
+| `req.body`, `req.query`, `req.params`, `req.headers`, cookies | Requêtes SQL et NoSQL brutes |
+| Corps des webhooks entrants | `child_process`, `vm`, `eval` |
+| Fichiers téléversés (contenu **et** nom) | Moteurs de templates, `res.render` |
+| Messages de files, données de tiers | `res.redirect`, construction d'URL |
+| Contenu lu par l'assistant IA, sorties du modèle | `fetch` vers une URL dérivée d'une entrée |
+| Données relues en base, écrites plus tôt par un client | `innerHTML`, `dangerouslySetInnerHTML` |
+| Variables d'environnement (moins souvent) | Chemins de fichiers, `res.sendFile` |
+
+On suit chaque source jusqu'aux sinks qu'elle atteint, et on note **ce qui la contrôle** en chemin : validation, autorisation, encodage. Trois subtilités reviennent souvent :
+
+- **Le type n'est pas garanti.** Avec le parser de requêtes « extended » (défaut d'Express 4, basé sur `qs`), `req.query.status` peut être un objet ou un tableau, pas une chaîne. C'est la cause racine des injections d'opérateurs Mongo (M2). Express 5 est passé par défaut au parser « simple » : vérifie la version et le réglage `query parser` avant de conclure.
+- **La confiance dépend de l'auteur, pas du stockage.** Une note de facture relue en base reste une donnée client : c'est le terrain des XSS stockées et des injections de second ordre.
+- **Les en-têtes « internes » sont des entrées.** `X-Forwarded-For`, `X-Tenant-Id` posé par un proxy, en-têtes que le framework croit être les seuls à écrire : CVE-2025-29927 (leçon 4) en est l'exemple parfait.
+
+## Étape 3 : les contrôles centraux, et ce qui les contourne
+
+La question la plus productive n'est pas « où est le bug ? » mais « **quel est le contrôle, et qui passe à côté ?** » :
+
+<Steps items={[
+  { title: "Trouver le contrôle", text: "Le middleware d'autorisation, defineRoute, la DAL, le schéma de validation." },
+  { title: "Lister ceux qui l'utilisent", text: "Les routes, actions et jobs qui passent par lui." },
+  { title: "Lister ceux qui ne l'utilisent pas", text: "Une route déclarée autrement, un job qui lit la base directement, un webhook monté avant le middleware. C'est là que sont les vulnérabilités." },
+  { title: "Vérifier le contrôle lui-même", text: "Un contrôle central bogué est une vulnérabilité partout à la fois : lis-le ligne à ligne, avec ses cas d'erreur." },
+]} />
+
+Semgrep en ligne de commande, sans fichier de règles, suffit pour ces listes. Un motif avec métavariables se lit comme du code :
+
+```bash
+# Les routes déclarées directement sur un routeur, hors defineRoute
+semgrep -e '$ROUTER.$METHOD($PATH, async ($REQ, $RES) => { ... })' --lang ts apps/api/src
+
+# Les lectures Prisma par id, à trier ensuite à la main : lesquelles filtrent par tenant ?
+semgrep -e 'prisma.$MODEL.findUnique({ where: { id: $ID } })' --lang ts apps/api/src
+```
+
+Le second motif renvoie aussi les requêtes qui filtrent déjà par tenant (Semgrep accepte des champs supplémentaires dans l'objet) : c'est un point de départ pour la lecture, pas un verdict. Quand un motif devient utile à chaque revue, il mérite une vraie règle avec exclusions et tests (M13, leçon 4).
+
+## Étape 4 : suivre un flux, et le noter
+
+Pour chaque flux intéressant, garde une fiche courte. Elle t'évite de relire trois fois le même chemin, et elle se transmet :
+
+```text
+FLUX  POST /imports (import CSV de factures)
+Source    req.file (multer, mémoire), nom et contenu
+Contrôles session ✓  permission invoices:import ✓  taille 5 Mo ✓  type MIME déclaré seulement ✗
+Chemin    routes/imports.ts → services/imports.ts:parseCsv → dal/invoices.ts:createMany
+Sinks     createMany (tenantId pris de la session ✓), note → rendu PDF (échappement ? à vérifier)
+Questions formules CSV en sortie d'export (M2) ; ligne de 10 Mo sans saut de ligne ?
+```
+
+Les « ✗ » et les « à vérifier » deviennent soit un test que tu écris tout de suite, soit un commentaire de revue, soit un finding.
+
+## Les outils d'exploration
+
+- **ripgrep** pour les recherches rapides, avec `-t ts` ou `--glob` pour restreindre ;
+- **Semgrep en mode exploration** (`-e` et `--lang`) pour chercher des structures plutôt que du texte ;
+- le **graphe des dépendances** : `npm ls express` pour la version réellement résolue, `npm query ':attr(scripts, [postinstall])'` pour lister les paquets qui exécutent un script à l'installation ;
+- ton **IDE** : « aller à la définition » et « trouver les références » restent les outils les plus sous-estimés d'une revue.
+
+<Callout kind="warn">
+Méfie-toi du code mort apparent. Une route non référencée dans le front peut rester montée côté API et appelable ; un fichier `legacy/` peut être importé par un job planifié ; un flag de fonctionnalité désactivé en production peut être actif en recette, exposée sur Internet. Avant d'écarter du code, vérifie qu'il n'est **pas atteignable**, pas seulement qu'il n'est pas utilisé.
+</Callout>
+
+<Recap items={[
+  "Cadrer d'abord : ce qu'on protège, contre qui, ce qu'on sait déjà.",
+  "Cartographier entrées, contrôles globaux, données sensibles, configuration, dépendances ; dans Express, l'ordre des app.use est une décision de sécurité.",
+  "Suivre chaque source jusqu'aux sinks, en notant ce qui la contrôle, sans oublier les types inattendus et les données relues en base.",
+  "La question la plus productive : quel est le contrôle, et qui passe à côté ? Puis relire le contrôle lui-même.",
+  "Une fiche par flux, et ripgrep, Semgrep en exploration et le graphe de dépendances pour aller vite.",
+]} />
+
+<Lab id="juice-shop" note="Fais une revue de code de Juice Shop avec cette méthode avant de regarder ses défis : combien en trouves-tu à la lecture ?" />
+
+<Sources items={[
+  { title: "OWASP Code Review Guide", url: "https://owasp.org/www-project-code-review-guide/" },
+  { title: "Trail of Bits Testing Handbook", url: "https://appsec.guide/" },
+  { title: "ripgrep", url: "https://github.com/BurntSushi/ripgrep" },
+  { title: "Express : migrer vers la version 5", url: "https://expressjs.com/en/guide/migrating-5/", note: "changement du parser de requêtes par défaut" },
+  { title: "npm : dependency selectors (npm query)", url: "https://docs.npmjs.com/cli/v10/using-npm/dependency-selectors" },
+  { title: "Next.js : renommage de middleware en proxy", url: "https://nextjs.org/docs/messages/middleware-to-proxy" },
+]} />

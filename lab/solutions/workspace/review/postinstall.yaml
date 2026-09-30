@@ -1,0 +1,31 @@
+# Livrable de référence du challenge « malicious-postinstall ».
+#
+# Le script est obfusqué par un tableau de chaînes en base64 et une fonction de
+# décodage indirecte. Décodées, les chaînes disent tout : NPM_TOKEN,
+# GITHUB_TOKEN, AWS_SECRET_ACCESS_KEY, .npmrc, .aws/credentials, un hôte de
+# collecte, un chemin /collect, et « git config --global user.email ».
+
+paquet: "@novafact/ui-kit"
+version: "1.2.0"
+script: postinstall
+fichier: fixtures/m13/suspect-package/scripts/setup.js
+
+comportements:
+  - lecture_variables_environnement
+  - lecture_fichiers_identifiants
+  - exfiltration_http
+  - execution_commande_systeme
+
+indices:
+  - "tableau de chaînes en base64 décodé par une fonction indirecte _d(i)"
+  - "noms de fonctions d'une lettre, sans rapport avec ce qu'elles font"
+  - "hôte de collecte qui ressemble à un CDN du projet"
+  - "charge utile gardée derrière une variable d'environnement, pour ne pas se déclencher en bac à sable"
+
+garde_fou:
+  npmrc: |
+    ignore-scripts=true
+  note: >-
+    Neutraliser les scripts d'installation par défaut, sur le poste comme sur le
+    runner, et n'autoriser au cas par cas que les rares paquets qui doivent
+    compiler. C'est le vecteur d'exécution des vagues npm depuis 2025.

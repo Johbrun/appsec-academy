@@ -1,0 +1,37 @@
+name: Déploiement
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Image à déployer
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # CORRIGÉ : l'admission vérifie la signature et la provenance AVANT de
+      # déployer. Signer sans vérifier à l'admission ne sert à rien — c'est la
+      # moitié qu'on oublie le plus souvent.
+      - name: Vérifier la signature de l'image
+        run: |
+          cosign verify \
+            --certificate-identity-regexp '^https://github\.com/novafact/' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "$IMAGE"
+        env:
+          IMAGE: ${{ inputs.image }}
+
+      - name: Déployer sur ECS
+        run: aws ecs update-service --service novafact-api --force-new-deployment
+        env:
+          IMAGE: ${{ inputs.image }}

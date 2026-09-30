@@ -1,0 +1,39 @@
+# Quatre heures, et on rend — livrable de référence.
+#
+# Trois constats, ceux qui coûtent le plus, avec le chemin qu'un attaquant
+# emprunte vraiment. La stratégie qui a mené là n'est pas notée : elle n'est
+# pas observable. Le résultat l'est.
+
+findings:
+  - challenge: invoice-state
+    file: server/routes/invoices.ts
+    impact: >-
+      Le client peut faire baisser le montant d'une facture déjà payée puis la
+      remettre en payé. C'est de la perte de chiffre d'affaires directe, et elle
+      ne se voit qu'au rapprochement bancaire, des semaines plus tard.
+    chain:
+      - POST /api/auth/login
+      - GET /api/invoices
+      - PATCH /api/invoices/:id
+
+  - challenge: race-credit
+    file: server/routes/credits.ts
+    impact: >-
+      Un avoir de cent euros se dépense plusieurs fois en parallèle, parce que
+      le contrôle du solde et le débit ne sont pas atomiques. Chaque compte
+      client devient une source d'argent, à hauteur de ce qu'il ose.
+    chain:
+      - POST /api/auth/login
+      - GET /api/credits
+      - POST /api/credits/apply
+
+  - challenge: bola-invoice
+    file: server/routes/invoices.ts
+    impact: >-
+      N'importe quel compte lit les factures des autres locataires, dont les
+      conditions négociées de marchés publics. Ce n'est pas de la perte directe,
+      c'est la perte du contrat et une notification à l'autorité de contrôle.
+    chain:
+      - POST /api/auth/login
+      - GET /api/invoices
+      - GET /api/invoices/:id

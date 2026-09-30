@@ -1,0 +1,131 @@
+{
+  "_a_propos": "Scores de probabilité d’exploitation à 30 jours. `epss` est la probabilité, `percentile` le rang dans l’ensemble des CVE notées.",
+  "status": "OK",
+  "status-code": 200,
+  "version": "1.0",
+  "model": "v2026.03.14",
+  "score_date": "2026-09-20T00:00:00Z",
+  "total": 20,
+  "data": [
+    {
+      "cve": "CVE-2026-21801",
+      "epss": "0.94210",
+      "percentile": "0.99931",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-13044",
+      "epss": "0.00412",
+      "percentile": "0.61200",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2025-48795",
+      "epss": "0.72310",
+      "percentile": "0.98840",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-10233",
+      "epss": "0.31090",
+      "percentile": "0.96010",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2025-30066",
+      "epss": "0.55120",
+      "percentile": "0.98010",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-22014",
+      "epss": "0.00123",
+      "percentile": "0.31100",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-18877",
+      "epss": "0.02245",
+      "percentile": "0.88700",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-30791",
+      "epss": "0.88004",
+      "percentile": "0.99610",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-11902",
+      "epss": "0.00871",
+      "percentile": "0.75300",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-40155",
+      "epss": "0.14503",
+      "percentile": "0.93200",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-27718",
+      "epss": "0.00099",
+      "percentile": "0.26400",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-33420",
+      "epss": "0.00217",
+      "percentile": "0.44900",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-19064",
+      "epss": "0.00450",
+      "percentile": "0.63100",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-50188",
+      "epss": "0.96771",
+      "percentile": "0.99980",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-24511",
+      "epss": "0.01188",
+      "percentile": "0.79800",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-37622",
+      "epss": "0.06340",
+      "percentile": "0.91400",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-44190",
+      "epss": "0.00301",
+      "percentile": "0.52700",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-15873",
+      "epss": "0.00764",
+      "percentile": "0.71900",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-29334",
+      "epss": "0.00532",
+      "percentile": "0.66800",
+      "date": "2026-09-20"
+    },
+    {
+      "cve": "CVE-2026-48002",
+      "epss": "0.41220",
+      "percentile": "0.97200",
+      "date": "2026-09-20"
+    }
+  ]
+}

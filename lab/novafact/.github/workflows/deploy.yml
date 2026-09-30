@@ -1,0 +1,28 @@
+# VULNÉRABLE — fixture du lab. Ne pas réutiliser.
+name: Déploiement
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Image à déployer
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # N'importe quelle image portant le bon nom part en production : rien ne
+      # vérifie qui l'a construite, ni depuis quel commit.
+      - name: Déployer sur ECS
+        run: aws ecs update-service --service novafact-api --force-new-deployment
+        env:
+          IMAGE: ${{ inputs.image }}

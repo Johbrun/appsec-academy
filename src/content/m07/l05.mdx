@@ -1,0 +1,184 @@
+export const questions = [
+  {
+    q: "Qui décide de la classification d'une donnée ?",
+    options: [
+      "Le DPO, qui connaît les obligations légales attachées à chaque donnée",
+      "L'équipe qui exploite la donnée au quotidien, en tant que dépositaire",
+      "Le propriétaire métier, avec l'appui de la sécurité et du DPO",
+      "L'AppSec, seule à connaître l'impact d'une fuite pour chaque classe",
+    ],
+    answer: 2,
+    explain: "Le propriétaire — souvent un responsable métier — connaît la valeur et l'usage réels de la donnée : c'est lui qui décide de la classe, des accès et de la durée de conservation. Le dépositaire applique les contrôles et sait ce qu'ils coûtent ; le DPO et la sécurité éclairent la décision sans la prendre. Laisser trancher la seule équipe technique produit le travers classique : on protège bien ce qu'on comprend, mots de passe et jetons, et mal ce qu'on ne voit pas, comme les notes libres ajoutées aux factures.",
+  },
+  {
+    q: "Pourquoi classer les données avant de choisir les contrôles ?",
+    options: [
+      "Pour appliquer des contrôles proportionnés à la sensibilité",
+      "Pour alimenter le registre des traitements exigé par l'article 30",
+      "Pour savoir quelles données chiffrer au repos dans la base",
+      "Pour fixer la durée de conservation imposée par la loi",
+    ],
+    answer: 0,
+    explain: "Sans classification, on protège tout de la même façon : trop pour le banal, pas assez pour le sensible — et c'est le sensible qui coûte. Le registre des traitements et les durées légales sont des usages dérivés et partiels, le premier ne couvrant que les données personnelles et la seconde qu'une partie des données. Quant au chiffrement au repos, ce n'est qu'un des contrôles que la classe déclenche, à côté du masquage dans les logs, des restrictions d'export et de l'audit.",
+  },
+  {
+    q: "Le nombre de factures émises par chaque client, pris un par un, est une donnée interne. L'export qui liste ce volume pour tous les clients, avec leurs noms et leur chiffre d'affaires facturé, est-il aussi une donnée interne ?",
+    options: [
+      "Oui : la classe se détermine ligne par ligne, et chaque ligne est interne",
+      "Non : l'export devient une donnée personnelle, donc confidentielle",
+      "Cela dépend : l'export reste interne s'il ne sort pas du réseau de l'entreprise",
+      "Non : l'agrégation révèle la clientèle et l'activité, et élève la classe",
+    ],
+    answer: 3,
+    explain: "L'agrégation et le croisement font monter la sensibilité : la liste de tous les clients avec leur chiffre d'affaires facturé est une information commerciale qu'aucune de ses lignes ne constitue à elle seule. Un export, un tableau de bord ou un résumé produit par l'assistant se classent donc sur ce qu'ils révèlent ensemble. Ce n'est pas une question de données personnelles — il s'agit d'entreprises clientes — ni de l'endroit où le fichier réside : la classe porte sur le contenu, pas sur son emplacement.",
+  },
+  {
+    q: "La numérotation des factures de Novafact n'a rien de confidentiel. Pourquoi mérite-t-elle pourtant une attention particulière dans la classification ?",
+    options: [
+      "Parce que le numéro permet d'énumérer les factures d'un autre tenant",
+      "Parce que la classification porte aussi sur l'intégrité, ici d'impact élevé",
+      "Parce qu'elle apparaît dans les exports comptables transmis à des tiers",
+      "Parce qu'elle est soumise à la conservation légale de dix ans",
+    ],
+    answer: 1,
+    explain: "Une classification utile évalue séparément l'impact d'une atteinte à la confidentialité, à l'intégrité et à la disponibilité. La numérotation est peu confidentielle, mais son intégrité a un impact légal élevé : elle doit rester continue, sans trou ni doublon, d'où une séquence garantie en base plutôt qu'un calcul applicatif. L'énumération par identifiants devinables est un vrai sujet, mais c'est un problème d'autorisation ; et la conservation décennale vaut pour la facture entière, pas pour ce qui rend sa numérotation critique.",
+  },
+];
+
+<YouKnow>
+En pentest, tu sais d'instinct quelles données valent cher : identifiants, IBAN, secrets. La classification formalise cet instinct pour que chaque donnée reçoive les contrôles qu'elle mérite, sans surprotéger le reste.
+</YouKnow>
+
+## Les rôles
+
+| Rôle | Responsabilité |
+| --- | --- |
+| **Propriétaire** | Décide de la classification, des accès et de la durée de conservation (souvent un responsable métier) |
+| **Dépositaire** | Applique les contrôles au quotidien (équipe technique, plateforme) |
+| **Utilisateur** | Accède aux données dans le cadre de ses droits |
+
+Un **dictionnaire de données** relie chaque champ de la base à son propriétaire et à sa classe.
+
+La séparation propriétaire / dépositaire évite un travers fréquent : l'équipe technique qui décide seule de ce qui est sensible. Elle protège bien ce qu'elle comprend (les mots de passe, les jetons) et mal ce qu'elle ne voit pas (les notes libres que les comptables ajoutent aux factures, qui contiennent parfois des informations de santé ou de litige). Le propriétaire métier connaît ces usages ; le dépositaire sait ce que coûte chaque contrôle. La classification naît de leur discussion.
+
+## Une échelle simple
+
+Quatre niveaux suffisent presque toujours :
+
+| Classe | Exemples chez Novafact | Contrôles minimaux |
+| --- | --- | --- |
+| **Publique** | Page marketing, documentation d'API | Intégrité |
+| **Interne** | Métriques d'usage agrégées, documentation interne | Authentification, accès des employés |
+| **Confidentielle** | Factures, coordonnées des clients finaux, données personnelles | Chiffrement, accès par tenant, audit, masquage dans les logs |
+| **Secrète** | IBAN, clés de chiffrement, jetons du prestataire de paiement, secrets d'API | Chiffrement avec clé dédiée (KMS), accès nominatif et minimal, rotation, jamais dans les logs ni les exports |
+
+## Pas seulement la confidentialité
+
+L'échelle ci-dessus parle surtout de confidentialité, parce que c'est ce qui fuit. Mais une donnée peut être anodine à lire et critique à modifier. La démarche classique (celle, par exemple, de la norme américaine FIPS 199) évalue séparément l'**impact d'une atteinte** à chacune des trois propriétés, avec des niveaux faible, modéré ou élevé :
+
+| Donnée | Confidentialité | Intégrité | Disponibilité |
+| --- | --- | --- | --- |
+| Numérotation des factures | Faible | **Élevée** : elle doit être continue, sans trou ni doublon | Modérée |
+| IBAN de réception d'un tenant | Élevée | **Élevée** : le modifier détourne les paiements | Modérée |
+| Flux de factures électroniques reçues | Modérée | Élevée | **Élevée** : leur réception est une obligation légale des clients |
+| Documentation publique de l'API | Faible | Modérée : une doc modifiée peut inciter à une mauvaise intégration | Faible |
+
+Cette grille explique des contrôles que l'échelle de confidentialité seule ne justifie pas : la double validation du changement d'IBAN (leçon 3), la numérotation garantie par une séquence en base plutôt que calculée par l'application, la redondance des flux de réception.
+
+## Agrégation et données dérivées
+
+Deux mécanismes font monter la classe d'une donnée sans que personne ne s'en aperçoive :
+
+- **l'agrégation** : des éléments internes pris un par un deviennent confidentiels ensemble. Le volume de factures d'un client est interne ; la liste de tous les clients avec leur chiffre d'affaires facturé est une information commerciale sensible. Les exports, les tableaux de bord et les requêtes analytiques se classent selon ce qu'ils révèlent **ensemble** ;
+- **la dérivation** : une donnée calculée à partir d'une autre en hérite, au moins en partie. Les **embeddings** des factures utilisés par l'assistant IA, les résumés qu'il produit, les caches de recherche et les index plein texte contiennent l'information d'origine sous une autre forme. Un index qui permet de retrouver « les factures d'un montant supérieur à 50 000 € » est aussi sensible que les factures elles-mêmes.
+
+<Callout kind="info">
+Les données structurées (tables) se classent facilement. Les données **non structurées** (PDF de factures, pièces jointes, notes libres, conversations avec l'assistant IA) se classent mal et fuient souvent : pars du principe qu'elles héritent de la classe la plus sensible qu'elles peuvent contenir.
+</Callout>
+
+## La classe dans le code
+
+Un dictionnaire de données tenu dans un tableur à part diverge du schéma en quelques semaines. Mieux vaut porter la classe **dans le schéma lui-même**, là où les développeurs la voient à chaque migration. Avec Prisma, les commentaires de documentation (trois barres obliques) sont conservés dans le modèle que les générateurs peuvent lire :
+
+<Code file="packages/db/prisma/schema.prisma">
+
+```prisma
+model Tenant {
+  id        String   @id @default(uuid())
+  /// @classification internal
+  name      String
+  /// @classification secret @owner finance
+  iban      String   // chiffré par l'application (enveloppe KMS, M8)
+  /// @classification confidential @owner customer-success
+  billingEmail String
+  createdAt DateTime @default(now())
+}
+```
+
+</Code>
+
+Un générateur (ou un simple script qui lit le schéma) en tire la liste des champs à masquer. Cette liste alimente la configuration de journalisation, les filtres d'export et les jeux de données de test, au lieu d'être recopiée à la main à chaque endroit :
+
+<Code file="packages/logging/src/logger.ts" hl="4,5,6,7,8">
+
+```ts
+import pino from 'pino';
+import { sensitiveFields } from '@novafact/db/generated/classification'; // ['iban', 'billingEmail', …]
+
+export const logger = pino({
+  redact: {
+    paths: ['req.headers.authorization', 'req.headers.cookie', ...sensitiveFields.map((f) => `*.${f}`)],
+    censor: '[masqué]',
+  },
+});
+```
+
+</Code>
+
+<Callout kind="warn">
+Le masquage par chemin ne voit que les champs nommés. Une adresse e-mail glissée dans un message d'erreur (`"facture refusée pour jean@client.example"`) ou un IBAN collé dans une note libre passe à travers. Le masquage des logs est un filet ; la vraie protection est de ne pas mettre de données sensibles dans les messages, et de journaliser des identifiants plutôt que des valeurs.
+</Callout>
+
+Côté infrastructure, la même classe se retrouve en **étiquette** sur les ressources AWS (un tag `data-classification` sur les buckets et les bases). Elle permet d'écrire des règles simples (« un bucket `confidential` doit être chiffré par KMS et sans accès public », M16) et de vérifier l'inventaire. Pour découvrir les données personnelles là où on ne les attendait pas, Amazon Macie analyse le contenu des buckets S3.
+
+## Le cycle de vie
+
+Chaque classe a ses règles à chaque étape :
+
+<Steps items={[
+  { title: "Création", text: "Collecter seulement ce qui sert un usage prévu (minimisation, leçon suivante)." },
+  { title: "Stockage", text: "Chiffrement, clés, isolation par tenant selon la classe." },
+  { title: "Utilisation et partage", text: "Qui peut lire, exporter, transmettre à un sous-traitant ?" },
+  { title: "Conservation", text: "Une durée par classe et par usage, fixée par le propriétaire (et par la loi pour les factures)." },
+  { title: "Destruction", text: "Suppression réelle, y compris dans les sauvegardes et les environnements de test (M17)." },
+]} />
+
+Pour la conservation, la loi fixe parfois le minimum : en France, le Code de commerce (article L123-22) impose de conserver les documents comptables et les pièces justificatives pendant **dix ans**, ce qui inclut les factures. Pour le reste, c'est au propriétaire de fixer une durée, et au dépositaire de l'appliquer automatiquement (règles de cycle de vie S3, index TTL de MongoDB, purges planifiées), plutôt que de compter sur une suppression manuelle qui n'arrive jamais.
+
+Les **environnements de test** méritent une règle explicite : pas de copie de données confidentielles ou secrètes de production. Des données synthétiques générées pour les tests, ou à défaut une copie pseudonymisée par un processus relu, jamais un `pg_dump` de la production sur un poste de développeur.
+
+<Callout kind="tip">
+Le jeu **Data Map** te fait classer les données de Novafact et choisir les contrôles de chaque classe.
+</Callout>
+
+<Callout kind="debate">
+Classer finement ou grossièrement ? Une classification à sept niveaux et vingt étiquettes est plus précise, mais personne ne l'applique correctement ; tout finit en « confidentiel » par précaution, et la classe perd son sens. Quatre niveaux appliqués partout valent mieux qu'une taxonomie parfaite appliquée nulle part. Ajoute des étiquettes transverses (donnée personnelle, donnée de paiement) seulement quand elles déclenchent un contrôle différent.
+</Callout>
+
+<Recap items={[
+  "Propriétaire, dépositaire, utilisateur : trois rôles, un dictionnaire de données, une classification née de leur discussion.",
+  "Quatre classes suffisent : publique, interne, confidentielle, secrète.",
+  "Évaluer aussi l'impact sur l'intégrité et la disponibilité : une donnée publique peut exiger une intégrité forte.",
+  "L'agrégation et la dérivation (exports, embeddings, index) élèvent la classe.",
+  "Porter la classe dans le schéma et en dériver masquage des logs, exports et tags d'infrastructure.",
+  "Chaque classe a des règles à chaque étape du cycle de vie ; pas de données de production en test.",
+]} />
+
+<Sources items={[
+  { title: "ISC2 CSSLP Exam Outline, domaine 3 (data classification)", url: "https://www.isc2.org/certifications/csslp/csslp-certification-exam-outline" },
+  { title: "OWASP ASVS 5.0, chapitre V14 (Data Protection)", url: "https://github.com/OWASP/ASVS" },
+  { title: "NIST FIPS 199 : Standards for Security Categorization", url: "https://csrc.nist.gov/pubs/fips/199/final" },
+  { title: "pino : redaction", url: "https://github.com/pinojs/pino/blob/main/docs/redaction.md" },
+  { title: "Légifrance : article L123-22 du Code de commerce", url: "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006219327" },
+  { title: "Amazon Macie", url: "https://aws.amazon.com/macie/" },
+]} />

@@ -1,0 +1,28 @@
+# Environnements de Novafact — données embarquées.
+#
+# La liste que le client devrait donner au prestataire avant le premier jour, et
+# qu'il ne donne presque jamais. Un cadrage qui nomme un hôte absent de cette
+# liste cadre un test sur quelque chose qui n'existe pas ; un cadrage qui place
+# un hôte de production dans le périmètre expose l'entreprise et le prestataire.
+
+environnements:
+  - hote: app.novafact.example
+    role: Interface web des clients
+    environnement: production
+    production: true
+  - hote: api.novafact.example
+    role: API de facturation
+    environnement: production
+    production: true
+  - hote: staging.novafact.example
+    role: Interface web, jeu de données anonymisé
+    environnement: recette
+    production: false
+  - hote: api.staging.novafact.example
+    role: API de facturation, jeu de données anonymisé
+    environnement: recette
+    production: false
+  - hote: dev.novafact.internal
+    role: Environnement d'intégration interne
+    environnement: developpement
+    production: false

@@ -1,0 +1,231 @@
+export const questions = [
+  {
+    q: "Quelles variables d'environnement Vite embarque-t-il dans le bundle envoyé au navigateur ?",
+    options: [
+      "Aucune : le fichier .env n'est lu que par le serveur de développement",
+      "Celles préfixées par VITE_, inlinées en clair au moment du build",
+      "Celles chargées depuis .env.production, quel que soit leur nom",
+      "Toutes celles lues via import.meta.env, préfixées ou non",
+    ],
+    answer: 1,
+    explain: "Vite remplace au build chaque référence à VITE_* par sa valeur littérale, comme Next.js avec NEXT_PUBLIC_*. Le mode (.env.production) choisit quel fichier est lu, pas ce qui part dans le bundle : c'est le préfixe qui décide, et import.meta.env n'expose au client que les variables préfixées.",
+  },
+  {
+    q: "La page de paiement vérifie en JavaScript que le montant est positif avant l'envoi. Qu'en penser ?",
+    options: [
+      "C'est suffisant dès lors que le champ porte aussi un attribut min en HTML",
+      "C'est dangereux : ce contrôle donne une fausse assurance, mieux vaut le retirer",
+      "C'est suffisant si l'API n'est appelée que par ce front, protégé par CORS",
+      "C'est du confort pour l'utilisateur ; le serveur doit refaire le contrôle",
+    ],
+    answer: 3,
+    explain: "Le contrôle côté client ne coûte rien et évite un aller-retour : on le garde. Le piège, c'est l'argument CORS : CORS restreint ce qu'un navigateur laisse lire à un autre site, il n'empêche personne d'appeler l'API avec curl. Seul le contrôle que le serveur refait compte.",
+  },
+  {
+    q: "Dans le back-office Next.js, un Server Component lit la clé d'API du service PDF (sans préfixe NEXT_PUBLIC_) et passe l'objet de configuration complet en prop à un Client Component. Que se passe-t-il ?",
+    options: [
+      "La clé est sérialisée dans la charge utile envoyée au navigateur",
+      "Rien : sans le préfixe NEXT_PUBLIC_, la valeur n'est pas inlinée dans le bundle",
+      "Le build échoue : Next.js refuse de sérialiser une valeur issue de process.env",
+      "La clé ne part que si le composant client l'affiche ; sinon la prop est élaguée",
+    ],
+    answer: 0,
+    explain: "Le préfixe ne gouverne que l'inlining au build : il est vrai que la valeur n'est pas inlinée dans le bundle JavaScript, et c'est ce qui rend l'argument du préfixe si convaincant. Mais toute prop passée à un Client Component traverse la frontière et part dans la charge utile RSC, rendue ou non — il n'y a pas d'élagage des props. Le paquet server-only et des objets de transfert réduits aux champs utiles ferment ce chemin.",
+  },
+  {
+    q: "Novafact configure build.sourcemap: 'hidden' dans Vite et déploie le dossier dist/ tel quel sur S3. Les source maps sont-elles protégées ?",
+    options: [
+      "Oui : sans commentaire sourceMappingURL, le navigateur ne retrouve pas la map",
+      "Oui : 'hidden' empêche la génération des .map, contrairement à sourcemap: true",
+      "Non : 'hidden' retire le commentaire sourceMappingURL, les .map restent publiés",
+      "Oui, tant que le bucket S3 n'autorise pas le listage de son contenu",
+    ],
+    answer: 2,
+    explain: "'hidden' génère bien les maps, il retire seulement le commentaire qui les désigne. L'option la plus tentante est celle du listage désactivé : elle n'aide pas, parce que le nom de la map se déduit de celui du bundle (index-3f2a9c.js donne index-3f2a9c.js.map). Il faut envoyer les maps à l'outil de suivi d'erreurs, les supprimer de dist/, et le vérifier en CI.",
+  },
+];
+
+<YouKnow>
+Tu contournes les contrôles côté client depuis toujours : un proxy, et le JavaScript ne décide plus rien. Cette leçon rappelle ce que ça implique pour la conception, puis regarde les fuites que le front provoque lui-même.
+</YouKnow>
+
+## Le navigateur appartient à l'utilisateur
+
+Tout ce qui s'exécute dans le navigateur peut être lu, modifié, rejoué ou contourné : la logique, les vérifications, les appels d'API. Kohnfelder l'exprime avec la notion de **frontière de confiance** (K2) : le front est du côté non fiable. Trois conséquences directes pour Novafact :
+
+- une **validation côté client** sert le confort de l'utilisateur ; le serveur refait tout (M2) ;
+- une **règle métier** (remise maximale, droits d'un rôle) qui n'existe que dans le front n'existe pas ;
+- masquer un bouton n'est pas une **autorisation** : l'API l'impose (M8).
+
+Côté développeur, le piège est plus subtil qu'un simple oubli. Dans une SPA React, la logique métier se construit naturellement dans les composants : c'est là qu'on calcule un total pour l'afficher, qu'on grise un bouton selon le rôle, qu'on applique une remise pour montrer le prix final. Le serveur finit par **recevoir le résultat** au lieu de le calculer. Le jour où quelqu'un rejoue la requête avec `curl`, l'API accepte ce que le front aurait calculé, sans jamais l'avoir calculé elle-même.
+
+## Ce qui ne peut vivre que côté serveur
+
+| Contrôle | Tentation côté client | Où il doit vivre |
+| --- | --- | --- |
+| Montants, TVA, remises | Le front envoie `totalCents` déjà calculé | Recalcul serveur à partir des lignes et des prix en base |
+| Autorisation d'une action | Bouton masqué, route React protégée par un garde | Middleware d'autorisation de l'API, à chaque requête |
+| Accès à une fonctionnalité payante | Feature flag évalué dans le navigateur | Flag évalué côté serveur, vérifié par l'endpoint |
+| Limites (quotas, taille, nombre de lignes) | Attribut `maxLength`, compteur dans le formulaire | Schéma de validation de l'API et limites de l'infrastructure |
+| Workflow d'une facture (brouillon, émise, payée) | Écran qui n'affiche pas l'action « annuler » | Machine à états côté serveur (M10) |
+
+Le garde de route React (`<ProtectedRoute>` et ses variantes) mérite une mention : il évite d'afficher un écran vide à un utilisateur non connecté, c'est tout. Le code de l'écran d'administration est déjà dans le bundle, et les appels d'API qu'il ferait sont visibles. Ce qui protège, c'est la réponse 403 de l'API.
+
+## Le correctif type : le serveur recalcule
+
+Chez Novafact, la première version de la création de facture faisait confiance au front pour le total et la remise.
+
+<Diff file="apps/api/src/routes/invoices.ts" hlBefore="2,4" hlAfter="2-4,8-11,13" stack>
+
+```ts
+router.post('/invoices', async (req, res) => {
+  const { customerId, lines, discountPct, totalCents } = req.body;
+  const invoice = await prisma.invoice.create({
+    data: { tenantId: req.tenant.id, customerId, lines, discountPct, totalCents },
+  });
+  res.status(201).json(invoice);
+});
+```
+
+```ts
+router.post('/invoices', async (req, res) => {
+  const parsed = InvoiceInput.safeParse(req.body); // schéma strict : pas de total ni de remise
+  if (!parsed.success) return res.status(400).json({ error: 'Requête invalide' });
+  const { customerId, lines } = parsed.data;
+  await assertCustomerInTenant(req.tenant.id, customerId);
+  const products = await prisma.product.findMany({
+    where: { tenantId: req.tenant.id, id: { in: lines.map((l) => l.productId) } },
+  });
+  const price = new Map(products.map((p) => [p.id, p.unitPriceCents]));
+  if (lines.some((l) => !price.has(l.productId))) return res.status(400).json({ error: 'Produit inconnu' });
+  const subtotal = lines.reduce((s, l) => s + price.get(l.productId)! * l.quantity, 0);
+  const discountPct = await discountFor(req.tenant.id, customerId); // règle métier côté serveur
+  const invoice = await prisma.invoice.create({
+    data: { tenantId: req.tenant.id, customerId, lines, discountPct, totalCents: applyDiscount(subtotal, discountPct) },
+  });
+  res.status(201).json(invoice);
+});
+```
+
+</Diff>
+
+Le schéma `InvoiceInput` est déclaré avec `.strict()` dans zod : un champ `totalCents` ou `discountPct` envoyé par le client fait échouer la validation au lieu d'être silencieusement ignoré. C'est un choix : un rejet explicite remonte dans les logs et révèle un client qui essaie d'imposer une valeur.
+
+<Callout kind="tip">
+Partager le schéma zod entre le front et l'API (un paquet `@novafact/schemas` dans le monorepo) est une bonne pratique : les messages d'erreur du formulaire et les règles de l'API restent alignés. Le partage porte sur la **définition**, pas sur la **confiance** : seul l'appel côté serveur compte comme contrôle.
+</Callout>
+
+## Ce que le bundle révèle
+
+Le front livre au navigateur tout le code qu'il contient. Trois fuites fréquentes :
+
+| Fuite | Exemple | Contrôle |
+| --- | --- | --- |
+| Variables d'environnement publiques | Une clé mise en `VITE_STRIPE_SECRET` ou `NEXT_PUBLIC_…` par erreur | Seules des valeurs publiques dans ces préfixes ; secrets uniquement côté serveur ; détection de secrets sur le **bundle** construit, pas seulement sur le code |
+| Source maps en production | Le code source complet, commentaires compris, téléchargeable | Désactivées en production (c'est le défaut dans Vite et Next.js) ou envoyées seulement à l'outil de suivi d'erreurs |
+| Routes et API internes | Le bundle liste des routes d'administration ou des API de test | Le code d'administration dans une application séparée ; les API non publiques protégées côté serveur, pas cachées |
+
+Le mécanisme explique pourquoi un scan du dépôt ne suffit pas. Vite remplace **au moment du build** chaque référence à `import.meta.env.VITE_…` par sa valeur littérale ; Next.js fait de même avec `process.env.NEXT_PUBLIC_…`. La valeur ne figure nulle part dans le code source, seulement dans le `.env` de la machine de build ou dans les secrets de la CI. Elle n'apparaît en clair que dans `dist/`. Vite ajoute un garde-fou : il refuse de démarrer si l'option `envPrefix` vaut une chaîne vide, ce qui exposerait toutes les variables.
+
+Next.js ajoute un second chemin, propre aux React Server Components. Un Server Component peut lire n'importe quelle variable d'environnement, préfixée ou non. Si le composant passe un objet contenant un secret en prop à un Client Component, cet objet est **sérialisé** dans la réponse envoyée au navigateur. Le préfixe `NEXT_PUBLIC_` n'y change rien. Deux habitudes ferment ce chemin : importer le paquet `server-only` en tête des modules qui manipulent des secrets (le build échoue si un composant client les importe), et ne passer aux composants clients que des objets construits pour eux, avec les seuls champs nécessaires.
+
+<Callout kind="tip">
+Ajoute au pipeline une étape qui scanne le dossier `dist/` après le build avec un outil de détection de secrets (Gitleaks ou TruffleHog). C'est là que les secrets injectés par une variable d'environnement mal nommée apparaissent.
+</Callout>
+
+## Garder les source maps sans les publier
+
+Les source maps sont précieuses pour lire une stack trace de production. La bonne configuration les génère, les envoie à l'outil de suivi d'erreurs, puis les **supprime** avant la publication.
+
+<Code file="apps/web/vite.config.ts" hl="7,13">
+
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
+
+export default defineConfig({
+  build: {
+    sourcemap: 'hidden', // maps générées, sans commentaire sourceMappingURL dans les fichiers
+  },
+  plugins: [
+    react(),
+    sentryVitePlugin({
+      org: 'novafact', project: 'web', authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+    }),
+  ],
+});
+```
+
+</Code>
+
+`'hidden'` seul ne suffit pas : il retire le commentaire qui pointe vers la map, mais les fichiers `.map` restent dans `dist/` et seraient servis par le CDN. Le chemin est prévisible (`index-3f2a9c.js.map` à côté de `index-3f2a9c.js`). La suppression après envoi, puis une vérification en CI, ferment la fuite.
+
+<Code file=".github/workflows/web.yml" hl="4,5">
+
+```yaml
+      - run: pnpm --filter web build
+      - name: Aucun secret ni source map dans le bundle
+        run: |
+          test -z "$(find apps/web/dist -name '*.map')" || { echo "source maps présentes"; exit 1; }
+          gitleaks dir apps/web/dist --redact --exit-code 1
+```
+
+</Code>
+
+## Les clés « publiques » ne le sont pas toutes
+
+Certains services fournissent des clés prévues pour le navigateur : clé publiable d'un prestataire de paiement, clé d'une solution d'analytics, identifiant de client OAuth. Elles sont publiques **par conception**, mais doivent être restreintes :
+
+- limitées aux domaines de Novafact (restriction par référent ou origine quand le service le permet) ;
+- limitées aux opérations prévues (création d'un paiement, pas lecture des transactions) ;
+- surveillées : une consommation anormale révèle un abus.
+
+La restriction par référent mérite une nuance : elle arrête l'intégration de ta clé dans le site d'un autre, parce que le navigateur envoie un `Referer` honnête. Elle n'arrête pas un script ou un serveur qui forge l'en-tête. Les **quotas** et les **alertes de consommation** restent donc indispensables : ce sont eux qui bornent la facture.
+
+| Type de clé | Exemple | Place |
+| --- | --- | --- |
+| Publiable par conception | Clé publiable Stripe (`pk_live_…`), identifiant de client OIDC | Bundle, avec restrictions côté fournisseur |
+| Restreinte | Clé Stripe restreinte (`rk_live_…`) limitée à quelques ressources | Serveur, pour un service qui n'a pas besoin de tout |
+| Secrète | Clé secrète Stripe (`sk_live_…`), clé du service PDF | Secrets Manager, jamais dans le front |
+
+<Callout kind="novafact">
+Un audit du bundle de Novafact trouve une clé d'API de géocodage sans restriction, utilisée depuis des dizaines de pays et facturée à Novafact. Ce n'est pas un secret, mais c'est une ressource à protéger. Correctif : restriction aux domaines `*.novafact.example`, limitation à la seule API de géocodage, quota journalier et alerte à 80 % du budget mensuel.
+</Callout>
+
+## Trois idées reçues
+
+<Callout kind="warn">
+**« Le code est minifié, donc illisible. »** La minification réduit la taille, pas la lisibilité pour qui dispose d'un débogueur et d'un formateur. L'obfuscation ralentit un peu la lecture ; elle ne cache ni les URL d'API, ni les clés, ni la logique.
+
+**« Notre API n'est appelée que par notre front. »** Une API exposée sur Internet est appelée par quiconque sait écrire une requête HTTP. CORS contrôle ce qu'un **navigateur** laisse lire à un autre site, pas qui peut appeler l'API.
+
+**« Cette route d'administration n'est pas documentée. »** Si le code qui l'appelle est dans le bundle, elle est documentée : par le bundle lui-même.
+</Callout>
+
+## En pratique chez toi
+
+- Cherche dans l'API les champs de requête qui portent une **valeur calculée** (total, prix, rôle, statut) : chacun est un candidat à la suppression.
+- Construis l'application en mode production et lis `dist/` comme un attaquant : chaînes qui ressemblent à des clés, URL internes, noms de routes d'administration.
+- Vérifie qu'aucun fichier `.map` n'est servi en production (une requête sur le nom du bundle suivi de `.map`).
+- Pour chaque clé présente dans le bundle, trouve la restriction et le quota configurés chez le fournisseur ; s'il n'y en a pas, c'est un ticket.
+- Dans un projet Next.js, liste les modules qui lisent des secrets et vérifie qu'ils importent `server-only`.
+
+<Recap items={[
+  "Le navigateur est du côté non fiable de la frontière de confiance.",
+  "Validation côté client = confort ; règles métier, montants et autorisation vivent côté serveur, qui recalcule au lieu de recevoir.",
+  "VITE_* et NEXT_PUBLIC_* sont inlinées au build : jamais de secret, et un scan de secrets sur le bundle construit.",
+  "Dans Next.js, une prop passée à un Client Component est publique : server-only et objets de transfert minimaux.",
+  "Source maps : 'hidden', envoi à l'outil de suivi d'erreurs, suppression avant publication, contrôle en CI.",
+  "Les clés publiques par conception doivent être restreintes, plafonnées et surveillées.",
+]} />
+
+<Sources items={[
+  { title: "Vite : variables d'environnement", url: "https://vite.dev/guide/env-and-mode" },
+  { title: "Vite : options de build (build.sourcemap)", url: "https://vite.dev/config/build-options" },
+  { title: "Next.js : variables d'environnement", url: "https://nextjs.org/docs/app/guides/environment-variables" },
+  { title: "Next.js : Server and Client Components (server-only)", url: "https://nextjs.org/docs/app/getting-started/server-and-client-components" },
+  { title: "Sentry : envoyer les source maps depuis Vite", url: "https://docs.sentry.io/platforms/javascript/sourcemaps/uploading/vite/" },
+  { title: "Gitleaks", url: "https://github.com/gitleaks/gitleaks" },
+]} />

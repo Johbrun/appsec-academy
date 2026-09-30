@@ -1,0 +1,7 @@
+# VULNÉRABLE — fixture du lab. Ne pas réutiliser.
+# Les chemins sensibles ne sont pas couverts : authentification, crypto,
+# workflows, infrastructure et lockfile se font relire par qui passe.
+
+*               @novafact/dev
+src/            @novafact/dev
+docs/           @novafact/produit

@@ -1,0 +1,266 @@
+export const questions = [
+  {
+    q: "Le kill switch de l'outil « envoyer un e-mail » de l'assistant IA est évalué avec `getBooleanValue('assistant.tools.send-email', true, ctx)`. Le fournisseur de flags tombe en panne pendant un incident. Que se passe-t-il ?",
+    options: [
+      "L'outil est coupé : OpenFeature renvoie `false` dès que le fournisseur est injoignable",
+      "L'API lève une exception : une évaluation sans fournisseur joignable n'a pas de résultat",
+      "L'outil reste actif : la valeur par défaut est celle rendue quand l'évaluation échoue",
+      "L'outil reste actif jusqu'à l'expiration du cache local, puis bascule sur `false`",
+    ],
+    answer: 2,
+    explain: "Le second argument de `getBooleanValue` n'est pas « la valeur normale » : c'est celle rendue quand le flag ne peut pas être évalué — fournisseur injoignable, flag inconnu, type incompatible. Elle a été écrite à `true`, donc la panne ouvre l'outil au lieu de le fermer, exactement au moment où on voudrait le couper. OpenFeature ne lève pas d'exception et n'a pas de repli vers `false` après expiration d'un cache : c'est un choix d'architecture, pas un comportement du SDK. Pour une fonctionnalité risquée, l'échec doit couper ; pour une fonctionnalité cœur, l'arbitrage s'inverse et doit être explicite.",
+  },
+  {
+    q: "La règle ReactJSRCE_BODY des règles gérées AWS protège contre l'exploitation de React2Shell. Pourquoi ne suffit-elle pas à elle seule ?",
+    options: [
+      "Parce qu'elle est publiée en mode `count`, et reste sans effet tant qu'on ne la bascule pas",
+      "Le corps n'est inspecté que jusqu'à la limite de taille de la web ACL, le reste passe",
+      "Parce qu'elle ne s'applique qu'aux distributions CloudFront, pas aux web ACL d'ALB",
+      "Parce qu'elle n'inspecte que les corps `application/json`, alors que l'exploit passe en `multipart`",
+    ],
+    answer: 1,
+    explain: "AWS WAF n'inspecte le corps que jusqu'à la limite de la web ACL : sans règle qui traite explicitement les corps surdimensionnés, ce qui dépasse n'est tout simplement pas vu, et l'attaquant n'a qu'à rembourrer sa requête. L'argument du mode `count` est le bon réflexe — il mérite d'être vérifié dans ta configuration — mais il ne change rien à cette limite de taille. Et surtout, AWS l'écrit dans son bulletin : ces règles complètent le correctif, elles ne le remplacent pas. Le virtual patching achète du temps, il ne ferme pas la faille.",
+  },
+  {
+    q: "L'API tourne sur Node 24 avec `--permission --allow-fs-read=/app/ --allow-fs-write=/tmp/`. Qu'est-ce que ce réglage n'empêche PAS ?",
+    options: [
+      "Lancer un processus enfant depuis le code de l'application",
+      "Écrire dans `/app/dist` pendant l'exécution du service",
+      "Charger un module natif `.node` non autorisé",
+      "Ouvrir une connexion réseau sortante",
+    ],
+    answer: 3,
+    explain: "Le modèle de permissions de Node 24 couvre le système de fichiers, les processus enfants, les workers, les addons natifs et WASI : les trois autres propositions sont donc bien bloquées ici, puisque `/app/` n'est ouvert qu'en lecture et que ni `--allow-child-process` ni `--allow-addons` ne sont passés. Le réseau, lui, n'en fait pas partie — `--allow-net` n'apparaît qu'en Node 25, encore en développement actif. Le filtrage des sorties reste donc l'affaire du réseau : groupes de sécurité, proxy de sortie, liste d'autorisation DNS.",
+  },
+  {
+    q: "Pourquoi une livraison canary ne suffit-elle pas à attraper une régression d'autorisation (une BOLA introduite par le nouveau code) ?",
+    options: [
+      "Une BOLA renvoie des 200 sains : ni le taux d'erreur ni la latence ne bougent",
+      "Parce que les alarmes CloudWatch sont mises en sourdine pendant un déploiement canary",
+      "Parce que le canary ne reçoit qu'un pour cent du trafic, trop peu pour croiser le cas",
+      "Parce que la bascule est trop rapide : la régression est déjà à 100 % quand l'alarme sort",
+    ],
+    answer: 0,
+    explain: "Le canary protège contre ce qui se voit dans les métriques : pannes, taux d'erreur, latence. Une BOLA renvoie la mauvaise facture avec un code 200 et un temps de réponse normal — rien ne bouge, quel que soit le pourcentage de trafic envoyé au canary. L'argument du volume est séduisant et rate le point : même à 100 % du trafic, la métrique resterait plate. Ce sont les tests d'autorisation (M13) qui attrapent cela. Des signaux de sécurité (403 anormaux, alertes WAF, rapports CSP) aident à instrumenter un canary, sans jamais remplacer ces tests.",
+  },
+];
+
+<YouKnow>
+Tu sais qu'entre la publication d'une critique et le déploiement du correctif, il se passe des heures ou des jours, et que les scans de masse commencent en quelques heures. La protection à l'exécution sert à deux choses : livrer les changements sans casser, et limiter ce qu'une vulnérabilité permet pendant qu'on la corrige.
+</YouKnow>
+
+## Livraison progressive : flags, canary, kill switch
+
+Un **feature flag** découple le déploiement du code de son activation. Pour la sécurité, il apporte deux leviers : exposer une fonctionnalité risquée progressivement (un tenant pilote, puis 10 %, puis tous), et disposer d'un **kill switch** qui la coupe en quelques secondes sans redéploiement. OpenFeature, projet en incubation à la CNCF, fournit une API neutre au-dessus des fournisseurs (AWS AppConfig, LaunchDarkly, flagd…).
+
+<Code file="apps/api/src/middleware/killSwitch.ts" hl="6,7,8">
+
+```ts
+import type { RequestHandler } from 'express';
+import { OpenFeature } from '@openfeature/server-sdk';
+
+const flags = OpenFeature.getClient('api');
+
+// Défaut à false : si le fournisseur de flags est injoignable, la fonctionnalité risquée est coupée.
+export const killSwitch = (flag: string): RequestHandler => async (req, res, next) => {
+  const enabled = await flags.getBooleanValue(flag, false, { targetingKey: req.auth.tenantId });
+  if (!enabled) return res.status(503).json({ error: 'Fonctionnalité temporairement indisponible' });
+  next();
+};
+
+app.post('/api/assistant/tools/send-email', killSwitch('assistant.tools.send-email'), sendEmailTool);
+```
+
+</Code>
+
+Trois règles transforment les flags en contrôle plutôt qu'en dette :
+
+- **la valeur par défaut est une décision de sécurité** : pour une fonctionnalité risquée, l'échec d'évaluation la coupe ; pour une fonctionnalité cœur (connexion, émission de facture), couper serait une panne, et l'arbitrage inverse doit être écrit ;
+- **un flag ne remplace jamais une autorisation** : un flag évalué côté navigateur est visible et modifiable ; l'endpoint d'une fonctionnalité désactivée doit l'être côté serveur ;
+- **qui peut basculer un flag en production** est une question d'accès privilégié : droits restreints, journalisation, et suppression des flags morts, qui laissent des chemins de code jamais testés.
+
+Le **canary** expose la nouvelle version à une fraction du trafic avant de basculer. ECS le propose nativement : une part du trafic (5 % par défaut, `canaryPercent`) part vers la nouvelle révision pendant un temps d'observation (10 minutes par défaut, `canaryBakeTimeInMinutes`), et des alarmes CloudWatch déclenchent le retour arrière automatique. Lambda fait de même avec des alias pondérés. Pour la sécurité, ajoute aux alarmes de santé des signaux propres : pic de blocages WAF, hausse des 401 et 403, rapports CSP nouveaux (leçon 5).
+
+<Callout kind="debate">
+Le canary est-il un contrôle de sécurité ? Il attrape ce qui se voit : une régression qui fait planter la connexion, un en-tête qui casse la page. Il ne voit rien d'une BOLA, d'un contrôle d'autorisation retiré ou d'une donnée exposée en trop : ces défauts renvoient des 200 impeccables. Présenter le canary comme filet de sécurité donne une fausse assurance ; c'est un filet de **fiabilité**, qui réduit le coût des retours arrière, y compris ceux d'un correctif de sécurité déployé en urgence.
+</Callout>
+
+## Virtual patching au WAF
+
+Le **virtual patching** place une règle devant l'application pour bloquer l'exploitation d'une vulnérabilité connue, le temps que le code soit corrigé. L'OWASP le décrit comme une mesure temporaire, avec un cycle de vie : analyser la vulnérabilité, écrire une règle ciblée, l'observer en `count`, la passer en `block`, corriger le code, puis **retirer** la règle.
+
+<Callout kind="case">
+**React2Shell (CVE-2025-55182, décembre 2025)**. Une RCE non authentifiée dans le protocole Flight des React Server Components (React 19.0 à 19.2, Next.js 15.x et 16.x avec l'App Router), notée CVSS 10. Dans son bulletin du 3 décembre 2025, AWS a mis à jour le groupe de règles `AWSManagedRulesKnownBadInputsRuleSet` (version 1.24) avec une détection, la règle `ReactJSRCE_BODY`, et proposé un modèle de règle personnalisée, tout en rappelant que ces règles complètent le correctif sans le remplacer. Les versions corrigées de React étaient 19.0.1, 19.1.2 et 19.2.1.
+</Callout>
+
+La règle `ReactJSRCE_BODY` illustre la limite structurelle d'un WAF : elle n'inspecte le corps que jusqu'à la **limite de taille** de la web ACL (8 Ko pour un ALB ; plus pour CloudFront, selon la configuration). Ce qui dépasse n'est pas vu, sauf si une règle traite explicitement les corps trop volumineux (`oversize_handling = "MATCH"` sur une route qui n'en a pas besoin). Même logique pour un virtual patch maison, ici contre une traversée de chemin trouvée en pentest dans les exports :
+
+<Code file="infra/terraform/edge/vpatch-exports.tf" hl="2,14,15,27,28,29,30">
+
+```hcl
+rule {
+  name     = "vpatch-NOVA-2026-014-exports-traversal" # à retirer après le correctif (ticket NOVA-2026-014)
+  priority = 1
+  action {
+    block {}
+  }
+  statement {
+    and_statement {
+      statement {
+        byte_match_statement {
+          search_string         = "/api/exports/"
+          positional_constraint = "STARTS_WITH"
+          field_to_match {
+            uri_path {}
+          }
+          text_transformation {
+            priority = 0
+            type     = "URL_DECODE"
+          }
+        }
+      }
+      statement {
+        byte_match_statement {
+          search_string         = ".."
+          positional_constraint = "CONTAINS"
+          field_to_match {
+            uri_path {}
+          }
+          text_transformation {
+            priority = 0
+            type     = "URL_DECODE"
+          }
+          text_transformation {
+            priority = 1
+            type     = "URL_DECODE" # double décodage : %252e%252e
+          }
+        }
+      }
+    }
+  }
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "vpatch-exports"
+    sampled_requests_enabled   = true
+  }
+}
+```
+
+</Code>
+
+Un virtual patch **restreint** (une route, un motif) vaut mieux qu'une règle générique : il a peu de faux positifs, on sait quand le retirer, et son compteur de blocages dit si la vulnérabilité est activement visée. Mets-lui un nom qui porte le ticket, et une revue qui échoue si la règle survit au correctif.
+
+## RASP : la protection dans le processus
+
+Le **RASP** (Runtime Application Self-Protection) s'installe dans le processus Node et instrumente les sinks : `child_process`, `fs`, pilotes SQL et Mongo, client HTTP. Quand une entrée de la requête atteint un sink sans transformation (une chaîne de requête qui devient une commande, un nom de fichier qui sort du dossier prévu, une URL interne), il signale ou bloque. Là où le WAF devine à partir du texte de la requête, le RASP voit la **requête SQL réellement construite** ou le chemin réellement ouvert, d'où moins de faux positifs. Zen d'Aikido est un exemple open source pour Node (double licence AGPL et commerciale), en mode détection par défaut et bloquant avec `AIKIDO_BLOCK=true`.
+
+Les contreparties sont réelles : un agent de plus dans le processus, avec tous les droits de ton code (c'est une dépendance de supply chain comme une autre), un coût de performance, des incompatibilités à chaque montée de version, et la tentation de ne plus corriger. Le RASP est un bon compagnon du virtual patching sur un parc hétérogène ; sur une API unique et bien testée, le budget va souvent mieux aux tests et aux correctifs.
+
+## Le modèle de permissions de Node.js
+
+Depuis Node 22.13 et 23.5, le **modèle de permissions** est stable. Avec `--permission`, le processus perd par défaut l'accès au système de fichiers, aux processus enfants, aux workers, aux addons natifs et à WASI ; chaque droit se rend explicitement. L'image distroless de la leçon 2 a `node` pour point d'entrée, les options vont donc dans le `CMD` :
+
+<Code file="apps/api/Dockerfile (fin)">
+
+```dockerfile
+CMD ["--permission", "--allow-fs-read=/app/", "--allow-fs-write=/tmp/", "--allow-addons", "dist/server.js"]
+```
+
+</Code>
+
+`--allow-addons` est nécessaire au module natif de hachage des mots de passe ; tout le reste (processus enfants, workers) reste interdit. Une RCE dans l'API ne peut alors ni lancer de processus ni écrire hors de `/tmp`, et une tentative lève `ERR_ACCESS_DENIED`, qui mérite une alerte. Ajoute un auto-contrôle au démarrage, pour qu'une modification du `CMD` ne désactive pas le modèle en silence :
+
+<Code file="apps/api/src/startup/assertPermissions.ts">
+
+```ts
+export function assertPermissionModel(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  if (!process.permission) throw new Error('Démarrage refusé : --permission absent');
+  if (process.permission.has('child')) throw new Error('Démarrage refusé : child_process autorisé');
+  if (process.permission.has('fs.write', '/app/dist')) throw new Error('Démarrage refusé : code applicatif modifiable');
+}
+```
+
+</Code>
+
+Les limites sont documentées, et il faut les connaître avant de s'y fier. La documentation parle d'une **ceinture de sécurité**, pas d'un bac à sable : le modèle fait confiance au code qu'il exécute et vise à empêcher les accès involontaires. Les liens symboliques sont suivis même hors des chemins autorisés, les descripteurs de fichiers déjà ouverts échappent au contrôle, et certaines options (`--env-file`) s'appliquent avant son initialisation. Enfin, sur Node 24, le **réseau n'est pas couvert** : `--allow-net` n'existe qu'à partir de Node 25, en développement actif. Le filtrage des sorties reste l'affaire des groupes de sécurité et du proxy de sortie (M3).
+
+## Détecter à l'exécution : Falco et GuardDuty
+
+Les contrôles précédents préviennent ; il faut aussi **voir**. **Falco** observe les appels système des conteneurs et évalue des règles. Dans une image sans shell, avec le modèle de permissions actif, un processus enfant de `node` est anormal par construction, ce qui donne une règle presque sans bruit :
+
+<Code file="falco/novafact_rules.yaml" hl="5,6,7,8">
+
+```yaml
+- rule: Processus enfant lancé par l'API Novafact
+  desc: L'API ne lance jamais de processus ; un enfant de node signale une RCE ou une dépendance malveillante.
+  condition: >
+    spawned_process
+    and container
+    and container.image.repository endswith "novafact/api"
+    and proc.pname = node
+    and not proc.name = node
+  output: Processus lancé par node dans l'API (command=%proc.cmdline parent=%proc.pname image=%container.image.repository container=%container.name)
+  priority: CRITICAL
+  tags: [novafact, mitre_execution, T1059]
+```
+
+</Code>
+
+Falco a besoin d'accéder au noyau de l'hôte : il se déploie en DaemonSet sur les nœuds EC2 d'EKS, et ses alertes rejoignent Elastic (par exemple via Falcosidekick). Sur Fargate, il n'y a pas d'accès au noyau ; **GuardDuty Runtime Monitoring** y déploie un agent géré en conteneur annexe de chaque tâche, sans modifier les définitions, mais seulement pour les tâches lancées après son activation. Les deux sources alimentent les détections de M18.
+
+## Tourner les secrets sans coupure
+
+Une rotation casse la production quand, à un instant donné, l'émetteur utilise le nouveau secret et le vérificateur ne connaît que l'ancien (ou l'inverse). La règle générale : **une fenêtre pendant laquelle deux versions sont valides**, et des clients qui relisent le secret quand l'authentification échoue.
+
+| Secret | Technique sans coupure |
+| --- | --- |
+| Mot de passe de base de données | Stratégie *alternating users* de Secrets Manager : deux utilisateurs, dont un seul change à chaque rotation, donc des identifiants toujours valides |
+| Clé de signature de jetons | Publier la nouvelle clé dans le JWKS (nouveau `kid`) avant de signer avec, garder l'ancienne jusqu'à l'expiration des derniers jetons |
+| Secret de webhook partagé | Accepter les deux signatures pendant la transition, puis retirer l'ancienne |
+| Clé d'API d'un tiers | Deux clés actives chez le fournisseur, bascule, puis révocation |
+
+Secrets Manager suit les versions par étiquettes : `AWSPENDING` pendant la rotation, `AWSCURRENT` pour la version active, `AWSPREVIOUS` pour la précédente. La stratégie *single user*, plus simple, laisse un court instant où la base peut refuser les anciens identifiants : un client avec réessai et relecture du secret l'absorbe. Pour le webhook du prestataire de paiement, la vérification accepte les deux versions pendant la fenêtre :
+
+<Code file="apps/api/src/webhooks/verify.ts" hl="5,8,9">
+
+```ts
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { getSecret } from '../config/secrets';
+
+export async function verifyPspSignature(rawBody: Buffer, signatureHex: string): Promise<boolean> {
+  const { current, previous } = JSON.parse(await getSecret('novafact/psp-webhook'));
+  const given = Buffer.from(signatureHex, 'hex');
+  return [current, previous].filter(Boolean).some((key: string) => {
+    const expected = createHmac('sha256', key).update(rawBody).digest();
+    return expected.length === given.length && timingSafeEqual(expected, given);
+  });
+}
+```
+
+</Code>
+
+Le cache de la leçon 1 (cinq minutes) fixe la durée minimale de la fenêtre : le champ `previous` doit rester valide plus longtemps que le cache le plus long de la flotte.
+
+<Callout kind="novafact">
+Runbook J+0 retenu après l'exercice React2Shell (scénario fictif) : à H+1, règles gérées vérifiées en version 1.24 ou plus et règle de traitement des corps volumineux activée sur les routes Server Actions ; à H+2, kill switch des fonctionnalités non essentielles du back-office ; à H+6, correctif déployé en canary à 10 % avec alarmes WAF et 5xx ; à H+8, bascule complète, chasse aux IOC dans Elastic (M18), rotation des secrets accessibles au processus Next.js ; à J+3, virtual patch retiré et post-mortem.
+</Callout>
+
+<Recap items={[
+  "Feature flags et kill switch : défaut sûr explicite, jamais d'autorisation par flag, bascules journalisées.",
+  "Le canary est un filet de fiabilité ; il ne voit pas les régressions de sécurité silencieuses.",
+  "Virtual patching : règle ciblée, count puis block, corps volumineux traités, retrait après correctif.",
+  "RASP : contexte précis au prix d'un agent privilégié dans le processus ; complément, pas substitut.",
+  "Modèle de permissions Node : ceinture de sécurité utile, auto-contrôlée au démarrage, sans le réseau sur Node 24.",
+  "Falco sur EKS, GuardDuty Runtime Monitoring sur Fargate ; rotation des secrets avec deux versions valides.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Cheat Sheet : Virtual Patching", url: "https://cheatsheetseries.owasp.org/cheatsheets/Virtual_Patching_Cheat_Sheet.html" },
+  { title: "AWS Security Bulletin AWS-2025-030 : CVE-2025-55182", url: "https://aws.amazon.com/security/security-bulletins/AWS-2025-030/" },
+  { title: "Node.js : Permission Model", url: "https://nodejs.org/api/permissions.html" },
+  { title: "Amazon ECS : déploiements canary", url: "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/canary-deployment.html" },
+  { title: "Falco : éléments d'une règle", url: "https://falco.org/docs/concepts/rules/basic-elements/" },
+  { title: "Amazon GuardDuty : Runtime Monitoring sur Fargate", url: "https://docs.aws.amazon.com/guardduty/latest/ug/how-runtime-monitoring-works-ecs-fargate.html" },
+  { title: "AWS Secrets Manager : stratégies de rotation", url: "https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotation-strategy.html" },
+]} />

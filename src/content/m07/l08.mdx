@@ -1,0 +1,176 @@
+export const questions = [
+  {
+    q: "Un développeur change d'équipe. Que doit-il se passer pour ses accès ?",
+    options: [
+      "Ses nouveaux accès sont accordés, et les anciens hors rôle sont retirés",
+      "Il conserve ses anciens accès le temps d'assurer la passation",
+      "Son compte est recréé dans la nouvelle équipe, et l'ancien est désactivé ensuite",
+      "Ses accès sont copiés sur ceux d'un collègue de la nouvelle équipe",
+    ],
+    answer: 0,
+    explain: "Le mover est l'étape la plus souvent ratée : sans retrait, les droits s'accumulent à chaque mobilité jusqu'à faire d'un développeur ordinaire un quasi-administrateur. Le besoin de passation est réel, mais il se traite par une prolongation datée — deux semaines, par exemple —, pas par un maintien silencieux. Copier les droits d'un collègue reproduit ses exceptions accumulées, alors que les accès doivent venir d'un rôle défini à l'avance. Et recréer le compte ferait perdre l'historique d'audit attaché à l'identité.",
+  },
+  {
+    q: "Pourquoi faire une recertification périodique des accès ?",
+    options: [
+      "Pour satisfaire l'exigence d'audit annuel des référentiels de conformité",
+      "Parce que le provisionnement automatique ne couvre pas les comptes de service",
+      "Pour vérifier que chaque accès est encore justifié et retirer les autres",
+      "Pour forcer la rotation des identifiants des comptes les plus sensibles",
+    ],
+    answer: 2,
+    explain: "Même avec un bon provisionnement, les exceptions temporaires jamais refermées, les accès hérités d'une mobilité et les comptes oubliés s'accumulent : la revue par le propriétaire les fait remonter. Les comptes de service posent un problème voisin mais distinct — ils n'ont pas de départ naturel, et c'est la recherche d'accès inutilisés qui les attrape. La rotation des identifiants et la production de preuves d'audit sont des effets utiles, pas la raison d'être de l'exercice.",
+  },
+  {
+    q: "Un employé part. Son compte est désactivé dans le fournisseur d'identité et ses sessions Cognito sont révoquées par AdminUserGlobalSignOut. Quel accès peut encore subsister quelques minutes ?",
+    options: [
+      "Aucun : la révocation des sessions coupe tout de manière immédiate",
+      "L'accès à la console AWS, qui dépend d'un autre fournisseur d'identité",
+      "Les jetons de rafraîchissement, encore valables jusqu'à leur date d'expiration",
+      "Les jetons d'accès déjà émis, validés localement jusqu'à leur expiration",
+    ],
+    answer: 3,
+    explain: "AdminUserGlobalSignOut empêche justement Cognito d'accepter les jetons de rafraîchissement — c'est ce qui rend l'autre réponse tentante —, mais une API qui valide un JWT localement, sur sa signature et son expiration, n'interroge personne : le jeton d'accès déjà émis reste accepté jusqu'au bout. Deux parades se complètent : des jetons d'accès de courte durée, et une vérification de l'état du compte pour les actions sensibles, comme un export ou un changement d'IBAN.",
+  },
+  {
+    q: "Lors du départ d'un développeur, quels accès le SSO ne coupe-t-il pas à lui seul ?",
+    options: [
+      "Les sessions applicatives ouvertes, qui expirent d'elles-mêmes",
+      "Les identifiants émis hors SSO : jetons personnels, clés d'API, clés SSH",
+      "Les accès physiques aux locaux, gérés par un système de badges entièrement distinct",
+      "Les comptes SaaS provisionnés par SCIM depuis le fournisseur d'identité",
+    ],
+    answer: 1,
+    explain: "Tout identifiant émis indépendamment du fournisseur d'identité survit à la désactivation du compte : jetons d'accès personnels GitHub ou npm — y compris ceux qui peuvent publier le SDK —, clés d'API créées pour un test, clés SSH, autorisations OAuth accordées à des applications tierces. Il faut aussi faire tourner les secrets partagés que la personne connaissait : ils ne peuvent pas être désappris. Les comptes provisionnés par SCIM sont au contraire exactement ce que le SSO coupe, et compter sur l'expiration naturelle des sessions revient à laisser une fenêtre ouverte au lieu de les révoquer.",
+  },
+];
+
+<YouKnow>
+En pentest interne, tu as souvent trouvé des comptes d'anciens employés actifs, des comptes de service surpuissants, ou des stagiaires administrateurs. Ce sont des défaillances de provisionnement.
+</YouKnow>
+
+## Le cycle joiner-mover-leaver
+
+| Événement | Ce qui doit se passer |
+| --- | --- |
+| **Arrivée** (joiner) | Des accès attribués selon le rôle, pas copiés sur un collègue |
+| **Changement** (mover) | Les nouveaux accès sont ajoutés **et** les anciens retirés |
+| **Départ** (leaver) | Tous les accès révoqués le jour même : SSO, sessions actives, clés, jetons personnels, accès aux SaaS |
+
+Le point le plus souvent raté est le **mover** : au fil des mobilités, les droits s'accumulent.
+
+Chaque étape a son piège propre :
+
+- **à l'arrivée**, le « fais comme pour Julie » : on copie les droits d'un collègue, avec les exceptions accumulées au fil de ses années. Les accès doivent venir d'un **rôle** défini à l'avance (développeur de l'équipe Facturation, comptable, support niveau 1), qui donne un socle d'accès, et les exceptions se demandent à part, avec une date de fin ;
+- **au changement**, l'argument « il aura peut-être encore besoin de l'ancien accès pour la passation ». C'est légitime, mais la réponse est une période de transition **datée** (deux semaines), pas un maintien indéfini ;
+- **au départ**, la confiance excessive dans le SSO. Le SSO coupe ce qui passe par lui ; tout ce qui a été émis indépendamment lui survit.
+
+<Callout kind="case">
+En avril 2022, Block (maison mère de Cash App) a déclaré à la SEC qu'un ancien employé avait téléchargé, en décembre 2021, des rapports contenant des informations sur des clients de Cash App Investing aux États-Unis. Il avait accès à ces rapports dans le cadre de ses fonctions passées, et y a accédé sans autorisation après son départ. L'entreprise a ensuite prévenu environ 8,2 millions de clients actuels et anciens. Un accès légitime pendant l'emploi, jamais retiré au départ : c'est exactement le scénario que le leaver doit fermer.
+</Callout>
+
+## Ce que le SSO ne coupe pas
+
+Le jour du départ d'un développeur de Novafact, la désactivation dans le fournisseur d'identité est nécessaire, pas suffisante. La checklist du leaver doit couvrir :
+
+<Steps items={[
+  { title: "Les jetons personnels", text: "Personal access tokens GitHub, jetons npm (y compris ceux qui peuvent publier @novafact/sdk), clés SSH et clés de signature enregistrées." },
+  { title: "Les identifiants d'applications", text: "Clés d'API créées pour des tests, autorisations OAuth accordées à des applications tierces avec son compte." },
+  { title: "Les secrets qu'il a vus", text: "Un secret partagé connu d'un partant (mot de passe d'un compte de secours, clé d'un environnement) se fait tourner : il ne peut pas être « désappris »." },
+  { title: "Ce qu'il possédait", text: "Comptes de service, dépôts, tâches planifiées, alertes dont il était le seul destinataire : un propriétaire de remplacement est désigné." },
+  { title: "Les sessions actives", text: "Révoquées explicitement, sans attendre leur expiration naturelle." },
+]} />
+
+## Automatiser depuis une source de vérité
+
+Le **fournisseur d'identité** (SSO) est la source de vérité : les applications internes et les SaaS reçoivent les comptes par **SCIM** (provisionnement automatique) et l'authentification par SSO. Un départ désactivé dans l'annuaire se propage partout. Côté AWS, **IAM Identity Center** joue ce rôle pour les accès humains (M15).
+
+SCIM (RFC 7643 pour le schéma, RFC 7644 pour le protocole) définit une API standard : le fournisseur d'identité crée, modifie et désactive les comptes dans chaque application. Une désactivation arrive typiquement comme une requête `PATCH` qui passe l'attribut `active` à `false`. Recevoir ce signal ne suffit pas : l'application doit en tirer toutes les conséquences, **sessions comprises**.
+
+<Code file="apps/api/src/scim/users.ts" hl="15,16,17,18,19,20">
+
+```ts
+import { AdminUserGlobalSignOutCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { z } from 'zod';
+
+const cognito = new CognitoIdentityProviderClient({});
+const PatchOp = z.object({
+  schemas: z.array(z.literal('urn:ietf:params:scim:api:messages:2.0:PatchOp')),
+  Operations: z.array(z.object({ op: z.string(), path: z.string().optional(), value: z.unknown() })),
+});
+
+scim.patch('/Users/:id', async (req, res) => {
+  const body = PatchOp.parse(req.body);
+  const deactivate = body.Operations.some((o) => o.op.toLowerCase() === 'replace' &&
+    ((o.path === 'active' && o.value === false) || (!o.path && (o.value as any)?.active === false)));
+  const user = await users.getForTenant(req.scimTenantId, req.params.id); // le jeton SCIM est lié à un tenant
+  if (deactivate) {
+    await users.setActive(user.id, false);
+    await bffSessions.deleteAllFor(user.id);                        // sessions du BFF
+    await cognito.send(new AdminUserGlobalSignOutCommand({ UserPoolId: POOL_ID, Username: user.cognitoUsername }));
+    await apiKeys.revokeAllFor(user.id);                            // clés d'API personnelles
+    await audit.write({ action: 'user.deprovision', actor: 'scim', tenantId: user.tenantId, target: user.id });
+  }
+  res.json(toScimUser(await users.get(user.id)));
+});
+```
+
+</Code>
+
+<Callout kind="warn">
+`AdminUserGlobalSignOut` empêche Cognito d'accepter les jetons de rafraîchissement de l'utilisateur, mais un **jeton d'accès JWT déjà émis reste valide** pour toute API qui le vérifie localement (signature et expiration) jusqu'à son expiration. Deux parades complémentaires : des jetons d'accès de courte durée, et une vérification de l'état du compte (`active`) côté API pour les actions sensibles (export, changement d'IBAN, gestion des rôles).
+</Callout>
+
+## Les comptes de service
+
+Les comptes non humains (CI, intégrations, workers) sont souvent les plus puissants et les moins surveillés :
+
+<Steps items={[
+  { title: "Un propriétaire", text: "Chaque compte de service a une équipe responsable, documentée." },
+  { title: "Le minimum", text: "Des droits limités à son usage, jamais un compte « admin technique » partagé." },
+  { title: "Des identifiants temporaires", text: "Fédération d'identité (OIDC) plutôt que des clés longues durées (M14, M15)." },
+  { title: "Une surveillance", text: "Une utilisation hors de son périmètre habituel déclenche une alerte (M18)." },
+]} />
+
+Un compte de service n'a pas de départ naturel : personne ne le désactive quand le projet qui l'utilisait s'arrête. Il faut donc chercher activement les accès **inutilisés**. Sur AWS, IAM Access Analyzer propose des analyses d'accès inutilisés (rôles, clés d'accès et permissions non utilisés depuis une période donnée) ; les dates de dernière utilisation des clés et des rôles donnent le même signal à moindre coût. Chez Novafact, un rôle ou une clé inutilisé depuis 90 jours déclenche un ticket à son équipe propriétaire, puis sa désactivation sans réponse sous deux semaines.
+
+## Les accès d'urgence
+
+Supprimer les comptes partagés crée une question légitime : que faire si le fournisseur d'identité est en panne pendant un incident ? La réponse est un petit nombre de comptes **d'accès d'urgence** (*break-glass*) : protégés par une MFA matérielle stockée en lieu sûr, jamais utilisés en temps normal, et dont **chaque utilisation déclenche une alerte** et une revue a posteriori. Un compte d'urgence utilisé « pour aller plus vite » est un incident de sécurité, pas une commodité.
+
+## La recertification
+
+Chaque trimestre (ou semestre selon la sensibilité), le **propriétaire** de chaque système valide la liste des accès : ceux qui ne sont plus justifiés sont retirés. Pour que ce ne soit pas une formalité, présente des listes **courtes et contextualisées** (dernière utilisation, rôle) plutôt que des tableaux de 2 000 lignes.
+
+Le risque principal d'une recertification est le **tampon automatique** : le manager valide tout en deux clics, parce que retirer un accès lui fait courir le risque de bloquer quelqu'un. Trois techniques le réduisent :
+
+- **ne présenter que les écarts** : les accès conformes au rôle sont validés d'office ; seuls les accès hors rôle, les exceptions et les accès non utilisés depuis longtemps demandent une décision ;
+- **inverser le défaut** pour les accès inutilisés : sans réponse, ils sont retirés, et la personne peut les redemander ;
+- **mesurer** le taux de retrait : une recertification qui ne retire jamais rien est probablement un tampon.
+
+## Côté clients de Novafact
+
+Novafact gère aussi les accès **de ses clients** : chaque tenant a ses administrateurs, qui invitent des utilisateurs et attribuent des rôles. Les mêmes principes s'appliquent au produit : rôles prédéfinis et minimaux, journal d'audit des changements de rôle, SSO et SCIM proposés aux clients entreprise, et une alerte quand un tenant ajoute un nouvel administrateur.
+
+Proposer SCIM aux clients entreprise n'est pas qu'un argument commercial : c'est ce qui garantit que l'employé qui quitte le client perd aussi son accès à ses factures dans Novafact, sans dépendre d'un administrateur qui pense à le retirer. Pour les tenants sans SCIM, un rapport périodique envoyé à l'administrateur (« ces utilisateurs ne se sont pas connectés depuis 90 jours ») transpose la recertification dans le produit.
+
+<Recap items={[
+  "Joiner, mover, leaver : accès par rôle, transitions datées, départ le jour même ; le mover est l'étape la plus souvent ratée.",
+  "Le SSO ne coupe pas les jetons personnels, les clés d'API, les secrets connus ni ce que la personne possédait.",
+  "Le fournisseur d'identité est la source de vérité ; SCIM propage les désactivations, qui doivent aussi révoquer les sessions.",
+  "Un JWT déjà émis survit à la révocation jusqu'à son expiration : jetons courts et vérification de l'état pour les actions sensibles.",
+  "Comptes de service : propriétaire, droits minimaux, identifiants temporaires, surveillance, retrait des accès inutilisés.",
+  "Recertification par le propriétaire, centrée sur les écarts, pour éviter le tampon automatique.",
+  "Les mêmes principes s'appliquent aux accès des clients dans le produit.",
+]} />
+
+<Sources items={[
+  { title: "OWASP ASVS 5.0, chapitre V8 (Authorization)", url: "https://github.com/OWASP/ASVS" },
+  { title: "RFC 7644 : SCIM Protocol", url: "https://www.rfc-editor.org/rfc/rfc7644" },
+  { title: "RFC 7643 : SCIM Core Schema", url: "https://www.rfc-editor.org/rfc/rfc7643" },
+  { title: "Amazon Cognito : révocation des jetons", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/token-revocation.html" },
+  { title: "AWS IAM Access Analyzer : unused access", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-findings.html" },
+  { title: "Block, formulaire 8-K du 4 avril 2022 (SEC)", url: "https://www.sec.gov/Archives/edgar/data/1512673/000119312522095215/d343042d8k.htm" },
+  { title: "TechCrunch : Block confirme la fuite Cash App liée à un ancien employé (2022)", url: "https://techcrunch.com/2022/04/05/block-cash-app-data-breach/" },
+  { title: "ISC2 CSSLP Exam Outline, domaine 3 (data access provisioning)", url: "https://www.isc2.org/certifications/csslp/csslp-certification-exam-outline" },
+]} />

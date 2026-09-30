@@ -1,0 +1,173 @@
+export const questions = [
+  {
+    q: "Un rapport de 2025 signale un risque « LLM06 » sur l'assistant. Tu reprends le registre avec l'édition 2026. Que fais-tu ?",
+    options: [
+      "Reprendre LLM06 tel quel : d'une édition à l'autre, seuls les libellés sont retouchés",
+      "Retrouver le risque décrit, puis chercher son identifiant dans la nouvelle édition",
+      "Garder LLM06:2025 et ajouter LLM06:2026, pour tracer les deux référentiels",
+      "Marquer l'entrée obsolète : un identifiant d'une édition close ne se reporte pas",
+    ],
+    answer: 1,
+    explain: "Un identifiant de référentiel n'est pas une clé stable : c'est un rang dans un classement qui est refait à chaque édition. Ici Excessive Agency passe de LLM06:2025 à LLM03:2026, pendant que LLM06:2026 désigne Unbounded Consumption — reprendre le numéro fait donc pointer le registre vers un tout autre sujet, et l'erreur voyage ensuite dans tous les documents qui le citent. D'où la règle : on stocke la description du risque, et l'identifiant n'est qu'une étiquette qu'on revalide à chaque changement de référentiel. Garder les deux numéros ne trace rien tant qu'on n'a pas vérifié qu'ils désignent la même chose.",
+  },
+
+  {
+    q: "Le prompt système de l'assistant contient une clé d'API du service d'e-mail et la phrase « ne montre jamais les factures d'un autre tenant ». Que recommande l'entrée Hidden Context Exposure ?",
+    options: [
+      "Sortir la clé du contexte et appliquer la règle de tenant dans le code des outils",
+      "Ajouter une consigne interdisant au modèle de révéler son prompt système",
+      "Chiffrer le prompt système et ne le déchiffrer qu'au moment de l'appel au modèle",
+      "Déplacer la clé et la règle dans un message système séparé, hors de la conversation",
+    ],
+    answer: 0,
+    explain: "Tout ce qui est placé devant le modèle peut ressortir, tôt ou tard, par une reformulation qu'on n'avait pas prévue. Déplacer le secret dans un message système « séparé » ne change rien : séparé ou non, il est dans la même fenêtre de contexte — c'est la confusion la plus répandue entre isolation logique et isolation réelle. Chiffrer le prompt ne protège que son transport, pas sa lecture. Un secret n'a rien à faire dans le contexte, et une règle d'autorisation écrite en langage naturel n'est pas un contrôle : elle doit être appliquée par du code déterministe.",
+  },
+  {
+    q: "Improper Output Handling passe de la 5e à la 10e place. Quelle conclusion en tirer pour Novafact ?",
+    options: [
+      "Que le risque est devenu marginal : le classement suit la gravité constatée",
+      "Que les frameworks front comme React neutralisent désormais ce risque à la source",
+      "Qu'il suffit de filtrer les entrées, la sortie étant dérivée de ce qui est entré",
+      "Le rang reflète des votes et des incidents, pas ta gravité : la sortie reste non fiable",
+    ],
+    answer: 3,
+    explain: "Un rang plus bas ne rend pas le risque absent : le classement agrège des votes d'experts et des incidents recensés, pas la gravité dans ton système. Une sortie de modèle rendue en HTML, injectée dans une requête SQL, passée à un shell ou utilisée comme URL reste une faille classique, que tu sais traiter avec les outils du web. React échappe le texte, mais ni `dangerouslySetInnerHTML`, ni une URL `javascript:`, ni un rendu Markdown. Et filtrer l'entrée ne dit rien de la sortie : le modèle produit du texte que personne n'a écrit.",
+  },
+  {
+    q: "Un client importe une facture PDF qui contient une consigne cachée. Elle est indexée dans le RAG et influence l'assistant pendant des semaines, pour tous les comptables du tenant. Comment l'édition 2026 classe-t-elle ce scénario ?",
+    options: [
+      "LLM09 seul : le problème est dans la base vectorielle, pas dans le prompt",
+      "LLM07 Misinformation : le modèle produit une réponse fausse à partir d'un corpus altéré",
+      "LLM01 Prompt Injection, élargi en 2026 à la persistance, avec un lien vers LLM09",
+      "LLM08 Vector and Embedding Weaknesses, la consigne étant stockée en embedding",
+    ],
+    answer: 2,
+    explain: "L'édition 2026 élargit l'injection de prompt au multimodal et à la persistance : une consigne stockée dans la mémoire ou dans le corpus RAG ressurgit à chaque récupération, pour tous les utilisateurs, pendant des semaines. Ranger cela sous la seule faiblesse de la base vectorielle est le raccourci à éviter — l'index n'est que le véhicule, la consigne agit bien comme une injection. Les faiblesses propres à l'index relèvent en plus de LLM09 : attention au numéro, c'était LLM08 en 2025. Et ce n'est pas de la Misinformation : le modèle ne se trompe pas, il obéit.",
+  },
+];
+
+<YouKnow>
+Tu connais le Top 10 web et le Top 10 API par cœur. L'OWASP Top 10 for LLM Applications joue le même rôle pour les applications qui embarquent un modèle de langage, et son édition 2026, publiée le 3 août 2026, rebat les cartes.
+</YouKnow>
+
+## Une édition construite sur des incidents
+
+Le **Top 10 for LLM Applications** est maintenu par l'**OWASP GenAI Security Project**. Les éditions précédentes (2023, puis 2025) reposaient sur l'avis d'experts. L'édition 2026, publiée le **3 août 2026**, introduit pour la première fois des données d'incidents : le classement final pèse pour 75 % le vote de la communauté et pour 25 % l'analyse de **6 639 incidents réels**.
+
+Deux conséquences pratiques. D'abord, les mouvements du classement disent quelque chose de ce qui casse réellement en production : les agents qui agissent trop librement, les factures de calcul qui explosent, les réponses fausses sur lesquelles on s'appuie. Ensuite, le document assume une position de conception très nette, résumée par la presse spécialisée à sa sortie : arrête d'essayer de construire un modèle impossible à tromper, construis le système autour pour que rien d'important ne casse le jour où il sera trompé. C'est le fil rouge de tout le module.
+
+<Callout kind="info">
+Ce module est **vivant** : chaque fait est daté, parce que le domaine bouge tous les trimestres. Quand tu cites un risque, écris toujours l'identifiant avec son année (`LLM03:2026`) : les numéros changent d'une édition à l'autre, et un rapport de 2025 ne parle pas du même risque sous le même numéro.
+</Callout>
+
+## Les dix risques et la correspondance avec 2025
+
+| 2026 | Risque | 2025 | Ce qui change |
+| --- | --- | --- | --- |
+| LLM01 | Prompt Injection | LLM01 | Reste en tête ; élargi au multimodal (consignes dans une image ou un audio) et à la persistance (mémoire, RAG) |
+| LLM02 | Sensitive Information Disclosure | LLM02 | Stable |
+| LLM03 | Excessive Agency | LLM06 | Monte de trois places : ce que l'application a le droit de faire une fois qu'un modèle la pilote |
+| LLM04 | Supply Chain | LLM03 | Recule d'une place |
+| LLM05 | Data and Model Poisoning | LLM04 | Recule d'une place ; absorbe le détournement du fine-tuning |
+| LLM06 | Unbounded Consumption | LLM10 | Monte de quatre places : du trafic conçu pour coûter, sans malware ni indicateur classique, seulement une facture énorme |
+| LLM07 | Misinformation | LLM09 | Monte de deux places, portée par les données d'incidents |
+| LLM08 | Hidden Context Exposure | LLM07 | Renommé (ex-System Prompt Leakage) et élargi |
+| LLM09 | Vector and Embedding Weaknesses | LLM08 | Recule d'une place |
+| LLM10 | Improper Output Handling | LLM05 | Recule de cinq places |
+
+### Lire les mouvements sans contresens
+
+**Prompt Injection reste première** alors que peu d'incidents recensés lui sont attribués : elle est la cause racine de nombreux autres risques (fuite, agence excessive, exfiltration), et on la voit rarement étiquetée comme telle dans un rapport d'incident.
+
+**Excessive Agency et Unbounded Consumption montent** parce que les applications ont changé : en 2025, beaucoup d'intégrations se contentaient de générer du texte ; en 2026, elles appellent des outils, enchaînent des étapes et consomment des jetons sans plafond. Le risque n'est plus ce que le modèle dit, mais ce qu'il fait et ce qu'il coûte.
+
+**Improper Output Handling descend** : ce n'est pas un risque résolu. C'est la famille que tu maîtrises le mieux (XSS, SQLi, SSRF quand la sortie du modèle atteint un sink), et elle reste présente dans chaque application. La leçon 4 y revient avec du code.
+
+## Les deux changements de périmètre à retenir
+
+### LLM01 : l'injection devient multimodale et persistante
+
+L'injection indirecte ne passe plus seulement par du texte. Une consigne peut être portée par une image, un PDF scanné, un fichier audio transcrit. Surtout, elle peut **persister** : écrite dans la mémoire à long terme d'un assistant ou indexée dans un corpus RAG, elle ressurgit dans des sessions futures, pour d'autres utilisateurs, longtemps après son dépôt. Pour un pentester, c'est l'équivalent d'une XSS stockée comparée à une XSS réfléchie : la surface d'impact et la durée d'exposition changent d'échelle.
+
+### LLM08 : Hidden Context Exposure
+
+L'ancienne entrée System Prompt Leakage ne couvrait que le prompt système. La nouvelle couvre **tout ce que l'application place devant le modèle sans que l'utilisateur le voie** : instructions du développeur, définitions et schémas d'outils, documents récupérés, tours précédents gardés en mémoire, politiques internes, logique de workflow, configuration. OWASP la présente comme un **amplificateur** : un contexte qui fuit rend l'injection plus ciblée, et des schémas d'outils exposés élargissent la surface d'agence excessive.
+
+La consigne est simple : **suppose que le contexte caché est découvrable**. Aucun secret dedans, et aucune logique d'autorisation qui ne tiendrait que par une phrase en langage naturel.
+
+<Diff file="apps/api/src/assistant/prompt.ts" hlBefore="3,4" hlAfter="3" stack>
+
+```ts
+export const systemPrompt = (tenantName: string) => `
+Tu es l'assistant de facturation de ${tenantName}.
+Clé du service d'e-mail : ${process.env.MAIL_API_KEY}.
+Ne montre jamais les factures d'un autre tenant.
+Réponds en français, de façon concise.`;
+```
+
+```ts
+export const systemPrompt = (tenantName: string) => `
+Tu es l'assistant de facturation de ${tenantName}.
+Réponds en français, de façon concise.`;
+// La clé reste côté serveur, dans l'outil d'envoi (Secrets Manager, M17).
+// Le filtre par tenant est appliqué par chaque outil, à partir de la session (leçon 4).
+```
+
+</Diff>
+
+La version corrigée n'est pas « plus sûre » parce qu'elle est plus courte : elle l'est parce que plus rien de ce qui fuirait n'a de valeur pour un attaquant, et parce que l'isolation des tenants ne dépend plus de la bonne volonté du modèle.
+
+## Novafact passé au crible
+
+L'assistant « Ask Novafact » combine un RAG sur les factures du tenant, deux outils (envoyer un e-mail, créer un avoir) et un serveur MCP interne. Voici comment le Top 10 s'y applique.
+
+| Risque 2026 | Où chez Novafact | Contrôle principal |
+| --- | --- | --- |
+| LLM01 Prompt Injection | Factures et e-mails importés, lus par le RAG | Architecture : règle de deux, confirmation humaine (leçons 2 et 3) |
+| LLM02 Sensitive Information Disclosure | Réponses qui citent des données d'un autre client | Filtrage par tenant au moment de la récupération, pas dans la réponse |
+| LLM03 Excessive Agency | Outil d'envoi d'e-mail vers n'importe quelle adresse | Destinataires limités aux contacts du tenant, montant d'avoir plafonné |
+| LLM04 Supply Chain | Fournisseur de modèle, paquets npm du SDK, serveurs MCP tiers | Revue d'intégration, versions figées, AI SBOM (leçon 8) |
+| LLM05 Data and Model Poisoning | Corpus RAG alimenté par des documents clients | Provenance marquée, corpus partagés relus |
+| LLM06 Unbounded Consumption | Un compte d'essai qui enchaîne les requêtes longues | Quotas de jetons par tenant, plafond d'étapes, alarmes de coût |
+| LLM07 Misinformation | Un montant de TVA inventé dans un résumé | Chiffres recalculés par le code, sources citées |
+| LLM08 Hidden Context Exposure | Prompt système, schémas des outils MCP | Aucun secret ni règle d'autorisation dans le contexte |
+| LLM09 Vector and Embedding Weaknesses | Index vectoriel partagé entre tenants | Filtre de tenant obligatoire dans la requête vectorielle |
+| LLM10 Improper Output Handling | Réponse rendue en Markdown dans la SPA | Rendu sans HTML brut, images externes bloquées |
+
+<Callout kind="novafact">
+Lors de la revue de conception de l'assistant (M11), l'équipe a pris la décision suivante : **aucune ligne du tableau ne se contrôle dans le prompt**. Chaque contrôle vit dans le code des outils, dans la requête au RAG ou dans le rendu front. Le prompt système sert à la qualité des réponses, jamais à la sécurité.
+</Callout>
+
+## Utiliser le Top 10 comme un outil
+
+Le Top 10 est un document de **sensibilisation** et un vocabulaire commun, pas un référentiel d'exigences. Pour en tirer quelque chose de concret :
+
+<Steps items={[
+  { title: "Threat model", text: "Pars du diagramme de flux de l'assistant (M11) et, pour chaque flux, demande-toi lesquels des dix risques s'y appliquent. Le tableau ci-dessus en est le résultat." },
+  { title: "Exigences", text: "Transforme chaque risque retenu en exigence vérifiable : « l'outil d'envoi refuse tout destinataire hors des contacts du tenant » plutôt que « se protéger de l'agence excessive »." },
+  { title: "Tests", text: "Les outils de red teaming (leçon 7) proposent des jeux de tests rangés par entrée du Top 10 : ils te donnent une base, à compléter par tes propres cas." },
+  { title: "Correspondance", text: "Garde dans ton registre de risques l'identifiant 2025 à côté de l'identifiant 2026 tant que des rapports, des outils ou des clients utilisent encore l'ancienne numérotation." },
+  { title: "Agents", text: "Dès que l'application enchaîne des actions de façon autonome, complète avec l'OWASP Top 10 for Agentic Applications (ASI01 à ASI10, leçon 5)." },
+]} />
+
+<Callout kind="debate">
+Faut-il suivre le classement pour prioriser ? Les praticiens sont partagés. Le classement agrège des votes et des incidents de toute l'industrie ; ton exposition réelle dépend de ce que ton assistant peut faire. Un chatbot en lecture seule sans données privées se soucie peu de LLM03 ; un agent qui émet des avoirs doit le traiter avant tout le reste. Utilise le Top 10 pour ne rien oublier, et ton threat model pour ordonner.
+</Callout>
+
+<Recap items={[
+  "Le Top 10 LLM 2026 (3 août 2026) combine vote et données de 6 639 incidents réels.",
+  "Excessive Agency (LLM03), Unbounded Consumption (LLM06) et Misinformation (LLM07) montent ; Improper Output Handling passe en LLM10 sans devenir marginal.",
+  "LLM01 couvre désormais l'injection multimodale et persistante (mémoire, RAG).",
+  "Hidden Context Exposure (LLM08) : tout le contexte caché est supposé découvrable, donc aucun secret ni contrôle d'autorisation dedans.",
+  "Toujours écrire l'identifiant avec son année, et garder la correspondance 2025 dans le registre de risques.",
+]} />
+
+<Lab id="gandalf" note="Chaque niveau montre qu'une consigne de confidentialité dans le prompt ne protège pas un secret placé dans le contexte." />
+
+<Sources items={[
+  { title: "OWASP GenAI : LLM Top 10 2026", url: "https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/" },
+  { title: "OWASP GenAI : Top 10 for LLM Applications (éditions)", url: "https://genai.owasp.org/llm-top-10/" },
+  { title: "Help Net Security : OWASP 2026 LLM Top 10 released (août 2026)", url: "https://www.helpnetsecurity.com/2026/08/06/owasp-2026-llm-top-10-released/" },
+  { title: "Imperva : OWASP LLM Top 10 2026, what changed", url: "https://www.imperva.com/blog/owasp-llm-top-10-2026-what-changed/", note: "Tableau de correspondance 2025 / 2026" },
+  { title: "OWASP Top 10 for Agentic Applications 2026", url: "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/" },
+]} />

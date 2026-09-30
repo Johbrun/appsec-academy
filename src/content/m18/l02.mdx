@@ -1,0 +1,230 @@
+export const questions = [
+  {
+    q: "Dans l'intégration CloudTrail, un collègue renseigne à la fois l'ARN du bucket et l'URL de la file SQS, « pour être sûr ». Que se passe-t-il ?",
+    options: [
+      "L'agent privilégie la file SQS et ne se sert du bucket que pour rattraper l'historique",
+      "La file est ignorée : l'intégration liste le bucket, au risque de saturer la mémoire",
+      "La configuration est refusée à la validation : les deux modes sont exclusifs",
+      "Les événements sont ingérés deux fois, une par chaque mode, d'où des doublons",
+    ],
+    answer: 1,
+    explain: "La documentation de l'intégration le précise : quand un ARN de bucket et une URL de file sont fournis ensemble, la file est ignorée et l'agent bascule en polling — il liste et traite tout le bucket, avec un risque réel de surconsommation mémoire sur un historique volumineux. Rien n'est refusé à la validation, et rien n'est ingéré deux fois : c'est justement ce silence qui rend la panne difficile à diagnostiquer, puisque les événements finissent par arriver, simplement plus lentement et au prix d'un agent instable. Pour le mode SQS, on ne renseigne que l'URL de la file.",
+  },
+  {
+    q: "Après l'exfiltration d'objets du bucket des factures, l'enquêteur ne trouve aucun GetObject dans Elastic, alors que l'ingestion CloudTrail fonctionne. Explication la plus probable ?",
+    options: [
+      "CloudTrail ne journalise jamais les lectures d'objets S3, seulement les écritures",
+      "Les `GetObject` réussis ne sont pas journalisés, seuls les refus le sont",
+      "Le trail ne capte que les événements de gestion : les data events s'activent à part",
+      "Le pipeline Elastic de l'intégration filtre les lectures pour limiter le volume d'index",
+    ],
+    answer: 2,
+    explain: "Les événements de données (`GetObject`, `PutObject`, `DeleteObject`) sont désactivés par défaut sur un trail et se facturent à part : ils existent bel et bien, il faut les activer, de façon ciblée sur les buckets qui comptent. Croire que CloudTrail ignore les lectures, ou qu'il ne garde que les refus, mène à la même conclusion opérationnelle — on n'active rien — et c'est le pire résultat : le jour de l'enquête, il ne reste que des suppositions sur ce qui a été lu. Le pipeline Elastic, lui, ne filtre pas les lectures.",
+  },
+  {
+    q: "Pourquoi une requête `source.ip: \"203.0.113.42\"` peut-elle couvrir d'un coup les logs WAF, CloudTrail et l'API Novafact ?",
+    options: [
+      "Parce que les pipelines et le format ECS ramènent l'adresse dans le même champ",
+      "Parce que Kibana cherche dans tous les champs quand aucun n'est précisé",
+      "Parce que les trois sources partagent un même flux de données et un même index",
+      "Parce que les intégrations AWS recopient `sourceIPAddress` tel quel dans chaque document",
+    ],
+    answer: 0,
+    explain: "C'est tout l'intérêt d'ECS : chaque source garde ses champs propres (`aws.cloudtrail.*`, `aws.waf.*`), mais les notions communes sont recopiées sous un nom unique par le pipeline d'ingestion. Ce n'est donc pas la conservation du nom d'origine qui rend la requête possible — `sourceIPAddress` et `clientIp` sont bien là, sous leur nom, et les interroger ne couvrirait qu'une source à la fois. Les documents vivent dans des flux de données distincts, et Kibana ne devine rien : c'est le champ commun qui fait tout le travail.",
+  },
+  {
+    q: "Quel indicateur révèle le mieux qu'une détection est devenue aveugle sans que personne ne s'en aperçoive ?",
+    options: [
+      "Le nombre d'alertes de la semaine, comparé à celui de la semaine précédente",
+      "Le nombre de règles en échec d'exécution dans le journal des règles de détection",
+      "Le taux de faux positifs, qui chute quand une source cesse d'alimenter les règles",
+      "La date du dernier événement reçu pour chaque flux attendu",
+    ],
+    answer: 3,
+    explain: "Une règle dont la source s'est tarie ne produit rien et ne signale aucune erreur : son exécution réussit, sur zéro document. Le journal d'exécution des règles est donc un indicateur rassurant et incomplet — il attrape les règles cassées, pas les règles affamées, et c'est la nuance qui laisse passer des mois de silence. Le nombre d'alertes baisse bien, mais une semaine calme lui ressemble trait pour trait. Surveiller la fraîcheur de chaque flux, face à une liste explicite des sources attendues, est la première détection à écrire.",
+  },
+];
+
+<YouKnow>
+Tu as sans doute déjà lu des logs CloudTrail bruts en fin d'audit cloud : du JSON imbriqué, un `sourceIPAddress` qui vaut parfois `AWS Internal`, des champs qui changent d'un service à l'autre. Un SIEM utile commence par une ingestion propre : chaque source arrive, arrive vite, et parle la même langue.
+</YouKnow>
+
+## Elastic Agent, Fleet et les flux de données
+
+L'écosystème d'ingestion d'Elastic repose sur quelques briques qu'il faut distinguer :
+
+| Brique | Rôle | Chez Novafact |
+| --- | --- | --- |
+| **Elastic Agent** | Un agent unique qui exécute les entrées (S3, SQS, CloudWatch, fichiers, API) | Un petit service ECS dans le compte d'archivage des logs, avec un *task role* dédié |
+| **Fleet** et Fleet Server | Gestion centrale des agents : politiques, mises à jour, état de santé | Géré depuis Kibana, sur Elastic Cloud |
+| **Agent policy** | Ensemble d'intégrations appliqué à un groupe d'agents | `aws-security` (CloudTrail, GuardDuty, WAF, ALB) et `app-logs` |
+| **Intégration** | Paquet qui fournit l'entrée, le pipeline d'ingestion, les mappings ECS, les tableaux de bord | Intégration AWS, Custom AWS Logs |
+| **Data stream** | Flux nommé `type-dataset-namespace` | `logs-aws.cloudtrail-prod`, `logs-novafact.api-prod` |
+
+L'agent peut aussi tourner en mode **standalone** (configuration en YAML, sans Fleet), utile en infrastructure immuable. Et certaines intégrations AWS, comme GuardDuty par API ou les métriques CloudWatch, existent en mode **agentless** : Elastic exécute la collecte pour toi. Pour les logs dans S3, Novafact garde un agent qu'elle maîtrise, ce qui lui permet de contrôler le rôle IAM utilisé.
+
+Le **namespace** est plus qu'une étiquette : il sépare `prod` de `staging` dans des flux distincts, donc avec des durées de rétention et des droits d'accès différents. Un analyste peut lire `logs-*-prod` sans voir les logs de recette qui contiennent des données de test, et inversement pour un développeur.
+
+## Les sources AWS
+
+| Source | Transport | Ce qu'elle raconte | Piège |
+| --- | --- | --- | --- |
+| **CloudTrail** (trail d'organisation) | S3, notification vers SQS | Qui a appelé quelle API AWS, d'où, avec quel résultat | Les événements de données (S3 `GetObject`, Lambda `Invoke`) sont désactivés par défaut et payants |
+| **GuardDuty** | Export des findings vers S3 (clé KMS obligatoire), ou API | Détections gérées par AWS : identifiants exfiltrés, appels depuis des IP malveillantes, anomalies S3 | Un finding est une conclusion, pas une preuve : il faut revenir à CloudTrail |
+| **AWS WAF** | S3 (bucket nommé `aws-waf-logs-…`), CloudWatch Logs ou Firehose | Chaque requête inspectée, la règle qui a tranché, les labels | Livraison dans S3 par lots de cinq minutes |
+| **ALB** (access logs) | S3 | Requêtes, codes, latences, classification *desync* | À activer explicitement par load balancer |
+| **CloudFront** (logs standard) | S3 | Requêtes en bordure, résultat de cache | Pas de temps réel sans les *real-time logs* |
+| **VPC Flow Logs** | S3 ou CloudWatch Logs | Flux réseau acceptés ou rejetés | Aucun contenu applicatif |
+
+La règle générale : les services AWS écrivent dans S3, **S3 notifie une file SQS**, l'agent lit la file puis l'objet. Plusieurs agents peuvent consommer la même file, chaque message est traité une fois, et rien ne repose sur un listing coûteux du bucket.
+
+<Callout kind="warn">
+Si tu renseignes à la fois l'ARN du bucket et l'URL de la file dans l'intégration, elle **ignore la file** et passe en mode polling : elle liste et traite tout le bucket. Sur des années d'historique CloudTrail, c'est un pic mémoire et une facture de requêtes S3. Pour le mode SQS, seule l'URL de la file est renseignée.
+</Callout>
+
+La plomberie tient en quelques ressources Terraform (M16) :
+
+<Code file="infra/log-archive/cloudtrail-sqs.tf" hl="16,17,18,19,20">
+
+```hcl
+resource "aws_sqs_queue" "cloudtrail_events" {
+  name                       = "elastic-cloudtrail-events"
+  visibility_timeout_seconds = 300
+  message_retention_seconds  = 1209600
+  sqs_managed_sse_enabled    = true
+}
+
+data "aws_iam_policy_document" "s3_to_sqs" {
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [aws_sqs_queue.cloudtrail_events.arn]
+    principals {
+      type        = "Service"
+      identifiers = ["s3.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnEquals"
+      variable = "aws:SourceArn"
+      values   = [aws_s3_bucket.org_trail.arn]
+    }
+  }
+}
+
+resource "aws_sqs_queue_policy" "s3_to_sqs" {
+  queue_url = aws_sqs_queue.cloudtrail_events.id
+  policy    = data.aws_iam_policy_document.s3_to_sqs.json
+}
+
+resource "aws_s3_bucket_notification" "org_trail" {
+  bucket = aws_s3_bucket.org_trail.id
+  queue {
+    queue_arn     = aws_sqs_queue.cloudtrail_events.arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "AWSLogs/"
+  }
+  depends_on = [aws_sqs_queue_policy.s3_to_sqs]
+}
+```
+
+</Code>
+
+La condition `aws:SourceArn` empêche un autre bucket d'écrire dans la file (le problème du *confused deputy*, M15). Côté lecture, le rôle de l'agent reçoit le strict nécessaire : `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes`, `s3:GetObject` sur le préfixe des logs, et `kms:Decrypt` si le bucket est chiffré avec une clé KMS. Il n'a aucun droit d'écriture ni de suppression sur le bucket : un agent compromis ne peut pas effacer l'historique.
+
+<Callout kind="novafact">
+L'architecture de Novafact (chiffres fictifs) : un trail d'organisation écrit dans le bucket du compte d'archivage, avec **S3 Object Lock** et la validation d'intégrité CloudTrail activée ; les événements de données S3 sont activés sur deux buckets seulement (factures et exports), pour contenir le coût. Au total, environ 35 Go par jour arrivent dans Elastic, dont un tiers pour le WAF et moins de 1 Go pour les événements de sécurité applicatifs, qui sont pourtant ceux qui déclenchent le plus d'alertes utiles.
+</Callout>
+
+## Les logs applicatifs
+
+L'API écrit ses logs pino/ECS sur `stdout` (leçon 1). Sur ECS Fargate, le pilote `awslogs` les envoie dans CloudWatch Logs. Deux chemins mènent ensuite à Elastic :
+
+| Chemin | Principe | À savoir |
+| --- | --- | --- |
+| **Custom AWS Logs**, entrée CloudWatch | L'agent interroge les groupes de logs, avec un nom de dataset choisi (`novafact.api`) | Les API CloudWatch Logs utilisées (`DescribeLogGroups`, `FilterLogEvents`) sont limitées à 5 transactions par seconde par compte et par région, partagées entre tous les appelants |
+| **Amazon Data Firehose** | Un filtre d'abonnement CloudWatch pousse vers Firehose, qui livre à Elastic | Pas d'agent à gérer ; le paramètre `es_datastream_name` choisit le flux de destination |
+
+Novafact a commencé par l'agent, plus simple à mettre en place. Dans les deux cas, le message arrive sous forme d'une chaîne JSON qu'un pipeline d'ingestion déplie. Comme l'application produit déjà de l'ECS, il n'y a **rien à renommer** : c'est tout l'intérêt de normaliser à la source plutôt qu'à l'ingestion.
+
+<Code file="elastic/pipelines/novafact-api-ecs.json">
+
+```json
+PUT _ingest/pipeline/novafact-api-ecs
+{
+  "description": "Déplie les logs pino au format ECS de l'API Novafact",
+  "processors": [
+    {
+      "json": {
+        "field": "message",
+        "add_to_root": true,
+        "add_to_root_conflict_strategy": "merge",
+        "if": "ctx.message instanceof String && ctx.message.startsWith('{')"
+      }
+    },
+    { "dot_expander": { "field": "*" } }
+  ]
+}
+```
+
+</Code>
+
+Le pipeline est référencé dans l'option `pipeline` de l'intégration. La stratégie `merge` fusionne les objets déjà posés par l'agent (`aws`, `cloud`) avec ceux du log ; `dot_expander` transforme les clés pointées d'ecs-pino-format (`log.level`, `service.name`) en objets, pour que les processeurs suivants y accèdent. Pour les intégrations gérées par Fleet, les ajouts maison vont dans un pipeline `@custom` (au format `type-dataset@custom`), jamais dans le pipeline fourni, qui est remplacé à chaque mise à jour.
+
+## ECS : une question, un seul champ
+
+Chaque source garde ses champs propres (`aws.cloudtrail.*`, `aws.waf.*`, `aws.elb.*`), mais les pipelines ramènent les notions communes vers des champs ECS :
+
+| Notion | CloudTrail | WAF | API Novafact |
+| --- | --- | --- | --- |
+| Adresse source | `sourceIPAddress` vers `source.ip` (avec `source.geo` et `source.as`) | `httpRequest.clientIp` vers `source.ip` | `source.ip` |
+| Action | `eventName` vers `event.action` | `action` (ALLOW, BLOCK…) vers `event.action` | `authz_fail`, `invoice_export`… |
+| Résultat | `errorCode` vers `event.outcome` | selon l'action | `event.outcome` |
+| Acteur | `userIdentity` vers `user.name`, `aws.cloudtrail.user_identity.arn` | aucun | `user.id` |
+| Périmètre | `cloud.account.id` | `aws.waf.arn` | `organization.id` (le tenant) |
+
+Conséquence directe : `source.ip: "203.0.113.42"` sur `logs-*` retrouve la même adresse dans le WAF, dans l'API et dans CloudTrail si elle a servi à appeler AWS. Et les règles prêtes à l'emploi d'Elastic, écrites en ECS, fonctionnent sur tes données sans adaptation.
+
+<Callout kind="tip">
+CloudTrail met `AWS Internal` ou le nom DNS d'un service dans `sourceIPAddress` pour les appels faits par AWS lui-même. Le pipeline garde la valeur brute dans `source.address` et ne remplit `source.ip` que si c'est une adresse. Une requête sur `source.ip` exclut donc naturellement ces appels internes.
+</Callout>
+
+## Ingérer n'est pas détecter : surveiller le silence
+
+La panne la plus dangereuse d'un SIEM est **silencieuse** : une rotation de clé KMS casse le déchiffrement, une file SQS change de nom, un pipeline échoue sur un nouveau format. Aucune alerte ne sonne, puisqu'il n'y a plus de données. Un attaquant qui désactive le trail (`StopLogging`, `DeleteTrail`) produit exactement ce silence ; Elastic fournit d'ailleurs des règles prêtes à l'emploi pour ces appels.
+
+La première détection de Novafact porte donc sur l'ingestion elle-même :
+
+<Code file="elastic/queries/fraicheur-des-flux.esql">
+
+```sql
+FROM logs-*-prod
+| WHERE @timestamp > NOW() - 7 days
+| STATS dernier = MAX(@timestamp) BY data_stream.dataset
+| EVAL minutes = DATE_DIFF("minute", dernier, NOW())
+| WHERE minutes > 60
+| SORT minutes DESC
+```
+
+</Code>
+
+Une source muette depuis plus de sept jours disparaît de ce résultat : la requête est donc comparée à une liste des flux attendus, et l'alerte porte sur l'absence. Côté intégrité, la validation CloudTrail (fichiers de *digest* signés en SHA-256 avec RSA) prouve qu'aucun fichier n'a été modifié ni supprimé dans S3, et l'intégration peut ingérer ces digests si tu renseignes l'expression correspondante.
+
+Reste la **rétention**. Les politiques de cycle de vie des flux (ILM ou *data stream lifecycle*) déplacent les données vers des paliers moins chers puis les suppriment. Novafact garde 13 mois pour les flux de sécurité et 30 jours pour les logs techniques, en cohérence avec sa politique de journalisation (leçon 1) : une durée qui n'est écrite nulle part finit toujours par être « pour toujours » ou « jusqu'à ce que le disque soit plein ».
+
+<Recap items={[
+  "Elastic Agent exécute les entrées, Fleet gère les politiques ; les données arrivent dans des flux type-dataset-namespace.",
+  "Pour les sources AWS, le schéma S3 puis SQS puis agent est la norme ; ne renseigne pas le bucket si tu utilises la file.",
+  "CloudTrail ne journalise pas les événements de données par défaut : active-les sur les buckets critiques.",
+  "Les logs applicatifs déjà en ECS n'ont besoin que d'un pipeline qui déplie le JSON ; les ajouts vont dans des pipelines @custom.",
+  "ECS donne un seul champ par notion (source.ip, event.action, event.outcome) à travers toutes les sources.",
+  "Surveille la fraîcheur de chaque flux : une source muette ressemble à du calme.",
+]} />
+
+<Sources items={[
+  { title: "Elastic : intégration AWS", url: "https://www.elastic.co/docs/reference/integrations/aws" },
+  { title: "Elastic : intégration AWS CloudTrail", url: "https://www.elastic.co/docs/reference/integrations/aws/cloudtrail" },
+  { title: "Elastic : Custom AWS Logs", url: "https://www.elastic.co/docs/reference/integrations/aws_logs" },
+  { title: "Elastic : pipelines d'ingestion personnalisés (Fleet)", url: "https://www.elastic.co/docs/reference/fleet/data-streams-pipeline-tutorial" },
+  { title: "AWS : événements de données CloudTrail", url: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-data-events-with-cloudtrail.html" },
+  { title: "AWS WAF : journalisation vers S3", url: "https://docs.aws.amazon.com/waf/latest/developerguide/logging-s3.html" },
+  { title: "Elastic Common Schema", url: "https://www.elastic.co/docs/reference/ecs" },
+]} />

@@ -1,0 +1,270 @@
+export const questions = [
+  {
+    q: "Le code de l'API contient `if (process.env.NODE_ENV !== 'production') app.use('/debug', debugRouter)`. En production, la task definition ECS a oublié de définir NODE_ENV. Que se passe-t-il ?",
+    options: [
+      "Rien : Node.js positionne `NODE_ENV` à `production` quand la variable est absente",
+      "Les traces de pile sortent, mais pas les routes : Express refuse de monter un routeur tardif",
+      "Les routes de debug sont exposées, et Express renvoie ses traces de pile par défaut",
+      "Rien de visible : ECS injecte `NODE_ENV=production` dans les tâches Fargate par défaut",
+    ],
+    answer: 2,
+    explain: "Node.js ne touche jamais à `NODE_ENV` : c'est une convention de l'écosystème, pas une valeur par défaut du runtime, et ECS n'ajoute rien non plus à la définition de tâche — croire le contraire est l'hypothèse confortable qui laisse passer le bug. Un test « tout sauf production » ouvre donc le mode debug dès que la variable manque. Express, lui, lit bien `NODE_ENV` et retombe en mode développement : les traces de pile partent dans les réponses d'erreur, en plus des routes. La version sûre n'active le debug que si la variable vaut explicitement `development`.",
+  },
+  {
+    q: "Pourquoi le champ `secrets` d'une task definition ECS (valueFrom vers Secrets Manager) ne règle-t-il pas entièrement le problème des secrets en variables d'environnement ?",
+    options: [
+      "Le secret reste une variable d'environnement et n'est pas rafraîchi après rotation",
+      "Parce qu'il exige une clé KMS gérée par le client, indisponible sur Fargate",
+      "Parce qu'il n'est lu qu'au premier démarrage du service, pas à chaque nouvelle tâche",
+      "Parce que la valeur reste visible en clair dans la définition de tâche versionnée",
+    ],
+    answer: 0,
+    explain: "Le champ `secrets` retire bien la valeur de la définition de tâche, et c'est déjà un vrai progrès : la croire encore en clair, c'est ignorer ce qu'il apporte. Mais il l'injecte dans l'environnement du conteneur, où le processus, ses enfants, un core dump ou `/proc/<pid>/environ` la voient. Et la résolution a lieu au démarrage de *chaque* tâche, pas seulement de la première : après une rotation, les tâches en cours gardent l'ancienne valeur jusqu'à leur remplacement. Pour un secret qui tourne souvent, on le lit depuis le code au moment de l'usage, avec un cache court.",
+  },
+  {
+    q: "Novafact crée son listener HTTPS d'ALB en CDK sans préciser de politique TLS. Quelle politique obtient-il ?",
+    options: [
+      "`ELBSecurityPolicy-2016-08`, qui accepte encore TLS 1.0 et 1.1",
+      "La politique post-quantique recommandée, comme dans la console",
+      "`ELBSecurityPolicy-TLS-1-2-2017-01`, plancher imposé par CloudFormation",
+      "Aucune : la synthèse du CDK échoue si la politique n'est pas précisée",
+    ],
+    answer: 0,
+    explain: "La console propose aujourd'hui `ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09`, mais la CLI, CloudFormation et le CDK retombent sur `ELBSecurityPolicy-2016-08`, qui accepte encore TLS 1.0 et 1.1. Supposer un plancher en TLS 1.2 côté API, ou espérer que la synthèse refuse un listener incomplet, mène au même résultat : un listener silencieusement permissif que personne ne relit. En IaC, la politique TLS s'écrit explicitement et se vérifie après déploiement.",
+  },
+  {
+    q: "Quelle réponse à une erreur 500 respecte à la fois le diagnostic et la sécurité ?",
+    options: [
+      "Le message de l'exception sans la trace : il ne contient aucun chemin de fichier",
+      "Un message générique et un identifiant de corrélation, le détail partant dans les logs",
+      "La trace de pile, mais seulement pour les comptes marqués administrateur",
+      "Une réponse vide avec un code 200, pour ne rien révéler du tout",
+    ],
+    answer: 1,
+    explain: "L'utilisateur transmet l'identifiant au support, qui retrouve l'erreur complète et sa trace dans Elastic : rien de l'implémentation ne sort vers le client. Renvoyer « juste le message » est la fausse prudence la plus répandue — un message d'exception contient couramment un nom de contrainte unique, un fragment de requête SQL ou un chemin absolu. Conditionner l'affichage au rôle administrateur déplace simplement le problème sur la qualité de ce contrôle d'accès-là. Et un 200 sur une erreur casse les clients et la supervision sans rien protéger.",
+  },
+];
+
+<YouKnow>
+En pentest, une bonne part de tes findings rapides vient de la configuration de production : trace de pile sur une 500, `X-Powered-By`, route de debug oubliée, clé dans une variable d'environnement, TLS 1.0 encore accepté. Côté AppSec, on règle ces sujets une fois, dans le code et l'IaC, pour qu'ils ne reviennent pas à chaque projet.
+</YouKnow>
+
+## Dev et prod : les réglages qui trahissent
+
+Une application Node ne sait pas qu'elle est en production : c'est toi qui le lui dis, par des variables et des options. Chaque réglage oublié laisse passer en production un comportement de poste de développeur.
+
+| Réglage | Sur ton poste | En production | Ce qui fuit si on l'oublie |
+| --- | --- | --- | --- |
+| `NODE_ENV` | `development` | `production` | Traces de pile dans les réponses d'Express, modes debug des bibliothèques |
+| Gestion d'erreurs | Détail complet | Message générique + identifiant | Chemins, requêtes SQL, versions (A10:2025) |
+| Source maps | Actives | Hors du bucket public (M4) | Code source du front, commentaires, routes internes |
+| Routes de debug, GraphiQL, Swagger UI | Actives | Retirées ou derrière authentification | Surface d'attaque gratuite |
+| Niveau de log | `debug` | `info` | Corps de requêtes, jetons, données personnelles dans Elastic |
+| Secrets | Fichier `.env` local | Secrets Manager | Clés dans l'image, la task definition ou un crash report |
+
+### NODE_ENV, une convention fragile
+
+Node.js lui-même ignore `NODE_ENV`. C'est une **convention** lue par Express (le gestionnaire d'erreurs par défaut renvoie `err.stack` hors production), par npm (`npm ci` omet les `devDependencies` quand elle vaut `production`) et par beaucoup de bibliothèques. Next.js la positionne lui-même avec `next build` et `next start`, mais une API Express lancée par `node server.js` dépend entièrement de ta task definition.
+
+Le vrai piège est dans ton propre code : un test « tout sauf production » **échoue en mode ouvert**. Si la variable manque, le debug s'active. Inverse la logique pour que l'absence de configuration donne le comportement sûr.
+
+<Diff file="apps/api/src/app.ts" hlBefore="1" hlAfter="1,2">
+
+```ts
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/debug', debugRouter);
+}
+```
+
+```ts
+const isDev = process.env.NODE_ENV === 'development'; // absent ou mal orthographié = production
+if (isDev) {
+  app.use('/debug', debugRouter);
+}
+```
+
+</Diff>
+
+## Erreurs : échouer sans parler
+
+L'OWASP Top 10:2025 a créé une catégorie dédiée, **A10:2025 Mishandling of Exceptional Conditions** : erreurs qui révèlent l'implémentation, exceptions qui laissent l'application dans un état incohérent, contrôles qui s'ouvrent quand une dépendance tombe. En production, la règle tient en une phrase : le client reçoit un message générique et un identifiant ; les logs reçoivent tout le reste.
+
+Express 5 transmet automatiquement au gestionnaire d'erreurs les promesses rejetées des handlers `async`. Il suffit donc d'un gestionnaire central, déclaré en dernier :
+
+<Code file="apps/api/src/middleware/errorHandler.ts" hl="5,8,10,11">
+
+```ts
+import type { ErrorRequestHandler } from 'express';
+import { randomUUID } from 'node:crypto';
+
+export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  if (res.headersSent) return next(err); // laisser Express fermer la connexion
+  const errorId = String(req.id ?? randomUUID());
+  const status = Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
+  req.log.error({ err, errorId, status }, 'request_failed'); // pino-http : pile complète, côté serveur
+  res.status(status).json({
+    error: status < 500 && err.expose ? err.message : 'Une erreur est survenue',
+    errorId,
+  });
+};
+```
+
+</Code>
+
+`err.expose` est posé par `http-errors` (utilisé par Express et `body-parser`) à `true` pour les erreurs 4xx, dont le message est prévu pour le client. Tout le reste est masqué, y compris les messages des pilotes Mongo ou Prisma qui citent des noms de collections et de colonnes.
+
+Deux compléments. Au niveau du processus, depuis Node 15, une promesse rejetée non gérée fait planter le processus par défaut : c'est le bon comportement. Journalise l'événement, laisse le processus s'arrêter, et l'orchestrateur (ECS, Kubernetes) relance une tâche saine plutôt que de continuer dans un état inconnu. Au niveau de la conception, vérifie que chaque contrôle de sécurité **échoue fermé** : si le service d'autorisation ne répond pas, la requête est refusée, pas autorisée (M8).
+
+## Secrets : sortir des variables d'environnement
+
+La méthode « Twelve-Factor » a popularisé la configuration par variables d'environnement. Pour la configuration, c'est très bien. Pour les secrets, c'est un mauvais emplacement :
+
+- la valeur est lisible par le processus **et tous ses enfants**, par `/proc/<pid>/environ` et par tout outil qui capture `process.env` (crash reporter, APM, route de diagnostic) ;
+- dans une task definition ECS en `environment`, elle est en clair pour quiconque a `ecs:DescribeTaskDefinition`, un droit très répandu ;
+- elle ne tourne pas : changer la valeur exige un redéploiement.
+
+<Callout kind="case">
+**Codecov (2021)**. Du 31 janvier au 1er avril 2021, le script Bash Uploader de Codecov a été modifié pour envoyer vers un serveur tiers la sortie de la commande `env` des pipelines CI qui l'exécutaient. Tout secret passé en variable d'environnement a été collecté d'un seul coup ; Codecov a demandé à ses clients d'invalider tous les identifiants présents dans l'environnement. Les voleurs d'identifiants de 2025 et 2026 (Shai-Hulud, la compromission de Trivy en mars 2026, M14) ont repris la même cible.
+</Callout>
+
+Trois niveaux existent sur ECS :
+
+| Approche | Où est la valeur | Rotation | Verdict |
+| --- | --- | --- | --- |
+| `environment` dans la task definition | En clair dans la task definition | Redéploiement | À proscrire pour un secret |
+| `secrets` + `valueFrom` (ARN Secrets Manager) | Injectée au démarrage du conteneur, rôle d'exécution | Nouvelle tâche nécessaire | Acceptable, simple |
+| Lecture par le SDK au runtime, avec cache | En mémoire du processus, rôle de la tâche | Prise en compte à l'expiration du cache | Recommandé pour les secrets qui tournent |
+
+La documentation ECS le précise pour la deuxième option : le secret est injecté au démarrage, une rotation n'est pas vue par les conteneurs en cours, et les applications, les logs du conteneur et les outils de debug ont accès aux variables. La troisième option ne laisse dans l'environnement que le **nom** du secret :
+
+<Code file="apps/api/src/config/secrets.ts" hl="4,10,12">
+
+```ts
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+
+const client = new SecretsManagerClient({});
+const TTL_MS = 5 * 60_000; // assez court pour suivre une rotation, assez long pour ne pas payer chaque appel
+const cache = new Map<string, { value: string; expires: number }>();
+
+export async function getSecret(secretId: string): Promise<string> {
+  const hit = cache.get(secretId);
+  if (hit && hit.expires > Date.now()) return hit.value;
+  const out = await client.send(new GetSecretValueCommand({ SecretId: secretId }));
+  if (!out.SecretString) throw new Error(`Secret ${secretId} vide ou binaire`);
+  cache.set(secretId, { value: out.SecretString, expires: Date.now() + TTL_MS });
+  return out.SecretString;
+}
+```
+
+</Code>
+
+Le droit `secretsmanager:GetSecretValue` va au **rôle de la tâche**, limité aux ARN des secrets de ce service, et la politique de ressource du secret peut restreindre qui le lit. Côté Lambda, l'extension AWS Parameters and Secrets joue le même rôle de cache local. La leçon 8 traite la rotation sans coupure.
+
+<Lab id="wrongsecrets" note="Les niveaux sur les variables d'environnement, les conteneurs et AWS illustrent chacun des emplacements du tableau." />
+
+## helmet, en-têtes et cookies
+
+`helmet` pose en une ligne treize en-têtes : une CSP par défaut, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, `X-XSS-Protection: 0` (le filtre historique des navigateurs créait lui-même des failles), et il retire `X-Powered-By`. Il ne pose **pas** `Permissions-Policy` ni `Cross-Origin-Embedder-Policy`.
+
+Pour une API qui ne sert que du JSON, la CSP utile est minimale : aucune ressource, aucune intégration en iframe. Les pages HTML reçoivent la politique stricte conçue en M4 (leçon 5 pour l'emplacement).
+
+<Code file="apps/api/src/app.ts" hl="5,8,9,13">
+
+```ts
+import express from 'express';
+import helmet from 'helmet';
+
+const app = express();
+app.set('trust proxy', 1); // un seul saut (l'ALB) : req.ip et req.secure deviennent fiables
+
+app.use(helmet({
+  contentSecurityPolicy: { useDefaults: false, directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
+  strictTransportSecurity: { maxAge: 63_072_000, includeSubDomains: true }, // 2 ans
+}));
+
+app.use((_req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+```
+
+</Code>
+
+`trust proxy` mérite une ligne d'explication. Derrière l'ALB, Express voit une connexion HTTP venant de l'adresse de l'ALB. Sans ce réglage, `req.secure` est faux (et `express-session` refuse de poser un cookie `Secure`), et `req.ip` vaut l'adresse de l'ALB, ce qui ruine les limites de débit par IP. Avec `true` au lieu de `1`, Express ferait confiance à toute la chaîne `X-Forwarded-For`, que le client contrôle en partie : indique le nombre exact de sauts.
+
+Pour les cookies de session, la configuration de M4 (leçon 6) s'applique telle quelle : préfixe `__Host-`, `Secure`, `HttpOnly`, `SameSite` explicite, sans `Domain`.
+
+<Callout kind="warn">
+HSTS avec `preload` inscrit le domaine dans les navigateurs pour des mois : tout sous-domaine de `novafact.example` devra servir du HTTPS valide, y compris un vieil outil interne. Active `includeSubDomains` après inventaire des sous-domaines, et `preload` seulement ensuite, par décision explicite.
+</Callout>
+
+## Certificats : ACM et politique TLS
+
+**AWS Certificate Manager** émet des certificats publics gratuits pour CloudFront et l'ALB, et les renouvelle automatiquement tant que l'enregistrement DNS de validation reste en place et que le certificat est utilisé. Depuis février 2026, ACM émet des certificats de 198 jours pour respecter la limite de 200 jours imposée par le CA/Browser Forum à partir du 15 mars 2026 ; la durée continuera de baisser. Un certificat renouvelé à la main une fois par an n'est plus une option : le renouvellement doit être automatique, et surveillé.
+
+Trois pièges reviennent en revue d'IaC :
+
+- **la région** : un certificat pour CloudFront doit être créé dans `us-east-1`, quelle que soit la région de l'application ;
+- **la validation** : préfère la validation DNS (renouvellement automatique) à la validation par e-mail ;
+- **la politique TLS de l'ALB** : la console propose `ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09`, mais la CLI, CloudFormation et le CDK prennent par défaut `ELBSecurityPolicy-2016-08`, qui accepte encore TLS 1.0 et 1.1.
+
+<Code file="infra/terraform/edge/tls.tf" hl="3,9,17">
+
+```hcl
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1" # obligatoire pour les certificats CloudFront
+}
+
+resource "aws_acm_certificate" "app" {
+  provider          = aws.us_east_1
+  domain_name       = "app.novafact.example"
+  validation_method = "DNS"
+  lifecycle { create_before_destroy = true }
+}
+
+resource "aws_lb_listener" "api_https" {
+  load_balancer_arn = aws_lb.api.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09" # jamais la valeur par défaut
+  certificate_arn   = aws_acm_certificate_validation.api.certificate_arn
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
+  }
+}
+```
+
+</Code>
+
+<Callout kind="novafact">
+Revue de mise en production de l'API Express (chiffres fictifs) : `DATABASE_URL` en `environment` dans la task definition, lisible par 14 rôles IAM ; listener créé en CDK sans `sslPolicy`, donc en `ELBSecurityPolicy-2016-08` ; `NODE_ENV` absent, donc traces de pile sur les 500 ; `trust proxy` non défini, donc limite de débit du login appliquée à l'adresse de l'ALB. Quatre corrections d'une ligne, et une règle Checkov maison (M16) qui refuse désormais tout listener HTTPS sans politique TLS 1.2 minimum.
+</Callout>
+
+<Steps items={[
+  { title: "Mode", text: "NODE_ENV=production posé par l'IaC, et un code qui échoue fermé si la variable manque." },
+  { title: "Erreurs", text: "Un gestionnaire central : message générique et errorId côté client, pile complète dans les logs." },
+  { title: "Secrets", text: "Aucun secret en environment ; lecture par le SDK ou champ secrets, droits limités au rôle de la tâche." },
+  { title: "En-têtes", text: "helmet, Permissions-Policy, trust proxy au nombre exact de sauts, cookies __Host-." },
+  { title: "TLS", text: "Certificats ACM validés par DNS, dans us-east-1 pour CloudFront ; politique TLS écrite explicitement." },
+  { title: "Vérifier", text: "Un test ou un template Nuclei (M13) qui provoque une 500 et vérifie l'absence de trace de pile, à chaque déploiement." },
+]} />
+
+<Recap items={[
+  "NODE_ENV est une convention : écris un code qui adopte le comportement sûr quand la variable manque.",
+  "A10:2025 : message générique et identifiant de corrélation côté client, détail complet dans les logs.",
+  "Pas de secret en variable d'environnement en clair ; lecture au runtime par le SDK avec cache pour suivre les rotations.",
+  "helmet couvre l'essentiel mais pas Permissions-Policy ; trust proxy au nombre exact de sauts derrière l'ALB.",
+  "ACM renouvelle seul des certificats de 198 jours ; la politique TLS de l'ALB s'écrit explicitement en IaC.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Top 10:2025, A10 Mishandling of Exceptional Conditions", url: "https://top10.owasp.org/2025/A10_2025-Mishandling_of_Exceptional_Conditions/" },
+  { title: "Express : bonnes pratiques de sécurité en production", url: "https://expressjs.com/en/advanced/best-practice-security.html" },
+  { title: "Amazon ECS : secrets Secrets Manager en variables d'environnement", url: "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-secrets-manager.html" },
+  { title: "OWASP Cheat Sheet : Secrets Management", url: "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html" },
+  { title: "helmet", url: "https://helmetjs.github.io/" },
+  { title: "Elastic Load Balancing : politiques de sécurité TLS de l'ALB", url: "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/describe-ssl-policies.html" },
+  { title: "AWS : ACM passe à 198 jours de validité (février 2026)", url: "https://aws.amazon.com/about-aws/whats-new/2026/02/aws-certificate-manager-updates-default" },
+]} />

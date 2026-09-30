@@ -1,0 +1,257 @@
+export const questions = [
+  {
+    q: "Derrière CloudFront et l'ALB, pourquoi une limite de débit par IP peut-elle bloquer tous les clients à la fois ?",
+    options: [
+      "Parce que CloudFront réutilise un pool restreint d'adresses de sortie vers l'origine",
+      "Parce que le store en mémoire est partagé entre toutes les instances de l'API",
+      "Parce que sans trust proxy, Express voit l'adresse du proxy pour tous les clients",
+      "Parce que X-Forwarded-For contient plusieurs adresses et Express retient la dernière",
+    ],
+    answer: 2,
+    explain: "req.ip doit refléter l'adresse réelle du client, ce qui suppose un trust proxy réglé sur le nombre exact de sauts (M3) : sans lui, tous les clients partagent la clé du proxy et la première rafale bloque tout le monde. L'histoire du X-Forwarded-For décrit le risque voisin — un trust proxy mal dimensionné fait retenir la mauvaise adresse dans la chaîne, et cette fois c'est l'attaquant qui choisit sa clé — mais ce n'est pas ce qui bloque tout le monde d'un coup.",
+  },
+  {
+    q: "Pourquoi un verrouillage de compte définitif après 5 échecs est-il dangereux ?",
+    options: [
+      "Parce qu'il empêche l'utilisateur d'utiliser sa MFA pour prouver son identité",
+      "N'importe qui peut verrouiller le compte d'une victime : c'est un déni de service",
+      "Parce que cinq essais sont insuffisants face à un mot de passe long et complexe",
+      "Parce que le déverrouillage par e-mail ouvre une nouvelle surface de phishing",
+    ],
+    answer: 1,
+    explain: "Il suffit de connaître une adresse e-mail pour bloquer son titulaire, et un script en bloque des milliers : le contrôle censé protéger devient l'arme. On préfère un ralentissement progressif et des défis, qui coûtent cher à l'attaquant sans jamais fermer la porte au vrai titulaire. La surface de phishing du déverrouillage est un effet secondaire réel, mais c'est une conséquence du choix, pas la raison de l'écarter.",
+  },
+  {
+    q: "Pourquoi Novafact compte-t-il les échecs consécutifs par couple « identifiant + IP » plutôt que par identifiant seul ?",
+    options: [
+      "Parce que le couple détecte mieux une attaque distribuée qu'une clé par identifiant",
+      "Parce que l'adresse IP suffit à identifier l'appareil, donc à reconnaître l'attaquant",
+      "Pour que le compteur reparte à zéro quand le titulaire change de réseau mobile",
+      "Pour bloquer l'attaquant sur ce compte depuis son adresse, sans gêner le titulaire",
+    ],
+    answer: 3,
+    explain: "Une clé par identifiant seul laisse n'importe qui verrouiller la victime en épuisant son compteur ; avec le couple, le blocage ne touche que la source des échecs, et le vrai titulaire se connecte depuis son réseau sans rien remarquer. Attention à l'idée que le couple verrait mieux une attaque distribuée : c'est l'inverse, la clé par identifiant seul est justement celle qui voit une attaque répartie sur mille adresses. Le couple la manque, et c'est le prix à payer — compensé par une limite quotidienne par IP et des signaux globaux.",
+  },
+  {
+    q: "Un attaquant dispose d'un bloc IPv6 /48 et change d'adresse à chaque requête. Quelle configuration garde la limite par IP efficace ?",
+    options: [
+      "Réduire la fenêtre de comptage pour que la limite se déclenche plus tôt",
+      "Regrouper les adresses IPv6 par préfixe (/56 ou /64) dans la clé de limitation",
+      "Ajouter l'empreinte de l'en-tête User-Agent à la clé pour distinguer les clients",
+      "Basculer le store sur Redis pour partager le compteur entre les instances",
+    ],
+    answer: 1,
+    explain: "Un client IPv6 reçoit en général un préfixe entier, pas une adresse : compter par /56 ou /64 ramène le bloc de l'attaquant à un seul compteur. express-rate-limit applique d'ailleurs ce masque /56 par défaut, et fournit ipKeyGenerator pour conserver ce comportement dans une clé personnalisée. Raccourcir la fenêtre ne change rien puisque chaque adresse repart de zéro ; le User-Agent se falsifie à volonté ; et partager le compteur entre instances est indispensable, mais ne fait que compter correctement des clés qui restent toutes différentes.",
+  },
+];
+
+<YouKnow>
+Tu as contourné des limites de débit avec X-Forwarded-For, des variations d'e-mail ou du batching GraphQL. Cette leçon conçoit une limite qui résiste à ces astuces sans pénaliser les vrais clients.
+</YouKnow>
+
+## Quoi limiter
+
+Une limite de débit s'applique à une **clé**. Le choix de la clé est la moitié du travail :
+
+| Clé | Contre quoi | Point d'attention |
+| --- | --- | --- |
+| Adresse IP | Attaques depuis peu d'adresses | Réseaux d'entreprise (une IP pour des centaines d'utilisateurs), proxys résidentiels, IPv6 |
+| Compte ciblé | Brute force d'un compte | Normaliser l'identifiant, et ne pas offrir de verrouillage à distance |
+| Utilisateur authentifié | Abus d'API | Adapter au plan et à l'ancienneté |
+| Tenant | Abus collectif d'un client | Limites contractuelles par plan |
+| Opération métier | Flux sensibles (API6) | Envois d'e-mails, exports, invitations |
+
+On combine plusieurs clés : une limite par compte **et** par IP **et** globale. Chaque clé a ses contournements, et c'est leur combinaison qui tient.
+
+### Normaliser la clé
+
+Tu as sans doute déjà contourné une limite par compte en variant l'identifiant. Côté défense, la clé doit être la **forme canonique** de ce que le système considère comme le même compte : minuscules, espaces retirés, normalisation Unicode (NFKC) pour que deux écritures visuellement identiques donnent la même clé. Pour les adresses avec sous-adressage (`jean+test@`), la règle doit être la même que celle de l'inscription : si Novafact accepte `jean+test@` comme un compte distinct, la limite doit aussi le traiter comme distinct, sinon elle diverge de la réalité.
+
+Pour **IPv6**, un client reçoit généralement tout un préfixe, et changer d'adresse ne coûte rien. Une clé par adresse complète ne limite donc rien. `express-rate-limit` applique par défaut un masque /56 aux adresses IPv6 (option `ipv6Subnet`), et fournit `ipKeyGenerator` pour conserver ce masque quand tu écris ta propre clé.
+
+## Les algorithmes
+
+| Algorithme | Principe | Force | Limite |
+| --- | --- | --- | --- |
+| Fenêtre fixe | Un compteur remis à zéro à chaque période | Simple, un seul compteur | Jusqu'à deux fois la limite autour du changement de fenêtre |
+| Fenêtre glissante | Compte les requêtes des N dernières secondes | Plus juste | Plus de mémoire ou une approximation |
+| Token bucket | Un seau se remplit à débit constant, chaque requête prend un jeton | Autorise une petite rafale, limite le débit moyen | Deux paramètres à régler (capacité, remplissage) |
+
+Le token bucket colle bien à l'usage humain : un comptable envoie dix factures d'un coup en fin de mois, puis rien pendant des jours. Une fenêtre fixe de « 10 par minute » laisse passer 20 requêtes en deux secondes à cheval sur deux minutes ; c'est rarement grave pour une API, mais c'est gênant pour un flux de connexion.
+
+## La vraie IP derrière CloudFront
+
+Chez Novafact, une requête traverse CloudFront, puis l'ALB, avant d'atteindre Express. Chaque proxy **ajoute** l'adresse qu'il voit à droite de `X-Forwarded-For`. Si un client envoie lui-même un en-tête forgé, sa valeur reste à gauche. Le réglage `trust proxy` dit à Express combien de sauts, en partant de la droite, sont de confiance :
+
+| Réglage | `req.ip` vaut | Conséquence |
+| --- | --- | --- |
+| Absent | L'adresse de l'ALB | Tous les clients partagent la même clé : une limite par IP bloque tout le monde |
+| `true` | L'entrée la plus à gauche | L'attaquant choisit son IP en forgeant l'en-tête |
+| `2` | L'adresse vue par CloudFront | La vraie adresse du client |
+
+Ce réglage suppose que **personne ne contourne CloudFront**. Si l'ALB est joignable directement, un attaquant lui parle sans passer par la bordure et forge l'en-tête. Deux contrôles ferment cette porte : le groupe de sécurité de l'ALB n'accepte que la liste de préfixes gérée par AWS `com.amazonaws.global.cloudfront.origin-facing`, et CloudFront ajoute un en-tête secret que l'ALB vérifie dans une règle d'écoute.
+
+## Dans Express
+
+<Code file="apps/api/src/middleware/rateLimits.ts" hl="5,14,15,24">
+
+```ts
+import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
+import { RedisStore, type RedisReply } from 'rate-limit-redis';
+import { redis } from '../redis'; // client ioredis partagé
+
+app.set('trust proxy', 2); // CloudFront puis ALB : req.ip est la vraie adresse (M3)
+
+const store = (prefix: string) => new RedisStore({
+  prefix,
+  sendCommand: (command: string, ...args: string[]) => redis.call(command, ...args) as Promise<RedisReply>,
+});
+
+// Filet global par IP, masque IPv6 conservé.
+export const perIp = rateLimit({
+  windowMs: 60_000, limit: 300, store: store('rl:ip:'),
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
+  standardHeaders: 'draft-8', legacyHeaders: false,
+});
+
+// Envoi de factures : par tenant, selon le plan.
+export const sendInvoices = rateLimit({
+  windowMs: 60 * 60_000, store: store('rl:send:'),
+  limit: (req) => planLimits(req.tenant).invoiceEmailsPerHour,
+  keyGenerator: (req) => `send:${req.tenant.id}`,
+  standardHeaders: 'draft-8', legacyHeaders: false,
+});
+```
+
+</Code>
+
+Le magasin **partagé** (Redis) est indispensable : avec plusieurs instances, un compteur en mémoire se multiplie par le nombre d'instances. Décide aussi du comportement si Redis tombe : pour les flux sensibles, Novafact préfère refuser (échec fermé) ; pour le filet global, laisser passer (échec ouvert) plutôt que couper tout le service.
+
+## La connexion, sans créer d'arme
+
+Pour la connexion, Novafact suit le schéma de la bibliothèque `rate-limiter-flexible` : deux compteurs d'**échecs**, jamais de succès.
+
+<Code file="apps/bff/src/auth/loginLimiter.ts" hl="5,6,11,12,22">
+
+```ts
+import { RateLimiterRedis } from 'rate-limiter-flexible';
+import { redis } from '../redis';
+
+// 1) Échecs par IP sur 24 h : freine les attaques depuis peu d'adresses.
+const failsByIp = new RateLimiterRedis({ storeClient: redis, keyPrefix: 'login_fail_ip', points: 100, duration: 86_400, blockDuration: 3_600 });
+// 2) Échecs consécutifs par identifiant ET IP : freine le brute force d'un compte sans verrouiller son titulaire ailleurs.
+const failsByUserIp = new RateLimiterRedis({ storeClient: redis, keyPrefix: 'login_fail_user_ip', points: 8, duration: 86_400, blockDuration: 900 });
+
+export async function guardLogin(email: string, ip: string) {
+  const key = `${normalizeEmail(email)}_${ip}`;
+  const [byIp, byUserIp] = await Promise.all([failsByIp.get(ip), failsByUserIp.get(key)]);
+  const blocked = [byIp && byIp.consumedPoints > 100 && byIp, byUserIp && byUserIp.consumedPoints > 8 && byUserIp].find(Boolean);
+  return blocked ? { retryAfterSec: Math.ceil(blocked.msBeforeNext / 1000) } : null;
+}
+
+export async function recordFailure(email: string, ip: string) {
+  await Promise.allSettled([failsByIp.consume(ip), failsByUserIp.consume(`${normalizeEmail(email)}_${ip}`)]);
+}
+
+export async function recordSuccess(email: string, ip: string) {
+  await failsByUserIp.delete(`${normalizeEmail(email)}_${ip}`); // remise à zéro des échecs consécutifs
+}
+```
+
+</Code>
+
+La clé « identifiant + IP » est le point clé : l'attaquant qui s'acharne sur un compte depuis son adresse est bloqué, mais le vrai titulaire, qui se connecte depuis la sienne, ne l'est pas. Le credential stuffing distribué passe sous ces deux compteurs, et c'est normal : il relève des signaux globaux, des mots de passe compromis et de la MFA (leçon 2). Dernier détail : la réponse de blocage est **la même** pour un compte existant et pour un compte inexistant, sinon la limite devient un oracle d'énumération.
+
+## À la bordure
+
+Une partie du travail peut se faire avant même Express, dans AWS WAF. Une règle de débit n'y accepte pas n'importe quelle fenêtre : 60, 120, 300 ou 600 secondes, avec une limite minimale de 10 requêtes, et une instruction de restriction (*scope-down*) pour ne compter que certaines requêtes.
+
+<Code file="infra/waf/rate.tf" hl="11,12,13">
+
+```hcl
+rule {
+  name     = "login-rate-per-ip"
+  priority = 10
+
+  action {
+    block {}
+  }
+
+  statement {
+    rate_based_statement {
+      limit                 = 50
+      evaluation_window_sec = 300
+      aggregate_key_type    = "IP"
+
+      scope_down_statement {
+        byte_match_statement {
+          search_string         = "/auth/login"
+          positional_constraint = "STARTS_WITH"
+          field_to_match {
+            uri_path {}
+          }
+          text_transformation {
+            priority = 0
+            type     = "LOWERCASE"
+          }
+        }
+      }
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "login-rate-per-ip"
+    sampled_requests_enabled   = true
+  }
+}
+```
+
+</Code>
+
+La bordure absorbe le volume brut à moindre coût ; l'application garde les limites qui demandent du contexte (compte, tenant, plan). AWS précise d'ailleurs que la limite appliquée est approximative : ne compte pas sur le WAF pour une règle métier au plus près.
+
+## Choisir les seuils
+
+Un seuil sorti d'un chapeau finit toujours de la même façon : trop bas, il bloque un gros client un lundi matin et se fait relever en urgence sans analyse ; trop haut, il ne sert à rien. Chez Novafact, chaque seuil part des journaux : on mesure le percentile 99 de l'usage légitime par clé (par tenant, par IP, par compte) sur plusieurs semaines, on applique une marge, et on déploie d'abord en **mode observation** (journaliser le dépassement sans bloquer). Les dépassements observés pendant cette période disent si le seuil attrape des abus ou des clients. Les exceptions (un tenant qui facture 3 000 clients le premier du mois) passent par le plan ou par une dérogation tracée, jamais par un relèvement global.
+
+## Répondre de façon graduée
+
+| Réponse | Quand |
+| --- | --- |
+| `429 Too Many Requests` avec `Retry-After` | Dépassement simple |
+| Ralentissement progressif | Échecs de connexion répétés |
+| Défi (Turnstile, MFA) | Risque élevé mais incertain (leçon 4) |
+| Blocage temporaire | Abus avéré |
+
+Les en-têtes `RateLimit` (brouillon IETF) indiquent au client légitime ce qu'il lui reste ; les intégrations des clients de Novafact s'en servent pour se réguler seules. Pour un flux de connexion, ne détaille pas plus que `Retry-After` : l'attaquant n'a pas à connaître tes seuils.
+
+<Callout kind="warn">
+Évite le **verrouillage définitif** après quelques échecs : n'importe qui pourrait verrouiller le compte d'une victime, ou de tous tes clients. Préfère le ralentissement, les clés « identifiant + IP » et les défis. Si un verrouillage est vraiment nécessaire, il doit être temporaire, et le titulaire doit pouvoir le lever lui-même par un canal qu'il contrôle.
+</Callout>
+
+## Checklist de revue
+
+- `trust proxy` vaut le nombre exact de sauts, et l'origine n'est joignable que par CloudFront.
+- Les clés sont normalisées (identifiant, préfixe IPv6).
+- Le magasin est partagé, et son indisponibilité a un comportement choisi.
+- Les compteurs de connexion ne comptent que les échecs, par identifiant et IP.
+- La réponse de blocage ne révèle pas si le compte existe.
+- Les seuils viennent des données d'usage réel, et sont revus.
+
+<Recap items={[
+  "Le choix de la clé fait la moitié de la limite : IP (avec préfixe IPv6), compte, utilisateur, tenant, opération.",
+  "Combiner plusieurs clés ; token bucket ou fenêtre glissante plutôt que fenêtre fixe pour les flux humains.",
+  "trust proxy réglé au nombre exact de sauts, origine fermée hors CloudFront, magasin partagé (Redis).",
+  "Pour la connexion : compter les échecs par identifiant + IP et par IP, jamais verrouiller le titulaire à distance.",
+  "WAF à la bordure pour le volume brut, application pour les limites contextuelles, réponses graduées.",
+]} />
+
+<Sources items={[
+  { title: "express-rate-limit : configuration (ipv6Subnet, ipKeyGenerator)", url: "https://express-rate-limit.mintlify.app/reference/configuration" },
+  { title: "rate-limiter-flexible", url: "https://github.com/animir/node-rate-limiter-flexible" },
+  { title: "AWS WAF : réglages des règles de débit", url: "https://docs.aws.amazon.com/waf/latest/developerguide/waf-rule-statement-type-rate-based-high-level-settings.html" },
+  { title: "AWS : limiter l'accès aux origines avec la liste de préfixes CloudFront", url: "https://aws.amazon.com/blogs/networking-and-content-delivery/limit-access-to-your-origins-using-the-aws-managed-prefix-list-for-amazon-cloudfront" },
+  { title: "OWASP API4:2023 Unrestricted Resource Consumption", url: "https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/" },
+  { title: "IETF : RateLimit header fields (draft)", url: "https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/" },
+]} />

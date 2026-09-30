@@ -1,0 +1,178 @@
+export const questions = [
+  {
+    q: "Qu'est-ce qu'un « gadget » dans le contexte de la prototype pollution côté serveur ?",
+    options: [
+      "Une fonction de fusion profonde qui recopie la clé __proto__ dans sa cible",
+      "Une propriété que l'attaquant ajoute à Object.prototype",
+      "Un code légitime qui lit une propriété héritée et change de comportement",
+      "Un module npm dont une version a été compromise en amont",
+    ],
+    answer: 2,
+    explain: "Les deux premières réponses désignent les autres pièces du mécanisme : la fusion profonde est la source, qui écrit dans le prototype, et la propriété ajoutée est la pollution elle-même. Ni l'une ni l'autre ne produit d'impact. Le gadget est ce qui transforme la pollution en vulnérabilité : un code parfaitement légitime, souvent un objet d'options, qui lit une propriété absente, la trouve héritée, et se met à faire autre chose.",
+  },
+  {
+    q: "Quelle mesure de durcissement neutralise une grande partie des gadgets liés aux objets d'options ?",
+    options: [
+      "Rejeter les clés __proto__ à l'entrée avec secure-json-parse",
+      "Lancer Node avec l'option --disable-proto=delete",
+      "Valider chaque corps de requête par un schéma zod strict",
+      "Des objets d'options à prototype nul, ou Object.prototype figé",
+    ],
+    answer: 3,
+    explain: "Les trois autres sont d'excellentes mesures, et elles agissent toutes du même côté : elles coupent la source, c'est-à-dire ce qui permet d'écrire dans le prototype. C'est nécessaire, et insuffisant si la pollution arrive par un chemin que tu n'as pas couvert — une bibliothèque, un autre format d'entrée. Un objet d'options créé sans prototype n'hérite de rien, et un Object.prototype figé ne transmet plus rien : le gadget devient inopérant.",
+  },
+  {
+    q: "express.json() analyse un corps contenant une clé __proto__. Que se passe-t-il à cette étape ?",
+    options: [
+      "JSON.parse crée une propriété propre : rien n'est pollué à ce stade",
+      "Express rejette la requête, comme Fastify le fait par défaut",
+      "La clé est silencieusement supprimée par le body-parser d'Express",
+      "Object.prototype est pollué dès l'analyse du corps",
+    ],
+    answer: 0,
+    explain: "Attribuer à Express le comportement de Fastify est l'erreur d'audit la plus coûteuse : Fastify analyse avec secure-json-parse et refuse ces clés par défaut, Express appelle JSON.parse et les laisse passer telles quelles. Rien n'est supprimé non plus. Et rien n'est pollué à ce stade, puisque JSON.parse ne déclenche pas l'accesseur. Le danger vient de l'étape suivante, quand une fusion profonde ou un set par chemin recopie la clé.",
+  },
+  {
+    q: "Après Object.freeze(Object.prototype), une ancienne bibliothèque plante avec une TypeError en assignant obj.toString = … sur un objet ordinaire. Pourquoi ?",
+    options: [
+      "Object.freeze supprime toString du prototype, donc l'appel échoue",
+      "Object.defineProperty est la seule écriture autorisée sur un objet gelé",
+      "Le gel est récursif : l'objet lui-même est devenu non extensible",
+      "La propriété héritée est non modifiable : l'affectation échoue au lieu de créer",
+    ],
+    answer: 3,
+    explain: "« Le gel est récursif » est la fausse piste la plus naturelle : Object.freeze ne gèle que l'objet qu'on lui passe, pas ce qui en hérite, et l'objet ordinaire reste parfaitement extensible. freeze ne supprime rien non plus. C'est l'override mistake de JavaScript : quand une propriété héritée est non modifiable, une affectation du même nom sur un descendant échoue au lieu de créer une propriété propre. Object.defineProperty, lui, fonctionne toujours sur l'instance — c'est la correction à demander à la bibliothèque.",
+  },
+];
+
+<YouKnow>
+Tu as exploité des désérialisations Node (node-serialize et consorts) et tu as fait les labs de prototype pollution côté serveur. On regarde la recherche récente sur les gadgets, le durcissement du runtime, et comment déployer ces contrôles sans casser la production.
+</YouKnow>
+
+## Des formats qui reconstruisent du comportement
+
+Le principe posé en M2 reste la base : `JSON.parse` ne produit que des données, mais certains formats **reconstruisent des types ou du code**. Dans l'écosystème JS :
+
+| Format ou bibliothèque | Ce qu'il reconstruit | Règle |
+| --- | --- | --- |
+| `node-serialize` | Des fonctions sérialisées, réévaluées à la lecture (CVE-2017-5941) | Jamais sur une entrée externe, et à retirer des dépendances |
+| `serialize-javascript` | Du code JavaScript destiné à être exécuté (état injecté dans une page) | Uniquement en sortie ; ne jamais relire une entrée avec `eval` |
+| `js-yaml` 3.x avec le schéma complet | Des types `!!js/function`, `!!js/regexp` | Depuis la 4.0.0 (janvier 2021), `load` est sûr par défaut et ces types ont été déplacés dans un paquet séparé : vérifie qu'il n'est pas réintroduit |
+| Protocole Flight (React Server Components) | Des références et structures du framework | Suivre les versions corrigées de React et Next.js |
+
+**React2Shell** (CVE-2025-55182, M2) a montré que le problème existe aussi **dans les frameworks** : le protocole Flight des Server Components désérialise des structures envoyées par le client. Aucune erreur applicative n'était nécessaire.
+
+Pour ta revue de dépendances, une recherche rapide dans le lockfile (`node-serialize`, `js-yaml-js-types`, versions 3.x de `js-yaml` utilisées avec un schéma non sûr) repère les candidats. C'est typiquement une règle à automatiser dans la CI (M14) plutôt qu'une vérification ponctuelle.
+
+## D'où vient la pollution
+
+Un point technique trop souvent flou : `JSON.parse` ne pollue **rien**. Quand il rencontre la clé `__proto__`, il crée une propriété **propre** portant ce nom, sans déclencher l'accesseur hérité. La pollution naît plus tard, quand du code recopie les clés avec une affectation (`target[key] = value`) : fusion profonde, clonage maison, affectation par chemin (`set(obj, 'a.b.c', v)`). À ce moment, `target['__proto__']` désigne le prototype, et l'écriture le modifie. Le cas d'école est `lodash.defaultsDeep`, vulnérable avant la 4.17.12 (CVE-2019-10744) via `constructor.prototype`.
+
+D'où une différence de valeurs par défaut entre frameworks, à connaître quand tu audites un projet :
+
+| Framework | Analyse JSON | Clés `__proto__` et `constructor.prototype` |
+| --- | --- | --- |
+| Express (`express.json`) | `JSON.parse` | Acceptées telles quelles |
+| Fastify | `secure-json-parse` | Rejetées par défaut (`onProtoPoisoning` et `onConstructorPoisoning` valent `'error'`) |
+
+Côté Express, tu peux obtenir le même comportement avec un middleware placé juste après l'analyse du corps :
+
+<Code file="apps/api/src/middleware/rejectProtoKeys.ts">
+
+```ts
+import sjson from 'secure-json-parse';
+
+// Même politique que Fastify : on refuse, on journalise, on ne « nettoie » pas en silence.
+export function rejectProtoKeys(req: Request, res: Response, next: NextFunction) {
+  if (req.body && typeof req.body === 'object') {
+    try {
+      sjson.scan(req.body, { protoAction: 'error', constructorAction: 'error' });
+    } catch {
+      logger.warn({ route: req.route?.path, ip: req.ip }, 'input.proto_key_rejected');
+      return res.status(400).json({ error: 'invalid_body' });
+    }
+  }
+  next();
+}
+
+app.use(express.json({ limit: '100kb' }), rejectProtoKeys);
+```
+
+</Code>
+
+Rejeter plutôt que supprimer a un double intérêt : aucun client légitime n'envoie ces clés, et chaque rejet devient un événement exploitable dans Elastic.
+
+## Pollution et gadgets
+
+Une pollution de prototype ne sert à rien sans **gadget** : un code légitime qui lit une propriété absente de son objet, la trouve dans le prototype pollué, et change de comportement. Les cibles typiques sont les **objets d'options** : options de `child_process.spawn` (shell, variables d'environnement), options de moteurs de templates (leçon précédente), réglages de bibliothèques HTTP.
+
+La recherche académique a outillé cette chasse :
+
+| Recherche | Apport |
+| --- | --- |
+| *Silent Spring* (USENIX Security 2023) | Des gadgets **universels** dans les API de Node.js elles-mêmes, qui mènent à l'exécution de code |
+| *GHunter* (USENIX Security 2024) | Découverte automatisée de gadgets dans les runtimes Node.js et Deno |
+| *Server-side prototype pollution* (Gareth Heyes, PortSwigger, 2023) | Techniques de détection **non destructives** : des changements subtils dans les réponses révèlent la pollution sans casser l'application |
+
+Les techniques de Heyes intéressent aussi le défenseur, car elles décrivent les symptômes à surveiller. L'Academy les classe en trois familles : une pollution qui change le **code de statut** renvoyé par certaines erreurs, une qui change l'**indentation** des réponses JSON (le réglage `json spaces` d'Express), et une qui change le **jeu de caractères** d'une réponse. Si ton monitoring voit apparaître des réponses JSON indentées alors que l'application ne l'est jamais, ce n'est pas un bug cosmétique.
+
+Ces mêmes techniques ont été implémentées par Heyes dans une extension Burp open source, ce qui en fait un bon candidat pour le scan DAST de préproduction (M13) : non destructives, elles peuvent tourner à chaque version sans risquer de laisser un environnement partagé dans un état pollué. Complète par un test de régression unitaire : une requête dont le corps contient `__proto__` doit recevoir 400, et un objet vide créé après la requête ne doit porter aucune propriété inattendue.
+
+## Défense en profondeur
+
+<Steps items={[
+  { title: "Supprimer la source", text: "Pas de fusion d'objets arbitraires, schémas stricts, Map pour les dictionnaires (M2), rejet des clés __proto__ et constructor.prototype à l'entrée." },
+  { title: "Supprimer l'accesseur", text: "Lancer Node avec --disable-proto=delete retire __proto__ comme accesseur." },
+  { title: "Couper les gadgets", text: "Créer les objets d'options avec un prototype nul : Object.assign(Object.create(null), defaults, opts)." },
+  { title: "Figer le prototype", text: "Object.freeze(Object.prototype) au démarrage rend la pollution impossible, à tester soigneusement car certaines bibliothèques modifient les prototypes." },
+  { title: "Tenir à jour", text: "Les correctifs de gadgets arrivent dans Node et les bibliothèques : c'est un argument de plus pour des mises à jour régulières." },
+]} />
+
+<Code file="apps/api/src/harden.ts">
+
+```ts
+// Chargé avant tout le reste : node --disable-proto=delete --import ./dist/harden.js ./dist/server.js
+// (en ESM, les imports d'un module sont évalués avant son corps : un gel placé dans server.ts arriverait trop tard)
+if (process.env.HARDEN_PROTOTYPES !== 'off') {
+  Object.freeze(Object.prototype);
+  Object.freeze(Array.prototype);
+  Object.freeze(Function.prototype);
+}
+```
+
+</Code>
+
+<Callout kind="warn">
+Figer les prototypes peut casser des bibliothèques anciennes. La cause est un comportement méconnu de JavaScript, l'*override mistake* : quand une propriété héritée est non modifiable, une simple affectation d'une propriété propre du même nom (`obj.toString = …`) échoue, avec une `TypeError` en mode strict et en silence sinon. Active le gel d'abord en préproduction avec toute la suite de tests, et garde un interrupteur pour revenir en arrière. C'est un bon exemple de contrôle puissant qui se déploie progressivement.
+</Callout>
+
+<Callout kind="debate">
+Faut-il aller jusqu'au *Hardened JavaScript* ? Le projet SES (écosystème Endo) fournit une fonction `lockdown()` qui gèle l'ensemble des objets intrinsèques de façon cohérente, et des compartiments pour isoler du code. C'est la version rigoureuse de ce que fait le gel manuel ci-dessus, utilisée par des projets qui exécutent du code tiers. Pour une API métier comme celle de Novafact, l'équipe a jugé le coût d'adoption trop élevé : gel manuel des trois prototypes principaux, `--disable-proto=delete`, rejet à l'entrée. Le débat reste ouvert pour le futur service de plugins clients.
+</Callout>
+
+<Callout kind="novafact">
+Déploiement progressif chez Novafact : semaine 1, rejet des clés `__proto__` en mode journalisation seule (zéro occurrence légitime en sept jours, quatre sondages depuis deux adresses). Semaine 2, rejet effectif et `--disable-proto=delete`. Semaine 3, gel des prototypes en préproduction : une dépendance de génération de PDF cassait (override mistake sur `toString`), mise à jour vers une version qui utilise `Object.defineProperty`. Semaine 5, gel en production, avec l'interrupteur `HARDEN_PROTOTYPES` documenté dans le runbook.
+</Callout>
+
+<Recap items={[
+  "Certains formats reconstruisent du code : node-serialize, YAML typé, et même le protocole Flight de React.",
+  "JSON.parse ne pollue rien ; la pollution naît quand une fusion ou une affectation par chemin recopie __proto__.",
+  "Fastify rejette ces clés par défaut ; avec Express, un middleware secure-json-parse fait de même et produit un signal.",
+  "Une pollution de prototype a besoin d'un gadget, souvent un objet d'options ; Silent Spring et GHunter les cherchent dans les runtimes.",
+  "Durcissement : --disable-proto, objets d'options sans prototype, prototypes figés chargés avant tout le reste.",
+  "Le gel se déploie progressivement, à cause de l'override mistake, avec des tests et un interrupteur.",
+]} />
+
+<Lab id="ps-prototype-pollution" note="Fais les labs côté serveur, dont la détection non destructive." />
+<Lab id="ps-deserialization" />
+
+<Sources items={[
+  { title: "PortSwigger Research : Server-side prototype pollution", url: "https://portswigger.net/research/server-side-prototype-pollution" },
+  { title: "Silent Spring (USENIX Security 2023)", url: "https://www.usenix.org/conference/usenixsecurity23/presentation/shcherbakov" },
+  { title: "GHunter (USENIX Security 2024)", url: "https://www.usenix.org/conference/usenixsecurity24/presentation/cornelissen" },
+  { title: "Node.js : --disable-proto", url: "https://nodejs.org/api/cli.html#--disable-protomode" },
+  { title: "secure-json-parse", url: "https://github.com/fastify/secure-json-parse" },
+  { title: "GitHub Advisory : CVE-2019-10744 (lodash defaultsDeep)", url: "https://github.com/advisories/GHSA-jf85-cpcp-j695" },
+  { title: "js-yaml", url: "https://github.com/nodeca/js-yaml", note: "changelog 4.0.0 : types js déplacés dans js-yaml-js-types" },
+  { title: "SES (Hardened JavaScript)", url: "https://github.com/endojs/endo/tree/master/packages/ses" },
+]} />

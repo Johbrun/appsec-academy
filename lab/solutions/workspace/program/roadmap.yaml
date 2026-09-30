@@ -1,0 +1,169 @@
+# Livrable de référence — challenge samm-roadmap (M1).
+#
+# Dérivée de l'évaluation, pas du modèle : elle couvre exactement les flux des
+# pratiques sous le seuil de 1,5, et pour chacun l'activité du niveau
+# immédiatement supérieur — pas la plus spectaculaire, la suivante. Une pratique
+# au-dessus du seuil n'y figure pas, même si on aimerait y toucher.
+#
+# La répartition sur les quatre trimestres, elle, est un arbitrage : elle n'est
+# pas notée. Ce qui l'est, c'est la couverture exacte et le niveau de départ.
+
+seuil: 1.5
+
+jalons:
+  # Identifier les objectifs de sécurité de l'organisation
+  - pratique: SM
+    flux: SM-A
+    niveau-actuel: 0
+    activite: SM-A-1
+    echeance: T1
+  # Collecter quelques métriques de base sur les défauts
+  - pratique: SM
+    flux: SM-B
+    niveau-actuel: 0
+    activite: SM-B-1
+    echeance: T1
+  # Écrire les politiques et normes de développement applicables
+  - pratique: PC
+    flux: PC-A
+    niveau-actuel: 0
+    activite: PC-A-1
+    echeance: T1
+  # Traduire chaque obligation en contrôle technique vérifiable
+  - pratique: PC
+    flux: PC-B
+    niveau-actuel: 1
+    activite: PC-B-2
+    echeance: T1
+  # Offrir une sensibilisation à la sécurité à toute l'équipe technique
+  - pratique: EG
+    flux: EG-A
+    niveau-actuel: 0
+    activite: EG-A-1
+    echeance: T1
+  # Identifier des relais sécurité dans les équipes
+  - pratique: EG
+    flux: EG-B
+    niveau-actuel: 0
+    activite: EG-B-1
+    echeance: T1
+  # Tenir une liste des menaces probables sur l'application
+  - pratique: TA
+    flux: TA-A
+    niveau-actuel: 0
+    activite: TA-A-1
+    echeance: T1
+  # Écrire quelques cas d'abus pour les fonctions sensibles
+  - pratique: TA
+    flux: TA-B
+    niveau-actuel: 0
+    activite: TA-B-1
+    echeance: T2
+  # Dériver des exigences de sécurité des fonctions métier
+  - pratique: SR
+    flux: SR-A
+    niveau-actuel: 0
+    activite: SR-A-1
+    echeance: T2
+  # Exprimer des attentes de sécurité aux fournisseurs
+  - pratique: SR
+    flux: SR-B
+    niveau-actuel: 0
+    activite: SR-B-1
+    echeance: T2
+  # Documenter les décisions d'architecture de sécurité
+  - pratique: SA
+    flux: SA-A
+    niveau-actuel: 0
+    activite: SA-A-1
+    echeance: T2
+  # Fournir des composants durcis, réutilisables et documentés
+  - pratique: SA
+    flux: SA-B
+    niveau-actuel: 1
+    activite: SA-B-2
+    echeance: T2
+  # Contrôler l'intégrité de ce qui est déployé
+  - pratique: SD
+    flux: SD-A
+    niveau-actuel: 1
+    activite: SD-A-2
+    echeance: T2
+  # Sortir les secrets du code et du dépôt
+  - pratique: SD
+    flux: SD-B
+    niveau-actuel: 0
+    activite: SD-B-1
+    echeance: T3
+  # Prioriser par le risque et tenir des délais de correction
+  - pratique: DM
+    flux: DM-A
+    niveau-actuel: 1
+    activite: DM-A-2
+    echeance: T3
+  # Compter les défauts ouverts et leur ancienneté
+  - pratique: DM
+    flux: DM-B
+    niveau-actuel: 0
+    activite: DM-B-1
+    echeance: T3
+  # Relire la conception des fonctions sensibles avant réalisation
+  - pratique: AA
+    flux: AA-A
+    niveau-actuel: 0
+    activite: AA-A-1
+    echeance: T3
+  # Vérifier que les contrôles prévus sont bien en place
+  - pratique: AA
+    flux: AA-B
+    niveau-actuel: 0
+    activite: AA-B-1
+    echeance: T3
+  # Tester manuellement les contrôles de sécurité clés
+  - pratique: RT
+    flux: RT-A
+    niveau-actuel: 0
+    activite: RT-A-1
+    echeance: T3
+  # Écrire quelques tests de mésusage des fonctions métier
+  - pratique: RT
+    flux: RT-B
+    niveau-actuel: 0
+    activite: RT-B-1
+    echeance: T3
+  # Journaliser les événements de sécurité des applications
+  - pratique: IM
+    flux: IM-A
+    niveau-actuel: 0
+    activite: IM-A-1
+    echeance: T4
+  # Écrire et éprouver les procédures de réponse
+  - pratique: IM
+    flux: IM-B
+    niveau-actuel: 1
+    activite: IM-B-2
+    echeance: T4
+  # Décrire les environnements en code et les contrôler
+  - pratique: EM
+    flux: EM-A
+    niveau-actuel: 1
+    activite: EM-A-2
+    echeance: T4
+  # Tenir des délais de correctif par niveau de criticité
+  - pratique: EM
+    flux: EM-B
+    niveau-actuel: 1
+    activite: EM-B-2
+    echeance: T4
+  # Classer les données manipulées par l'application
+  - pratique: OM
+    flux: OM-A
+    niveau-actuel: 0
+    activite: OM-A-1
+    echeance: T4
+  # Tenir l'inventaire des systèmes et de leur statut
+  - pratique: OM
+    flux: OM-B
+    niveau-actuel: 0
+    activite: OM-B-1
+    echeance: T4

@@ -1,0 +1,24 @@
+# CORRIGÉ : le state ne rentre plus dans le dépôt.
+#
+# Les deux lignes couvrent terraform.tfstate et terraform.tfstate.backup ainsi
+# que les états d'espaces de travail. Elles ne réparent que l'avenir : le
+# fichier qui était versionné reste dans l'historique et dans tous les clones
+# déjà faits. Le mot de passe de la base et la clé Stripe qu'il contenait sont
+# à révoquer, pas seulement à retirer.
+
+.terraform/
+.terraform.lock.hcl.bak
+
+*.tfstate
+*.tfstate.*
+
+*.tfplan
+crash.log
+crash.*.log
+
+# Les fichiers d'override servent aux expérimentations locales et n'ont rien à
+# faire dans le dépôt.
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

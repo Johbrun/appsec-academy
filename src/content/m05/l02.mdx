@@ -1,0 +1,163 @@
+export const questions = [
+  {
+    q: "Quelle nouvelle métrique d'exploitabilité apparaît dans CVSS 4.0 ?",
+    options: [
+      "Attack Requirements (AT), les conditions de déploiement nécessaires",
+      "Exploit Maturity (E), l'état du code d'exploitation en circulation",
+      "Scope (S), qui distingue le système vulnérable des systèmes voisins",
+      "Automatable (AU), qui dit si l'attaque se déroule sans intervention",
+    ],
+    answer: 0,
+    explain: "Attack Requirements décrit les conditions de déploiement ou de configuration nécessaires à l'attaque, que la complexité (AC) mélangeait auparavant. Les autres existent bel et bien, mais ailleurs : Scope appartenait à la 3.1 et disparaît en 4.0 au profit des impacts sur les systèmes subséquents, Exploit Maturity est la métrique de menace héritée de la temporalité, et Automatable est nouvelle mais supplémentaire — elle n'entre pas dans l'exploitabilité.",
+  },
+  {
+    q: "Que désigne la notation CVSS-BTE ?",
+    options: [
+      "Un score que seule l'autorité ayant publié la CVE peut calculer",
+      "Un score de base auquel on a ajouté les métriques supplémentaires",
+      "Un score de base recalculé après application des mesures compensatoires",
+      "Un score calculé avec les métriques de base, de menace et d'environnement",
+    ],
+    answer: 3,
+    explain: "CVSS 4.0 impose de nommer ce qui a servi au calcul : B pour la base seule, BT en y ajoutant la menace, BE l'environnement, BTE les trois. Les métriques supplémentaires n'entrent dans aucune de ces notations, puisqu'elles ne modifient pas le score ; et ne tenir compte que des mesures compensatoires donne un CVSS-BE, pas un BTE.",
+  },
+  {
+    q: "Les métriques supplémentaires (Supplemental) de CVSS 4.0 modifient-elles le score ?",
+    options: [
+      "Oui : elles s'ajoutent aux métriques d'environnement dans le calcul",
+      "Non : elles apportent du contexte sans entrer dans le calcul",
+      "Oui, mais seulement à la baisse, comme les métriques de menace",
+      "Non, sauf Automatable, reprise comme point de décision par SSVC",
+    ],
+    answer: 1,
+    explain: "Safety, Automatable, Recovery, Value Density, Vulnerability Response Effort et Provider Urgency informent la décision sans jamais toucher au chiffre. Qu'Automatable serve de point de décision à SSVC ne change rien : c'est une autre méthode qui la consomme, pas le calcul CVSS. Et les confondre avec les métriques d'environnement, qui pèsent réellement, fait croire qu'on a affiné un score resté intact.",
+  },
+  {
+    q: "Tu renseignes Exploit Maturity (E) sur un score CVSS-B de 7,1. Dans quel sens le score peut-il bouger ?",
+    options: [
+      "Il peut monter ou descendre, selon qu'une exploitation active a été constatée",
+      "Il ne peut que monter : la menace s'ajoute à la sévérité de base",
+      "Il ne peut que rester égal ou baisser : non renseignée, E vaut « Attacked »",
+      "Il ne bouge pas : la menace relève de CVSS-BE, pas de CVSS-BT",
+    ],
+    answer: 2,
+    explain: "CVSS 4.0 suppose le pire quand une métrique n'est pas renseignée : E:X est traité comme E:A. Indiquer qu'aucune exploitation n'est connue fait donc baisser le score, indiquer une exploitation active le laisse où il est, et il ne peut jamais monter. Seules des métriques de base revues — un vecteur d'attaque ramené au réseau adjacent, par exemple — jouent dans les deux sens.",
+  },
+];
+
+<YouKnow>
+Tu calcules des scores CVSS depuis longtemps, souvent en version 3.1. La version 4.0, publiée par le FIRST en novembre 2023, change la structure et surtout la façon de nommer ce qu'on a réellement évalué.
+</YouKnow>
+
+## Les quatre groupes de métriques
+
+| Groupe | Ce qu'il décrit | Qui le renseigne |
+| --- | --- | --- |
+| **Base** | Les caractéristiques intrinsèques de la vulnérabilité | L'éditeur ou le découvreur |
+| **Threat** | L'état de la menace : exploitation observée, preuve de concept, rien de connu | Toi, et ça évolue dans le temps |
+| **Environmental** | Ton contexte : exigences de confidentialité, d'intégrité et de disponibilité, mesures compensatoires | Toi |
+| **Supplemental** | Du contexte qui ne modifie pas le score | L'éditeur ou toi |
+
+## Ce qui change par rapport à 3.1
+
+- **Attack Requirements (AT)** apparaît : des conditions de déploiement nécessaires à l'attaque (une configuration particulière, une position réseau), distinctes de la complexité (AC).
+- **User Interaction** devient plus fin : aucune, passive ou active.
+- **Scope disparaît** : on évalue séparément l'impact sur le **système vulnérable** (VC, VI, VA) et sur les **systèmes subséquents** (SC, SI, SA).
+- Le groupe **Threat** remplace la « temporalité » avec une seule métrique utile, *Exploit Maturity* (attaquée, PoC, non signalée).
+- Les **métriques supplémentaires** ajoutent du contexte (sécurité physique, automatisabilité, récupération…) sans toucher au score.
+
+La disparition de Scope mérite qu'on s'y arrête, parce que c'était la métrique la plus disputée de la version 3.1. Une XSS stockée changeait-elle de périmètre ? Les évaluateurs répondaient différemment, et le score variait d'un bon point. En 4.0, la question devient concrète : qu'est-ce qui est touché dans le **composant vulnérable** (l'application qui stocke la note), et qu'est-ce qui est touché **au-delà** (le navigateur de la personne qui l'affiche) ? Pour une XSS, l'impact porte surtout sur le système subséquent : `VC:N/VI:N/VA:N` et `SC:L/SI:L`, par exemple.
+
+## Comment le score est calculé
+
+CVSS 4.0 n'a plus de formule au sens de la 3.1. Les valeurs du vecteur sont regroupées en **macro-vecteurs** (des classes d'équivalence), chacun associé à un score issu d'un classement réalisé par des experts, puis ajusté selon la position du vecteur dans sa classe. Deux conséquences pratiques :
+
+- inutile d'essayer de raisonner « cette métrique vaut 0,5 point » : l'effet d'un changement dépend du reste du vecteur ;
+- le calcul se fait avec un outil de référence (le calculateur du FIRST, ou une bibliothèque qui le reproduit), jamais à la main dans un tableur.
+
+L'échelle qualitative, elle, ne change pas : aucune (0), faible (0,1 à 3,9), moyenne (4,0 à 6,9), haute (7,0 à 8,9), critique (9,0 à 10).
+
+## Les valeurs par défaut supposent le pire
+
+C'est la subtilité la plus utile de la version 4.0, et la moins connue. Quand une métrique de menace ou d'environnement n'est pas renseignée (`X`, *Not Defined*), le calcul prend la valeur **la plus défavorable** : une Exploit Maturity absente compte comme « attaquée », des exigences de confidentialité, d'intégrité ou de disponibilité absentes comptent comme « hautes ». Un score CVSS-B correspond donc à l'hypothèse « exploitée activement, sur un actif important ».
+
+Renseigner la menace ne peut que **maintenir ou baisser** le score. Renseigner les exigences de sécurité aussi. Seules les métriques de base modifiées (un vecteur d'attaque réduit à `A` parce que le service n'est joignable que depuis le réseau interne, par exemple) peuvent jouer dans les deux sens.
+
+## Nommer ce qu'on a évalué
+
+C'est le changement le plus utile en pratique : CVSS 4.0 impose de dire **quelles métriques** ont servi au calcul.
+
+| Notation | Métriques utilisées |
+| --- | --- |
+| CVSS-B | Base seulement (ce qu'on trouve dans la plupart des avis) |
+| CVSS-BT | Base et menace |
+| CVSS-BE | Base et environnement |
+| CVSS-BTE | Base, menace et environnement |
+
+Un score **CVSS-B** publié par un éditeur ignore tout de ta situation. C'est un point de départ, pas une priorité.
+
+## Un exemple chez Novafact
+
+Une BOLA dans l'API de facturation : un utilisateur authentifié d'un tenant lit les factures d'un autre tenant.
+
+```text
+CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N
+```
+
+Réseau, faible complexité, pas de condition particulière, privilèges faibles (un compte client suffit), pas d'interaction, impact élevé sur la confidentialité du système vulnérable. Ajouter l'environnement (exigence de confidentialité élevée pour des données de facturation) et la menace (aucune exploitation connue) donne un score **CVSS-BTE** qui décrit la réalité de Novafact.
+
+| Évaluation | Vecteur ajouté | Score |
+| --- | --- | --- |
+| CVSS-B | aucun | 7,1 (haute) |
+| CVSS-BT | `E:P` (preuve de concept publique) | 5,7 (moyenne) |
+| CVSS-BT | `E:U` (aucune exploitation connue) | 4,9 (moyenne) |
+| CVSS-BTE | `E:U/CR:H` | 4,9 (moyenne) |
+
+Ce tableau illustre une limite importante. Une fuite de factures entre clients est l'un des pires scénarios pour un SaaS multi-tenant : conséquences contractuelles, notification RGPD, perte de confiance. Pourtant, le score qui décrit le mieux la situation technique descend à 4,9 dès qu'on indique qu'aucune exploitation n'est connue. Le FIRST le rappelle dans la spécification : CVSS décrit les caractéristiques **techniques** d'une vulnérabilité, et des facteurs comme les obligations réglementaires ou les pertes financières sont hors de son périmètre. Il mesure une **sévérité**, pas un **risque**. Pour ce finding, la décision de priorité vient de la grille (leçon 3) et de l'impact métier, pas du chiffre.
+
+## Les métriques supplémentaires en pratique
+
+| Métrique | Question | Usage chez Novafact |
+| --- | --- | --- |
+| Safety (S) | Des personnes peuvent-elles être blessées ? | Rarement pertinent pour la facturation |
+| Automatable (AU) | L'exploitation se déroule-t-elle de bout en bout sans humain, à grande échelle ? | Point de décision direct de SSVC (leçon 3) |
+| Recovery (R) | Le système se rétablit-il seul, sur intervention, ou pas du tout ? | Utile pour les dénis de service |
+| Value Density (V) | Une attaque réussie rapporte-t-elle beaucoup de ressources d'un coup ? | Une base de toutes les factures : dense |
+| Vulnerability Response Effort (RE) | Le correctif demande-t-il peu ou beaucoup d'effort ? | Planification du correctif |
+| Provider Urgency (U) | Quelle urgence l'éditeur attribue-t-il (échelle de Clear à Red) ? | Signal à lire dans les avis des fournisseurs |
+
+Ces métriques ne changent pas le chiffre, mais elles alimentent directement une décision. `AU` est l'exemple parfait : c'est l'un des quatre points de décision de SSVC.
+
+## Les pièges
+
+<Callout kind="warn">
+- **Comparer des scores 3.1 et 4.0** avec les mêmes seuils : pour un même défaut, les deux versions ne donnent pas le même chiffre. Un seuil « 7 et plus » dans ta politique doit préciser la version.
+- **Prendre le score du NVD pour celui de l'éditeur** : pour une même CVE, le score de l'autorité qui l'a publiée (le CNA) et celui du NVD divergent parfois. Garde la source du score avec le score.
+- **Stocker le chiffre sans le vecteur** : sans vecteur, impossible de réévaluer quand la menace change, ni de comprendre un désaccord.
+- **Scorer ses propres findings sans référentiel** : deux ingénieurs AppSec donnent des vecteurs différents pour la même BOLA. Une page interne d'exemples calibrés (BOLA, XSS stockée, SSRF vers IMDS) rend les évaluations cohérentes.
+</Callout>
+
+<Callout kind="debate">
+Faut-il encore scorer en CVSS les findings internes (pentest, revue de code) qui n'auront jamais de CVE ? Pour : un langage commun avec les outils et les rapports externes, et un vecteur qui force à décrire précisément l'attaque. Contre : le temps passé sur le chiffre, pour une décision que la grille prend de toute façon. Une position pragmatique : un vecteur de base pour tout finding confirmé (il documente), et la priorité donnée par la grille, qui est la seule à déclencher un SLA.
+</Callout>
+
+<Callout kind="warn">
+Le score de base ne dit rien de la probabilité d'exploitation ni de l'exposition réelle. Trier un backlog de dépendances par score CVSS-B produit des centaines de « critiques » dont la plupart ne sont pas atteignables. La leçon suivante combine CVSS avec les signaux qui manquent.
+</Callout>
+
+<Recap items={[
+  "Quatre groupes : Base, Threat, Environmental, Supplemental.",
+  "Nouveautés : Attack Requirements, interaction passive ou active, fin de Scope au profit des systèmes subséquents.",
+  "Score calculé par macro-vecteurs : on utilise le calculateur de référence, pas une formule mentale.",
+  "Non renseignées, menace et exigences supposent le pire : les renseigner ne peut que baisser ou maintenir le score.",
+  "La notation CVSS-B, BT, BE ou BTE dit ce qui a été évalué ; on stocke le vecteur et sa source.",
+  "CVSS mesure une sévérité, pas un risque : une BOLA inter-tenants peut finir à 4,9 et rester prioritaire.",
+]} />
+
+<Sources items={[
+  { title: "FIRST : CVSS v4.0 Specification", url: "https://www.first.org/cvss/v4-0/specification-document" },
+  { title: "FIRST : calculateur CVSS 4.0", url: "https://www.first.org/cvss/calculator/4-0" },
+  { title: "FIRST : CVSS v4.0 User Guide", url: "https://www.first.org/cvss/v4-0/user-guide" },
+  { title: "FIRST : exemples CVSS v4.0", url: "https://www.first.org/cvss/v4-0/examples" },
+  { title: "Red Hat : bibliothèque Python cvss (CVSS 2, 3 et 4)", url: "https://github.com/RedHatProductSecurity/cvss" },
+]} />

@@ -1,0 +1,183 @@
+export const questions = [
+  {
+    q: "Un diff ajoute une route et une dépendance npm inconnue. Qu'examiner en priorité ?",
+    options: [
+      "La validation du corps de requête de la route, et la version épinglée de la dépendance",
+      "Le score CVSS des CVE connues de la dépendance, et la couverture de tests de la route",
+      "L'authentification et l'autorisation de la route, et la provenance de la dépendance",
+      "La licence de la dépendance, et la cohérence du nommage de la route avec l'API existante",
+    ],
+    answer: 2,
+    explain: "Vérifier la validation d'entrée et la version épinglée est juste, mais cela suppose la question déjà réglée : une route sans contrôle d'autorisation reste exploitable avec un schéma zod parfait, et un paquet hostile publié la veille n'a ni CVE ni score CVSS. On commence par qui a le droit d'appeler, et par qui publie ce code.",
+  },
+  {
+    q: "Quel commentaire de revue est le plus utile ?",
+    options: [
+      "« Bloquant : lecture de la facture sans filtre de tenant. Utilise invoices.get(tenantOf(req), id). »",
+      "« Attention, il me semble qu'il manque un contrôle d'accès sur cette route, peux-tu vérifier ? »",
+      "« Bloquant : risque de BOLA (OWASP API1) sur cette route. Voir la fiche interne AUTH-03 pour le détail. »",
+      "« Cette route devrait passer par la couche d'accès aux données, comme le reste du module. »",
+    ],
+    answer: 0,
+    explain: "Les quatre commentaires disent quelque chose de vrai. Mais « peux-tu vérifier ? » renvoie le travail à l'auteur, la référence à une fiche interne l'oblige à traduire lui-même la règle en code, et l'appel à la convention ne dit pas que c'est bloquant. Le bon commentaire fait les trois d'un coup : gravité, cause, correction dans les conventions de l'équipe.",
+  },
+  {
+    q: "Dans une PR de refactoring, quelles lignes méritent le plus ton attention ?",
+    options: [
+      "Les lignes ajoutées, puisque c'est là qu'apparaît le nouveau code dangereux",
+      "Les signatures de fonction modifiées, dont les appelants peuvent ne plus valider",
+      "Les lignes déplacées d'un fichier à l'autre, qui changent de contexte d'exécution",
+      "Les lignes supprimées : un contrôle retiré ne déclenche aucun outil",
+    ],
+    answer: 3,
+    explain: "Les trois autres pistes sont réelles : un déplacement change le contexte, une signature modifiée déplace la responsabilité de la validation. Mais elles restent visibles en vert dans le diff, et les outils les analysent. Une vérification supprimée ne laisse qu'une ligne rouge — et aucun analyseur ne signale l'absence de code.",
+  },
+  {
+    q: "Le lockfile d'une PR change la ligne resolved d'un paquet vers une URL hors du registre npm, sans changement de package.json. Que fais-tu ?",
+    options: [
+      "Tu régénères le lockfile depuis package.json et tu demandes à l'auteur de repousser",
+      "Tu bloques et tu demandes l'explication : le lockfile peut faire installer un autre code",
+      "Tu approuves si npm audit et les tests passent : le champ integrity vérifie déjà le contenu",
+      "Tu ajoutes lockfile-lint en CI et tu approuves : le contrôle couvrira les prochaines PR",
+    ],
+    answer: 1,
+    explain: "Le champ integrity ne protège pas ici : il correspond au contenu réellement téléchargé depuis l'hôte indiqué, quel qu'il soit. Régénérer le lockfile et ajouter lockfile-lint sont de bons réflexes, mais le premier efface la trace sans expliquer d'où elle vient, et le second laisse passer la PR du jour. Personne ne relit 20 000 lignes de lockfile : c'est précisément pour ça qu'une injection y passe.",
+  },
+];
+
+<YouKnow>
+Relire une PR de 400 lignes en dix minutes sans rien rater d'important, c'est une compétence qui s'entraîne. Cette leçon donne la liste de ce qui mérite ton attention.
+</YouKnow>
+
+## Dix minutes, c'est du tri
+
+Soyons honnêtes sur les chiffres. L'étude menée par SmartBear chez Cisco, souvent citée, observe que l'efficacité de la revue chute au-delà de 200 à 400 lignes par session et au-delà d'environ 500 lignes par heure. Dix minutes ne suffisent donc pas à **lire** 400 lignes avec attention. Elles suffisent à **trier** : identifier les 40 lignes qui portent le risque, les lire vraiment, et survoler le reste en sachant qu'on le survole.
+
+<Steps items={[
+  { title: "1 minute : l'intention", text: "Le titre, la description, le ticket lié. Que doit faire ce changement ? Une PR sans description sur une zone sensible mérite déjà un commentaire." },
+  { title: "1 minute : la liste des fichiers", text: "Repérer les chemins sensibles (auth, billing, workflows, lockfile, migrations) et la taille de chaque fichier modifié." },
+  { title: "6 minutes : les zones sensibles, en contexte", text: "Ouvrir le fichier entier, pas seulement le diff : qui appelle cette fonction, quel middleware la précède, quel type a vraiment cette variable ?" },
+  { title: "2 minutes : le reste et la décision", text: "Survoler, puis approuver, commenter ou demander des changements, en disant ce que tu n'as pas relu." },
+]} />
+
+Si la PR est trop grosse pour être relue sérieusement, demande à la découper : c'est un retour légitime, et les pratiques de revue de Google le recommandent explicitement (des changements petits et autonomes). Le même guide fixe un délai de première réponse : un jour ouvré au maximum. Une revue rapide et partielle, annoncée comme telle, vaut mieux qu'une revue parfaite qui arrive après la fusion.
+
+## Lire le diff dans son contexte
+
+Le diff montre ce qui change, pas ce qui l'entoure. Pour une zone sensible, récupère la branche et lis-la dans ton éditeur :
+
+```bash
+gh pr checkout 482                              # la branche de la PR en local
+git diff origin/main...HEAD --stat              # les fichiers et le volume
+git diff origin/main...HEAD -w --color-moved    # sans les espaces, code déplacé en couleur distincte
+```
+
+`--color-moved` est précieux dans un refactoring : le code simplement déplacé s'affiche différemment du code réellement modifié, et ce qui reste en rouge vif est ce qui a vraiment disparu.
+
+Les **lignes supprimées** sont les plus dangereuses. Aucun scanner ne signale un contrôle qui disparaît :
+
+<Diff file="apps/api/src/routes/credit-notes.ts" hlBefore="3,4" hlAfter="3">
+
+```ts
+export const createCreditNote = defineRoute({ permission: 'credit-notes:create' }, async (req, res) => {
+  const body = CreditNoteInput.parse(req.body);
+  const invoice = await invoices.get(tenantOf(req), req.params.invoiceId);
+  if (body.amount > invoice.balance) throw new Conflict('amount_exceeds_balance');
+  res.status(201).json(await creditNotes.create(invoice, body));
+});
+```
+
+```ts
+export const createCreditNote = defineRoute({ permission: 'credit-notes:create' }, async (req, res) => {
+  const body = CreditNoteInput.parse(req.body);
+  const invoice = await invoiceService.load(req.params.invoiceId);   // « refactoring » : nouveau service
+  res.status(201).json(await creditNotes.create(invoice, body));
+});
+```
+
+</Diff>
+
+Le refactoring a introduit un service plus propre, mais il a perdu deux choses : le filtre par tenant (le nouveau `load` ne reçoit plus le tenant) et la vérification du solde. Le diff est court, les tests fonctionnels passent. La question à poser pour chaque ligne rouge : **où ce contrôle est-il repris ?**
+
+## Les changements sensibles
+
+Dans un diff, quelques zones concentrent l'essentiel du risque :
+
+| Signal dans le diff | Pourquoi |
+| --- | --- |
+| Nouvelle route, nouvelle Server Action, nouveau webhook | Nouvelle surface : authentification, autorisation, validation ? |
+| Code d'authentification, de session, de jetons | Zone critique (M8, M9) |
+| Requête brute, construction de requête, nouveau filtre | Injection, fuite via l'ORM (M2, M3) |
+| Accès à une ressource par identifiant | BOLA (leçon 5) |
+| Lignes supprimées dans un contrôle | Contrôle perdu au passage |
+| Nouvelle dépendance ou changement du lockfile | Code tiers, supply chain (M14) |
+| Workflow CI, Dockerfile, IaC | Pipeline et infrastructure (M14, M16) |
+| Gestion d'erreur, `catch` vide | Échec en ouvert, fuite d'informations (M2) |
+| Crypto, aléatoire, comparaison de secrets | Mauvais usage (M8) |
+| Journalisation | Données sensibles dans les logs (M18) |
+
+Le **lockfile** mérite une mention à part : personne ne relit 20 000 lignes générées, c'est justement ce qui en fait un vecteur. Une ligne `resolved` qui pointe vers un autre hôte que le registre fait installer un autre code que celui déclaré dans `package.json`. Délègue ce contrôle à la CI :
+
+```bash
+npx lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https
+```
+
+Pour une **nouvelle dépendance**, cinq questions suffisent : existe-t-elle vraiment sous ce nom exact, qui la publie, depuis quand, avec quelle adoption, et exécute-t-elle un script à l'installation ?
+
+## Des checklists par technologie
+
+<Steps items={[
+  { title: "Express", text: "Route déclarée via defineRoute, schéma strict (zod .strict()), autorisation par tenant, pas de req.body passé tel quel à l'ORM ou au rendu, erreurs transmises à next() plutôt qu'avalées." },
+  { title: "React", text: "Pas de dangerouslySetInnerHTML hors du composant dédié, URL validées avant un href ou un src, pas de secret ni de clé d'API dans le code client." },
+  { title: "Next.js", text: "Server Actions authentifiées et autorisées (ce sont des endpoints publics), DTO vers les Client Components, import 'server-only' sur les modules serveur, rien de sensible dans une variable NEXT_PUBLIC_." },
+  { title: "Prisma", text: "Pas de $queryRawUnsafe ni de Prisma.raw sur une entrée, filtres construits côté serveur, select explicite des champs renvoyés, pas de data: req.body." },
+  { title: "GitHub Actions", text: "Permissions minimales, actions épinglées par SHA, pas d'expression ${{ }} issue de l'événement dans un run (passer par une variable d'environnement), pas de checkout du code de la PR dans un workflow pull_request_target (M14)." },
+]} />
+
+## Des commentaires actionnables
+
+Un commentaire de revue efficace a trois parties : une **qualification** (bloquant, à corriger, suggestion), une **explication** courte du risque, et une **proposition** de correction dans les conventions de l'équipe. La convention *Conventional Comments* donne un format que tout le monde reconnaît (un libellé comme `issue`, `suggestion` ou `question`, et une décoration `(blocking)` ou `(non-blocking)`), et GitHub permet de proposer directement le code avec un bloc `suggestion`, que l'auteur applique en un clic :
+
+````markdown
+**issue (blocking):** `invoiceService.load` ne reçoit plus le tenant : un utilisateur d'Acme peut créer
+un avoir sur une facture de Globex en changeant l'id dans l'URL. La vérification du solde a aussi disparu.
+Proposition, comme dans `routes/invoices.ts` :
+
+```suggestion
+  const invoice = await invoiceService.load(tenantOf(req), req.params.invoiceId);
+  if (body.amount > invoice.balance) throw new Conflict('amount_exceeds_balance');
+```
+
+Et un test de refus dans `credit-notes.authz.test.ts` (M13, leçon 2) ?
+````
+
+Remarque le dernier point : demander le **test de refus** transforme ton commentaire en protection durable.
+
+<Callout kind="tip">
+Qualifie honnêtement : si tout est « bloquant », plus rien ne l'est. Réserve le blocage aux vrais risques, et laisse le reste en suggestions que l'équipe pourra traiter plus tard. Dis aussi ce qui est bien fait : un `praise` sur un bon schéma de validation apprend autant qu'une critique.
+</Callout>
+
+<Callout kind="debate">
+**Approuver avec commentaires, ou demander des changements ?** Beaucoup d'équipes approuvent en laissant des remarques non bloquantes, pour ne pas retarder la fusion. C'est sain pour les suggestions, dangereux pour un vrai problème de sécurité : une fois approuvée, la PR peut être fusionnée sans que le commentaire soit traité. La règle chez Novafact : un `issue (blocking)` s'accompagne toujours de « Request changes », jamais d'une approbation.
+</Callout>
+
+<Callout kind="tip">
+Le jeu **Diff Review** te fait relire des PR de Novafact comme sur GitHub : commenter les lignes à risque, qualifier chaque commentaire et décider d'approuver ou non.
+</Callout>
+
+<Recap items={[
+  "Dix minutes servent à trier : l'intention, la liste des fichiers, les zones sensibles lues en contexte, puis la décision.",
+  "Les lignes supprimées sont les plus dangereuses : pour chaque contrôle retiré, demander où il est repris.",
+  "Les zones sensibles d'un diff : surfaces nouvelles, authentification, requêtes, identifiants, dépendances et lockfile, pipeline, erreurs, crypto, logs.",
+  "Une checklist courte par technologie : Express, React, Next.js, Prisma, GitHub Actions.",
+  "Un commentaire utile : qualification, explication, correction proposée, et si possible le test de refus.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Code Review Guide", url: "https://owasp.org/www-project-code-review-guide/" },
+  { title: "GitHub : commenter une pull request (suggested changes)", url: "https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/commenting-on-a-pull-request" },
+  { title: "Google Engineering Practices : code review", url: "https://google.github.io/eng-practices/review/" },
+  { title: "SmartBear : best practices for peer code review", url: "https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/", note: "l'étude Cisco" },
+  { title: "Conventional Comments", url: "https://conventionalcomments.org/" },
+  { title: "lockfile-lint", url: "https://github.com/lirantal/lockfile-lint" },
+]} />

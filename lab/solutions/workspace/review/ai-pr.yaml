@@ -1,0 +1,38 @@
+# Revue de la PR générée par l'agent — livrable de référence.
+#
+# Deux constats sur quatre sont mécaniquement décidables, et c'est sur eux
+# qu'on note : la dépendance qui n'existe dans aucun registre, et le secret en
+# dur. Les deux autres — la validation absente et l'empreinte non
+# cryptographique — sont vérifiés par le test de régression après correction.
+
+verdict: rejetee
+
+findings:
+  - type: dependance-inexistante
+    package: "@novafact/pdf-signer"
+    raison: >-
+      Le paquet n'existe pas dans l'instantané du registre. Un nom inventé par
+      un modèle, publié ensuite par quelqu'un d'autre, c'est le squat de
+      hallucination : la dépendance arrive en production sans que personne ne
+      l'ait choisie.
+
+  - type: secret-en-dur
+    file: server/lib/pdf.ts
+    line: 7
+    raison: >-
+      Clé de signature en clair dans le code. Elle se révoque d'abord : la
+      retirer du fichier ne la retire ni de l'historique ni des clones.
+
+  - type: crypto-faible
+    file: server/lib/pdf.ts
+    line: 16
+    raison: >-
+      MD5 pour l'empreinte d'un document signé. Collision réalisable, donc
+      horodatage non opposable. SHA-256 au minimum.
+
+  - type: validation-absente
+    file: server/lib/pdf.ts
+    line: 19
+    raison: >-
+      Le nom de fichier entre dans un chemin sans contrôle, ce qui permet
+      d'écrire hors du dossier d'export.

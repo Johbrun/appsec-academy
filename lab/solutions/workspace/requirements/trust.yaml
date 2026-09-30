@@ -1,0 +1,77 @@
+# À qui Novafact fait confiance, sans l'avoir décidé.
+#
+# Une partie de confiance est une partie qui, si elle se retournait, ferait du
+# mal sans avoir à forcer quoi que ce soit : le registre qui sert le code, le
+# runner qui l'exécute, l'action qui lit les secrets. La liste se relève dans
+# le dépôt, pas dans les contrats.
+
+parties:
+  - partie: '@novafact/ui-kit'
+    type: dependance
+    ce-qu-il-pourrait-faire: >-
+      Paquet interne chargé dans le navigateur : une version piégée exécute du script
+      sur la page de paiement, où elle lit le formulaire de carte avant sa soumission.
+    mitigation: Publication par trusted publishing, version épinglée dans le lockfile, revue du diff à chaque montée.
+
+  - partie: node-fetch
+    type: dependance
+    ce-qu-il-pourrait-faire: >-
+      Toutes les requêtes sortantes du serveur passent par cette bibliothèque : elle voit
+      les URL, les en-têtes d'authentification et les corps, et peut les dupliquer ailleurs.
+    mitigation: Filtrage du réseau sortant du conteneur, et bascule prévue vers fetch natif pour supprimer la dépendance.
+
+  - partie: typescript
+    type: dependance
+    ce-qu-il-pourrait-faire: >-
+      Le compilateur transforme tout le code avant exécution : une version compromise
+      injecte ce qu'elle veut dans la sortie, sans que la source relue en garde trace.
+    mitigation: Dépendance de développement épinglée, construction reproductible et comparaison des artefacts entre deux runners.
+
+  - partie: actions/checkout
+    type: action-ci
+    ce-qu-il-pourrait-faire: >-
+      Première étape de chaque workflow, avec le jeton de la forge en main : elle peut
+      pousser des commits, ouvrir des versions, et lire tous les secrets du dépôt.
+    mitigation: Épinglage par SHA de commit complet et permissions du GITHUB_TOKEN réduites à la lecture par défaut.
+
+  - partie: novafact/ai-agent-action
+    type: action-ci
+    ce-qu-il-pourrait-faire: >-
+      Action maison qui reçoit le contenu des pull requests et appelle un modèle : elle
+      constitue un canal de sortie pour tout ce que le runner détient, y compris les secrets.
+    mitigation: Exécution sans secrets, sortie réseau restreinte au fournisseur du modèle, et revue du code de l'action au même titre que l'application.
+
+  - partie: action/checkout
+    type: action-ci
+    ce-qu-il-pourrait-faire: >-
+      Nom à un caractère près de l'action officielle : personne ne possède cette organisation,
+      donc quiconque l'enregistre obtient l'exécution de code dans nos workflows.
+    mitigation: À supprimer, et à interdire par une liste d'actions autorisées au niveau de l'organisation.
+
+  - partie: actions/setup-node
+    type: action-ci
+    ce-qu-il-pourrait-faire: >-
+      Elle installe l'exécutable qui interprétera tout le reste du workflow et gère le cache
+      des dépendances : un binaire substitué ici ne se voit dans aucune étape ultérieure.
+    mitigation: Épinglage par SHA, vérification de l'empreinte de la distribution Node et cache séparé entre branches et pull requests.
+
+  - partie: actions/upload-artifact
+    type: action-ci
+    ce-qu-il-pourrait-faire: >-
+      Elle décide de ce qui sort du runner et où cela part : un motif de fichiers trop large
+      publie les journaux de build, qui contiennent régulièrement des valeurs de secrets.
+    mitigation: Chemins d'artefacts explicites, rétention courte, et analyse de secrets sur les artefacts avant publication.
+
+  - partie: actions/cache
+    type: action-ci
+    ce-qu-il-pourrait-faire: >-
+      Le cache est écrit par un workflow et relu par un autre : une entrée empoisonnée depuis
+      une pull request externe se retrouve restaurée dans un build de la branche principale.
+    mitigation: Clés de cache séparées par branche, cache jamais partagé entre pull request et branche protégée.
+
+  - partie: uploader.novafact-ci.example
+    type: origine-externe
+    ce-qu-il-pourrait-faire: >-
+      Script téléchargé puis exécuté pendant le build, avec les variables d'environnement du
+      runner : c'est le motif exact de l'incident Codecov, et il n'exige aucune faille.
+    mitigation: Vérification de l'empreinte publiée avant exécution, ou hébergement interne du script sous revue.

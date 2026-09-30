@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://novafact.example/schemas/cyclonedx-1.6-vex.json",
+  "title": "CycloneDX 1.6 — profil VEX du lab",
+  "description": "Profil restreint de CycloneDX. Les énumérations de `analysis.state` et de `analysis.justification` sont celles de la spécification : elles ne portent PAS les mêmes noms que celles d’OpenVEX.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bomFormat",
+    "specVersion",
+    "version",
+    "vulnerabilities"
+  ],
+  "properties": {
+    "bomFormat": {
+      "const": "CycloneDX"
+    },
+    "specVersion": {
+      "enum": [
+        "1.5",
+        "1.6"
+      ]
+    },
+    "serialNumber": {
+      "type": "string",
+      "pattern": "^urn:uuid:[0-9a-fA-F-]{36}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "component": {
+          "type": "object"
+        },
+        "tools": {},
+        "authors": {
+          "type": "array"
+        }
+      }
+    },
+    "components": {
+      "type": "array"
+    },
+    "vulnerabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "affects",
+          "analysis"
+        ],
+        "properties": {
+          "bom-ref": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^CVE-\\d{4}-\\d{4,}$"
+          },
+          "source": {
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "published": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "affects": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ref"
+              ],
+              "properties": {
+                "ref": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "versions": {
+                  "type": "array"
+                }
+              }
+            }
+          },
+          "analysis": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state"
+            ],
+            "properties": {
+              "state": {
+                "enum": [
+                  "resolved",
+                  "resolved_with_pedigree",
+                  "exploitable",
+                  "in_triage",
+                  "false_positive",
+                  "not_affected"
+                ]
+              },
+              "justification": {
+                "enum": [
+                  "code_not_present",
+                  "code_not_reachable",
+                  "requires_configuration",
+                  "requires_dependency",
+                  "requires_environment",
+                  "protected_by_compiler",
+                  "protected_at_runtime",
+                  "protected_at_perimeter",
+                  "protected_by_mitigating_control"
+                ]
+              },
+              "response": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "can_not_fix",
+                    "will_not_fix",
+                    "update",
+                    "rollback",
+                    "workaround_available"
+                  ]
+                }
+              },
+              "detail": {
+                "type": "string"
+              },
+              "firstIssued": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lastUpdated": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

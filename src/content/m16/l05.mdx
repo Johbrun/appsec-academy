@@ -1,0 +1,139 @@
+export const questions = [
+  {
+    q: "Le Terraform de Novafact déclare un security group fermé, mais un ingénieur a ouvert le port 22 à la main dans la console pour déboguer. Comment nommer cet écart et comment le voir ?",
+    options: [
+      "Une régression de configuration, que le prochain déploiement corrigera tout seul",
+      "Une dérive, visible par `terraform plan`, AWS Config ou un CSPM comparant au réel",
+      "Une misconfiguration de code, que Checkov relève au prochain scan du dépôt",
+      "Un écart d’état, que `terraform refresh` réconcilie avec ce que décrit le code",
+    ],
+    answer: 1,
+    explain: "La dérive est l’écart entre l’infrastructure réelle et le code, et elle ne se voit qu’en comparant au réel. Le scan de code ne la trouvera jamais : le Terraform, lui, décrit toujours un security group fermé — c’est tout le piège. Et rafraîchir l’état ne réconcilie rien : cela enregistre la règle ouverte dans le state, sans la retirer ni la signaler comme un problème.",
+  },
+  {
+    q: "Quelle est la différence entre un contrôle préventif et un contrôle détectif en IaC et en cloud ?",
+    options: [
+      "Le préventif s’applique au code en CI, le détectif à l’infrastructure une fois déployée",
+      "Le préventif bloque le déploiement, le détectif se contente d’alerter : une affaire de sévérité",
+      "Le préventif empêche la ressource non conforme d’exister, le détectif la signale ensuite",
+      "Le préventif tourne à chaque PR, le détectif sur une planification nocturne",
+    ],
+    answer: 2,
+    explain: "La ligne de partage est le moment, pas l’outil : le préventif refuse l’existence de la ressource non conforme, le détectif constate qu’elle existe déjà. Réduire le préventif à « ce qui tourne en CI » est l’approximation la plus fréquente et elle coûte cher : une SCP, un hook CloudFormation ou un contrôleur d’admission Kubernetes sont préventifs et s’exécutent au déploiement, bien après la CI. Ce n’est pas davantage une question de sévérité ni d’horaire d’exécution.",
+  },
+  {
+    q: "Pourquoi corriger une dérive directement dans la console plutôt que dans le code est-il un piège ?",
+    options: [
+      "Le prochain `apply` rétablira le code : la source de vérité doit rester le dépôt",
+      "La console n’enregistre pas l’auteur du changement, la correction sera intraçable",
+      "La correction ne sera pas reprise par les autres environnements du même module",
+      "Le state deviendra incohérent et il faudra un `terraform import` pour la ressource",
+    ],
+    answer: 0,
+    explain: "Tant que la ressource est gérée par Terraform, le prochain `apply` réimposera ce que dit le code : la correction disparaîtra, ou elle écrasera au pire moment un changement qu’on croyait acquis. C’est un problème de source de vérité, pas de traçabilité — CloudTrail enregistre très bien qui a cliqué — ni d’intégrité du state, que Terraform rafraîchit sans avoir besoin d’un `import` sur une ressource qu’il gère déjà.",
+  },
+];
+
+<YouKnow>
+En pentest cloud, tu trouves souvent l’écart entre ce que l’équipe croit déployé et ce qui l’est vraiment : un port rouvert « pour dépanner », une politique élargie et jamais refermée. Cette leçon ferme cet écart de façon systématique.
+</YouKnow>
+
+## Le code ne suffit pas
+
+Les leçons précédentes scannaient le **code** (Checkov, cdk-nag) et le bloquaient en CI (policy as code). Mais l’infrastructure réelle diverge du code pour trois raisons :
+
+- une **modification manuelle** dans la console, en urgence ou pour déboguer ;
+- une ressource **créée hors IaC** (un bucket lancé à la main, un rôle ajouté par un autre outil) ;
+- un **changement automatique** du fournisseur (valeur par défaut modifiée, nouvelle propriété).
+
+Cet écart s’appelle la **dérive** (*drift*). Une infrastructure scannée parfaitement au niveau du code peut être grande ouverte en réalité. Il faut donc comparer en permanence l’état **déclaré** à l’état **réel**.
+
+## Détecter la dérive
+
+<Steps items={[
+  { title: "terraform plan en lecture seule", text: "Un plan régulier (nightly) sans apply : toute différence non vide signale une dérive. Le mode -detailed-exitcode renvoie 2 s’il y a des changements, ce qui s’exploite en CI." },
+  { title: "Rafraîchir l’état", text: "terraform plan -refresh-only isole les écarts entre l’état enregistré et le réel, sans les mélanger aux changements de code en attente." },
+  { title: "AWS Config", text: "Enregistre l’historique de configuration de chaque ressource et évalue des règles en continu ; il voit aussi les ressources créées hors Terraform." },
+  { title: "Un outil de CSPM", text: "Prowler, Steampipe, Cloud Custodian ou une offre commerciale balaient tout le compte contre des centaines de contrôles, au-delà du périmètre de ton IaC." },
+]} />
+
+<Callout kind="novafact">
+Chez Novafact, un workflow nocturne lance `terraform plan -detailed-exitcode` sur chaque environnement et ouvre une alerte si le code de sortie vaut 2. En parallèle, Prowler tourne chaque semaine sur les trois comptes (prod, staging, sandbox) et pousse ses résultats dans la même file de triage que le SAST (M5), avec l’étiquette « cloud ».
+</Callout>
+
+## Préventif contre détectif
+
+C’est la distinction structurante de la sécurité cloud, et elle recoupe la défense en profondeur de Kohnfelder (M8) :
+
+| | Préventif | Détectif |
+| --- | --- | --- |
+| **But** | Empêcher la ressource non conforme d’exister | Signaler celle qui existe déjà |
+| **Exemples IaC** | Policy as code bloquant en CI (leçon 3), hook `terraform plan` | `terraform plan` nightly, revue |
+| **Exemples cloud** | **SCP** et **RCP** (M15), Block Public Access au niveau du compte, VPC sans passerelle Internet | **AWS Config rules**, GuardDuty, Security Hub, CSPM |
+| **Force** | Rien de non conforme ne passe | Attrape ce que le préventif a manqué et la dérive |
+| **Limite** | Ne couvre que ce qui passe par le chemin contrôlé | La ressource existe déjà quand l’alerte tombe |
+
+Le préventif est toujours préférable quand il est possible : une SCP qui interdit `s3:PutBucketPublicAccessBlock` à `false` empêche définitivement l’ouverture d’un bucket, quel que soit l’outil utilisé. Mais le préventif ne couvre pas tout (une modification via un rôle privilégié légitime, une nouvelle catégorie de ressource) : le détectif reste le filet.
+
+## AWS Config : détecter et remédier
+
+Une règle AWS Config évalue une ressource et la marque conforme ou non. Beaucoup de règles gérées existent (`s3-bucket-public-read-prohibited`, `restricted-ssh`, `iam-user-no-policies-check`), et l’on peut en écrire en Lambda.
+
+<Code file="infra/config/remediation.tf">
+
+```hcl
+resource "aws_config_config_rule" "no_public_s3" {
+  name = "s3-bucket-level-public-access-prohibited"
+  source {
+    owner             = "AWS"
+    source_identifier = "S3_BUCKET_LEVEL_PUBLIC_ACCESS_PROHIBITED"
+  }
+}
+
+# Remédiation automatique : réactiver le Block Public Access sur toute dérive.
+resource "aws_config_remediation_configuration" "no_public_s3" {
+  config_rule_name = aws_config_config_rule.no_public_s3.name
+  target_type      = "SSM_DOCUMENT"
+  target_id        = "AWS-DisableS3BucketPublicReadWrite"
+  automatic        = true
+  maximum_automatic_attempts = 3
+  retry_attempt_seconds      = 60
+}
+```
+
+</Code>
+
+<Callout kind="warn">
+La remédiation automatique est puissante mais brutale : elle peut casser un usage légitime ou masquer un incident en cours. Réserve-la aux invariants non négociables (pas de bucket public, pas de SSH ouvert au monde), journalise chaque action, et alerte plutôt que de corriger sur tout le reste. Une remédiation silencieuse qui « répare » ce qu’un attaquant vient d’ouvrir efface aussi ta piste.
+</Callout>
+
+## Refermer la boucle par le code
+
+Détecter la dérive ne suffit pas : il faut la **résorber au bon endroit**. Deux cas :
+
+- **la dérive est une erreur** : on rétablit l’état du code (`terraform apply`), après avoir compris pourquoi elle est apparue ;
+- **la dérive est un besoin légitime** : on **modifie le code** pour l’intégrer, puis on applique. Jamais l’inverse.
+
+Corriger dans la console entretient un écart permanent : au prochain `apply`, Terraform rétablit le code et efface la correction manuelle, ou un collègue la réintroduit. La **source de vérité reste le code**, ce qui suppose que personne n’ait les droits d’écriture directs en production hors du pipeline (M16, leçon 4, et IAM en M15).
+
+## CSPM et la vue d’ensemble
+
+Un outil de **CSPM** (Cloud Security Posture Management) va au-delà de ton IaC : il balaie tout le compte, y compris ce qui n’a jamais été déclaré en Terraform, contre des référentiels (CIS Benchmarks, bonnes pratiques AWS). C’est souvent lui qui révèle les ressources « fantômes » créées à la main des années plus tôt. **Prowler** (open source) est un bon point de départ ; **Security Hub** agrège Config, GuardDuty et les standards CIS dans une vue unique.
+
+<Recap items={[
+  "La dérive est l’écart entre l’infrastructure réelle et le code ; le scan de code ne la voit pas.",
+  "La détecter : terraform plan nightly, AWS Config, et un CSPM (Prowler) pour tout le compte.",
+  "Préventif (SCP, Block Public Access, policy as code) et détectif (Config, CSPM) sont complémentaires.",
+  "La remédiation automatique se réserve aux invariants non négociables, journalisée.",
+  "Toute correction durable passe par le code, jamais par la console : la source de vérité reste l’IaC.",
+]} />
+
+<Lab id="terragoat" note="Déploie TerraGoat, scanne-le, corrige une misconfiguration dans le code, puis crée volontairement une dérive dans la console et observe-la avec terraform plan." />
+
+<Sources items={[
+  { title: "Terraform : detecting drift (plan -refresh-only)", url: "https://developer.hashicorp.com/terraform/tutorials/state/resource-drift" },
+  { title: "AWS Config : automatic remediation", url: "https://docs.aws.amazon.com/config/latest/developerguide/remediation.html" },
+  { title: "Prowler", url: "https://github.com/prowler-cloud/prowler" },
+  { title: "AWS Security Hub", url: "https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html" },
+  { title: "CIS AWS Foundations Benchmark", url: "https://www.cisecurity.org/benchmark/amazon_web_services" },
+]} />

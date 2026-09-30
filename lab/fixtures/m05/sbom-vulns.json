@@ -1,0 +1,207 @@
+{
+  "_a_propos": "Les vulnérabilités ouvertes sur le SBOM de Novafact. Le score et le vecteur sont ceux publiés par l’éditeur ; ni l’exploitation observée ni la probabilité d’exploitation ne figurent ici : elles se cherchent dans kev.json et epss.json.",
+  "genere_le": "2026-09-21T06:00:00.000Z",
+  "sbom": "sbom.cdx.json",
+  "vulnerabilites": [
+    {
+      "cve": "CVE-2026-21801",
+      "composant": "express",
+      "version": "4.17.1",
+      "cwe": "CWE-444",
+      "titre": "Désynchronisation de requêtes dans le parseur de corps",
+      "cvss_base": 9.8,
+      "cvss_severite": "critical",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    },
+    {
+      "cve": "CVE-2026-13044",
+      "composant": "lodash",
+      "version": "4.17.19",
+      "cwe": "CWE-1321",
+      "titre": "Pollution de prototype dans merge()",
+      "cvss_base": 9.1,
+      "cvss_severite": "critical",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+    },
+    {
+      "cve": "CVE-2025-48795",
+      "composant": "tar-fs",
+      "version": "2.1.1",
+      "cwe": "CWE-22",
+      "titre": "Écriture hors du dossier d’extraction",
+      "cvss_base": 8.8,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+    },
+    {
+      "cve": "CVE-2026-10233",
+      "composant": "ws",
+      "version": "7.4.5",
+      "cwe": "CWE-400",
+      "titre": "Déni de service par en-têtes répétés",
+      "cvss_base": 7.5,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+    },
+    {
+      "cve": "CVE-2025-30066",
+      "composant": "tj-actions-changed-files",
+      "version": "35.0.0",
+      "cwe": "CWE-506",
+      "titre": "Action compromise exfiltrant les secrets du runner",
+      "cvss_base": 8.6,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N"
+    },
+    {
+      "cve": "CVE-2026-22014",
+      "composant": "semver",
+      "version": "7.3.5",
+      "cwe": "CWE-1333",
+      "titre": "ReDoS sur la plage de versions",
+      "cvss_base": 7.5,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+    },
+    {
+      "cve": "CVE-2026-18877",
+      "composant": "minimist",
+      "version": "1.2.5",
+      "cwe": "CWE-1321",
+      "titre": "Pollution de prototype par argument long",
+      "cvss_base": 9.8,
+      "cvss_severite": "critical",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    },
+    {
+      "cve": "CVE-2026-30791",
+      "composant": "axios",
+      "version": "0.21.1",
+      "cwe": "CWE-918",
+      "titre": "SSRF par redirection non revalidée",
+      "cvss_base": 8.6,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N"
+    },
+    {
+      "cve": "CVE-2026-11902",
+      "composant": "node-fetch",
+      "version": "2.6.6",
+      "cwe": "CWE-200",
+      "titre": "Fuite de l’en-tête Authorization après redirection",
+      "cvss_base": 8.8,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N"
+    },
+    {
+      "cve": "CVE-2026-40155",
+      "composant": "jsonwebtoken",
+      "version": "8.5.1",
+      "cwe": "CWE-347",
+      "titre": "Confusion d’algorithme à la vérification",
+      "cvss_base": 9.8,
+      "cvss_severite": "critical",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    },
+    {
+      "cve": "CVE-2026-27718",
+      "composant": "qs",
+      "version": "6.5.2",
+      "cwe": "CWE-400",
+      "titre": "Explosion mémoire sur paramètres imbriqués",
+      "cvss_base": 7.5,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+    },
+    {
+      "cve": "CVE-2026-33420",
+      "composant": "glob-parent",
+      "version": "5.1.1",
+      "cwe": "CWE-1333",
+      "titre": "ReDoS sur les chemins à séparateurs répétés",
+      "cvss_base": 7.5,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+    },
+    {
+      "cve": "CVE-2026-19064",
+      "composant": "postcss",
+      "version": "8.2.10",
+      "cwe": "CWE-74",
+      "titre": "Injection par commentaire mal analysé",
+      "cvss_base": 8.2,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:N"
+    },
+    {
+      "cve": "CVE-2026-50188",
+      "composant": "vm2",
+      "version": "3.9.11",
+      "cwe": "CWE-693",
+      "titre": "Évasion du bac à sable",
+      "cvss_base": 9.8,
+      "cvss_severite": "critical",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+    },
+    {
+      "cve": "CVE-2026-24511",
+      "composant": "undici",
+      "version": "5.8.0",
+      "cwe": "CWE-345",
+      "titre": "Validation d’hôte insuffisante en TLS",
+      "cvss_base": 8.1,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
+    },
+    {
+      "cve": "CVE-2026-37622",
+      "composant": "follow-redirects",
+      "version": "1.14.7",
+      "cwe": "CWE-200",
+      "titre": "Transmission du cookie vers l’hôte de redirection",
+      "cvss_base": 8.6,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N"
+    },
+    {
+      "cve": "CVE-2026-44190",
+      "composant": "tough-cookie",
+      "version": "4.0.0",
+      "cwe": "CWE-1321",
+      "titre": "Pollution de prototype dans le magasin de cookies",
+      "cvss_base": 7.5,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+    },
+    {
+      "cve": "CVE-2026-15873",
+      "composant": "ip",
+      "version": "1.1.5",
+      "cwe": "CWE-918",
+      "titre": "isPublic() accepte une adresse privée octale",
+      "cvss_base": 8.1,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
+    },
+    {
+      "cve": "CVE-2026-29334",
+      "composant": "xml2js",
+      "version": "0.4.23",
+      "cwe": "CWE-1321",
+      "titre": "Pollution de prototype par clé XML",
+      "cvss_base": 9.1,
+      "cvss_severite": "critical",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+    },
+    {
+      "cve": "CVE-2026-48002",
+      "composant": "braces",
+      "version": "3.0.2",
+      "cwe": "CWE-1333",
+      "titre": "ReDoS sur l’expansion d’accolades",
+      "cvss_base": 7.5,
+      "cvss_severite": "high",
+      "cvss_vecteur": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+    }
+  ]
+}

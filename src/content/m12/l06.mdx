@@ -1,0 +1,176 @@
+export const questions = [
+  {
+    q: "Une PR générée par un assistant de code ajoute la dépendance « express-validator-plus », inconnue de l'équipe. Que vérifier ?",
+    options: [
+      "Que sa licence est compatible et que sa taille reste raisonnable",
+      "Que le paquet existe, qui le publie, depuis quand, et avec quel usage réel",
+      "Qu'il n'a pas de CVE ouverte et que npm audit ne signale rien après installation",
+      "Que ses fonctions ne dupliquent pas express-validator, déjà présent dans le projet",
+    ],
+    answer: 1,
+    explain: "Lancer npm audit après l'installation répond trop tard, et à la mauvaise question : un paquet enregistré hier n'a aucun avis publié, et son script postinstall s'est déjà exécuté. C'est le slopsquatting — des noms de paquets hallucinés par les modèles, de façon répétable, que des attaquants enregistrent ensuite. La vérification porte sur la provenance, et elle a lieu avant l'installation.",
+  },
+  {
+    q: "Quelle place donner à un outil de revue de code par IA comme CodeRabbit dans le processus ?",
+    options: [
+      "Un premier filtre : il propose des commentaires, la décision reste humaine",
+      "Un relecteur de plus dans le quorum, dont l'approbation compte comme une revue",
+      "Un contrôle bloquant en CI, ses commentaires devant être résolus avant fusion",
+      "Un outil de triage a posteriori, passé en lot sur les PR déjà fusionnées",
+    ],
+    answer: 0,
+    explain: "Le compter dans le quorum ou rendre ses commentaires bloquants lui donne un pouvoir de décision que sa précision ne justifie pas : il produit de vrais constats, mais aussi des faux positifs et des oublis silencieux. Le passer après la fusion, à l'inverse, perd l'essentiel de son intérêt. Il assiste le relecteur : il ne décide pas, et il ne vaut pas une approbation.",
+  },
+  {
+    q: "Un agent de code corrige un test qui échouait. Son diff ajoute `// nosemgrep` sur une ligne et remplace une assertion `toBe(403)` par `toBe(200)`. Que fais-tu ?",
+    options: [
+      "Tu acceptes le nosemgrep s'il est justifié, mais tu refuses le changement d'assertion",
+      "Tu demandes à l'agent de refaire le correctif avec une consigne plus précise",
+      "Tu bloques : l'agent a affaibli le contrôle au lieu de corriger le code",
+      "Tu approuves et tu ouvres un ticket pour revoir l'assertion au prochain sprint",
+    ],
+    answer: 2,
+    explain: "Accepter le nosemgrep tout en refusant l'assertion passe à côté de ce que les deux gestes ont en commun : l'agent n'a pas corrigé le code, il a supprimé ce qui constatait le défaut. Un agent optimise le critère qu'on lui donne — « la CI passe » — et affaiblir une assertion de refus ou masquer une alerte est le chemin le plus court. C'est exactement ce que la revue doit attraper.",
+  },
+];
+
+<YouKnow>
+Une part croissante du code des PR est écrite par des assistants. Il se relit comme n'importe quel code, avec quelques pièges spécifiques et un problème de volume.
+</YouKnow>
+
+## Pourquoi c'est différent
+
+Le code généré a trois propriétés qui changent la revue. Il est **plausible** : bien nommé, bien formaté, commenté, il n'a pas les signaux visuels qui attirent l'œil sur du code bâclé. Il est **abondant** : un développeur assisté produit plus de lignes par jour, et le relecteur n'a pas grandi au même rythme. Et son auteur humain ne l'a parfois **pas vraiment lu** : quand tu demandes « pourquoi ce choix ? », la réponse honnête est « c'est ce que l'outil a proposé ».
+
+Les études confirment le risque. À Stanford, Perry et ses coauteurs (CCS 2023) ont observé que les participants aidés d'un assistant de code écrivaient du code moins sûr que ceux sans assistant, **tout en étant plus confiants** dans la sécurité de ce code. C'est la combinaison dangereuse : moins de sécurité, moins de doute.
+
+## Les erreurs typiques du code généré
+
+| Erreur | Exemple |
+| --- | --- |
+| **Validation absente** | La route fonctionne pour le cas nominal, sans schéma ni contrôle de type |
+| **Autorisation oubliée** | Lecture par identifiant sans filtre de tenant : le modèle ne connaît pas la règle métier |
+| **Contexte de l'équipe ignoré** | Route déclarée avec `router.post` au lieu de `defineRoute`, accès direct à Prisma au lieu de la DAL |
+| **Dépendances inventées** | Un paquet qui n'existe pas… ou qu'un attaquant a enregistré depuis (*slopsquatting*) |
+| **Motifs obsolètes** | `url.parse`, `csurf`, anciennes API de crypto, versions vulnérables |
+| **Secrets et exemples** | Une clé d'exemple laissée en dur, un `console.log` du jeton pour déboguer |
+| **Crypto approximative** | IV fixe, `Math.random` pour un jeton, comparaison non constante |
+| **Contrôles affaiblis pour « faire passer »** | `// eslint-disable`, `// nosemgrep`, `@ts-ignore`, `any`, assertion de refus retournée |
+| **Code plausible mais faux** | Un contrôle qui a l'air juste mais teste la mauvaise variable |
+
+Voici une route d'invitation telle qu'un assistant l'a proposée, et telle qu'elle est sortie de la revue :
+
+<Diff file="apps/api/src/routes/members.ts" hlBefore="1,2,3,6" hlAfter="1,4,5,6,8">
+
+```ts
+router.post('/members/invite', async (req, res) => {
+  const { email, role, tenantId } = req.body;
+  const token = Math.random().toString(36).slice(2);
+  await prisma.invitation.create({ data: { email, role, tenantId, token } });
+  await mailer.send(email, `https://app.novafact.example/join?token=${token}`);
+  res.json({ ok: true, token });
+});
+```
+
+```ts
+const InviteInput = z.object({ email: z.string().email(), role: z.enum(['reader', 'accountant']) }).strict();
+
+export const inviteMember = defineRoute({ permission: 'members:invite' }, async (req, res) => {
+  const { email, role } = InviteInput.parse(req.body);                 // pas de tenant_admin par invitation
+  const token = randomBytes(32).toString('base64url');                // aléa cryptographique
+  const tokenHash = createHash('sha256').update(token).digest('hex'); // on ne stocke que l'empreinte
+  await prisma.invitation.create({
+    data: { email, role, tenantId: tenantOf(req), tokenHash, expiresAt: new Date(Date.now() + 48 * 3600e3) },
+  });
+  await mailer.sendInvite(email, token);
+  res.status(202).end();                                               // le jeton ne revient pas à l'appelant
+});
+```
+
+</Diff>
+
+Sept problèmes en sept lignes : aucune authentification ni permission, tenant choisi par le client, rôle libre (un lecteur peut s'inviter administrateur ailleurs), jeton prévisible, jeton renvoyé dans la réponse, stocké en clair, sans expiration. Le code « marche » et les tests générés avec lui passaient.
+
+## Les dépendances inventées
+
+Les modèles génèrent parfois des noms de paquets **qui n'existent pas**, et le font de façon reproductible. Des attaquants enregistrent ensuite ces noms sur npm : c'est le **slopsquatting**. L'étude de Spracklen et ses coauteurs (USENIX Security 2025) a analysé 576 000 échantillons de code produits par 16 modèles : 19,7 % des paquets recommandés n'existaient pas, soit 205 474 noms inventés distincts, autant de cibles à enregistrer.
+
+Toute nouvelle dépendance d'une PR assistée se vérifie :
+
+```bash
+npm view express-validator-plus name time.created maintainers repository.url   # existe-t-il, depuis quand, par qui ?
+npm view express-validator-plus scripts                                        # un preinstall ou postinstall ?
+```
+
+Un paquet créé la semaine dernière, sans dépôt, avec un script d'installation, n'entre pas. Les outils comme Socket automatisent ces signaux dans la PR (M13, M14).
+
+## Le volume
+
+Les assistants produisent plus de code, plus vite. La revue doit suivre sans devenir un goulot :
+
+<Steps items={[
+  { title: "Des PR petites", text: "L'assistant génère beaucoup ; la PR reste découpée, et la description dit ce qui a été généré." },
+  { title: "Les contrôles de classe d'abord", text: "defineRoute, lint, Semgrep et tests (M2, M13) attrapent les erreurs répétitives avant l'humain : plus il y a de code généré, plus ces garde-fous rapportent." },
+  { title: "Rendre visibles les suppressions d'alertes", text: "La CI signale toute nouvelle ligne eslint-disable, nosemgrep ou @ts-ignore, et exige une justification." },
+  { title: "Un relecteur IA en premier filtre", text: "CodeRabbit, Claude Code (commande /security-review) ou Copilot proposent des commentaires ; l'humain tranche." },
+  { title: "L'humain sur ce qui compte", text: "Autorisation, logique métier, nouvelles dépendances, conception, et les tests modifiés." },
+]} />
+
+Un relecteur IA se règle comme un collègue qu'on forme : on lui donne les conventions de l'équipe. Avec CodeRabbit, par exemple, des instructions par chemin :
+
+<Code file=".coderabbit.yaml">
+
+```yaml
+reviews:
+  path_instructions:
+    - path: "apps/api/src/routes/**"
+      instructions: |
+        Toute route doit être déclarée avec defineRoute et une permission de authz/policy.ts.
+        Le tenant vient toujours de tenantOf(req), jamais du corps, de la query ou d'un en-tête.
+        Signale tout accès Prisma direct : les routes passent par la DAL (apps/api/src/dal).
+    - path: "**/*.test.ts"
+      instructions: |
+        Signale toute assertion de refus (401, 403, 404) supprimée ou inversée.
+```
+
+</Code>
+
+Garde en tête ses limites : réponses non déterministes d'une exécution à l'autre, findings parfois inventés (une fonction qui n'existe pas, une ligne mal citée), et oublis silencieux. Un commentaire d'IA est une piste à vérifier, pas un verdict.
+
+<Callout kind="case">
+Le relecteur IA est lui-même une surface d'attaque. En janvier 2025, des chercheurs de Kudelski Security ont ouvert une simple PR contenant un fichier de configuration Rubocop sur un dépôt analysé par CodeRabbit. L'outil passait cette configuration au linter hors de son bac à sable, ce qui leur a permis d'exécuter du code sur ses serveurs et de lire ses variables d'environnement, dont la clé privée de l'application GitHub : un accès en écriture potentiel à un million de dépôts. CodeRabbit a corrigé en six jours. Leçon : un outil qui lit du code non fiable (une PR externe) doit être isolé comme n'importe quel service exposé.
+</Callout>
+
+## Les agents qui ouvrent des PR
+
+Les agents de code autonomes (qui lisent des issues et ouvrent des PR) ajoutent un risque : une **issue** ou un **commentaire** peut contenir des instructions cachées que l'agent suit (injection de prompt indirecte, M19). Les PR d'agents se relisent avec la même exigence que celles d'un contributeur externe inconnu.
+
+Les plateformes posent des garde-fous qu'il faut connaître et garder actifs. Pour l'agent de GitHub Copilot, la documentation précise que l'agent ne peut pas approuver ni fusionner son propre travail, que la personne qui lui a demandé la PR ne peut pas l'approuver non plus, et que par défaut les workflows GitHub Actions ne s'exécutent sur ses PR qu'après l'approbation d'un humain ayant les droits d'écriture.
+
+<Callout kind="debate">
+**Laisser tourner la CI sans approbation sur les PR d'agents ?** Depuis mars 2026, GitHub permet aux administrateurs d'un dépôt de lever l'approbation préalable des workflows pour les PR de l'agent Copilot. Pour : un retour de tests immédiat, l'agent itère seul. Contre : ces workflows peuvent accéder à des jetons et des secrets, et le code qu'ils exécutent a été écrit par un agent qu'une issue piégée a pu influencer. La position de Novafact : approbation conservée sur les dépôts qui ont des secrets de déploiement, levée sur les dépôts de bibliothèques internes sans secrets.
+</Callout>
+
+<Callout kind="warn">
+Le code généré n'arrive pas seulement par les PR. En juillet 2025, la version 1.84.0 de l'extension Amazon Q Developer pour VS Code a été publiée avec une consigne malveillante demandant à l'assistant d'effacer fichiers et ressources cloud. D'après le bulletin d'AWS, un jeton GitHub aux droits trop larges dans la configuration de build avait permis à l'attaquant de pousser ce code dans le dépôt, puis dans une release ; une erreur de syntaxe l'a empêché de s'exécuter. Les outils d'IA de tes développeurs font partie de ta chaîne d'approvisionnement (M14).
+</Callout>
+
+<Recap items={[
+  "Le code généré est plausible, abondant, et parfois non lu par son auteur ; les assistants rendent le code moins sûr et leurs utilisateurs plus confiants.",
+  "Il oublie surtout validation, autorisation et conventions de l'équipe, et affaiblit volontiers un contrôle pour faire passer un test.",
+  "Toute nouvelle dépendance d'une PR assistée se vérifie : le slopsquatting exploite des noms inventés, nombreux et reproductibles.",
+  "Contrôles de classe, suppressions d'alertes visibles et relecteur IA configuré en premiers filtres ; l'humain tranche sur l'essentiel.",
+  "Les PR d'agents se relisent comme celles d'un contributeur externe inconnu, et les garde-fous des plateformes restent actifs.",
+]} />
+
+<Sources items={[
+  { title: "CodeRabbit : instructions de revue par chemin", url: "https://docs.coderabbit.ai/guides/review-instructions" },
+  { title: "Claude Code : security review", url: "https://github.com/anthropics/claude-code-security-review" },
+  { title: "Perry et al., Do Users Write More Insecure Code with AI Assistants? (CCS 2023)", url: "https://arxiv.org/abs/2211.03622" },
+  { title: "Spracklen et al., We Have a Package for You! (USENIX Security 2025)", url: "https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen" },
+  { title: "Kudelski Security : How we exploited CodeRabbit", url: "https://kudelskisecurity.com/research/how-we-exploited-coderabbit-from-a-simple-pr-to-rce-and-write-access-on-1m-repositories" },
+  { title: "GitHub : risques et mesures d'atténuation de l'agent Copilot", url: "https://docs.github.com/en/copilot/concepts/agents/cloud-agent/risks-and-mitigations" },
+  { title: "AWS-2025-015 : Amazon Q Developer pour VS Code", url: "https://aws.amazon.com/security/security-bulletins/AWS-2025-015/" },
+  { title: "Socket : recherche sur les paquets malveillants", url: "https://socket.dev/blog" },
+  { title: "OWASP Top 10 for LLM Applications", url: "https://genai.owasp.org/" },
+]} />

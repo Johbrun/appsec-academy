@@ -1,0 +1,46 @@
+# Cadre de développement sécurisé — données embarquées du lab.
+#
+# Reprend la STRUCTURE du NIST SSDF (SP 800-218) : quatre groupes de pratiques
+# — PO préparer l'organisation, PS protéger le logiciel, PW produire du logiciel
+# sûr, RV répondre aux vulnérabilités — et des tâches numérotées. Les intitulés
+# sont réécrits en français et le sous-ensemble est celui qu'une attestation
+# client demande en pratique, pas les 42 tâches du référentiel complet.
+#
+# Statuts admis dans le livrable :
+#   mis-en-oeuvre · partiel · non-mis-en-oeuvre · non-applicable
+#
+# Une tâche « mis-en-oeuvre » ou « partiel » doit citer au moins une preuve :
+# un chemin de fichier du dépôt, qui doit exister. Une tâche « non-applicable »
+# doit porter une justification.
+
+taches:
+  - { id: PO.1.1, groupe: PO, nom: Définir les exigences de sécurité du développement }
+  - { id: PO.3.2, groupe: PO, nom: Outiller la chaîne de construction et en journaliser l'usage }
+  - { id: PO.5.1, groupe: PO, nom: Séparer et durcir les environnements de développement }
+  - { id: PO.5.2, groupe: PO, nom: Imposer l'authentification forte sur les accès au code }
+  - { id: PS.1.1, groupe: PS, nom: Protéger le code contre toute modification non autorisée }
+  - { id: PS.2.1, groupe: PS, nom: Permettre la vérification d'intégrité des versions publiées }
+  - { id: PS.3.1, groupe: PS, nom: Archiver et protéger chaque version publiée }
+  - { id: PS.3.2, groupe: PS, nom: Tenir la nomenclature logicielle de chaque version }
+  - { id: PW.1.1, groupe: PW, nom: Concevoir en tenant compte des exigences de sécurité }
+  - { id: PW.1.2, groupe: PW, nom: Modéliser les menaces des composants à risque }
+  - { id: PW.4.1, groupe: PW, nom: Réutiliser des composants existants plutôt que réécrire }
+  - { id: PW.4.4, groupe: PW, nom: Vérifier l'origine et l'intégrité des composants tiers }
+  - { id: PW.6.1, groupe: PW, nom: Configurer la chaîne de compilation pour la sécurité }
+  - { id: PW.6.2, groupe: PW, nom: Compiler avec les protections disponibles activées }
+  - { id: PW.7.1, groupe: PW, nom: Définir les critères de revue de code }
+  - { id: PW.7.2, groupe: PW, nom: Faire relire ou analyser le code avant fusion }
+  - { id: PW.8.2, groupe: PW, nom: Exécuter des tests de sécurité automatisés à chaque changement }
+  - { id: PW.9.1, groupe: PW, nom: Définir la configuration par défaut la plus sûre }
+  - { id: RV.1.1, groupe: RV, nom: Recueillir les signalements de vulnérabilités }
+  - { id: RV.1.3, groupe: RV, nom: Analyser en continu les vulnérabilités des dépendances }
+  - { id: RV.2.2, groupe: RV, nom: Corriger dans des délais fixés par la criticité }
+  - { id: RV.3.3, groupe: RV, nom: Traiter la cause racine et la classe de défauts, pas l'instance }
+
+# Les tâches sur lesquelles le harnais ne se contente pas de l'existence du
+# fichier cité. Elles sont nommées ici pour que l'énoncé ne mente pas sur
+# l'étendue du contrôle.
+approfondies:
+  PW.7.2: La preuve doit établir qu'une revue a réellement lieu avant fusion — un CODEOWNERS qui route au moins un chemin, ou un workflow qui analyse le code.
+  PW.8.2: La preuve doit être un workflow qui lance réellement une suite de tests.
+  RV.1.3: La preuve doit être un workflow ou une configuration qui lance réellement une analyse de dépendances.

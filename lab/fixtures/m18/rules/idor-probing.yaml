@@ -1,0 +1,34 @@
+id: idor-probing
+name: Sondage d’identifiants d’objets
+description: Un même compte lit plusieurs objets d’un autre tenant, et y parvient.
+severity: high
+risk_score: 70
+tags:
+  - 'Domaine: Application'
+  - 'Tactique: Collection'
+  - 'Technique: T1213'
+interval: 5m
+note: |-
+  ## Triage
+
+  1. Lister les objets réellement lus.
+  2. Prévenir le tenant concerné.
+query:
+  window: 5m
+  where:
+    - field: url.path
+      op: starts_with
+      value: /api/invoices/
+    - field: novafact.tenant.match
+      op: eq
+      value: false
+    - field: event.outcome
+      op: eq
+      value: success
+  group_by:
+    - user.name
+  having:
+    - metric: distinct
+      field: url.path
+      op: gte
+      value: 8

@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "2.1.0",
+  "runs": [
+    {
+      "tool": "snyk-code",
+      "results": [
+        {
+          "ruleId": "javascript/CWE-915",
+          "level": "high",
+          "message": {
+            "text": "Unsafe object merge from request body"
+          },
+          "properties": {
+            "cwe": [
+              "CWE-915"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/routes/profile.ts"
+                },
+                "region": {
+                  "startLine": 31
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "javascript/CWE-1321",
+          "level": "critical",
+          "message": {
+            "text": "Prototype pollution in recursive merge"
+          },
+          "properties": {
+            "cwe": [
+              "CWE-1321"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/routes/settings.ts"
+                },
+                "region": {
+                  "startLine": 34
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "javascript/CWE-22",
+          "level": "high",
+          "message": {
+            "text": "Path traversal in attachment download"
+          },
+          "properties": {
+            "cwe": [
+              "CWE-22"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/routes/attachments.ts"
+                },
+                "region": {
+                  "startLine": 26
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "javascript/CWE-347",
+          "level": "critical",
+          "message": {
+            "text": "JWT algorithm confusion"
+          },
+          "properties": {
+            "cwe": [
+              "CWE-347"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/lib/jwt.ts"
+                },
+                "region": {
+                  "startLine": 65
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "javascript/CWE-79",
+          "level": "high",
+          "message": {
+            "text": "Cross-site scripting via innerHTML"
+          },
+          "properties": {
+            "cwe": [
+              "CWE-79"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/pages/InvoiceDetail.tsx"
+                },
+                "region": {
+                  "startLine": 58
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "javascript/CWE-798",
+          "level": "medium",
+          "message": {
+            "text": "Hardcoded secret"
+          },
+          "properties": {
+            "cwe": [
+              "CWE-798"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/lib/jwt.ts"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "javascript/CWE-400",
+          "level": "low",
+          "message": {
+            "text": "Check-then-act on shared state"
+          },
+          "properties": {
+            "cwe": [
+              "CWE-400"
+            ]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/routes/credits.ts"
+                },
+                "region": {
+                  "startLine": 38
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+export const questions = [
+  {
+    q: "Comment s'articulent CWE, CAPEC et ATT&CK ?",
+    options: [
+      "CWE la vulnérabilité publiée, CAPEC son score, ATT&CK sa remédiation",
+      "CWE la faiblesse, CAPEC le motif d'attaque, ATT&CK le comportement adverse",
+      "CWE le défaut de code, CAPEC l'outil offensif, ATT&CK le groupe d'attaquants",
+      "CWE la catégorie OWASP, CAPEC le test associé, ATT&CK la détection SIEM",
+    ],
+    answer: 1,
+    explain: "La chaîne va de la cause dans le code (CWE) au motif d'attaque qui l'exploite (CAPEC), puis au comportement observé chez de vrais adversaires (ATT&CK). La confusion la plus fréquente est avec CVE : une CVE désigne une vulnérabilité précise dans un produit précis, une CWE la classe de faiblesse dont elle relève. Et ATT&CK décrit des techniques, pas des groupes — ceux-ci y sont rattachés, mais ce ne sont pas eux le référentiel.",
+  },
+  {
+    q: "Quelle technique ATT&CK Enterprise correspond à l'exploitation d'une vulnérabilité de l'API publique de Novafact ?",
+    options: [
+      "T1059 Command and Scripting Interpreter, pour l'exécution",
+      "T1078 Valid Accounts, avec des identifiants volés ailleurs",
+      "T1190 Exploit Public-Facing Application, en accès initial",
+      "T1195 Supply Chain Compromise, par une dépendance piégée",
+    ],
+    answer: 2,
+    explain: "T1190 couvre l'exploitation d'une application exposée sur Internet comme moyen d'accès initial : c'est bien le cas de l'API publique. T1059 est ce qui suit souvent — exécuter une commande une fois entré — et le piège consiste à nommer la conséquence plutôt que le point d'entrée. T1078 suppose des identifiants valides, donc aucune vulnérabilité exploitée.",
+  },
+  {
+    q: "La fiche CWE-639 (autorisation via une clé contrôlée par l'utilisateur, la cause typique d'une BOLA) ne pointe vers aucun motif CAPEC. Qu'en conclure pour le threat model de Novafact ?",
+    options: [
+      "Qu'il faut rattacher la menace au motif CAPEC-115 (Authentication Bypass), qui en est proche",
+      "Qu'il faut choisir une CWE parente mieux reliée, comme CWE-285",
+      "Que la menace doit être documentée hors référentiel, en texte libre",
+      "Que les correspondances entre référentiels sont incomplètes : elles enrichissent le modèle",
+    ],
+    answer: 3,
+    explain: "Les référentiels aident au vocabulaire et à la couverture ; ils ne décident pas de ce qui existe. Une menace identifiée dans le modèle reste réelle même si la chaîne CWE vers CAPEC vers ATT&CK a un trou. Remonter à une CWE parente mieux reliée est la manœuvre la plus tentante, et c'est précisément l'erreur : on perd la précision du diagnostic — l'autorisation pilotée par une clé fournie par l'utilisateur — pour gagner un lien qui n'apporte rien au correctif.",
+  },
+  {
+    q: "À quoi D3FEND sert-il concrètement dans un threat model ?",
+    options: [
+      "À nommer les contre-mesures et vérifier qu'on a durcissement et détection",
+      "À noter la gravité des techniques ATT&CK selon leur impact potentiel",
+      "À générer les règles de détection SIEM associées à chaque technique",
+      "À remplacer ATT&CK par une vue défensive du même ensemble de techniques",
+    ],
+    answer: 0,
+    explain: "D3FEND classe les contre-mesures par tactique défensive (modéliser, durcir, détecter, isoler, tromper, évincer, restaurer) et les relie aux techniques offensives : c'est une grille de couverture, qui fait apparaître qu'on a bien durci quelque chose mais qu'on ne saurait pas dire si c'est contourné. Il ne génère aucune règle — c'est une ontologie, pas un moteur — et il complète ATT&CK au lieu de le remplacer.",
+  },
+];
+
+<YouKnow>
+Tu connais ATT&CK, notamment par l'ATT&CK SaaS Academy. Cette leçon le relie aux référentiels plus proches du code, pour que le threat model parle à la fois aux développeurs et à l'équipe de détection.
+</YouKnow>
+
+## Trois référentiels de MITRE, trois niveaux
+
+| Référentiel | Décrit | Exemple |
+| --- | --- | --- |
+| **CWE** | Une **faiblesse** dans le code ou la conception | CWE-307 : restriction insuffisante des tentatives d'authentification |
+| **CAPEC** | Un **motif d'attaque** qui exploite des faiblesses | CAPEC-600 : Credential Stuffing |
+| **ATT&CK** | Le **comportement** d'un adversaire dans une intrusion réelle, par tactique | T1110.004 Brute Force: Credential Stuffing, puis T1078 Valid Accounts |
+| **D3FEND** | Les **contre-mesures** défensives, reliées aux techniques ATT&CK | D3-MFA (durcir), D3-ANET (détecter) |
+
+La chaîne **CWE → CAPEC → ATT&CK** relie une ligne de code à un comportement d'attaquant, et D3FEND ferme la boucle côté défense. Les trois premiers ne répondent pas à la même question : CWE dit **ce qui est mal fait**, CAPEC **comment on l'exploite en général**, ATT&CK **ce que font réellement les adversaires**, observé dans des intrusions documentées.
+
+## Une chaîne complète, et ses trous
+
+Prenons la menace « credential stuffing sur la connexion » du threat model de Novafact (M10). Les fiches de MITRE permettent de la dérouler :
+
+| Niveau | Entrée | Ce qu'elle apporte |
+| --- | --- | --- |
+| CWE | CWE-307, CWE-308 (authentification à facteur unique) | Les causes à corriger dans le code et la configuration |
+| CAPEC | CAPEC-600 Credential Stuffing, enfant de CAPEC-560 (usage d'identifiants connus) | Prérequis de l'attaque, mitigations génériques, motifs voisins (CAPEC-565 Password Spraying) |
+| ATT&CK | T1110.004 Brute Force: Credential Stuffing | Le vocabulaire de l'équipe de détection et des rapports de menace |
+| D3FEND | D3-MFA en durcissement ; D3-ANET et D3-UGLPA (analyse géographique des connexions) en détection | Une grille pour vérifier qu'on a à la fois de la prévention et de la détection |
+
+La fiche CAPEC-600 donne d'ailleurs directement la correspondance vers T1110.004 : c'est ce genre de lien qui rend la chaîne praticable.
+
+Elle a aussi des trous, et il faut le savoir avant d'en faire un outil de décision. La fiche **CWE-639** (autorisation via une clé contrôlée par l'utilisateur), cause typique de la BOLA, ne pointe vers aucun motif CAPEC. Et la même fiche CAPEC-600 cite parmi ses faiblesses l'absence d'expiration des mots de passe (CWE-262), une pratique que NIST SP 800-63B-4 interdit désormais d'imposer.
+
+<Callout kind="debate">
+**Les référentiels font-ils autorité ?** Certains praticiens traitent les correspondances MITRE comme une vérité à automatiser : « chaque CWE trouvée par le SAST génère ses techniques ATT&CK et ses détections ». D'autres rappellent que ces bases sont maintenues par des humains, avec des vitesses de mise à jour différentes, et qu'elles contiennent des liens discutables. Le compromis raisonnable : s'en servir pour le **vocabulaire** et la **couverture** (a-t-on pensé à la détection ?), jamais pour décider qu'une menace n'existe pas parce qu'aucune fiche ne la relie.
+</Callout>
+
+## Pourquoi c'est utile en AppSec
+
+- **Pour les développeurs** : CWE est leur vocabulaire (outils SAST, CVE, M2).
+- **Pour la détection** : ATT&CK est le vocabulaire de l'équipe de détection et du SIEM (M18). Rattacher une menace du threat model à une technique ATT&CK dit **ce qu'il faudrait voir en production** si elle se réalise.
+- **Pour la conformité et la communication** : un référentiel partagé évite les débats de vocabulaire.
+
+Concrètement, Novafact ajoute trois colonnes à ses threat models : la CWE de la cause, la technique ATT&CK, et la détection attendue. La troisième est la plus précieuse : elle oblige à répondre à « comment saurions-nous que cela arrive ? » au moment de la conception, quand ajouter un événement de journal ne coûte presque rien.
+
+<Code file="threat-model/auth.threats.yaml" hl="8,9,10">
+
+```yaml
+- id: TM-AUTH-03
+  element: flux navigateur vers BFF /auth/login
+  stride: [S]
+  scenario: rejeu massif d'identifiants issus d'autres fuites
+  cwe: [CWE-307, CWE-308]
+  capec: CAPEC-600
+  attack: T1110.004
+  mitigations: [MFA pour les rôles propriétaire et admin, Pwned Passwords, limites échecs par identifiant+IP]
+  d3fend: [D3-MFA, D3-ANET]
+  detection: règle Elastic « taux d'échec global » + new terms sur user.id / pays
+  ticket: NOVA-771
+```
+
+</Code>
+
+L'enrichissement ne doit pas alourdir la séance avec l'équipe. Chez Novafact, il se fait après, en une vingtaine de minutes, par le champion ou l'AppSec :
+
+<Steps items={[
+  { title: "Partir des menaces retenues", text: "Seulement celles qui ont donné lieu à une mitigation ou à une acceptation, pas toute la liste brute." },
+  { title: "Nommer la cause", text: "Une ou deux CWE par menace : c'est ce que le SAST et la revue de code (M12) chercheront." },
+  { title: "Nommer le comportement", text: "La technique ATT&CK la plus proche, et vérifier sur la fiche CAPEC s'il existe un lien direct." },
+  { title: "Écrire la détection attendue", text: "L'événement à journaliser et la règle à écrire ; si rien n'est détectable, le dire explicitement." },
+]} />
+
+## Les techniques qui concernent un SaaS JavaScript
+
+| Technique ATT&CK | Chez Novafact |
+| --- | --- |
+| T1190 Exploit Public-Facing Application | Vulnérabilité de l'API ou du back-office (React2Shell, M2) |
+| T1195.001 Compromise Software Dependencies and Development Tools | Paquet npm compromis, extension d'IDE (M14) |
+| T1195.002 Compromise Software Supply Chain | Action GitHub ou pipeline compromis, artefact modifié (M14) |
+| T1078.004 Valid Accounts: Cloud Accounts | Identifiants AWS ou comptes clients volés (M10, M15) |
+| T1110.004 Brute Force: Credential Stuffing | Rejeu d'identifiants sur la connexion (M10) |
+| T1528 Steal Application Access Token | Jetons OAuth volés ou obtenus par consentement abusif (M9) |
+| T1552.005 Unsecured Credentials: Cloud Instance Metadata API | SSRF vers IMDS (M3, M15) |
+| T1530 Data from Cloud Storage | Bucket mal configuré (M16) |
+
+Ces techniques se répartissent sur plusieurs tactiques (accès initial, accès aux identifiants, collecte). Les regarder par tactique aide à voir la **chaîne** : un T1552.005 réussi alimente un T1078.004, qui mène à un T1530. Un threat model qui ne couvre que l'accès initial laisse le reste de la chaîne sans détection.
+
+## Couverture et renseignement
+
+L'**ATT&CK Navigator** permet de colorer les techniques d'une matrice. Novafact y maintient deux calques : les techniques retenues dans ses threat models, et celles pour lesquelles une détection existe dans Elastic. La différence entre les deux est la liste de travail de l'équipe de détection, et c'est un support de discussion bien plus parlant qu'un tableur.
+
+Le **renseignement sur les menaces** utile à la conception n'est pas celui des flux d'indicateurs (adresses IP, empreintes de fichiers), qui périment en jours. C'est celui qui dit quelles techniques sont réellement employées contre des systèmes comme le tien : rapports d'incident des éditeurs, catalogue KEV de la CISA (les CVE exploitées, donc les CWE qui comptent), fiches des groupes dans ATT&CK. Traduit en conception, il donne des décisions durables : si l'exploitation d'applications exposées domine les accès initiaux dans ton secteur, le délai de correction des dépendances exposées devient une exigence, pas une bonne intention.
+
+## Le pont avec l'ATT&CK SaaS Academy
+
+Les techniques SaaS (fatigue MFA, applications OAuth malveillantes, règles de boîte mail cachées) décrivent ce qui arrive **aux comptes** des clients et des employés. Le threat model applicatif décrit ce qui arrive **au produit**. Les deux se rejoignent sur l'identité et les jetons (M9, M10). Pour Novafact, éditeur SaaS, les deux points de vue coexistent : ses employés sont la cible des techniques SaaS (un compte d'administration GitHub ou AWS pris), et son produit est l'environnement SaaS de ses clients, où ces mêmes techniques visent leurs comptes.
+
+<Recap items={[
+  "CWE (faiblesse) → CAPEC (motif d'attaque) → ATT&CK (comportement), et D3FEND pour les contre-mesures, du durcissement à la détection.",
+  "La chaîne a des trous (CWE-639 sans CAPEC) et des liens discutables : un outil de vocabulaire et de couverture, pas une source de vérité.",
+  "Chaque menace du threat model gagne à citer sa CWE, sa technique ATT&CK et la détection attendue.",
+  "T1190, T1195.001/.002, T1078.004, T1110.004, T1528, T1552.005 et T1530 sont les techniques clés d'un SaaS JavaScript sur AWS.",
+  "ATT&CK Navigator pour mesurer l'écart entre menaces modélisées et détections ; renseignement orienté techniques, pas indicateurs.",
+]} />
+
+<Sources items={[
+  { title: "MITRE ATT&CK", url: "https://attack.mitre.org/" },
+  { title: "ATT&CK T1110.004 Credential Stuffing", url: "https://attack.mitre.org/techniques/T1110/004/" },
+  { title: "MITRE CAPEC", url: "https://capec.mitre.org/" },
+  { title: "CAPEC-600 Credential Stuffing", url: "https://capec.mitre.org/data/definitions/600.html" },
+  { title: "MITRE CWE", url: "https://cwe.mitre.org/" },
+  { title: "CWE-639", url: "https://cwe.mitre.org/data/definitions/639.html" },
+  { title: "MITRE D3FEND", url: "https://d3fend.mitre.org/" },
+  { title: "ATT&CK Navigator", url: "https://mitre-attack.github.io/attack-navigator/" },
+]} />

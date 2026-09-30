@@ -1,0 +1,69 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Revue AppSec Novafact",
+          "informationUri": "https://novafact.example/appsec",
+          "version": "1.0.0"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "GET /api/invoices/:id charge la facture par son identifiant sans que le tenant de l'appelant n'entre dans la requête. Un compte authentifié d'une organisation lit les factures d'une autre en incrémentant l'identifiant, qui est séquentiel. Le contrôle existe sur la route de liste, il a été oublié ici : c'est la signature d'une autorisation laissée à la charge de chaque route."
+          },
+          "properties": {
+            "cwe": "CWE-639",
+            "owaspApiTop10": "API1:2023 Broken Object Level Authorization",
+            "exercice": "bola-invoice"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server/routes/invoices.ts"
+                },
+                "region": {
+                  "startLine": 256,
+                  "snippet": {
+                    "text": "const invoice = db.invoices.find((i) => i.id === req.params.id);"
+                  }
+                }
+              }
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "Faire entrer le tenant de l'appelant dans la requête de chargement. Correctif de surface : la vraie élimination de la classe consiste à faire porter le filtre par la couche d'accès aux données, pour qu'aucune route ne puisse l'oublier."
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "server/routes/invoices.ts"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 256,
+                        "endLine": 256
+                      },
+                      "insertedContent": {
+                        "text": "  const invoice = db.invoices.find((i) => i.id === req.params.id && i.tenantId === req.user!.tenantId);"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

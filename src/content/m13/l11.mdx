@@ -1,0 +1,154 @@
+export const questions = [
+  {
+    q: "Quel critère de blocage (break the build) est le plus défendable pour une PR ?",
+    options: [
+      "Bloquer sur tout finding critique ou élevé, quel que soit l'outil qui le signale",
+      "Bloquer sur les nouveaux findings d'un jeu restreint de règles à haute précision",
+      "Bloquer quand la dette totale de findings dépasse un seuil fixé par module",
+      "Bloquer sur tout finding, y compris préexistant, dans les fichiers touchés par la PR",
+    ],
+    answer: 1,
+    explain: "Bloquer sur la seule gravité confond l'importance du problème et la fiabilité de la règle : une règle bruyante étiquetée « élevé » arrête des PR saines et apprend aux équipes à la contourner. Le seuil de dette et les findings préexistants, eux, font payer l'auteur de passage pour du code qu'il n'a pas écrit. Un blocage doit être rare, juste et compréhensible : peu de règles, très précises, sur ce que la PR introduit.",
+  },
+  {
+    q: "Pourquoi dédoublonner les findings entre outils ?",
+    options: [
+      "Parce que le même finding compté trois fois fausse les indicateurs du programme",
+      "Parce que les outils se contredisent sur la gravité d'un même problème",
+      "Parce que la corrélation permet de supprimer les outils redondants du budget",
+      "Parce que trois outils qui signalent le même problème créent trois tickets",
+    ],
+    answer: 3,
+    explain: "Les indicateurs faussés et les écarts de gravité sont de vrais symptômes, et une économie d'outillage peut en découler. Mais l'effet qui compte se joue chez le développeur : trois tickets, trois tris, et une impression de bruit qui finit par décrédibiliser tout le programme. Il doit voir un problème une fois, au bon endroit, avec une consigne claire.",
+  },
+  {
+    q: "Qu'est-ce que la vérification et validation indépendantes (IV&V) du CSSLP ?",
+    options: [
+      "Une double exécution des tests, par l'auteur puis par un autre développeur",
+      "Une certification par un organisme accrédité, renouvelée chaque année",
+      "Une vérification menée par une partie indépendante de ceux qui ont construit",
+      "Une validation des exigences par le métier avant le démarrage du développement",
+    ],
+    answer: 2,
+    explain: "La validation métier des exigences et la certification par un organisme sont des activités réelles, mais ce ne sont pas des IV&V : la première ne vérifie pas ce qui a été construit, la seconde porte sur un référentiel plutôt que sur le produit. Rejouer les tests avec un collègue de la même équipe ne suffit pas davantage — l'indépendance se mesure par rapport à l'équipe qui a construit. Elle peut être interne ou externe, à proportion du risque.",
+  },
+];
+
+<YouKnow>
+Tu as vu des programmes AppSec noyés sous 40 000 findings que personne ne lit. Cette leçon assemble les outils du module en une plateforme que les équipes utilisent vraiment.
+</YouKnow>
+
+## Le problème d'échelle
+
+Une équipe qui active Semgrep, CodeQL, une SCA, un scanner IaC, un scanner de conteneurs, un DAST et un détecteur de secrets obtient, dès la première semaine, des milliers de findings dans sept consoles différentes. Sans organisation, le résultat est prévisible : personne ne regarde, les alertes deviennent du bruit, et les outils sont désactivés à la première urgence.
+
+Bâtir la plateforme, c'est résoudre quatre problèmes :
+
+| Problème | Réponse |
+| --- | --- |
+| **Dispersion** | Un point de collecte unique (ASPM) |
+| **Doublons** | Dédoublonnage et corrélation |
+| **Bruit** | Priorisation par contexte (M5) et réglage des règles |
+| **Friction** | Des résultats au bon endroit, et des critères de blocage rares et justes |
+
+## Centraliser : l'ASPM
+
+Les plateformes d'**ASPM** (Application Security Posture Management) collectent les résultats de tous les outils, les dédoublonnent, les enrichissent de contexte (service exposé à Internet, données sensibles, propriétaire) et suivent leur cycle de vie. **OWASP DefectDojo** est la référence open source ; les éditeurs commerciaux en proposent de nombreuses variantes, et GitHub Advanced Security joue ce rôle pour les résultats au format SARIF.
+
+Le format **SARIF** (Static Analysis Results Interchange Format, standard OASIS) est ce qui rend la centralisation possible : Semgrep, CodeQL, ZAP, Trivy, Checkov et la plupart des outils l'exportent.
+
+## Dédoublonner et corréler
+
+Trois niveaux de rapprochement :
+
+<Steps items={[
+  { title: "Même outil, même finding", text: "Un empreinte stable (règle, fichier, fragment de code normalisé) évite de recréer le finding à chaque scan, même si la ligne bouge." },
+  { title: "Outils différents, même problème", text: "Semgrep et CodeQL signalent la même injection ; Trivy et la SCA signalent la même CVE. On garde un finding, avec plusieurs sources." },
+  { title: "Statique et dynamique", text: "Le SAST signale un sink, le DAST confirme l'exploitation sur la route correspondante : la corrélation augmente la confiance et la priorité." },
+]} />
+
+## Les critères de blocage
+
+Le blocage d'une PR ou d'un déploiement est l'outil le plus puissant du programme, et le plus facile à gâcher. Des principes qui tiennent :
+
+- **Ne bloquer que le nouveau** : la dette existante se traite par des délais de correction (M5), pas en bloquant toutes les PR de l'équipe.
+- **Ne bloquer que ce qui est précis** : des règles à faible taux de faux positifs, testées, documentées.
+- **Ne bloquer que ce qui est grave ou systémique** : secrets, injections, dépendance avec exploitation connue (KEV), règles de conformité maison (`defineRoute`).
+- **Toujours une sortie** : une exception motivée, tracée, avec expiration et approbation (M5), plutôt que la désactivation silencieuse de l'outil.
+- **Dire comment corriger** : chaque blocage vient avec un message et un lien vers la documentation.
+
+<Code file=".github/security-gates.yml">
+
+```yaml
+# Politique de blocage de Novafact, lue par le job « security-gate » de la CI.
+pull_request:
+  block:
+    - source: secrets            # toute détection vérifiée
+    - source: semgrep
+      rulesets: [novafact-blocking]   # 25 règles à haute précision
+      only_new: true
+    - source: sca
+      when: { kev: true }         # vulnérabilité exploitée connue
+      or:   { severity: critical, reachable: true }
+    - source: iac
+      rules: [public-bucket, wildcard-iam, open-security-group]
+  inform:
+    - source: codeql
+    - source: ai-review
+    - source: sca
+release:
+  block:
+    - source: dast
+      severity: [high, critical]
+      confirmed: true
+exceptions:
+  require: [owner, justification, expiry]
+  max_expiry_days: 90
+```
+
+</Code>
+
+Ce fichier est une illustration : chaque plateforme a son format, mais la politique doit toujours être **écrite, versionnée et relue** comme du code, pas dispersée dans les réglages de sept consoles.
+
+## Les métriques
+
+Des métriques qui disent quelque chose (M6 détaille leur usage auprès de la direction) :
+
+| Métrique | Ce qu'elle montre |
+| --- | --- |
+| **Délai de correction** par gravité (médiane, 90e centile) | La capacité réelle à corriger |
+| **Taux de findings introduits vs corrigés** | La dette augmente-t-elle ? |
+| **Taux de faux positifs par règle** | Les règles à réécrire |
+| **Taux de contournement** (exceptions, désactivations) | La friction perçue |
+| **Couverture** (dépôts scannés, services avec DAST) | Les angles morts |
+| **Classes éliminées** | Le vrai progrès : une classe qui ne revient plus |
+
+Méfie-toi des métriques de volume (« 12 000 findings corrigés ») : elles récompensent les outils bruyants.
+
+## Vérification et validation indépendantes
+
+Le CSSLP (domaine 6) insiste sur l'**IV&V** : une partie de la vérification doit être faite par quelqu'un qui n'a pas construit le système. L'auteur d'un code ou d'un outil a des angles morts ; l'équipe qui a conçu une fonctionnalité teste ce qu'elle a prévu. L'indépendance se dose selon le risque :
+
+- une autre équipe interne relit la conception d'une fonctionnalité sensible (M8) ;
+- l'équipe AppSec, indépendante des équipes produit, vérifie les contrôles critiques ;
+- un pentest externe, et le bug bounty, apportent une indépendance complète sur les versions majeures.
+
+<Callout kind="novafact">
+Chez Novafact, tous les outils envoient leurs résultats en SARIF vers GitHub code scanning et DefectDojo. Le job « security-gate » applique la politique ci-dessus. Chaque trimestre, l'équipe AppSec revoit les 10 règles au plus fort taux de faux positifs et les exceptions arrivées à expiration. Le pentest annuel est confié à un prestataire différent tous les deux ans, pour garder un regard neuf.
+</Callout>
+
+<Recap items={[
+  "Sans organisation, les outils produisent du bruit puis sont désactivés.",
+  "Centraliser (ASPM, SARIF), dédoublonner, corréler statique et dynamique.",
+  "Bloquer rarement : nouveau, précis, grave ; toujours une exception tracée et un message de correction.",
+  "Mesurer délais, flux, faux positifs, contournements, couverture et classes éliminées.",
+  "Garder une vérification indépendante, dosée selon le risque.",
+]} />
+
+<Sources items={[
+  { title: "OWASP DefectDojo", url: "https://owasp.org/www-project-defectdojo/" },
+  { title: "OASIS SARIF 2.1.0", url: "https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html" },
+  { title: "GitHub : téléverser un fichier SARIF", url: "https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github" },
+  { title: "OWASP DevSecOps Guideline", url: "https://owasp.org/www-project-devsecops-guideline/" },
+  { title: "ISC2 : CSSLP exam outline", url: "https://www.isc2.org/certifications/csslp/csslp-certification-exam-outline" },
+]} />

@@ -1,0 +1,33 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "RoleName": "novafact-partner-recouvrement",
+  "Description": "Rôle assumé par Solvéo (recouvrement) et par le cabinet d'audit.",
+  "AssumeRolePolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "Solveo",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::210987654321:root" },
+        "Action": "sts:AssumeRole"
+      },
+      {
+        "Sid": "CabinetDAudit",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::345678901234:role/auditeur" },
+        "Action": "sts:AssumeRole"
+      }
+    ]
+  },
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "LireLesFacturesImpayees",
+        "Effect": "Allow",
+        "Action": ["s3:GetObject"],
+        "Resource": "arn:aws:s3:::novafact-invoices/impayees/*"
+      }
+    ]
+  }
+}

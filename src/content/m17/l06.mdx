@@ -1,0 +1,214 @@
+export const questions = [
+  {
+    q: "Les sauvegardes RDS et S3 de Novafact sont dans un coffre AWS Backup du compte de production, verrouillé en mode governance. Un attaquant obtient un rôle administrateur de ce compte. Que peut-il faire ?",
+    options: [
+      "Lever le verrou — governance se retire avec les bons droits — puis supprimer les points",
+      "Rien : un coffre verrouillé est immuable, quels que soient les droits IAM du principal",
+      "Réduire la rétention des points de restauration à un jour, ce que le verrou n'encadre pas",
+      "Supprimer la clé KMS du coffre, ce qui rend les points de restauration illisibles",
+    ],
+    answer: 0,
+    explain: "Le mode `governance` protège contre l'erreur de manipulation et contre les utilisateurs ordinaires, pas contre un administrateur du compte : `DeleteBackupVaultLockConfiguration` suffit, et tout redevient effaçable. Réduire la rétention est le raccourci qui ne marche pas tant que le verrou tient — c'est précisément ce qu'il encadre, avec un minimum et un maximum. Le mode `compliance`, une fois la période de grâce écoulée, ne se lève plus, ni par le root ni par AWS. Et cela ne dispense pas d'une copie dans un autre compte, avec des droits distincts.",
+  },
+  {
+    q: "Dans l'attaque Codefinger (janvier 2025), pourquoi les données chiffrées par l'attaquant étaient-elles irrécupérables sans sa clé ?",
+    options: [
+      "Il a programmé la suppression de la clé KMS du bucket avant de chiffrer les objets",
+      "Il a exploité une faille de S3 divulguée en janvier 2025 et corrigée depuis",
+      "Il a activé le verrouillage d'objets en mode compliance sur les objets chiffrés",
+      "Il a réécrit les objets en SSE-C avec sa clé, qu'AWS ne conserve pas",
+    ],
+    answer: 3,
+    explain: "Aucune vulnérabilité AWS n'a été exploitée : des identifiants volés portant `s3:GetObject` et `s3:PutObject`, et une fonctionnalité parfaitement légitime. En SSE-C, la clé est fournie à chaque requête et AWS ne la garde pas — CloudTrail n'en conserve qu'un HMAC, inutilisable pour déchiffrer. Une suppression de clé KMS aurait laissé une trace et une fenêtre d'annulation de sept jours au minimum ; le verrouillage d'objets, lui, empêche d'effacer, pas de lire. Bloquer SSE-C (le défaut pour les nouveaux buckets depuis avril 2026) et garder des versions verrouillées cassent le scénario.",
+  },
+  {
+    q: "Le contrat de Novafact promet un SLA de 99,9 % de disponibilité mensuelle. Combien d'indisponibilité cela autorise-t-il environ sur un mois de 30 jours ?",
+    options: [
+      "Environ 4 minutes",
+      "Environ 43 minutes",
+      "Environ 22 minutes",
+      "Environ 7 heures et demie",
+    ],
+    answer: 1,
+    explain: "0,1 % de 43 200 minutes fait 43,2 minutes. Les autres valeurs sont les paliers voisins qu'on confond vite : 4 minutes pour 99,99 %, 22 minutes pour 99,95 %, un peu plus de 7 heures pour 99 %. L'enseignement pratique est là : un plan de reprise dont le RTO est de 4 heures fait sauter un SLA à 99,9 % dès le premier incident sérieux. Tenir cet engagement demande une architecture redondante, pas seulement de bonnes sauvegardes.",
+  },
+  {
+    q: "Pourquoi un test de restauration doit-il se faire dans un compte distinct de la production, avec des accès distincts ?",
+    options: [
+      "Parce qu'AWS Backup interdit de restaurer dans le compte source d'une sauvegarde copiée",
+      "Pour éviter d'écraser les données de production pendant le test de restauration",
+      "Parce que le scénario couvert est la perte de confiance dans le compte de production",
+      "Pour mesurer le RTO sans la concurrence du trafic de production sur les quotas",
+    ],
+    answer: 2,
+    explain: "Un plan de reprise contre le ransomware cloud suppose que le compte de production est compromis : si la restauration dépend de ses identifiants, de ses clés KMS ou de ses rôles, elle échouera précisément le jour où on en a besoin. Éviter d'écraser la production et mesurer un RTO propre sont de bonnes raisons, mais elles ne prouvent rien sur ce scénario-là — on peut les satisfaire sans jamais sortir du compte, et se croire couvert. AWS Backup, lui, permet parfaitement de restaurer dans le compte source.",
+  },
+];
+
+<YouKnow>
+Le ransomware, tu le connais sur les postes et les serveurs. Dans le cloud, l'attaquant n'a pas besoin de binaire : avec des identifiants IAM suffisants, les API d'AWS suffisent pour chiffrer, supprimer ou programmer la suppression des données, **et des sauvegardes**. La résilience est donc un sujet de sécurité applicative autant que d'exploitation.
+</YouKnow>
+
+## Le scénario : un ransomware sans malware
+
+<Callout kind="case">
+**Codefinger (janvier 2025)**. Halcyon a décrit une campagne qui chiffrait des buckets S3 avec les propres mécanismes d'AWS. Avec des clés AWS compromises disposant de `s3:GetObject` et `s3:PutObject`, l'attaquant réécrivait les objets en **SSE-C** (chiffrement côté serveur avec une clé fournie par le client) en utilisant sa propre clé AES-256, puis marquait les fichiers pour suppression sous sept jours afin de presser la victime. AWS ne conserve pas les clés SSE-C, et CloudTrail n'en journalise qu'un HMAC : sans la clé de l'attaquant, la récupération est impossible.
+</Callout>
+
+Codefinger n'est qu'une variante. Face à un attaquant qui a des droits d'écriture dans un compte, les chemins de destruction sont nombreux, et chacun appelle un contrôle différent :
+
+| Action de l'attaquant | Effet | Contrôle |
+| --- | --- | --- |
+| Réécrire les objets S3 en SSE-C | Données illisibles | SSE-C bloqué, versioning et Object Lock |
+| Supprimer objets, instances RDS et snapshots | Perte directe | Object Lock, Vault Lock en compliance, protection contre la suppression |
+| Programmer la suppression de la clé KMS (délai de 7 à 30 jours) | Tout ce qui est chiffré avec elle devient illisible, sauvegardes comprises | Clé distincte pour les copies de sauvegarde, alerte sur `ScheduleKeyDeletion` |
+| Ajouter une règle de cycle de vie qui expire tout | Suppression différée, discrète | Alerte sur `PutBucketLifecycleConfiguration`, SCP |
+| Fermer le compte AWS | Contenu d'un coffre verrouillé supprimé au bout de 90 jours de suspension | Copie dans un **autre** compte |
+
+La dernière ligne est la moins intuitive : la documentation d'AWS Backup précise qu'à la fermeture d'un compte, AWS suspend le compte 90 jours avec les sauvegardes intactes, puis supprime le contenu des coffres, **même verrouillés**. Une sauvegarde qui vit dans le même compte que les données partage son destin.
+
+Depuis le 6 avril 2026, S3 désactive SSE-C par défaut sur tous les nouveaux buckets à usage général, et sur les buckets existants des comptes qui n'ont aucun objet chiffré en SSE-C. Pour les autres, bloque-le explicitement, par la configuration de chiffrement du bucket ou par une politique :
+
+<Code file="infra/s3/deny-sse-c.json" hl="7,9">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "DenySSEC",
+    "Effect": "Deny",
+    "Principal": "*",
+    "Action": "s3:PutObject",
+    "Resource": "arn:aws:s3:::novafact-invoices-prod/*",
+    "Condition": { "Null": { "s3:x-amz-server-side-encryption-customer-algorithm": "false" } }
+  }]
+}
+```
+
+</Code>
+
+La condition `Null` à `false` signifie « l'en-tête SSE-C est présent » : toute écriture qui tente de l'utiliser est refusée, quel que soit le principal.
+
+## Des sauvegardes vraiment immuables
+
+**AWS Backup Vault Lock** applique un modèle WORM à un coffre de sauvegarde. Il existe en deux modes :
+
+| | Governance | Compliance |
+| --- | --- | --- |
+| Qui peut retirer le verrou | Tout principal avec les droits IAM suffisants | Personne après la période de grâce, ni root ni AWS |
+| Période de grâce | Aucune | Au moins 3 jours (`ChangeableForDays`), pendant lesquels on peut encore corriger |
+| Usage | Tester les rétentions, se protéger de l'erreur | Se protéger d'un administrateur compromis |
+
+Les rétentions minimale et maximale font échouer toute tâche de sauvegarde ou de copie qui ne les respecte pas. Attention au coût : en compliance, un point de restauration configuré avec une rétention « Always » sera conservé, et facturé, pour toujours.
+
+<Code file="scripts/lock-vault.sh">
+
+```bash
+# Mode compliance : le verrou devient immuable après 3 jours de grâce
+aws backup put-backup-vault-lock-configuration \
+  --backup-vault-name novafact-prod-vault \
+  --changeable-for-days 3 \
+  --min-retention-days 35 \
+  --max-retention-days 400
+```
+
+</Code>
+
+**S3 Object Lock** fait la même chose au niveau des versions d'objets, dans un bucket versionné : en mode compliance, aucune version protégée ne peut être écrasée ou supprimée pendant sa rétention, y compris par root ; en mode governance, le droit `s3:BypassGovernanceRetention` et l'en-tête `x-amz-bypass-governance-retention` suffisent. Un point souvent mal compris : Object Lock protège les **versions**. Un `DELETE` sans identifiant de version ajoute simplement un marqueur de suppression, et une réécriture SSE-C crée une nouvelle version ; la version précédente, verrouillée, reste restaurable. C'est exactement ce qui neutralise Codefinger.
+
+## Isoler : autre compte, autre clé
+
+Le **coffre logiquement isolé** (*logically air-gapped vault*) d'AWS Backup va plus loin : il est toujours verrouillé en compliance, chiffré par défaut avec une clé détenue par AWS (ou une clé gérée par le client), et il peut être partagé par AWS RAM avec un autre compte, même d'une autre organisation, qui pourra y **restaurer** si le compte propriétaire est inaccessible. L'intégration avec l'approbation multipartite permet même de retrouver l'accès aux sauvegardes quand le compte propriétaire est perdu.
+
+Chez Novafact, le plan de sauvegarde copie chaque nuit vers un coffre isolé dans un compte de sauvegarde dédié, qui n'héberge aucune charge de travail et dont les accès humains passent par un chemin séparé :
+
+<Code file="infra/terraform/backup/plan.tf" hl="9,11,12,13">
+
+```hcl
+resource "aws_backup_plan" "prod" {
+  name = "novafact-prod"
+
+  rule {
+    rule_name         = "daily"
+    target_vault_name = aws_backup_vault.prod.name
+    schedule          = "cron(0 3 * * ? *)"
+    lifecycle {
+      delete_after = 35
+    }
+    copy_action {
+      destination_vault_arn = "arn:aws:backup:eu-west-3:210987654321:backup-vault:novafact-airgap"
+      lifecycle {
+        delete_after = 400
+      }
+    }
+  }
+}
+```
+
+</Code>
+
+Complète par une SCP d'organisation qui refuse, dans les comptes de production, `backup:DeleteBackupVaultLockConfiguration`, `backup:DeleteRecoveryPoint` et `kms:ScheduleKeyDeletion` hors d'un rôle de break-glass (M15), et par des alertes Elastic sur ces mêmes appels (M18).
+
+## Plans de reprise et de continuité, et les tests qui les rendent vrais
+
+Le **PCA** (plan de continuité d'activité) décrit comment l'activité continue pendant une crise, y compris en mode dégradé ; le **PRA** (plan de reprise d'activité) décrit comment reconstruire les systèmes. Deux chiffres les pilotent : le **RPO** (quelle perte de données est acceptable) et le **RTO** (combien de temps d'arrêt est acceptable). AWS décrit quatre stratégies, de la moins chère à la plus rapide :
+
+| Stratégie | Principe | RPO et RTO typiques |
+| --- | --- | --- |
+| Sauvegarde et restauration | Tout reconstruire depuis les sauvegardes et l'IaC | Heures |
+| Pilot light | Données répliquées, calcul éteint dans la région de secours | Dizaines de minutes |
+| Warm standby | Copie réduite mais active, qu'on agrandit | Minutes |
+| Multi-site actif/actif | Plusieurs régions servent en permanence | Proche de zéro |
+
+Face au ransomware, la réplication continue n'aide pas : elle réplique aussi le chiffrement et les suppressions. Seules des copies **ponctuelles, immuables et isolées** permettent de revenir à un état antérieur à la compromission. Et une sauvegarde jamais restaurée n'est qu'une hypothèse : AWS Backup propose des **tests de restauration** planifiés, qui restaurent automatiquement des points choisis et mesurent la durée.
+
+<Steps items={[
+  { title: "Supposer le compte perdu", text: "Le scénario de l'exercice : le compte de production est compromis, ses rôles et ses clés KMS ne sont plus dignes de confiance." },
+  { title: "Restaurer ailleurs", text: "Depuis le compte de sauvegarde, restaurer la base Postgres, la base Mongo exportée et le bucket des factures dans un compte de reprise vide." },
+  { title: "Reconstruire le calcul", text: "Redéployer l'API et le front depuis l'IaC et des images signées (leçon 3), avec de nouveaux secrets." },
+  { title: "Vérifier les données", text: "Contrôles d'intégrité métier : nombre de factures par tenant, sommes, dernières écritures, par rapport au RPO attendu." },
+  { title: "Mesurer et corriger", text: "Comparer le temps réel au RTO promis, noter chaque étape manuelle, et en automatiser au moins une avant l'exercice suivant." },
+]} />
+
+## Résister au déni de service
+
+La disponibilité est la troisième propriété de la triade, et le DoS se traite par couches :
+
+| Couche | Menace | Contrôle |
+| --- | --- | --- |
+| Réseau (L3/L4) | Inondations volumétriques | AWS Shield Standard, automatique et gratuit sur CloudFront ; Shield Advanced pour les applications critiques |
+| HTTP | Rafales de requêtes, bots | Règles rate-based d'AWS WAF, Bot Control (leçon 4, M10) |
+| Application | Requêtes coûteuses : exports massifs, ReDoS, GraphQL profond | Limites de taille (`express.json({ limit })`), délais d'expiration, pagination bornée, limites de coût GraphQL (M3) |
+| Facture | Déni de portefeuille : l'autoscaling et Lambda absorbent l'attaque, la facture explose | Plafonds d'autoscaling, concurrence réservée, alertes AWS Budgets |
+
+La dernière ligne est propre au cloud : une architecture qui « tient » l'attaque en montant à 400 tâches Fargate a transformé un problème de disponibilité en problème financier. Un plafond explicite est une décision de risque, pas un oubli.
+
+## SLI, SLO, SLA
+
+Le **SLI** est la mesure (proportion de requêtes réussies en moins de 500 ms), le **SLO** est l'objectif interne (99,95 % sur 30 jours), le **SLA** est l'engagement contractuel, avec pénalités (99,9 %). L'écart entre SLO et SLA est la marge de sécurité ; le **budget d'erreur** (0,05 % de requêtes en échec autorisées sur la période) se consomme par les incidents, les déploiements ratés… et les contrôles de sécurité trop agressifs. Passer le WAF en blocage ou l'ALB en `strictest` a un coût possible en disponibilité : c'est un arbitrage à chiffrer avec l'équipe SRE, pas à imposer. À l'inverse, un SLA de 99,9 % mensuel autorise environ 43 minutes d'arrêt : un PRA dont le RTO se compte en heures ne le tient pas.
+
+<Callout kind="novafact">
+Exercice de reprise du trimestre (chiffres fictifs) : restauration complète dans un compte vide en 3 h 10 pour un RTO affiché de 4 h, RPO constaté de 22 h (sauvegarde nocturne) alors que le contrat promettait 1 h. Décision : sauvegarde continue (restauration à un instant donné) pour RDS en plus des copies nocturnes isolées, et un RPO contractuel ramené à ce que l'architecture tient réellement.
+</Callout>
+
+<Callout kind="tip">
+Le jeu **Crise J+0** place Novafact face à plusieurs crises, dont un ransomware cloud : les décisions de restauration et de communication s'y prennent sous la pression du temps.
+</Callout>
+
+<Recap items={[
+  "Le ransomware cloud passe par les API : SSE-C, suppressions, clés KMS, règles de cycle de vie, fermeture de compte.",
+  "Vault Lock et Object Lock en mode compliance pour résister à un administrateur compromis ; governance ne protège que de l'erreur.",
+  "Copies ponctuelles, immuables et isolées dans un autre compte, chiffrées avec une autre clé ; la réplication continue ne suffit pas.",
+  "PCA, PRA, RPO et RTO n'existent que testés : restaurer régulièrement dans un compte vide, en supposant la production perdue.",
+  "DoS par couches, y compris le déni de portefeuille ; SLO, SLA et budget d'erreur pour arbitrer les contrôles.",
+]} />
+
+<Sources items={[
+  { title: "AWS Backup : Vault Lock", url: "https://docs.aws.amazon.com/aws-backup/latest/devguide/vault-lock.html" },
+  { title: "AWS Backup : coffre logiquement isolé", url: "https://docs.aws.amazon.com/aws-backup/latest/devguide/logicallyairgappedvault.html" },
+  { title: "Amazon S3 : Object Lock", url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html" },
+  { title: "AWS : SSE-C désactivé par défaut à partir d'avril 2026", url: "https://aws.amazon.com/blogs/storage/advanced-notice-amazon-s3-to-disable-the-use-of-sse-c-encryption-by-default-for-all-new-buckets-and-select-existing-buckets-in-april-2026/" },
+  { title: "Halcyon : ransomware S3 par SSE-C (Codefinger)", url: "https://www.halcyon.ai/blog/abusing-aws-native-services-ransomware-encrypting-s3-buckets-with-sse-c" },
+  { title: "AWS : options de reprise après sinistre", url: "https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html" },
+  { title: "AWS Backup : tests de restauration", url: "https://docs.aws.amazon.com/aws-backup/latest/devguide/restore-testing.html" },
+]} />

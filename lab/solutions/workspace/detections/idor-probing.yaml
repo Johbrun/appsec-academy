@@ -1,0 +1,19 @@
+# La règle réécrite après le correctif.
+#
+# Avant : le sondage réussissait, et la règle comptait les factures d'un autre
+# tenant lues par un même compte. Après : la même circulation existe toujours,
+# mais l'application refuse — la règle lève sur du trafic déjà bloqué, et
+# l'équipe apprend à l'ignorer.
+#
+# Une ligne de plus, et la règle redevient un signal : elle ne lève que si le
+# sondage a **abouti**. Elle garde sa valeur de non-régression (elle lève
+# toujours sur le corpus d'avant correctif) sans produire de bruit après.
+id: idor-probing
+window: 5m
+where:
+  - { field: url.path, op: starts_with, value: /api/invoices/ }
+  - { field: novafact.tenant.match, op: eq, value: false }
+  - { field: event.outcome, op: eq, value: success }
+group_by: [user.name]
+having:
+  - { metric: distinct, field: url.path, op: gte, value: 8 }

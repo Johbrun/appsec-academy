@@ -1,0 +1,269 @@
+export const questions = [
+  {
+    q: "La distribution CloudFront de l'API est protégée par AWS WAF, mais l'ALB d'origine est public et accepte tout le trafic sur le port 443. Quel est le risque ?",
+    options: [
+      "Aucun : la web ACL attachée à CloudFront inspecte aussi le trafic qui arrive à l'ALB",
+      "CloudFront ajoute `X-Forwarded-For`, mais l'ALB n'y voit que l'IP du point de présence le plus proche",
+      "Le risque se limite au déni de service : le nom DNS de l'ALB n'est pas devinable",
+      "Un attaquant qui trouve le nom DNS de l'ALB contourne le WAF, le cache et les en-têtes",
+    ],
+    answer: 3,
+    explain: "Un WAF posé sur CloudFront ne voit que ce qui passe par CloudFront : le nom DNS de l'ALB appelé en direct sert la même application, sans règle, sans cache et sans les en-têtes que CloudFront ajoutait. Compter sur le fait que ce nom ne soit pas devinable est la fausse assurance à écarter d'emblée — journaux de transparence des certificats, historique DNS et balayage le révèlent en quelques minutes. Le correctif est de verrouiller l'origine : VPC origin, qui place l'ALB en sous-réseau privé, ou à défaut liste de préfixes CloudFront plus en-tête partagé vérifié à l'origine.",
+  },
+  {
+    q: "Quel mode de desync mitigation de l'ALB bloque les requêtes classées Ambiguous et Acceptable, et pas seulement Severe ?",
+    options: [
+      "`monitor`, qui journalise la classification sans modifier le routage",
+      "`strictest`, qui n'accepte que les requêtes conformes à la RFC 7230",
+      "`defensive`, le mode par défaut, qui ferme la connexion sur les Ambiguous",
+      "Aucun : l'ALB classe les requêtes mais ne bloque jamais sur ce critère",
+    ],
+    answer: 1,
+    explain: "`strictest` refuse tout ce qui n'est pas conforme, donc les Ambiguous et les Acceptable en plus des Severe. `defensive` est le piège, parce qu'il est le défaut et qu'il bloque effectivement les Severe : sur une Ambiguous, il sert la requête puis ferme la connexion cliente — l'attaquant a obtenu sa réponse. Il bloque donc, contrairement à `monitor` qui se contente de classer. Les journaux d'accès portent `classification` et `classification_reason` dans les trois modes, ce qui permet de mesurer l'impact avant de passer en `strictest`.",
+  },
+  {
+    q: "Dans une tâche ECS, quelle confusion de rôles IAM donne trop de droits au code de l'application ?",
+    options: [
+      "Mettre les droits applicatifs S3 et SES dans le rôle d'exécution plutôt que dans celui de la tâche",
+      "Donner au rôle de la tâche les droits de plateforme : tirage d'image et lecture des secrets",
+      "Attacher une permission boundary au rôle de la tâche mais pas au rôle d'exécution",
+      "Déclarer le rôle de la tâche dans la définition de tâche plutôt que dans le service ECS",
+    ],
+    answer: 1,
+    explain: "Le rôle d'exécution appartient à l'agent ECS : tirer l'image, écrire les logs, résoudre les secrets injectés. Le rôle de la tâche est celui que le code utilise via la chaîne d'identifiants du SDK. Lui donner les droits de plateforme, c'est offrir à une RCE l'accès à tous les secrets du compte et au registre d'images. L'inversion symétrique — poser S3 et SES sur le rôle d'exécution — est tout aussi tentante et bien moins grave : l'application casse au premier appel, donc on la corrige tout de suite. C'est le sens silencieux qui fait les incidents.",
+  },
+  {
+    q: "Un namespace EKS porte le label pod-security.kubernetes.io/enforce: restricted. Quel pod est refusé ?",
+    options: [
+      "Un pod non root, `allowPrivilegeEscalation` à `false`, capacités supprimées, seccomp `RuntimeDefault`",
+      "Un pod qui monte un volume `emptyDir` pour son cache de rendu",
+      "Un pod qui tourne en root et garde les capacités par défaut",
+      "Un pod qui déclare `runAsNonRoot: true` sans préciser de `runAsUser`",
+    ],
+    answer: 2,
+    explain: "Le profil `restricted` exige notamment `runAsNonRoot`, `allowPrivilegeEscalation: false`, la suppression de toutes les capacités et un profil seccomp : un pod root qui garde les capacités par défaut échoue sur presque tous ces points. `emptyDir` fait partie des types de volumes autorisés. Et `runAsNonRoot: true` sans `runAsUser` passe très bien — le kubelet s'appuie alors sur l'utilisateur déclaré dans l'image et refuse au démarrage si c'est root : c'est conforme, même si cela paraît incomplet.",
+  },
+];
+
+<YouKnow>
+Tu as sans doute joué flAWS ou exploité une SSRF jusqu'aux identifiants d'un rôle. Cette leçon prend le point de vue inverse : les réglages des plateformes AWS de Novafact qui rendent ces chemins plus longs, plus bruyants ou impossibles.
+</YouKnow>
+
+## Trois plateformes, trois partages de responsabilité
+
+Novafact utilise les trois modèles de calcul d'AWS. Chacun déplace la frontière entre ce qu'AWS sécurise et ce qui reste à ta charge :
+
+| | ECS sur Fargate | Lambda | EKS (nœuds EC2) |
+| --- | --- | --- | --- |
+| Usage chez Novafact | API Express, BFF | Webhooks, génération de PDF | Workers de l'assistant IA |
+| Noyau, hôte, runtime | AWS | AWS (runtime géré) | Toi (nœuds, AMI, kubelet) |
+| Identité du code | Rôle de la tâche | Rôle d'exécution de la fonction | EKS Pod Identity ou IRSA |
+| Isolation réseau | Groupes de sécurité par tâche | Pas d'entrée directe ; VPC en option | NetworkPolicy, groupes de sécurité pour pods |
+| Réglages critiques | Rôles, ECS Exec, FS en lecture seule | Function URL, concurrence, code signing | Pod Security Standards, IMDS, NetworkPolicy |
+
+Plus tu montes vers le géré, moins tu as de réglages, mais ceux qui restent sont souvent à un clic de l'exposition publique.
+
+## ECS sur Fargate
+
+Une tâche ECS a **deux rôles**, et la confusion entre les deux est le finding le plus fréquent en revue :
+
+- le **rôle d'exécution** sert à l'agent ECS : tirer l'image depuis ECR, lire les secrets injectés par `secrets`, écrire les logs ;
+- le **rôle de la tâche** est celui que ton code obtient via le SDK : lire le bucket des factures, envoyer par SES.
+
+Une RCE dans l'API obtient le rôle de la tâche. S'il contient les droits d'infrastructure du rôle d'exécution (ou l'inverse), le rayon d'action explose. Chaque service a son propre rôle de tâche, limité aux ARN qu'il utilise (M15).
+
+Deux autres réglages comptent. **ECS Exec** (`enableExecuteCommand`) ouvre une session interactive dans un conteneur : utile en incident, dangereux en permanence. Réserve `ecs:ExecuteCommand` à un rôle d'astreinte et journalise les sessions. Et **l'accès aux identifiants** : Fargate n'expose pas l'IMDS d'EC2, les identifiants passent par un point de terminaison local dont le chemin aléatoire est fourni dans la variable `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`. Une SSRF seule a donc plus de mal à les atteindre qu'avec l'IMDSv1 ; une SSRF qui peut aussi lire l'environnement du processus, non. Le filtrage des sorties (M3) reste nécessaire.
+
+<Callout kind="case">
+**Capital One (2019)**. Un pare-feu applicatif auto-hébergé sur EC2, mal configuré, permettait une SSRF vers le service de métadonnées de l'instance, alors en IMDSv1. Les identifiants du rôle obtenus donnaient la lecture de buckets S3 contenant les données de plus de 100 millions de clients. Trois contrôles de cette leçon et de M15 cassent la chaîne : IMDSv2 obligatoire (ou pas d'IMDS du tout, comme sur Fargate), un rôle limité à ce que le service utilise vraiment, et des points de terminaison VPC avec politique de périmètre de données.
+</Callout>
+
+## Lambda
+
+Chaque fonction a son **rôle d'exécution** : un rôle par fonction, jamais un rôle partagé par tout le compte. Trois pièges propres à Lambda :
+
+- **Function URL** : avec `AuthType: NONE`, la fonction est publique sur Internet, sans WAF ni limite de débit. Pour un webhook de prestataire, préfère `AWS_IAM` derrière CloudFront avec une origin access control, ou vérifie la signature du webhook dans le code, en première instruction. Depuis octobre 2025, les nouvelles function URLs exigent à la fois `lambda:InvokeFunctionUrl` et `lambda:InvokeFunction` dans les politiques.
+- **Variables d'environnement** : chiffrées au repos par KMS, mais affichées en clair à quiconque a `lambda:GetFunctionConfiguration`. Mêmes règles qu'en leçon 1 : pas de secret en clair.
+- **Concurrence** : une fonction sans concurrence réservée peut consommer tout le quota du compte et affamer les autres, et une facture qui grimpe sous une rafale de requêtes est une forme de déni de service (leçon 6).
+
+## EKS : Pod Security Standards et NetworkPolicy
+
+Sur EKS, tu gères une partie de l'hôte. Deux mécanismes natifs de Kubernetes posent le socle.
+
+Les **Pod Security Standards** définissent trois profils (`privileged`, `baseline`, `restricted`), appliqués par namespace grâce à des labels. Le profil `restricted` impose notamment `runAsNonRoot`, `allowPrivilegeEscalation: false`, la suppression de toutes les capacités (seule `NET_BIND_SERVICE` peut être ajoutée) et un profil seccomp `RuntimeDefault`. Les **NetworkPolicy** filtrent le trafic entre pods ; sans elles, tout pod parle à tout pod. Le plugin Amazon VPC CNI les applique nativement (version 1.21 ou ultérieure pour les politiques standard et les `ClusterNetworkPolicy` d'administration), sur les nœuds EC2 Linux seulement, pas sur Fargate.
+
+<Code file="k8s/namespaces/novafact-workers.yaml" hl="6,7,15,16">
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: novafact-workers
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: novafact-workers
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+```
+
+</Code>
+
+Une politique `default-deny` en sortie coupe aussi le DNS : ajoute une politique qui autorise l'egress vers `kube-dns` sur le port 53, puis une politique par flux réellement nécessaire. Côté identité, préfère **EKS Pod Identity** (ou IRSA) aux identifiants du nœud : la documentation EKS rappelle que les pods qui les utilisent n'ont pas besoin de l'IMDS, que tu peux alors rendre inaccessible aux pods (IMDSv2 avec une limite de sauts à 1 sur les nœuds).
+
+<Lab id="k8s-goat" note="Les scénarios d'évasion et de mouvement latéral montrent ce que PSS et NetworkPolicy auraient empêché." />
+
+## CloudFront et AWS WAF
+
+CloudFront est la porte d'entrée publique de Novafact ; AWS WAF y est associé. Une web ACL pour CloudFront a la portée `CLOUDFRONT` et se crée dans `us-east-1`. Les **règles gérées** d'AWS couvrent le générique : `AWSManagedRulesCommonRuleSet` (le socle OWASP), `AWSManagedRulesKnownBadInputsRuleSet` (motifs d'exploits connus, mis à jour lors des critiques comme React2Shell, leçon 8), `AWSManagedRulesAmazonIpReputationList`, plus Bot Control et la protection des connexions (M10). Les **règles rate-based** limitent le débit par clé d'agrégation (IP, en-tête, clés personnalisées) sur une fenêtre de 60, 120, 300 ou 600 secondes, avec une limite minimale de 10 requêtes ; la limitation est approximative, pas exacte.
+
+<Code file="infra/terraform/edge/waf.tf" hl="4,13,20,42,43">
+
+```hcl
+resource "aws_wafv2_web_acl" "edge" {
+  provider = aws.us_east_1
+  name     = "novafact-edge"
+  scope    = "CLOUDFRONT"
+  default_action {
+    allow {}
+  }
+
+  rule {
+    name     = "aws-common"
+    priority = 10
+    override_action {
+      none {} # count {} pendant les deux semaines d'observation
+    }
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesCommonRuleSet"
+        vendor_name = "AWS"
+        rule_action_override {
+          name = "SizeRestrictions_BODY" # corps de plus de 8 Ko : casse l'import de factures
+          action_to_use {
+            count {}
+          }
+        }
+      }
+    }
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "aws-common"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  rule {
+    name     = "login-rate"
+    priority = 20
+    action {
+      block {}
+    }
+    statement {
+      rate_based_statement {
+        limit                 = 100
+        evaluation_window_sec = 300
+        aggregate_key_type    = "IP"
+        scope_down_statement {
+          byte_match_statement {
+            search_string         = "/api/auth/login"
+            positional_constraint = "STARTS_WITH"
+            field_to_match {
+              uri_path {}
+            }
+            text_transformation {
+              priority = 0
+              type     = "LOWERCASE"
+            }
+          }
+        }
+      }
+    }
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "login-rate"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "novafact-edge"
+    sampled_requests_enabled   = true
+  }
+}
+```
+
+</Code>
+
+Le WAF ne protège que ce qui passe par CloudFront. **Verrouille l'origine** : avec une **VPC origin**, l'ALB vit dans un sous-réseau privé et n'accepte que le groupe de sécurité géré par CloudFront (`CloudFront-VPCOrigins-Service-SG`) ; à défaut, restreins le groupe de sécurité de l'ALB à la liste de préfixes gérée de CloudFront et exige un en-tête secret ajouté par CloudFront. Enfin, le cache est une surface : la politique de cache décide de la clé, et l'API répond `Cache-Control: private, no-store` sur toute réponse authentifiée (M3, cache poisoning et cache deception).
+
+## ALB : le mode desync mitigation
+
+L'ALB classe chaque requête HTTP/1.1 avec la bibliothèque `http_desync_guardian` et applique un mode choisi :
+
+| Classification | monitor | defensive (défaut) | strictest |
+| --- | --- | --- | --- |
+| Compliant (conforme RFC 7230) | Autorisée | Autorisée | Autorisée |
+| Acceptable (non conforme, sans risque connu) | Autorisée | Autorisée | Bloquée |
+| Ambiguous (interprétations divergentes possibles) | Autorisée | Routée, connexions fermées | Bloquée |
+| Severe (risque élevé) | Autorisée | Bloquée (400) | Bloquée |
+
+`defensive` est un bon défaut. `strictest` convient quand tous les clients sont des navigateurs et des SDK conformes, après une période d'observation. La métrique `DesyncMitigationMode_NonCompliant_Request_Count` et la classification présente dans les logs d'accès de l'ALB alimentent une détection dans Elastic (M18). Ajoute `routing.http.drop_invalid_header_fields.enabled` (désactivé par défaut), qui retire les en-têtes aux noms invalides, et garde le parseur HTTP de Node en mode strict : jamais `--insecure-http-parser` (M3).
+
+<Lab id="ps-smuggling" note="Pour chaque technique, demande-toi quelle classification l'ALB lui donnerait et quel mode la bloque." />
+
+## S3 derrière CloudFront : OAC
+
+Le front React de Novafact est un site statique dans S3. Le bucket reste **privé** (Block Public Access activé) et seul CloudFront le lit, grâce à une **origin access control** (OAC). L'ancienne origin access identity (OAI) est un mécanisme hérité : l'OAC la remplace et supporte SSE-KMS. La politique du bucket n'autorise que le principal de service CloudFront, pour **cette** distribution :
+
+<Code file="infra/s3/front-bucket-policy.json" hl="6,10">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "AllowCloudFrontServicePrincipalReadOnly",
+    "Effect": "Allow",
+    "Principal": { "Service": "cloudfront.amazonaws.com" },
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::novafact-front-prod/*",
+    "Condition": {
+      "StringEquals": { "AWS:SourceArn": "arn:aws:cloudfront::123456789012:distribution/E2EXAMPLE" }
+    }
+  }]
+}
+```
+
+</Code>
+
+Sans la condition `AWS:SourceArn`, n'importe quelle distribution CloudFront de n'importe quel compte pourrait servir ton bucket : c'est le problème du *confused deputy* vu en M15. Si le bucket est chiffré en SSE-KMS, la politique de la clé doit aussi autoriser CloudFront avec la même condition.
+
+<Callout kind="novafact">
+Revue de plateforme avant l'ouverture du SSO entreprise (constats fictifs) : l'ALB de l'API était public, donc le WAF contournable, migré vers une VPC origin ; une function URL du webhook du prestataire en `AuthType: NONE` sans vérification de signature ; un rôle d'exécution ECS partagé par les trois services, avec `s3:*` ; le namespace des workers IA sans aucun label PSS. Le mode desync est resté en `defensive` : 0,02 % de requêtes Acceptable venaient d'un vieux client ERP d'un grand compte.
+</Callout>
+
+<Recap items={[
+  "Fargate, Lambda et EKS n'ont pas les mêmes réglages critiques : rôles, exposition publique, isolation réseau.",
+  "ECS : rôle d'exécution et rôle de tâche séparés et minimaux, ECS Exec réservé à l'astreinte.",
+  "Lambda : pas de function URL en NONE sans authentification applicative, concurrence réservée, pas de secret en clair.",
+  "EKS : labels PSS restricted, NetworkPolicy default-deny avec DNS autorisé, Pod Identity plutôt que l'IMDS.",
+  "CloudFront + WAF : règles gérées en count puis block, rate-based sur les flux sensibles, origine verrouillée.",
+  "ALB en desync mitigation defensive ou strictest ; S3 privé derrière une OAC avec condition AWS:SourceArn.",
+]} />
+
+<Sources items={[
+  { title: "Elastic Load Balancing : desync mitigation mode", url: "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html" },
+  { title: "AWS WAF : règles rate-based", url: "https://docs.aws.amazon.com/waf/latest/developerguide/waf-rule-statement-type-rate-based-high-level-settings.html" },
+  { title: "Amazon CloudFront : VPC origins", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html" },
+  { title: "Amazon CloudFront : restreindre l'accès à S3 (OAC)", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html" },
+  { title: "Amazon EKS : network policies avec le VPC CNI", url: "https://docs.aws.amazon.com/eks/latest/userguide/cni-network-policy.html" },
+  { title: "Kubernetes : Pod Security Standards", url: "https://kubernetes.io/docs/concepts/security/pod-security-standards/" },
+  { title: "AWS Lambda : contrôler l'accès aux function URLs", url: "https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html" },
+]} />

@@ -1,0 +1,24 @@
+# Politique de conservation de Novafact, par classe de données.
+#
+# Une durée par classe, et pas une par champ : c'est ce qui rend la politique
+# applicable. La carte des données (privacy/data-classification.yaml) attribue
+# une classe à chaque champ ; ce fichier dit ce qu'on en fait dans le temps.
+#
+# « illimitee » n'est pas un choix par défaut : il se justifie, ici par une
+# obligation comptable de dix ans qu'on ne veut pas voir dériver.
+
+conservation:
+  public: illimitee
+  client: 10 ans
+  interne: 24 mois
+  secret: duree-du-compte
+
+# Ce que la durée veut dire, pour que personne n'ait à le deviner :
+#
+#   public          Pages et documentation : rien à purger.
+#   client          Factures et pièces comptables — obligation de dix ans.
+#   interne         Journaux, traces d'envoi, métadonnées d'exploitation.
+#   secret          Empreintes de mot de passe et IBAN : effacés avec le compte.
+#
+# L'effacement d'un compte ne suspend pas l'obligation comptable : les pièces
+# restent, amputées des données personnelles qui ne s'y rattachent pas.

@@ -1,0 +1,21 @@
+name: Mises à jour de dépendances
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      # CORRIGÉ : plus de fusion automatique, et plus de garde sur
+      # github.actor — dans ce contexte, cette valeur ne prouve rien.
+      # Le workflow se contente d'étiqueter ; la fusion reste humaine.
+      - name: Étiqueter la PR
+        run: gh pr edit "$PR_URL" --add-label dependencies
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

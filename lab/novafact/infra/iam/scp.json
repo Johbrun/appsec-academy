@@ -1,0 +1,31 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "PolicyName": "novafact-garde-fous",
+  "PolicyType": "SERVICE_CONTROL_POLICY",
+  "Targets": ["ou-prod-1a2b3c"],
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "GardeFouGeneral",
+        "Effect": "Deny",
+        "NotAction": [
+          "iam:*",
+          "sts:*",
+          "s3:*",
+          "kms:*",
+          "ec2:*",
+          "lambda:*",
+          "ecs:*",
+          "ecr:*",
+          "logs:*",
+          "sqs:*",
+          "cloudfront:*",
+          "cloudtrail:*",
+          "secretsmanager:*"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }
+}

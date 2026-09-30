@@ -1,0 +1,25 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "KeyAlias": "alias/novafact-factures",
+  "KeyId": "arn:aws:kms:eu-west-3:123456789012:key/2f5c1b7e-0000-4a00-9c00-labfake00001",
+  "Description": "Clé de chiffrement des factures et des secrets applicatifs.",
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "PivotIam",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::123456789012:root" },
+        "Action": "kms:*",
+        "Resource": "*"
+      },
+      {
+        "Sid": "CestPlusSimpleAinsi",
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": "kms:*",
+        "Resource": "*"
+      }
+    ]
+  }
+}

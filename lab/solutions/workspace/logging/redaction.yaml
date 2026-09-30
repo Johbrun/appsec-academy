@@ -1,0 +1,20 @@
+# Caviardage — corrigé de référence.
+#
+# La formulation canonique d'OWASP : journaliser l'identifiant de la règle et
+# le **nom** du paramètre, jamais sa valeur. Le corps de requête entier, les
+# en-têtes d'autorisation et les champs de secret partent ; l'IBAN et le numéro
+# de carte sont réduits à leurs quatre derniers caractères, ce qui suffit au
+# support et ne rejoue pas un paiement.
+#
+# L'autre moitié compte autant : `source.ip`, `user.name`, `event.action` et
+# `@timestamp` restent intacts. Tout caviarder serait facile — et la détection
+# de bourrage d'identifiants tomberait de douze à zéro.
+drop:
+  - http.request.body
+  - http.request.headers.authorization
+  - user.password
+
+mask:
+  - { field: novafact.iban, keep: 4 }
+  - { field: novafact.card_number, keep: 4 }
+  - { field: novafact.reset_token, keep: 0 }

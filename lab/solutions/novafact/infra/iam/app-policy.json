@@ -1,0 +1,30 @@
+{
+  "_comment": "CORRIGÉ : restreindre la ressource ne servait à rien ici — c'était l'ACTION qui posait problème. Une poignée d'actions IAM permettent à un principal de se réécrire ses propres droits : créer une version de politique et l'activer, attacher une politique, réécrire une politique d'approbation, créer une clé d'accès, créer un profil de connexion. Aucune n'a sa place dans un rôle applicatif.",
+  "PolicyName": "novafact-app",
+  "Description": "Politique attachée au rôle applicatif de l'API Novafact.",
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "LireLesFactures",
+        "Effect": "Allow",
+        "Action": ["s3:GetObject"],
+        "Resource": "arn:aws:s3:::novafact-invoices/factures/*"
+      },
+      {
+        "_comment": "CORRIGÉ : le dépannage des accès en production ne se fait pas depuis le rôle applicatif. Il passe par un rôle d'astreinte assumé explicitement, tracé, et soumis à MFA.",
+        "Sid": "PublierLesEvenementsDeFacturation",
+        "Effect": "Allow",
+        "Action": ["sqs:SendMessage"],
+        "Resource": "arn:aws:sqs:eu-west-3:123456789012:novafact-evenements"
+      },
+      {
+        "_comment": "CORRIGÉ : un refus explicite en filet. Un Deny l'emporte sur tout Allow — si une politique gérée était attachée par erreur à ce rôle demain, elle ne rendrait pas IAM accessible pour autant.",
+        "Sid": "AucunePriseDeDroit",
+        "Effect": "Deny",
+        "Action": ["iam:*", "sts:AssumeRole", "organizations:*"],
+        "Resource": "*"
+      }
+    ]
+  }
+}

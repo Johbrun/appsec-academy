@@ -1,0 +1,174 @@
+export const questions = [
+  {
+    q: "Une passerelle valide un JSON, puis le transmet au backend. Le JSON contient deux fois la clé role. Pourquoi est-ce un risque ?",
+    options: [
+      "Parce que la passerelle et le backend peuvent retenir des valeurs différentes",
+      "Parce que la RFC 8259 interdit les clés dupliquées, donc le corps est invalide",
+      "Parce que la dernière valeur écrase la première et annule la validation",
+      "Parce que JSON.parse lève une erreur sur un objet à clés dupliquées",
+    ],
+    answer: 0,
+    explain: "« La dernière écrase la première » est exact pour JSON.parse, et ce serait sans danger si tout le monde faisait pareil : il n'y aurait qu'une seule lecture. Le risque naît de la divergence — un parser garde la première occurrence, l'autre la dernière, et la valeur validée n'est pas celle qui est utilisée. La RFC 8259 n'interdit rien : elle dit que les noms devraient être uniques et que le comportement face aux doublons est imprévisible.",
+  },
+  {
+    q: "L'API de recherche de factures passe l'objet where fourni par le client directement à Prisma. Quel est le risque ?",
+    options: [
+      "Aucun : l'option omit de Prisma retire déjà les champs sensibles de la sortie",
+      "Une injection SQL, car le filtre est concaténé dans la requête générée",
+      "Une fuite : le client filtre sur des champs sensibles et déduit leur valeur",
+      "Un déni de service : le client peut demander des jointures très coûteuses",
+    ],
+    answer: 2,
+    explain: "L'option omit est la fausse assurance la plus commune : elle retire le champ de la sortie, alors que la fuite passe par le filtre, qui peut toujours le viser. Il n'y a pas non plus d'injection SQL — la requête est bien paramétrée, le client choisit seulement sur quoi elle porte. Le coût des jointures est un vrai sujet, mais secondaire. Le mécanisme est un oracle : la présence ou l'absence de résultat suffit à reconstituer un hash ou un jeton, caractère par caractère, y compris à travers les relations.",
+  },
+  {
+    q: "La route de réinitialisation fait prisma.user.findFirst({ where: { resetToken: req.body.token } }). Le corps est du JSON. Où est le problème ?",
+    options: [
+      "findFirst renvoie un utilisateur au hasard si plusieurs jetons correspondent",
+      "token peut être un objet d'opérateurs Prisma au lieu d'une chaîne",
+      "La comparaison de chaînes de Prisma n'est pas à temps constant",
+      "Le jeton apparaît en clair dans les journaux de requêtes de Prisma",
+    ],
+    answer: 1,
+    explain: "Le temps constant est le réflexe le plus séduisant, et il est hors sujet : la comparaison a lieu dans la base, sur un index, et l'attaque ne mesure aucune durée. Le comportement de findFirst et la journalisation sont de vrais points d'hygiène, mais pas ce qui casse ici. C'est la cousine de l'injection d'opérateurs Mongo : un corps JSON transporte un objet là où le code attend une chaîne, et l'égalité devient une recherche partielle. z.string() ferme la porte, un jeton stocké haché la verrouille.",
+  },
+  {
+    q: "Spotify a vu en 2013 des comptes détournés parce que sa fonction de canonicalisation des noms d'utilisateur n'était pas idempotente. Quel test aurait détecté ce défaut ?",
+    options: [
+      "Un test qui vérifie que deux noms distincts ne produisent jamais la même forme canonique",
+      "Un test qui vérifie que la forme canonique ne contient que des caractères ASCII",
+      "Un test qui vérifie que la canonicalisation est appliquée sur toutes les routes d'identité",
+      "Un test par propriétés sur l'idempotence : canon(canon(x)) === canon(x)",
+    ],
+    answer: 3,
+    explain: "Le test d'unicité — deux noms distincts, deux formes distinctes — est séduisant et contraire au but recherché : une canonicalisation sert justement à rapprocher plusieurs écritures d'un même nom. Le test de couverture sur les routes d'identité aurait été vert chez Spotify, puisque la fonction était bien appelée des deux côtés ; elle ne rendait simplement pas le même résultat au second passage. C'est cette propriété qu'il faut énoncer, et la faire éprouver sur des milliers de chaînes Unicode générées.",
+  },
+];
+
+<YouKnow>
+Tu as contourné des filtres grâce à des différences de normalisation Unicode, de parsing d'URL ou d'adresses e-mail. On regarde ici la règle de conception qui ferme cette famille, et une classe récente : les fuites via l'ORM.
+</YouKnow>
+
+## Deux lectures d'une même donnée
+
+Un **parser differential** survient quand deux composants interprètent différemment la même entrée : l'un valide, l'autre agit. Le Top 10 des techniques web de 2025 lui consacre plusieurs entrées, dont *Parser Differentials: When Interpretation Becomes a Vulnerability* (joernchen) et *Lost in Translation: Exploiting Unicode Normalization*.
+
+| Terrain | Exemple de divergence |
+| --- | --- |
+| JSON | Clé dupliquée : la passerelle retient la première valeur, le backend la dernière |
+| URL | L'ancienne API `url.parse` de Node et l'API standard `URL` ne trouvent pas le même hôte |
+| Unicode | Une chaîne passe le filtre, puis une normalisation (NFKC) la transforme en caractères ASCII interdits |
+| E-mail | *Splitting the email atom* (2024) : des formes encodées d'adresses font croire à un domaine autorisé |
+| Cookies | Des en-têtes de cookie interprétés différemment par le WAF et l'application |
+
+La cause profonde est presque toujours la même : les spécifications laissent de la latitude. La RFC 8259 dit seulement que les noms d'un objet JSON **devraient** être uniques, et que le comportement face aux doublons est imprévisible. La RFC des URL tolère des variantes que chaque bibliothèque traite à sa façon. Le format des adresses e-mail permet des formes (commentaires, parties entre guillemets, *encoded-word*) que presque aucune application n'attend. Deux implémentations conformes peuvent donc diverger, sans qu'aucune ne soit « buggée ».
+
+## Trois terrains, en détail
+
+**URL.** La documentation de Node est explicite : `url.parse()` utilise un algorithme non standard et permissif, sujet à des problèmes comme l'usurpation de nom d'hôte. Si un filtre SSRF utilise `url.parse` et que le client HTTP utilise l'analyseur WHATWG (`URL`, `fetch`), le filtre et la connexion ne voient pas forcément le même hôte. Une règle Semgrep qui interdit `url.parse` dans le code applicatif coûte cinq minutes.
+
+**Cookies.** Zakhar Fedotkin (PortSwigger, décembre 2024) a montré que certains serveurs basculent vers l'ancienne syntaxe de la RFC 2109 dès qu'un cookie commence par l'attribut `$Version`, ce qui autorise des valeurs entre guillemets et des encodages que les WAF n'analysent pas comme l'application. La leçon pour toi : un WAF placé devant une application ne voit pas les mêmes cookies qu'elle ; il ne peut donc pas être le seul contrôle sur une valeur de cookie.
+
+**E-mail.** Gareth Heyes a montré qu'un analyseur d'adresses pouvait être amené à produire une adresse de destination différente de celle que l'application croit valider, via les *encoded-word*, le Punycode ou des débordements Unicode. Il recommande de désactiver le support des *encoded-word* dans les bibliothèques d'analyse d'adresses.
+
+<Callout kind="novafact">
+Novafact proposait une fonction pratique : un utilisateur qui s'inscrit avec une adresse au domaine d'un client entreprise rejoint automatiquement le tenant de ce client. C'est exactement le scénario que *Splitting the email atom* rend dangereux : l'autorisation repose sur le domaine **lu** dans l'adresse, pas sur la boîte **réellement** atteinte. Décision : le rattachement automatique n'a lieu qu'après confirmation par un lien envoyé à l'adresse, les adresses sont restreintes à une syntaxe conservatrice (pas de guillemets, pas de `=?`, domaine en ASCII ou Punycode valide), et le domaine vérifié est comparé à la liste des domaines déclarés par le tenant, au caractère près.
+</Callout>
+
+## La règle de conception
+
+<Steps items={[
+  { title: "Analyser une seule fois", text: "Le composant qui valide transmet la donnée déjà structurée (l'objet analysé, l'URL normalisée), pas la chaîne brute que le suivant réinterprétera." },
+  { title: "Canonicaliser avant de valider", text: "Normaliser (Unicode, chemin, casse) puis valider la forme canonique, et n'utiliser qu'elle ensuite." },
+  { title: "Rejeter l'ambiguïté", text: "Clés dupliquées, encodages multiples, en-têtes répétés : on refuse plutôt que de choisir." },
+  { title: "Même bibliothèque partout", text: "Si deux services doivent interpréter la même chose, ils utilisent le même parser, dans la même version." },
+]} />
+
+Pour le JSON, `JSON.parse` ne signale pas les doublons (il garde la dernière valeur). La façon la plus simple d'appliquer « analyser une seule fois » est que la passerelle **ré-sérialise** : elle analyse le corps, valide l'objet obtenu, puis transmet `JSON.stringify(objetValidé)`. Le backend reçoit un document sans doublon, identique à ce qui a été validé.
+
+La canonicalisation a un piège propre : elle doit être **idempotente**. En 2013, Spotify a vu des comptes détournés parce que sa fonction de canonicalisation des noms d'utilisateur transformait `ᴮᴵᴳᴮᴵᴿᴰ` en `BIGBIRD` au premier passage et en `bigbird` au second. Appliquée une fois à l'inscription et une autre fois à la réinitialisation du mot de passe, elle permettait de réinitialiser le compte d'un autre. Ce genre de défaut se teste par propriétés :
+
+<Code file="apps/api/test/canon.property.test.ts">
+
+```ts
+import fc from 'fast-check';
+import { canonUsername } from '../src/identity/canon';
+
+// canonUsername = (s) => s.normalize('NFKC').toLowerCase().normalize('NFKC')
+test('la canonicalisation est idempotente', () => {
+  fc.assert(fc.property(fc.string({ unit: 'binary' }), (s) =>
+    canonUsername(canonUsername(s)) === canonUsername(s)));
+});
+```
+
+</Code>
+
+Pour les identifiants, la RFC 8265 (profils PRECIS pour les noms d'utilisateur et mots de passe) remplace les anciens profils *stringprep* comme celui qu'utilisait Spotify. Et la règle la plus robuste reste simple : **on stocke et on compare uniquement la forme canonique**, calculée à un seul endroit du code.
+
+## Les fuites via l'ORM
+
+Classée **2ᵉ** du Top 10 des techniques web de 2025, la recherche *ORM Leaking More Than You Joined For* (Alex Brown, elttam, décembre 2025) montre qu'une requête parfaitement paramétrée peut fuir des données. Le problème apparaît quand l'API laisse le client **fournir l'objet de filtre** de l'ORM : il peut alors filtrer sur des champs qu'il n'a pas le droit de lire (hash de mot de passe, jeton de réinitialisation), y compris **à travers les relations**, et déduire leur valeur à partir de la présence ou de l'absence de résultats. La recherche couvre Django, Prisma, Beego et Entity Framework, s'appuie sur des CVE réelles (Harbor, Directus) et publie des règles Semgrep pour les détecter.
+
+<Diff file="apps/api/src/routes/search.ts" hlBefore="2" hlAfter="1-5,8-14" stack>
+
+```ts
+router.post('/invoices/search', async (req, res) => {
+  const rows = await prisma.invoice.findMany({ where: { ...req.body.where, tenantId: req.user.tenantId } });
+  res.json(rows.map(toPublicInvoice));
+});
+```
+
+```ts
+const Search = z.object({
+  status: z.enum(['draft', 'sent', 'paid']).optional(),
+  clientName: z.string().max(100).optional(),
+  minAmount: z.number().int().nonnegative().optional(),
+}).strict();
+
+router.post('/invoices/search', async (req, res) => {
+  const f = Search.parse(req.body);
+  const rows = await prisma.invoice.findMany({ where: {
+    tenantId: req.user.tenantId,
+    status: f.status,
+    client: f.clientName ? { name: { contains: f.clientName } } : undefined,
+    amountCents: f.minAmount !== undefined ? { gte: f.minAmount } : undefined,
+  } });
+  res.json(rows.map(toPublicInvoice));
+});
+```
+
+</Diff>
+
+Le filtre est **construit côté serveur** à partir d'une liste blanche de champs et d'opérateurs. Au passage, la version vulnérable illustre un autre piège : l'étalement de `req.body.where` pouvait aussi imbriquer une condition qui contourne le filtre de tenant.
+
+La variante la plus sournoise ne ressemble même pas à un filtre générique. elttam cite un cas Prisma de ce type : une route de réinitialisation qui cherche l'utilisateur par `where: { resetToken: req.body.token }`. Le développeur suppose une chaîne ; mais un corps JSON peut transporter un **objet d'opérateurs** Prisma à cet endroit, et l'égalité devient une recherche partielle. C'est la cousine de l'injection d'opérateurs Mongo (M2) : même cause (un type non validé), même correctif (`z.string()` sur chaque valeur qui entre dans un `where`). Stocker le jeton haché et le comparer après hachage ferme la porte une seconde fois.
+
+| Idée reçue | Réalité |
+| --- | --- |
+| « Prisma paramètre tout, donc pas d'injection » | Pas d'injection SQL, mais le client peut choisir les champs et les opérateurs du filtre |
+| « L'option `omit` protège le hash du mot de passe » | `omit` retire le champ de la **sortie** ; la fuite passe par le **filtre**, qui peut toujours le viser |
+| « On ne renvoie que des champs publics » | La fuite est un oracle : la présence ou l'absence de résultat suffit à déduire la valeur, caractère par caractère |
+
+<Callout kind="tip">
+elttam recommande une approche hybride pour trouver ces fuites : des règles Semgrep (publiées dans leur dépôt `semgrep-rules`, dont des règles Prisma) pour repérer les appels où un objet venant de la requête atteint un `where`, puis un test dynamique qui tente un filtre relationnel et doit recevoir une erreur 400. Ajoute ce test à chaque route de recherche : c'est un test de régression de trois lignes.
+</Callout>
+
+<Recap items={[
+  "Un parser differential : deux composants lisent différemment la même entrée ; l'un valide, l'autre agit, et les deux peuvent être conformes.",
+  "Analyser une fois (ré-sérialiser après validation), canonicaliser avant de valider, rejeter l'ambiguïté, même parser partout.",
+  "La canonicalisation doit être idempotente et appliquée à un seul endroit ; un test par propriétés le vérifie.",
+  "Un domaine d'e-mail ne donne une autorisation qu'après preuve de possession de la boîte.",
+  "Une requête paramétrée peut fuir des données si le client choisit les champs ou les opérateurs de filtre.",
+  "Les filtres se construisent côté serveur depuis une liste blanche ; chaque valeur d'un where est typée.",
+]} />
+
+<Sources items={[
+  { title: "PortSwigger : Top 10 web hacking techniques of 2025", url: "https://portswigger.net/research/top-10-web-hacking-techniques-of-2025" },
+  { title: "elttam : ORM Leaking More Than You Joined For", url: "https://www.elttam.com/blog/leaking-more-than-you-joined-for" },
+  { title: "elttam : règles Semgrep pour les fuites via ORM", url: "https://github.com/elttam/semgrep-rules" },
+  { title: "PortSwigger Research : Splitting the email atom", url: "https://portswigger.net/research/splitting-the-email-atom" },
+  { title: "PortSwigger Research : Bypassing WAFs with the phantom $Version cookie", url: "https://portswigger.net/research/bypassing-wafs-with-the-phantom-version-cookie" },
+  { title: "Bishop Fox : An Exploration of JSON Interoperability Vulnerabilities", url: "https://bishopfox.com/blog/json-interoperability-vulnerabilities" },
+  { title: "Spotify Engineering : Creative usernames and Spotify account hijacking", url: "https://engineering.atspotify.com/2013/06/creative-usernames/" },
+  { title: "Node.js : API URL (avertissement sur url.parse)", url: "https://nodejs.org/api/url.html" },
+]} />

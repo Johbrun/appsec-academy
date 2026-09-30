@@ -1,0 +1,31 @@
+id,verdict,defaut,justification
+A-01,vrai_positif,KD-01,Confirmé en lisant server/routes/settings.ts : Fusion récursive qui recopie __proto__ dans l’objet cible.
+A-02,vrai_positif,KD-01,Confirmé en lisant server/routes/settings.ts : Fusion récursive qui recopie __proto__ dans l’objet cible.
+A-03,vrai_positif,KD-02,"Confirmé en lisant server/routes/invoices.ts : Total calculé en virgule flottante, quantités non bornées."
+A-04,vrai_positif,KD-04,Confirmé en lisant server/lib/jwt.ts : L’algorithme de vérification vient du jeton lui-même.
+A-05,vrai_positif,KD-04,Confirmé en lisant server/lib/jwt.ts : L’algorithme de vérification vient du jeton lui-même.
+A-06,vrai_positif,KD-05,Confirmé en lisant server/routes/webhooks.ts : Le filtre d’adresse interne laisse passer des formes équivalentes.
+A-07,vrai_positif,KD-06,Confirmé en lisant server/routes/attachments.ts : Chemin dérivé du nom fourni par le client.
+A-08,vrai_positif,KD-06,Confirmé en lisant server/routes/attachments.ts : Chemin dérivé du nom fourni par le client.
+A-09,faux_positif,,"server/routes/invoices.ts#computeTotal existe, mais le code ne fait pas ce que le constat décrit (CWE-79)."
+A-10,faux_positif,,"server/lib/jwt.ts#sign existe, mais le code ne fait pas ce que le constat décrit (CWE-798)."
+A-11,faux_positif,,"server/lib/jwt.ts#verifyStrict existe, mais le code ne fait pas ce que le constat décrit (CWE-347)."
+A-12,faux_positif,,"server/routes/settings.ts#isObject existe, mais le code ne fait pas ce que le constat décrit (CWE-1321)."
+A-13,faux_positif,,"server/lib/auth.ts#requireUser existe, mais le code ne fait pas ce que le constat décrit (CWE-862)."
+A-14,faux_positif,,"server/lib/auth.ts#authenticate existe, mais le code ne fait pas ce que le constat décrit (CWE-287)."
+A-15,faux_positif,,"server/store.ts#audit existe, mais le code ne fait pas ce que le constat décrit (CWE-532)."
+A-16,faux_positif,,"server/routes/webhooks.ts#webhookRoutes existe, mais le code ne fait pas ce que le constat décrit (CWE-352)."
+A-17,faux_positif,,"server/routes/branding.ts#clearBrandingCache existe, mais le code ne fait pas ce que le constat décrit (CWE-524)."
+A-18,faux_positif,,"server/routes/credits.ts#ACCOUNTING_ROLES existe, mais le code ne fait pas ce que le constat décrit (CWE-285)."
+A-19,faux_positif,,"server/routes/attachments.ts#attachmentRoutes existe, mais le code ne fait pas ce que le constat décrit (CWE-434)."
+A-20,faux_positif,,"server/routes/invoices.ts#resetInvoiceState existe, mais le code ne fait pas ce que le constat décrit (CWE-489)."
+A-21,faux_positif,,"server/routes/settings.ts#settingsRoutes existe, mais le code ne fait pas ce que le constat décrit (CWE-639)."
+A-22,hallucination,,Le symbole applyDiscountMatrix n'apparaît nulle part dans server/routes/invoices.ts.
+A-23,hallucination,,Le symbole rotateSigningKey n'apparaît nulle part dans server/lib/jwt.ts.
+A-24,hallucination,,Le symbole sanitizeSettings n'apparaît nulle part dans server/routes/settings.ts.
+A-25,hallucination,,Le symbole resolveHostname n'apparaît nulle part dans server/routes/webhooks.ts.
+A-26,hallucination,,Le symbole requireRole n'apparaît nulle part dans server/lib/auth.ts.
+A-27,hallucination,,Le symbole escapeQuery n'apparaît nulle part dans server/store.ts.
+A-28,hallucination,,Le symbole lockCreditRow n'apparaît nulle part dans server/routes/credits.ts.
+A-29,hallucination,,Le fichier server/legacy/soap-client.ts n'existe pas dans l'arbre.
+A-30,hallucination,,Le fichier server/routes/v1/invoices-legacy.ts n'existe pas dans l'arbre.

@@ -1,0 +1,21 @@
+# Fixtures de `admin-role-change`.
+#
+# Le quasi-jumeau change d'action : un changement d'autorisation qui n'est pas
+# un changement de permissions. Tout le reste est identique.
+rule: admin-role-change
+
+positive:
+  - "@timestamp": "2026-03-04T11:02:00.000Z"
+    event: { id: fx-rc-1, kind: event, category: [iam], type: [change], action: privilege_permissions_changed, outcome: success }
+    user: { name: admin@novafact.example }
+    source: { ip: 203.0.113.9 }
+    url: { path: /api/admin/users }
+    http: { request: { method: PATCH }, response: { status_code: 200 } }
+
+negative:
+  - "@timestamp": "2026-03-04T11:02:30.000Z"
+    event: { id: fx-rc-2, kind: event, category: [iam], type: [change], action: authz_change, outcome: success }
+    user: { name: admin@novafact.example }
+    source: { ip: 203.0.113.9 }
+    url: { path: /api/admin/users }
+    http: { request: { method: PATCH }, response: { status_code: 200 } }

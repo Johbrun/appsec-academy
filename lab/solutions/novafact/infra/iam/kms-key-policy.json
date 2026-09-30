@@ -1,0 +1,52 @@
+{
+  "_comment": "CORRIGÉ : le chiffrement au repos ne vaut que ce que vaut la politique de la clé. Si tout le monde peut déchiffrer, le chiffrement ne fait que cocher une case d'audit — les données sont en clair pour qui sait appeler kms:Decrypt.",
+  "KeyAlias": "alias/novafact-factures",
+  "KeyId": "arn:aws:kms:eu-west-3:123456789012:key/2f5c1b7e-0000-4a00-9c00-labfake00001",
+  "Description": "Clé de chiffrement des factures et des secrets applicatifs.",
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "_comment": "CONSERVÉ : l'instruction du compte racine est le pivot voulu par AWS — c'est elle qui rend la clé administrable par les politiques IAM du compte. La retirer rend la clé inutilisable de façon irréversible.",
+        "Sid": "PivotIam",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::123456789012:root" },
+        "Action": "kms:*",
+        "Resource": "*"
+      },
+      {
+        "_comment": "CORRIGÉ : qui ADMINISTRE la clé. Les actions de gestion, et aucune opération cryptographique : l'équipe sécurité n'a pas besoin de lire les factures pour faire tourner la clé.",
+        "Sid": "AdministrationDeLaCle",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::123456789012:role/novafact-kms-admins" },
+        "Action": [
+          "kms:CreateAlias",
+          "kms:DeleteAlias",
+          "kms:PutKeyPolicy",
+          "kms:EnableKeyRotation",
+          "kms:DisableKeyRotation",
+          "kms:ScheduleKeyDeletion",
+          "kms:CancelKeyDeletion",
+          "kms:TagResource",
+          "kms:UntagResource",
+          "kms:RevokeGrant"
+        ],
+        "Resource": "*"
+      },
+      {
+        "_comment": "CORRIGÉ : qui l'UTILISE. Le rôle applicatif est nommé, et kms:ViaService borne l'usage au service qui appelle — une exécution de code arbitraire dans le conteneur ne permet pas d'appeler kms:Decrypt directement sur un texte chiffré ramassé ailleurs.",
+        "Sid": "UsageParLApplication",
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::123456789012:role/novafact-task-role" },
+        "Action": ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"],
+        "Resource": "*",
+        "Condition": {
+          "StringEquals": {
+            "kms:ViaService": "s3.eu-west-3.amazonaws.com",
+            "kms:CallerAccount": "123456789012"
+          }
+        }
+      }
+    ]
+  }
+}

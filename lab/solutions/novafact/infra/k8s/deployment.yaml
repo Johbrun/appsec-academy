@@ -1,0 +1,107 @@
+# Déploiement de l'API Novafact.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: novafact-api
+  namespace: novafact
+  labels:
+    app: novafact-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: novafact-api
+  template:
+    metadata:
+      labels:
+        app: novafact-api
+    spec:
+      serviceAccountName: novafact-api
+      # CORRIGÉ : le pod ne partage plus la pile réseau de l'hôte. Avec
+      # hostNetwork, il voyait tout le trafic du nœud, joignait les services
+      # liés à 127.0.0.1 du nœud — dont l'IMDS et le kubelet — et les
+      # NetworkPolicies ne s'appliquaient plus à lui.
+      hostNetwork: false
+      # CORRIGÉ : le jeton du compte de service n'est pas monté ici non plus.
+      # Côté pod comme côté compte de service : ce qui n'est pas monté ne peut
+      # pas être volé par une exécution de code dans le conteneur.
+      automountServiceAccountToken: false
+      # CORRIGÉ : contexte de sécurité au niveau du pod — il s'applique à tous
+      # les conteneurs, y compris ceux qu'on ajoutera plus tard.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          # L'image est épinglée par empreinte, comme la base du Dockerfile :
+          # « latest » n'est pas une version.
+          image: registry.novafact.example/novafact-api@sha256:5b7cb0b87505fa990a1e951e2e62a59175af62033108508c05ee78f904b00a71
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+          # CORRIGÉ : contexte de sécurité du conteneur. allowPrivilegeEscalation
+          # et readOnlyRootFilesystem n'existent qu'à ce niveau-là : les poser
+          # sur le pod ne suffit pas.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+          # CORRIGÉ : un système de fichiers en lecture seule casse le démarrage
+          # de tout ce qui écrit dans /tmp. On rend inscriptibles les seuls
+          # chemins qui doivent l'être, en volumes éphémères.
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: npm-cache
+              mountPath: /home/node/.npm
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: npm-cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: novafact-api
+  namespace: novafact
+spec:
+  selector:
+    app: novafact-api
+  ports:
+    - port: 80
+      targetPort: 3000
+---
+# CORRIGÉ : le durcissement devient obligatoire plutôt que recommandé. Le label
+# « restricted » des Pod Security Standards refuse à l'admission tout pod du
+# namespace qui n'a pas ce contexte — y compris ceux qu'un autre déploiement
+# créerait demain.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: novafact
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

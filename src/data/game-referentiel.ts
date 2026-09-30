@@ -1,0 +1,50 @@
+// Items du jeu « Quel référentiel ? » : un risque ou un chapitre à ranger dans sa liste.
+
+export type RefId = 'top10' | 'api' | 'cicd' | 'llm' | 'agentic' | 'asvs';
+
+export const referentiels: { id: RefId; name: string; short: string }[] = [
+  { id: 'top10', name: 'OWASP Top 10:2025', short: 'Top 10' },
+  { id: 'api', name: 'OWASP API Security Top 10 2023', short: 'API' },
+  { id: 'cicd', name: 'OWASP Top 10 CI/CD Security Risks', short: 'CI/CD' },
+  { id: 'llm', name: 'OWASP Top 10 for LLM Applications 2026', short: 'LLM' },
+  { id: 'agentic', name: 'OWASP Top 10 for Agentic Applications 2026', short: 'Agentic' },
+  { id: 'asvs', name: 'OWASP ASVS 5.0 (chapitres)', short: 'ASVS' },
+];
+
+export const refItems: { label: string; ref: RefId; note: string }[] = [
+  { label: 'Software Supply Chain Failures', ref: 'top10', note: 'A03:2025, nouvelle catégorie.' },
+  { label: 'Mishandling of Exceptional Conditions', ref: 'top10', note: 'A10:2025, nouvelle catégorie.' },
+  { label: 'Cryptographic Failures', ref: 'top10', note: 'A04:2025.' },
+  { label: 'Insecure Design', ref: 'top10', note: 'A06:2025.' },
+  { label: 'Security Logging & Alerting Failures', ref: 'top10', note: 'A09:2025.' },
+  { label: 'Software or Data Integrity Failures', ref: 'top10', note: 'A08:2025.' },
+  { label: 'Broken Object Property Level Authorization', ref: 'api', note: 'API3:2023.' },
+  { label: 'Unrestricted Access to Sensitive Business Flows', ref: 'api', note: 'API6:2023.' },
+  { label: 'Unrestricted Resource Consumption', ref: 'api', note: 'API4:2023.' },
+  { label: 'Improper Inventory Management', ref: 'api', note: 'API9:2023.' },
+  { label: 'Unsafe Consumption of APIs', ref: 'api', note: 'API10:2023.' },
+  { label: 'Broken Function Level Authorization', ref: 'api', note: 'API5:2023.' },
+  { label: 'Poisoned Pipeline Execution', ref: 'cicd', note: 'CICD-SEC-4.' },
+  { label: 'Insufficient Flow Control Mechanisms', ref: 'cicd', note: 'CICD-SEC-1.' },
+  { label: 'Dependency Chain Abuse', ref: 'cicd', note: 'CICD-SEC-3.' },
+  { label: 'Insufficient Credential Hygiene', ref: 'cicd', note: 'CICD-SEC-6.' },
+  { label: 'Ungoverned Usage of 3rd Party Services', ref: 'cicd', note: 'CICD-SEC-8.' },
+  { label: 'Improper Artifact Integrity Validation', ref: 'cicd', note: 'CICD-SEC-9.' },
+  { label: 'Prompt Injection', ref: 'llm', note: 'LLM01, inchangé en 2026 mais élargi au multimodal et à la persistance.' },
+  { label: 'Excessive Agency', ref: 'llm', note: 'Remonte en LLM03 dans l’édition 2026.' },
+  { label: 'Hidden Context Exposure', ref: 'llm', note: 'Nouveau nom de System Prompt Leakage en 2026.' },
+  { label: 'Vector and Embedding Weaknesses', ref: 'llm', note: 'Risques propres au RAG.' },
+  { label: 'Data and Model Poisoning', ref: 'llm', note: 'Empoisonnement des données d’entraînement ou du modèle.' },
+  { label: 'Agent Goal Hijack', ref: 'agentic', note: 'ASI01.' },
+  { label: 'Tool Misuse', ref: 'agentic', note: 'ASI02.' },
+  { label: 'Identity & Privilege Abuse', ref: 'agentic', note: 'ASI03.' },
+  { label: 'Memory & Context Poisoning', ref: 'agentic', note: 'ASI06.' },
+  { label: 'Insecure Inter-Agent Communication', ref: 'agentic', note: 'ASI07.' },
+  { label: 'Rogue Agents', ref: 'agentic', note: 'ASI10.' },
+  { label: 'Self-contained Tokens', ref: 'asvs', note: 'Chapitre V9, nouveau dans ASVS 5.0.' },
+  { label: 'OAuth and OIDC', ref: 'asvs', note: 'Chapitre V10, nouveau dans ASVS 5.0.' },
+  { label: 'Web Frontend Security', ref: 'asvs', note: 'Chapitre V3, nouveau dans ASVS 5.0.' },
+  { label: 'Security Logging and Error Handling', ref: 'asvs', note: 'Chapitre V16.' },
+  { label: 'WebRTC', ref: 'asvs', note: 'Chapitre V17, nouveau dans ASVS 5.0.' },
+  { label: 'Encoding and Sanitization', ref: 'asvs', note: 'Chapitre V1.' },
+];

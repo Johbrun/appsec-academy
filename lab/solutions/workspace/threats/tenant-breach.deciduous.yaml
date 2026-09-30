@@ -1,0 +1,67 @@
+# L'arbre d'attaque du vol de facture inter-locataires — livrable de référence.
+#
+# Dans l'esprit de Deciduous — des faits (ce qui est vrai avant l'attaque), des
+# attaques (ce que l'adversaire fait), des objectifs (ce qu'il veut), et des
+# mitigations qui COUPENT un nœud. Une mitigation ne compte que si elle est
+# implémentée — elle cite le fichier du corrigé et un fragment qu'on y retrouve.
+
+title: Lire la facture d'un autre locataire
+
+facts:
+  - id: attaquant-a-un-compte
+    label: L'adversaire dispose d'un compte Novafact valide sur son propre tenant
+  - id: refs-sequentielles
+    label: Les identifiants de facture sont séquentiels et devinables
+  - id: pieces-jointes-sur-disque
+    label: Les pièces jointes sont servies depuis le système de fichiers de la tâche
+
+attacks:
+  - id: enumerer-refs
+    label: Énumérer les identifiants voisins depuis sa propre liste de factures
+    from: [attaquant-a-un-compte, refs-sequentielles]
+  - id: lire-facture-voisine
+    label: Demander une facture dont l'identifiant appartient à un autre tenant
+    from: [enumerer-refs]
+    challenge: bola-invoice
+  - id: injecter-operateur-mongo
+    label: Passer un opérateur de requête à la place du mot de passe pour ouvrir une session administrateur
+    from: [attaquant-a-un-compte]
+    challenge: nosql-auth
+  - id: forger-jeton-admin
+    label: Forger un jeton non signé portant le rôle administrateur
+    from: [attaquant-a-un-compte]
+    challenge: jwt-decode
+  - id: lire-facture-via-admin
+    label: Lire n'importe quelle facture depuis une session administrateur obtenue par l'un des deux chemins
+    from: [injecter-operateur-mongo, forger-jeton-admin]
+  - id: telecharger-piece-jointe-voisine
+    label: Sortir du dossier des pièces jointes pour lire le document d'un autre tenant
+    from: [attaquant-a-un-compte, pieces-jointes-sur-disque]
+    challenge: path-traversal
+
+goals:
+  - id: lire-facture-autre-tenant
+    label: Obtenir le contenu d'une facture appartenant à un autre locataire
+    from: [lire-facture-voisine, lire-facture-via-admin, telecharger-piece-jointe-voisine]
+
+mitigations:
+  - id: depot-par-tenant
+    label: Le dépôt de données exige le tenant, aucune route ne peut l'oublier
+    mitigates: [lire-facture-voisine]
+    implemented_by: solutions/server/routes/invoices.ts
+    evidence: "oneForTenant(req.params.id, req.user!.tenantId)"
+  - id: schema-avant-donnees
+    label: Un schéma impose le type chaîne avant la couche de données
+    mitigates: [injecter-operateur-mongo]
+    implemented_by: solutions/server/routes/auth.ts
+    evidence: "if (!isString(email) || !isString(password))"
+  - id: signature-verifiee
+    label: L'algorithme est fixé côté serveur et la signature est vérifiée avant toute lecture
+    mitigates: [forger-jeton-admin]
+    implemented_by: solutions/server/lib/jwt.ts
+    evidence: "crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(s))"
+  - id: chemin-resolu-puis-verifie
+    label: Le chemin est résolu puis comparé à la racine autorisée, séparateur compris
+    mitigates: [telecharger-piece-jointe-voisine]
+    implemented_by: solutions/server/routes/attachments.ts
+    evidence: "!resolved.startsWith(ATTACH_DIR + path.sep)"

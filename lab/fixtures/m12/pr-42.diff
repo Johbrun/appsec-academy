@@ -1,0 +1,73 @@
+From 9c1f2a7e0b4d5638e1a7c204fbd9e1a5f3c88d21 Mon Sep 17 00:00:00 2001
+From: Camille Roux <camille.roux@novafact.example>
+Date: Tue, 12 Mar 2025 09:41:07 +0100
+Subject: [PATCH] feat(ledger): export comptable multi-tenant
+
+Le cabinet comptable de nos clients demande un export consolidé. On réutilise
+le middleware d'authentification existant et on ajoute une route dédiée.
+
+Testé manuellement sur acme et globex. Tests unitaires à suivre.
+---
+ server/routes/ledger.ts | 46 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+ create mode 100644 server/routes/ledger.ts
+
+diff --git a/server/routes/ledger.ts b/server/routes/ledger.ts
+new file mode 100644
+index 0000000..3f7ab21
+--- /dev/null
++++ b/server/routes/ledger.ts
+@@ -0,0 +1,46 @@
++// Export comptable consolidé, demandé par les cabinets de nos clients.
++
++import { Router } from 'express';
++import { db, audit } from '../store.ts';
++import { decode, verifyStrict } from '../lib/jwt.ts';
++
++export const ledgerRoutes = Router();
++
++interface LedgerRow {
++  ref: string;
++  client: string;
++  total: number;
++  status: string;
++}
++
++ledgerRoutes.get('/ledger', (req, res) => {
++  const token = String(req.headers.authorization ?? '').replace('Bearer ', '');
++
++  // Les revendications servent à savoir qui appelle.
++  const claims = decode(token);
++  if (!claims) {
++    res.status(401).json({ error: 'authentification requise' });
++    return;
++  }
++
++  // Le cabinet comptable exporte pour le compte de son client : le tenant
++  // ciblé peut donc être passé en paramètre.
++  const tenantId = String(req.query.tenant ?? claims.tenantId);
++
++  // Seuls les comptes comptables devraient exporter. On trace les autres.
++  if (claims.role !== 'accountant' && claims.role !== 'admin') {
++    audit(claims.sub, 'export.role', `rôle ${claims.role} sur /ledger`);
++  }
++
++  console.log('export demandé par', claims.sub);
++
++  const format = String(req.query.format ?? 'json');
++  const ref = 'EXP-' + Math.random().toString(36).slice(2, 8);
++
++  const rows: LedgerRow[] = db.invoices
++    .filter((i) => i.tenantId === tenantId)
++    .map((i) => ({ ref: i.ref, client: i.client, total: i.total, status: i.status }));
++
++  // TODO: pagination quand un client dépassera le millier de factures.
++  if (format == 'csv') {
++    res.type('text/csv').send(rows.map((r) => [r.ref, r.client, r.total, r.status].join(';')).join('\n'));
++    return;
++  }
++
++  res.json({ ref, tenant: tenantId, rows, verified: verifyStrict(token) !== null });
++});
+--
+2.43.0

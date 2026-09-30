@@ -1,0 +1,16 @@
+exigence,fichier,test,statut
+V2.1.3,verify/http.test.ts,ne fusionne plus les clés spéciales dans un objet à prototype,non-tenue
+V2.3.1,verify/billing.test.ts,refuse une quantité que seul Number() accepterait,non-tenue
+V2.4.2,verify/billing.test.ts,ne laisse pas une facture être payée et remboursée,non-tenue
+V6.2.1,verify/identity.test.ts,ne laisse pas le temps de réponse trahir le préfixe du jeton,non-tenue
+V6.3.1,verify/identity.test.ts,accepte toujours le bon jeton,tenue
+V6.4.3,verify/identity.test.ts,ne laisse pas créer un compte qui résout vers l’adresse d’un autre,non-tenue
+V7.2.1,verify/http.test.ts,refuse une mutation en formulaire encodé sans jeton,non-tenue
+V7.3.1,verify/billing.test.ts,ne met jamais le jeton d’accès dans une URL,non-tenue
+V8.1.2,verify/billing.test.ts,refuse de supprimer la facture d’un autre tenant,non-tenue
+V8.2.1,verify/billing.test.ts,ne laisse pas un compte tenant écrire un réglage de plateforme,non-tenue
+V8.2.3,verify/http.test.ts,refuse l’export comptable quelle que soit la casse de l’URL,non-tenue
+V14.2.1,verify/http.test.ts,ne sert plus la configuration sans authentification,non-tenue
+V14.3.1,verify/billing.test.ts,ne sert pas un PDF authentifié à un appelant sans session,tenue
+V16.1.3,verify/billing.test.ts,enregistre toujours un paiement seul,tenue
+V16.2.1,verify/billing.test.ts,"échoue proprement, sans pile et sans facture à moitié écrite",non-tenue

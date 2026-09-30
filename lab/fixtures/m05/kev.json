@@ -1,0 +1,99 @@
+{
+  "_a_propos": "Extrait du catalogue des vulnérabilités connues exploitées, au format publié par l’agence. « knownRansomwareCampaignUse » vaut Known ou Unknown, jamais No. L’échéance officielle est fixée à 21 jours après l’ajout.",
+  "title": "Known Exploited Vulnerabilities Catalog (extrait pour le lab)",
+  "catalogVersion": "2026.09.15",
+  "dateReleased": "2026-09-15T13:00:00.0000Z",
+  "count": 6,
+  "vulnerabilities": [
+    {
+      "cveID": "CVE-2026-21801",
+      "vendorProject": "OpenJS Foundation",
+      "product": "Express",
+      "vulnerabilityName": "Désynchronisation de requêtes dans le parseur de corps",
+      "dateAdded": "2026-04-02",
+      "shortDescription": "Désynchronisation de requêtes dans le parseur de corps",
+      "requiredAction": "Appliquer les mesures de l’éditeur, ou retirer le composant.",
+      "dueDate": "2026-04-23",
+      "knownRansomwareCampaignUse": "Unknown",
+      "notes": "",
+      "cwes": [
+        "CWE-444"
+      ]
+    },
+    {
+      "cveID": "CVE-2025-48795",
+      "vendorProject": "Mafintosh",
+      "product": "tar-fs",
+      "vulnerabilityName": "Écriture hors du dossier d’extraction",
+      "dateAdded": "2026-01-19",
+      "shortDescription": "Écriture hors du dossier d’extraction",
+      "requiredAction": "Appliquer les mesures de l’éditeur, ou retirer le composant.",
+      "dueDate": "2026-02-09",
+      "knownRansomwareCampaignUse": "Known",
+      "notes": "",
+      "cwes": [
+        "CWE-22"
+      ]
+    },
+    {
+      "cveID": "CVE-2025-30066",
+      "vendorProject": "tj-actions",
+      "product": "changed-files",
+      "vulnerabilityName": "Action compromise exfiltrant les secrets du runner",
+      "dateAdded": "2026-03-18",
+      "shortDescription": "Action compromise exfiltrant les secrets du runner",
+      "requiredAction": "Appliquer les mesures de l’éditeur, ou retirer le composant.",
+      "dueDate": "2026-04-08",
+      "knownRansomwareCampaignUse": "Unknown",
+      "notes": "",
+      "cwes": [
+        "CWE-506"
+      ]
+    },
+    {
+      "cveID": "CVE-2026-30791",
+      "vendorProject": "Axios",
+      "product": "axios",
+      "vulnerabilityName": "SSRF par redirection non revalidée",
+      "dateAdded": "2026-05-27",
+      "shortDescription": "SSRF par redirection non revalidée",
+      "requiredAction": "Appliquer les mesures de l’éditeur, ou retirer le composant.",
+      "dueDate": "2026-06-17",
+      "knownRansomwareCampaignUse": "Unknown",
+      "notes": "",
+      "cwes": [
+        "CWE-918"
+      ]
+    },
+    {
+      "cveID": "CVE-2026-50188",
+      "vendorProject": "Patriksimek",
+      "product": "vm2",
+      "vulnerabilityName": "Évasion du bac à sable",
+      "dateAdded": "2026-08-11",
+      "shortDescription": "Évasion du bac à sable",
+      "requiredAction": "Appliquer les mesures de l’éditeur, ou retirer le composant.",
+      "dueDate": "2026-09-01",
+      "knownRansomwareCampaignUse": "Known",
+      "notes": "",
+      "cwes": [
+        "CWE-693"
+      ]
+    },
+    {
+      "cveID": "CVE-2026-48002",
+      "vendorProject": "Micromatch",
+      "product": "braces",
+      "vulnerabilityName": "ReDoS sur l’expansion d’accolades",
+      "dateAdded": "2026-06-30",
+      "shortDescription": "ReDoS sur l’expansion d’accolades",
+      "requiredAction": "Appliquer les mesures de l’éditeur, ou retirer le composant.",
+      "dueDate": "2026-07-21",
+      "knownRansomwareCampaignUse": "Unknown",
+      "notes": "",
+      "cwes": [
+        "CWE-1333"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,235 @@
+export const questions = [
+  {
+    q: "La SPA de Novafact affiche les réponses de l'assistant avec react-markdown, sans plugin HTML. Un pentester obtient pourtant une fuite de données. Quel est le canal le plus probable ?",
+    options: [
+      "Une balise `<script>` dans la réponse, que react-markdown rend telle quelle",
+      "Un lien Markdown en `javascript:` déclenché dès l'affichage, sans clic",
+      "Une image Markdown dont l'URL, forgée par le modèle, porte des données du contexte",
+      "Le cookie de session, lu par le modèle puis recopié dans la réponse affichée à l'écran",
+    ],
+    answer: 2,
+    explain: "Sans HTML brut, pas de XSS classique : react-markdown ignore les balises et filtre les schémas d'URI, donc `<script>` et `javascript:` ne passent pas. L'image, elle, est du Markdown parfaitement légitime — et son seul rendu déclenche une requête sortante, sans le moindre clic. Il suffit que l'URL soit construite par le modèle sous l'influence du contenu injecté pour que les données partent dans le chemin ou la chaîne de requête. Le modèle, lui, n'a jamais accès au cookie de session : il ne voit que ce qu'on met dans son contexte. La parade est de bloquer ou réécrire les images externes et de limiter les liens à une liste de domaines.",
+  },
+  {
+    q: "L'outil searchInvoices reçoit un argument tenantId que le modèle remplit à partir de la conversation. Quel est le problème ?",
+    options: [
+      "Le modèle risque d'halluciner un identifiant de tenant et de renvoyer une erreur au client",
+      "Le tenant devient contrôlable par le contexte : c'est une BOLA pilotée par injection",
+      "Le paramètre n'est pas validé par un schéma zod, ce qui ouvre une injection SQL",
+      "L'identifiant de tenant se retrouve dans les traces de l'outil, donc dans les logs",
+    ],
+    answer: 1,
+    explain: "Tout argument d'outil est rempli par le modèle, donc influençable par ce qu'il a lu : une consigne cachée dans une facture suffit à faire passer un autre `tenantId`. Ce n'est pas un problème de fiabilité — un identifiant halluciné produirait une erreur visible, alors qu'un identifiant *choisi* produit une réponse parfaitement valide avec les données d'un autre client, que personne ne voit passer. Un schéma zod valide la forme, pas la légitimité. L'identité et le tenant ne sont jamais des arguments : l'outil les prend dans la session, par closure ou contexte serveur.",
+  },
+  {
+    q: "Pour une fonction « pose ta question sur tes factures » en langage naturel, quelle approche text-to-SQL est la plus sûre ?",
+    options: [
+      "Le SQL du modèle, exécuté par un rôle en lecture seule avec un timeout court",
+      "Le SQL du modèle, exécuté après vérification qu'il commence par `SELECT`",
+      "Le SQL du modèle, exécuté sur une vue par tenant choisie d'après la session, en lecture seule",
+      "Un filtre structuré validé par zod, traduit en requête où le code impose le tenant",
+    ],
+    answer: 3,
+    explain: "Le modèle ne produit plus de code mais des données bornées par un schéma : le code construit la requête et impose le tenant, donc aucune chaîne écrite par le modèle n'atteint la base. Vérifier que le SQL commence par `SELECT` ne protège de rien — une sous-requête, un `UNION` ou un appel de fonction suffisent. Le rôle en lecture seule et la vue par tenant sont, eux, de vraies mesures, celles qu'on garde quand le SQL libre est indispensable : elles bornent les dégâts, mais laissent le modèle écrire la requête, donc laissent une injection lui dicter quoi lire à l'intérieur de son périmètre.",
+  },
+  {
+    q: "Où appliquer les droits d'accès dans un RAG multi-tenant ?",
+    options: [
+      "À la récupération : la requête vectorielle filtre par tenant et par droits",
+      "Dans le prompt, en demandant au modèle de ne citer que les documents autorisés",
+      "Après la génération, en masquant les passages issus de documents non autorisés",
+      "À l'indexation : un index séparé par tenant rend tout filtrage ultérieur inutile",
+    ],
+    answer: 0,
+    explain: "Un document récupéré est dans le contexte, donc potentiellement restitué, résumé ou cité : le filtre doit précéder la récupération, exactement comme un `WHERE tenantId` précède la lecture d'une table. Masquer après la génération arrive trop tard, et demander au modèle de s'autocensurer n'est pas un contrôle. L'index par tenant est la meilleure des autres réponses et reste partielle : il faut encore choisir le bon index à partir de la session — pas de la conversation — et filtrer les droits *à l'intérieur* du tenant, où tous les utilisateurs ne voient pas tout.",
+  },
+];
+
+<YouKnow>
+Tu sais trouver une XSS, une SSRF ou une BOLA. Dans une application avec LLM, elles sont toutes là, avec un intermédiaire de plus : la valeur dangereuse n'est plus tapée par l'attaquant, elle est **écrite par le modèle** sous l'influence de ce qu'il a lu.
+</YouKnow>
+
+## La règle : la sortie du modèle est une entrée non fiable
+
+Quel que soit le SDK (Vercel AI SDK, LangChain.js, SDK officiels d'OpenAI ou d'Anthropic), l'architecture est la même : ton code envoie un contexte, le modèle renvoie du texte ou des appels d'outils, ton code les traite. Tout ce qui revient du modèle doit être traité **comme une entrée utilisateur**, avec une nuance aggravante : même un utilisateur honnête peut produire une sortie malveillante, si le modèle a lu un contenu piégé.
+
+| Où va la sortie | Faille classique | Contrôle |
+| --- | --- | --- |
+| Rendu HTML ou Markdown | XSS, exfiltration par image ou lien | Pas de HTML brut, images externes bloquées, domaines de liens en liste blanche, CSP |
+| URL passée à un outil | SSRF | Liste blanche d'hôtes, proxy de sortie, blocage des adresses internes et des métadonnées cloud (M3) |
+| Requête SQL ou filtre | Injection, BOLA | Filtre structuré validé, tenant imposé par le code, rôle en lecture seule |
+| Arguments d'outil | BOLA, BFLA, agence excessive | Schéma strict, identité prise dans la session, autorisation revérifiée dans l'outil |
+| Commande, code, `eval` | RCE | Ne pas le faire ; sinon bac à sable sans réseau ni secrets |
+
+C'est LLM10:2026 (Improper Output Handling) : descendu dans le classement, toujours aussi présent dans le code.
+
+## Rendre la réponse sans ouvrir de canal
+
+Dans une SPA React, la première règle est connue : jamais de `dangerouslySetInnerHTML` sur une sortie de modèle, et pas de plugin qui réactive le HTML brut dans le moteur Markdown. La seconde l'est moins : **une image Markdown est une requête sortante**. Si le modèle écrit une image dont l'URL contient des données du contexte, le navigateur de la victime les envoie en la chargeant, sans le moindre clic.
+
+<Code file="apps/web/src/assistant/AssistantMessage.tsx" hl="4,5,6,14,15">
+
+```tsx
+import Markdown, { defaultUrlTransform } from 'react-markdown';
+
+const LINK_HOSTS = new Set(['novafact.example', 'docs.novafact.example']);
+const safeUrl = (url: string) => {
+  const u = defaultUrlTransform(url); // neutralise javascript:, data:, etc.
+  try { return LINK_HOSTS.has(new URL(u, location.origin).hostname) ? u : ''; } catch { return ''; }
+};
+
+export function AssistantMessage({ text }: { text: string }) {
+  return (
+    <Markdown
+      skipHtml
+      urlTransform={safeUrl}
+      disallowedElements={['img']}
+      unwrapDisallowed
+      components={{ a: ({ href, children }) => (href ? <a href={href} rel="noopener noreferrer">{children}</a> : <span>{children}</span>) }}
+    >
+      {text}
+    </Markdown>
+  );
+}
+```
+
+</Code>
+
+La CSP (M4) ferme la porte une seconde fois : un `img-src` limité à ton origine et à ton CDN empêche le chargement d'une image externe même si un composant l'oublie. Les liens restent un canal (l'utilisateur peut cliquer) : n'autorise que tes domaines et affiche l'URL complète.
+
+<Callout kind="case">
+En août 2024, PromptArmor a montré qu'on pouvait faire fuiter des données de canaux privés via Slack AI : une consigne placée dans un canal public amenait l'assistant, lors d'une recherche d'un autre utilisateur, à produire un lien cliquable contenant des données privées. MITRE ATLAS l'a intégré comme étude de cas (AML.CS0035). La même mécanique a été démontrée sur plusieurs assistants grand public : ce n'est pas un bug d'un produit, c'est une propriété du rendu.
+</Callout>
+
+## Les outils : SSRF, BOLA et moindre privilège
+
+Un outil est un endpoint d'API dont l'appelant est le modèle. Il se conçoit comme tel : schéma strict, identité et tenant pris dans la session, autorisation revérifiée, portée minimale. Avec l'AI SDK 7 (juin 2026), les outils se définissent avec `tool()` et un schéma zod ; les outils sont construits **par requête**, ce qui permet de capturer la session dans une closure.
+
+<Code file="apps/api/src/assistant/tools.ts" hl="9,16,17,26,27,28">
+
+```ts
+import { streamText, tool, isStepCount, type ModelMessage } from 'ai';
+import { z } from 'zod';
+import { assistantModel } from './model';
+
+export function runAssistant(session: Session, messages: ModelMessage[]) {
+  const tools = {
+    searchInvoices: tool({
+      description: 'Recherche des factures du tenant courant.',
+      inputSchema: z.object({ status: z.enum(['draft', 'sent', 'paid', 'overdue']).optional(), limit: z.number().int().min(1).max(20).default(10) }),
+      execute: (input) => invoices.search(session, input),          // tenantId pris dans la session, jamais dans input
+    }),
+    sendInvoiceEmail: tool({
+      description: 'Envoie une facture à un contact existant du client.',
+      inputSchema: z.object({ invoiceId: z.string().uuid(), contactId: z.string().uuid() }), // un contactId, pas une adresse libre
+      execute: (input) => mailer.sendInvoice(session, input),       // revérifie rôle, tenant et appartenance du contact
+    }),
+  };
+
+  return streamText({
+    model: assistantModel,
+    messages,
+    tools,
+    toolApproval: { sendInvoiceEmail: 'user-approval' },           // l'utilisateur valide chaque envoi
+    stopWhen: isStepCount(5),                                        // pas de boucle d'outils infinie
+    maxOutputTokens: 800,
+    abortSignal: AbortSignal.timeout(30_000),
+  });
+}
+```
+
+</Code>
+
+Deux décisions font l'essentiel du travail. L'outil d'envoi prend un **`contactId`** et non une adresse : le modèle ne peut choisir qu'un destinataire déjà connu du tenant, ce qui retire l'exfiltration par e-mail. Et l'**approbation** est déclarée à l'appel (dans l'AI SDK 7, `toolApproval` remplace l'option `needsApproval` des versions précédentes) : le SDK suspend l'exécution jusqu'à la décision de l'utilisateur. LangChain.js et les SDK des fournisseurs offrent des mécanismes équivalents ; l'important est que la décision soit prise par du code, pas par le modèle.
+
+Si un outil doit récupérer une URL (lire une page de conditions générales, par exemple), c'est une SSRF en puissance : liste blanche d'hôtes, résolution DNS vérifiée, proxy de sortie, aucune redirection suivie aveuglément, exactement comme en M3.
+
+Enfin, **journalise chaque appel d'outil** comme un événement de sécurité : utilisateur, tenant, nom de l'outil, arguments, décision (exécuté, approuvé, refusé) et identifiant de la conversation. Sans ces traces, une injection réussie ressemble à un usage normal ; avec elles, une détection Elastic (M18) peut signaler un outil d'écriture appelé juste après la lecture d'un document importé, ou un utilisateur dont les refus d'approbation s'accumulent.
+
+## Text-to-SQL sans donner les clés
+
+« Combien m'ont payé mes cinq plus gros clients ce trimestre ? » Laisser le modèle écrire du SQL et l'exécuter avec le compte de l'application, c'est offrir une injection SQL à quiconque influence le contexte. Trois niveaux, du plus sûr au plus risqué :
+
+| Approche | Risque résiduel | Quand |
+| --- | --- | --- |
+| **Filtre structuré** : le modèle remplit un schéma, le code construit la requête | Faible : le modèle ne choisit que des valeurs bornées | Par défaut |
+| **SQL libre encadré** : rôle en lecture seule, vues dédiées, RLS par tenant, `statement_timeout`, limite de lignes | Moyen : fuite intra-tenant, requêtes coûteuses | Outil d'analyse interne |
+| **SQL libre avec le compte applicatif** | Critique | Jamais |
+
+<Code file="apps/api/src/assistant/invoice-query.ts" hl="11">
+
+```ts
+const InvoiceQuery = z.object({
+  status: z.enum(['draft', 'sent', 'paid', 'overdue']).optional(),
+  issuedAfter: z.coerce.date().optional(),
+  minTotalCents: z.number().int().nonnegative().optional(),
+  orderBy: z.enum(['issuedAt', 'totalCents']).default('issuedAt'),
+  take: z.number().int().min(1).max(50).default(20),
+});
+
+export async function queryInvoices(session: Session, raw: unknown) {
+  const q = InvoiceQuery.parse(raw);
+  return prisma.invoice.findMany({
+    where: { tenantId: session.tenantId, status: q.status, issuedAt: { gte: q.issuedAfter }, totalCents: { gte: q.minTotalCents } },
+    orderBy: { [q.orderBy]: 'desc' },
+    take: q.take,
+    select: { number: true, customerName: true, totalCents: true, status: true, issuedAt: true },
+  });
+}
+```
+
+</Code>
+
+## RAG : les droits avant la récupération
+
+Un document récupéré entre dans le contexte ; ce qui est dans le contexte peut ressortir. Les droits s'appliquent donc **au moment de la récupération**, jamais après la génération. Chez Novafact, les fragments de factures sont stockés dans Postgres avec pgvector, et la requête vectorielle porte le filtre de tenant comme n'importe quelle autre requête.
+
+<Code file="apps/api/src/assistant/retrieve.ts" hl="5,6">
+
+```ts
+export async function retrieve(session: Session, embedding: number[]) {
+  return prisma.$queryRaw<Chunk[]>`
+    SELECT id, invoice_id, content, source
+    FROM invoice_chunks
+    WHERE tenant_id = ${session.tenantId}::uuid
+      AND (visibility = 'tenant' OR owner_id = ${session.userId}::uuid)
+    ORDER BY embedding <=> ${JSON.stringify(embedding)}::vector
+    LIMIT 8`;
+}
+```
+
+</Code>
+
+Le gabarit de `$queryRaw` paramètre les valeurs. Restent trois pièges : la **synchronisation** (une facture supprimée ou dont les droits changent doit disparaître de l'index, sinon le RAG garde une copie des anciennes permissions), les **index partagés** entre tenants sans filtre obligatoire (LLM09:2026), et l'**empoisonnement** : le champ `source` distingue les documents importés par un client, que l'orchestrateur traite comme non fiables (règle de deux, leçon 2), des documents rédigés par Novafact.
+
+## Consommation illimitée
+
+LLM06:2026 décrit une attaque sans malware : du trafic légitime en apparence, conçu pour coûter. Un compte d'essai qui enchaîne des questions longues, un agent qui boucle entre deux outils, un document de 400 pages soumis au résumé.
+
+| Limite | Valeur chez Novafact (fictive) | Où |
+| --- | --- | --- |
+| Taille d'entrée | 20 000 caractères par message, 10 Mo par document | Validation de la route |
+| Jetons de sortie | 800 par réponse | `maxOutputTokens` |
+| Étapes d'outils | 5 par requête | `stopWhen` |
+| Durée | 30 s | `abortSignal` |
+| Quota | 200 000 jetons par utilisateur et par jour, 2 M par tenant | Compteur Redis, réponse 429 |
+| Coût global | Alerte à 120 % de la moyenne horaire | AWS Budgets et alarme CloudWatch (M18) |
+
+<Lab id="ps-llm" note="Pour chaque lab, identifie le sink (outil, rendu, API) et écris le contrôle de cette leçon qui l'aurait neutralisé." />
+
+<Recap items={[
+  "Toute sortie de modèle est une entrée non fiable : encoder, valider, autoriser comme pour une saisie utilisateur.",
+  "Rendu : pas de HTML brut, images externes bloquées, liens en liste blanche, CSP en seconde ligne.",
+  "Outils : schéma strict, identité et tenant pris dans la session, identifiants plutôt que valeurs libres, approbation décidée par le code.",
+  "Text-to-SQL : filtre structuré validé, tenant imposé ; SQL libre seulement en lecture seule avec RLS et timeout.",
+  "RAG : droits appliqués à la récupération ; consommation bornée par taille, jetons, étapes, durée et quotas.",
+]} />
+
+<Sources items={[
+  { title: "Web Security Academy : Web LLM attacks", url: "https://portswigger.net/web-security/llm-attacks" },
+  { title: "AI SDK : Tools and Tool Calling", url: "https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling" },
+  { title: "AI SDK : migration 6.x vers 7.0 (toolApproval, isStepCount)", url: "https://ai-sdk.dev/docs/migration-guides/migration-guide-7-0" },
+  { title: "react-markdown : options urlTransform, skipHtml, disallowedElements", url: "https://github.com/remarkjs/react-markdown" },
+  { title: "OWASP Cheat Sheet : SSRF Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html" },
+  { title: "OWASP GenAI : LLM Top 10 2026", url: "https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/" },
+]} />

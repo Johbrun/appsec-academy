@@ -1,0 +1,269 @@
+export const questions = [
+  {
+    q: "L'équipe attache la politique gérée SecurityHeadersPolicy de CloudFront à toutes les distributions et considère le sujet des en-têtes clos. Qu'est-ce qui manque ?",
+    options: [
+      "Rien : c'est la politique recommandée par AWS pour une application web moderne",
+      "Seul le HSTS manque, la politique gérée n'osant pas l'imposer à la place du client",
+      "Il manque le préfixe `__Host-` sur les cookies, que la politique ne peut pas ajouter",
+      "La CSP, Permissions-Policy et COOP, et les en-têtes de l'origine l'emportent",
+    ],
+    answer: 3,
+    explain: "La politique gérée pose Referrer-Policy, HSTS (un an, sans `includeSubDomains`), `nosniff`, X-Frame-Options et X-XSS-Protection — ce dernier étant aujourd'hui déconseillé. Croire qu'elle oublie HSTS est donc l'erreur symétrique : il est là, mais trop court et sans les sous-domaines. Ce qui manque vraiment, c'est la CSP, Permissions-Policy et COOP. Et le détail qui décide : `Override` est à `No` sauf pour `nosniff`, donc un en-tête émis par l'origine gagne — pratique pour laisser passer la CSP applicative, piégeux pour tout en-tête que l'origine pose mal. Le préfixe de cookie, lui, relève du code : aucun en-tête de réponse ne le posera.",
+  },
+  {
+    q: "La page de paiement Next.js génère un nonce par requête dans proxy.ts. Un comportement de cache CloudFront la met en cache 60 secondes. Pourquoi est-ce grave ?",
+    options: [
+      "Le nonce du HTML et celui de l'en-tête divergent, et tous les scripts inline sont bloqués",
+      "Le même nonce est servi à tous pendant 60 secondes : il devient public et rejouable",
+      "CloudFront retire l'en-tête `Content-Security-Policy` des réponses mises en cache",
+      "Le cache force le rendu statique de la page, ce qui casse la génération du nonce",
+    ],
+    answer: 1,
+    explain: "Un nonce ne protège que s'il est imprévisible et unique par réponse. Mis en cache, il est servi identique à tous les visiteurs pendant une minute : l'attaquant le lit dans sa propre réponse et l'ajoute à la charge utile qu'il injecte dans la page. Et rien ne casse visiblement — c'est ce qui rend l'hypothèse « les scripts seront bloqués » à la fois rassurante et fausse : l'en-tête et le HTML sont mis en cache ensemble, donc parfaitement cohérents. La documentation Next.js est explicite : une page à nonce se rend dynamiquement et ne se met pas en cache au CDN.",
+  },
+  {
+    q: "Le script de vérification post-déploiement trouve une virgule dans la valeur de Content-Security-Policy renvoyée par fetch. Que signifie-t-elle le plus probablement ?",
+    options: [
+      "Que deux en-têtes CSP ont été émis : le navigateur applique leur intersection",
+      "Que la politique contient une liste de sources séparées par des virgules, ce qui est valide",
+      "Que la CSP est servie en `report-only` et fusionnée avec la politique appliquée",
+      "Que `fetch` normalise les directives et les sépare par des virgules dans sa sortie",
+    ],
+    answer: 0,
+    explain: "`fetch` fusionne bien les en-têtes répétés en les joignant par une virgule — l'artefact est réel, et c'est ce qui rend tentant de conclure à un simple effet d'affichage. Sauf qu'en CSP la virgule sépare justement deux politiques distinctes : s'il y en a deux, le navigateur applique les deux, donc leur intersection, et la page casse de façon incompréhensible. Dans une liste de sources, le séparateur est l'espace, jamais la virgule. Chaque en-tête doit avoir un seul propriétaire : l'application ou CloudFront, pas les deux.",
+  },
+  {
+    q: "Pourquoi l'endpoint qui reçoit les rapports CSP doit-il tronquer et normaliser les champs avant de les journaliser ?",
+    options: [
+      "Parce que les extensions de navigateur génèrent un bruit énorme qu'il faut filtrer",
+      "Parce que `report-to` n'impose aucune limite de taille aux rapports du navigateur",
+      "Parce que les champs varient selon les navigateurs et cassent le mapping Elastic",
+      "Parce que n'importe qui peut poster de faux rapports : les champs sont non fiables",
+    ],
+    answer: 3,
+    explain: "L'endpoint de rapports est public par construction : rien n'authentifie l'émetteur, et un attaquant peut y poster ce qu'il veut, y compris des valeurs conçues pour s'injecter dans les logs ou faire exploser un champ. Le bruit des extensions et la divergence des formats entre navigateurs sont réels et justifient eux aussi la normalisation, mais ce sont des problèmes de qualité de données : ils ne disent rien du risque. On traite ce flux comme toute entrée non fiable — taille limitée, débit limité, champs connus seulement, longueur bornée. Un rapport est un signal, jamais une preuve.",
+  },
+];
+
+<YouKnow>
+En M4, tu as conçu la politique : CSP stricte à nonce ou à hash, COOP, CORP, `Permissions-Policy`, cookies `__Host-`. Une politique bien écrite ne protège rien tant qu'elle n'est pas servie, sur **toutes** les réponses, par **un seul** propriétaire, et vérifiée à chaque déploiement.
+</YouKnow>
+
+## Cartographier les réponses avant de poser des en-têtes
+
+Novafact ne sert pas une application, mais plusieurs types de réponses, produites par des composants différents. Le bon emplacement d'un en-tête dépend de qui produit la réponse et de ce qu'il sait au moment de la produire :
+
+| Réponse | Produite par | Où poser les en-têtes | Pourquoi |
+| --- | --- | --- | --- |
+| SPA React (fichiers statiques) | S3 via CloudFront | Response headers policy CloudFront | Pas de serveur applicatif ; CSP à `'self'` ou à hashes, fixe au build |
+| Back-office et page de paiement Next.js | ECS via CloudFront | L'application (`proxy.ts`) | Le nonce change à chaque réponse : seul le serveur le connaît |
+| API Express (JSON) | ECS via CloudFront | helmet dans l'application (leçon 1) | CSP minimale, CORP, pas de cache |
+| Erreurs d'infrastructure | S3, WAF, ALB, CloudFront | À vérifier une par une | Ces réponses ne passent pas par ton code |
+| Fichiers des clients (PDF déposés) | S3, domaine séparé | Response headers policy dédiée | `Content-Disposition: attachment`, `nosniff`, CSP `sandbox` |
+
+La règle qui en découle : **un propriétaire par en-tête et par type de réponse**. Ce qui dépend de la requête (nonce) appartient à l'application. Ce qui est invariant (HSTS, `nosniff`, `Permissions-Policy`) peut être posé en bordure, sur CloudFront, où il couvre aussi les réponses que ton code ne produit pas.
+
+<Callout kind="warn">
+Deux composants qui posent chacun une CSP produisent **deux politiques**, et le navigateur les applique toutes les deux : une ressource doit satisfaire l'une **et** l'autre. Le symptôme classique : helmet laisse sa CSP par défaut active devant Next.js, qui pose la sienne, et les scripts à nonce sont bloqués par la politique de helmet. Désactive explicitement la CSP là où elle n'est pas la bonne.
+</Callout>
+
+<Callout kind="debate">
+En bordure ou dans l'application ? Les équipes plateforme préfèrent la bordure : une seule politique CloudFront, gérée en IaC, qui couvre toutes les réponses, même celles d'un service écrit à la hâte. Les équipes produit répondent que la CSP dépend de la page (scripts tiers, iframe du prestataire, nonce) et qu'un en-tête posé loin du code n'est ni testé ni relu par ceux qui le cassent. Le compromis qui tient : les en-têtes invariants en bordure avec `override`, la CSP au plus près du code qui produit la page, et le même script de vérification pour tout le monde.
+</Callout>
+
+## En bordure : la response headers policy de CloudFront
+
+Une **response headers policy** ajoute, remplace ou retire des en-têtes dans les réponses que CloudFront envoie aux navigateurs, qu'elles viennent du cache ou de l'origine. Pour chaque en-tête, le réglage **Origin override** décide qui gagne : à `true`, la valeur de la politique remplace celle de l'origine ; à `false`, l'en-tête de l'origine est conservé s'il existe, et la politique ne sert que de valeur par défaut.
+
+La politique gérée **SecurityHeadersPolicy** est tentante, mais elle ne correspond pas à ce que tu as conçu en M4 : pas de CSP, HSTS d'un an sans `includeSubDomains`, `X-XSS-Protection: 1; mode=block` (le filtre historique des navigateurs est déconseillé ; helmet pose `0`), et `Override` à `false` sauf pour `nosniff`. Écris ta propre politique :
+
+<Code file="infra/terraform/edge/headers-spa.tf" hl="6,7,11,12,31,32">
+
+```hcl
+resource "aws_cloudfront_response_headers_policy" "spa" {
+  name = "novafact-spa-security"
+
+  security_headers_config {
+    content_security_policy {
+      content_security_policy = "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; connect-src 'self' https://api.novafact.example; report-to csp"
+      override                = true
+    }
+    strict_transport_security {
+      access_control_max_age_sec = 63072000
+      include_subdomains         = true
+      preload                    = false
+      override                   = true
+    }
+    content_type_options {
+      override = true
+    }
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+  }
+
+  custom_headers_config {
+    items {
+      header   = "Reporting-Endpoints"
+      value    = "csp=\"https://app.novafact.example/api/reports\""
+      override = true
+    }
+    items {
+      header   = "Permissions-Policy"
+      value    = "camera=(), microphone=(), geolocation=()"
+      override = true
+    }
+    items {
+      header   = "Cross-Origin-Opener-Policy"
+      value    = "same-origin"
+      override = true
+    }
+  }
+
+  remove_headers_config {
+    items {
+      header = "X-Powered-By"
+    }
+  }
+}
+```
+
+</Code>
+
+Trois limites à connaître. La valeur de `Content-Security-Policy` est limitée à **1 783 caractères** : une politique à longue liste de hashes peut ne pas tenir. Une response headers policy est **statique** : elle ne sait pas générer de nonce (une CloudFront Function en réponse au viewer le pourrait techniquement, mais elle ne peut pas réécrire le HTML servi, donc le nonce reste l'affaire de l'application). Enfin, la politique s'attache par **comportement de cache** : un nouveau comportement ajouté pour `/exports/*` sans politique sert des réponses sans aucun de ces en-têtes.
+
+## Dans l'application : les pages dynamiques
+
+Pour le back-office et la page de paiement, l'application pose la CSP, car elle seule connaît le nonce. Depuis Next.js 16, le fichier `middleware.ts` s'appelle `proxy.ts` et exporte une fonction `proxy` ; le principe est inchangé : générer le nonce, le mettre dans la CSP de la réponse et dans un en-tête de requête `x-nonce`, que Next.js relit pour l'appliquer à ses propres scripts (M4, leçon 4).
+
+Deux conséquences d'exploitation, souvent oubliées :
+
+- **pas de cache partagé** pour ces pages. Un HTML mis en cache par CloudFront sert le même nonce à tous les visiteurs : il devient public, donc inutile. La documentation Next.js le dit : les pages à nonce doivent être rendues dynamiquement, et ne peuvent pas être mises en cache par le CDN sans configuration particulière. Côté CloudFront, le comportement de ces chemins utilise une politique de cache désactivée (`CachingDisabled`) ;
+- **la response headers policy de ces comportements ne touche pas à la CSP** : elle ne contient pas de bloc `content_security_policy`, ou le laisse à `override = false`. Elle garde HSTS, `nosniff` et `Permissions-Policy`.
+
+Si le cache des pages est indispensable, l'alternative est la CSP à **hashes** : l'option expérimentale `experimental.sri` de Next.js calcule au build des empreintes des scripts, compatibles avec le rendu statique.
+
+## Vérifier après chaque déploiement
+
+Une configuration d'en-têtes régresse silencieusement : un nouveau comportement CloudFront, une montée de version de Next.js, un helmet réordonné. La vérification doit être automatique, sur des URL représentatives de **chaque type de réponse**, y compris une 404 et une réponse d'API :
+
+<Code file="scripts/check-headers.mjs" hl="21,22,25,26,27">
+
+```js
+// Lancé par le pipeline après chaque déploiement, et toutes les heures par un job planifié.
+const targets = [
+  { url: 'https://app.novafact.example/', kind: 'static' },
+  { url: 'https://app.novafact.example/assets/inexistant.js', kind: 'static' },
+  { url: 'https://admin.novafact.example/login', kind: 'dynamic' },
+  { url: 'https://pay.novafact.example/checkout/demo', kind: 'dynamic' },
+  { url: 'https://api.novafact.example/health', kind: 'api' },
+];
+
+const failures = [];
+const check = (ok, url, msg) => { if (!ok) failures.push(`${url} : ${msg}`); };
+const nonceOf = (csp) => /'nonce-([^']+)'/.exec(csp)?.[1];
+
+for (const { url, kind } of targets) {
+  const h = (await fetch(url)).headers;
+  const csp = h.get('content-security-policy') ?? '';
+  const hsts = Number(/max-age=(\d+)/.exec(h.get('strict-transport-security') ?? '')?.[1] ?? 0);
+  check(hsts >= 31_536_000, url, 'HSTS absent ou inférieur à un an');
+  check(h.get('x-content-type-options') === 'nosniff', url, 'nosniff absent');
+  check(!h.has('x-powered-by'), url, 'X-Powered-By présent');
+  check(csp !== '', url, 'CSP absente');
+  check(!csp.includes(','), url, 'plusieurs politiques CSP : en-tête posé deux fois ?');
+  check(!/script-src[^;]*'unsafe-inline'/.test(csp) || /script-src[^;]*'(nonce-|sha256-)/.test(csp),
+    url, "script-src autorise 'unsafe-inline'");
+  if (kind === 'dynamic') {
+    const again = (await fetch(url)).headers.get('content-security-policy') ?? '';
+    check(nonceOf(csp) && nonceOf(csp) !== nonceOf(again), url, 'nonce absent ou réutilisé : page en cache ?');
+  }
+}
+
+if (failures.length) { console.error(failures.join('\n')); process.exit(1); }
+console.log(`En-têtes conformes sur ${targets.length} URL`);
+```
+
+</Code>
+
+Le test de la virgule repose sur deux faits : `fetch` fusionne les en-têtes répétés avec une virgule, et une virgule sépare des politiques distinctes dans une CSP. Le double appel sur les pages dynamiques détecte un nonce réutilisé, donc une page servie depuis un cache. Pour la page de paiement, ce contrôle horaire sert aussi de preuve pour l'exigence PCI DSS 11.6.1, qui demande de détecter les modifications non autorisées des en-têtes de sécurité de la page (M4, leçon 7).
+
+## Les rapports jusqu'à Elastic
+
+Une CSP bloquante continue de **rapporter**. Le mécanisme moderne combine l'en-tête `Reporting-Endpoints` (qui nomme un endpoint) et la directive `report-to` ; MDN le signale disponible dans les dernières versions de tous les navigateurs depuis mars 2026. Les navigateurs envoient un tableau JSON en `application/reports+json`, chaque rapport de type `csp-violation` portant `blockedURL`, `effectiveDirective`, `documentURL`, `disposition` et un court `sample`. L'ancien `report-uri` envoie un objet `csp-report` en `application/csp-report`, avec des noms de champs à tirets : garde les deux le temps que les anciens navigateurs disparaissent.
+
+L'endpoint est **public par nature** : n'importe qui peut y envoyer de faux rapports. Traite-le comme toute entrée non fiable.
+
+<Code file="apps/api/src/routes/reports.ts" hl="6,7,11,15">
+
+```ts
+import express from 'express';
+import rateLimit from 'express-rate-limit';
+
+export const reports = express.Router();
+
+reports.use(rateLimit({ windowMs: 60_000, limit: 60 }));
+reports.post('/api/reports', express.json({ type: ['application/reports+json', 'application/csp-report'], limit: '64kb' }),
+  (req, res) => {
+    const list = Array.isArray(req.body) ? req.body : [{ type: 'csp-violation', body: req.body?.['csp-report'] }];
+    const cut = (v: unknown, n: number) => String(v ?? '').slice(0, n);
+    for (const r of list.slice(0, 20)) {
+      if (r?.type !== 'csp-violation' || !r.body) continue;
+      const b = r.body;
+      req.log.warn({
+        event: { action: 'csp-violation', category: ['web'] },
+        csp: {
+          blocked: cut(b.blockedURL ?? b['blocked-uri'], 512),
+          directive: cut(b.effectiveDirective ?? b['effective-directive'], 64),
+          document: cut(b.documentURL ?? b['document-uri'], 512),
+          disposition: cut(b.disposition, 16),
+          sample: cut(b.sample ?? b['script-sample'], 80),
+        },
+      }, 'csp_report');
+    }
+    res.status(204).end();
+  });
+```
+
+</Code>
+
+Les logs pino au format ECS partent vers Elastic (M18). La requête utile n'est pas « combien de rapports », mais « quelle **nouvelle** source bloquée sur quelle page » :
+
+<Code file="elastic/esql/csp-paiement.esql">
+
+```sql
+FROM logs-novafact.api-*
+| WHERE csp.document LIKE "https://pay.novafact.example/*" AND csp.disposition == "enforce"
+| STATS hits = COUNT(*), pages = COUNT_DISTINCT(csp.document) BY csp.blocked
+| SORT hits DESC
+```
+
+</Code>
+
+Une extension de navigateur produit du bruit dispersé (quelques utilisateurs, sources variées). Un skimmer injecté produit l'inverse : une seule source inconnue, sur la page de paiement, chez beaucoup de visiteurs à la fois. C'est cette forme que la règle de détection doit chercher.
+
+<Callout kind="novafact">
+Incident évité (scénario fictif) : après l'ajout d'un comportement CloudFront pour accélérer la page de paiement, le contrôle horaire échoue sur « nonce absent ou réutilisé ». Le nouveau comportement utilisait la politique de cache par défaut au lieu de `CachingDisabled`. Retour arrière en 12 minutes, et une règle Checkov maison (M16) interdit désormais toute politique de cache autre que `CachingDisabled` sur les chemins `/checkout/*` et `/admin/*`.
+</Callout>
+
+<Recap items={[
+  "Cartographie les types de réponses : chaque en-tête a un seul propriétaire par type de réponse.",
+  "Le nonce appartient à l'application ; les en-têtes invariants peuvent vivre dans une response headers policy CloudFront.",
+  "La politique gérée SecurityHeadersPolicy n'est qu'un point de départ : pas de CSP, Override à No, X-XSS-Protection obsolète.",
+  "Pas de cache partagé pour les pages à nonce ; sinon, CSP à hashes.",
+  "Un script vérifie après chaque déploiement et toutes les heures : présence, doublons, unsafe-inline, nonce unique.",
+  "Reporting-Endpoints et report-to vers un endpoint durci, puis une détection Elastic sur les nouvelles sources bloquées de la page de paiement.",
+]} />
+
+<Sources items={[
+  { title: "Amazon CloudFront : comprendre les response headers policies", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/understanding-response-headers-policies.html" },
+  { title: "Amazon CloudFront : response headers policies gérées", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-response-headers-policies.html" },
+  { title: "Next.js : Content Security Policy (proxy et nonces)", url: "https://nextjs.org/docs/app/guides/content-security-policy" },
+  { title: "MDN : directive report-to", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/report-to" },
+  { title: "OWASP Cheat Sheet : HTTP Headers", url: "https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html" },
+]} />

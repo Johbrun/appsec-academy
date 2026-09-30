@@ -1,0 +1,23 @@
+name: Triage des issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      # CORRIGÉ : la donnée non fiable passe par l'environnement et est citée.
+      # L'interpolation ${{ }} a lieu avant que le shell ne voie la ligne :
+      # interpolée dans le script, elle en deviendrait une commande.
+      - name: Journaliser l'issue
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          echo "Nouvelle issue : $ISSUE_TITLE"
+          echo "Auteur : $ISSUE_AUTHOR"

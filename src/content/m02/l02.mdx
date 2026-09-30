@@ -1,0 +1,314 @@
+export const questions = [
+  {
+    q: "Pourquoi une validation par schéma (zod) de req.body règle-t-elle l'injection d'opérateurs Mongo ?",
+    options: [
+      "Parce que .strict() rejette les champs inconnus tels que $ne",
+      "Parce qu'il impose le type : un objet est rejeté là où une chaîne est attendue",
+      "Parce que preprocess normalise l'entrée avant qu'elle n'atteigne Mongo",
+      "Parce que zod échappe les caractères spéciaux comme $ dans les chaînes",
+    ],
+    answer: 1,
+    explain: "« .strict() rejette les champs inconnus » est le piège : c'est vrai, et c'est utile — mais $ne n'arrive pas comme un champ du corps, il arrive comme le contenu du champ email, sous la forme { \"$ne\": null }. Aucune clé inconnue n'apparaît au premier niveau. Ce qui tue la classe, c'est l'exigence de type : là où le schéma attend une chaîne, un objet est refusé. zod n'échappe rien et ne nettoie rien, il rejette.",
+  },
+  {
+    q: "Quelle est la protection correcte contre le mass assignment dans une route de mise à jour de profil ?",
+    options: [
+      "Supprimer role et tenantId de req.body avant d'appeler la mise à jour",
+      "S'appuyer sur le mode strict de Mongoose, qui ignore les champs hors schéma",
+      "Vérifier que l'utilisateur a le droit de modifier chacun des champs reçus",
+      "Construire la mise à jour à partir d'une liste blanche de champs",
+    ],
+    answer: 3,
+    explain: "Le mode strict de Mongoose est la fausse sécurité la plus répandue : il ignore les champs absents du schéma, or role, plan et tenantId y sont précisément déclarés. Le modèle dit ce qui peut exister, pas ce qu'un utilisateur a le droit de modifier. Retirer role et tenantId est une liste noire, qui oubliera isAdmin ou le prochain champ ajouté. Vérifier chaque champ reçu déplace le travail sur une entrée non bornée.",
+  },
+  {
+    q: "Dans Express 5, quel est le parser de query string par défaut ?",
+    options: [
+      "extended, via la bibliothèque qs",
+      "extended, mais limité à un seul niveau d'imbrication",
+      "simple, via querystring de Node",
+      "aucun : req.query reste une chaîne brute",
+    ],
+    answer: 2,
+    explain: "« extended » est le réflexe, parce que c'était le défaut d'Express 4 et que beaucoup de projets l'ont conservé à la migration. Express 5 bascule sur le parser simple : ?email[$ne]=x ne produit plus d'objet imbriqué, ce qui réduit la surface côté query. Attention au raccourci : le corps JSON, lui, a toujours pu contenir des objets, et ce changement ne le protège en rien.",
+  },
+  {
+    q: "Un middleware de validation écrit pour Express 4 fait req.query = schema.parse(req.query). Que se passe-t-il après la migration vers Express 5 ?",
+    options: [
+      "req.query est un getter : TypeError en mode strict, sans effet sinon",
+      "La query n'étant plus parsée en objets, le schéma rejette les requêtes imbriquées",
+      "Rien ne change : Express 5 accepte encore la réaffectation de req.query",
+      "Le middleware passe, mais req.query reprend sa valeur brute dans le handler",
+    ],
+    answer: 0,
+    explain: "Confondre avec l'autre changement d'Express 5 — le parser de query devenu simple — est l'erreur la plus fréquente : celui-ci modifie ce que la query contient, pas la possibilité de la réaffecter. Le cas dangereux n'est d'ailleurs pas la TypeError, qui se voit tout de suite, mais le fichier CommonJS non strict où l'affectation est ignorée en silence et où le handler lit la query brute. D'où la règle : ranger la donnée validée ailleurs, et n'y lire que celle-là.",
+  },
+];
+
+<YouKnow>
+Tu sais contourner une authentification avec `{"$ne": null}`, exploiter un `$where`, ou ajouter `"role": "admin"` dans un corps JSON. On regarde ici pourquoi le code Express le permet, et comment l'empêcher par construction.
+</YouKnow>
+
+## Le problème commun : la forme des données
+
+La plupart des injections dans une API Node ont la même cause racine : **le code fait confiance à la forme des données entrantes**. Un champ qu'on croit être une chaîne peut arriver en objet, en tableau ou en nombre, parce que `express.json()` et le parser de query string construisent ce que le client envoie. TypeScript n'y change rien : `req.body` est typé `any`, et une annotation `as LoginBody` n'est qu'une promesse faite au compilateur, jamais vérifiée à l'exécution.
+
+Kohnfelder (K10) insiste sur ce point : une entrée non fiable doit être **validée contre une définition explicite de ce qui est valide**, le plus tôt possible, avant toute utilisation. Il pose aussi une question que les équipes tranchent rarement explicitement : face à une entrée invalide, faut-il **rejeter ou corriger** ?
+
+- **Rejeter** est le choix par défaut pour tout ce qui touche à la sécurité : une requête qui ne respecte pas le contrat reçoit une 400, et le code métier ne la voit jamais.
+- **Corriger** (retirer des caractères, tronquer, « nettoyer ») crée une deuxième interprétation de la donnée : celle que le client a envoyée et celle que le serveur a retenue. Ces écarts sont exactement ce qu'exploitent les contournements de filtres.
+- La seule correction acceptable est une **normalisation canonique** (supprimer les espaces en bordure, mettre un e-mail en minuscules, normaliser l'Unicode), faite **avant** la validation, pour que ce qui est validé soit exactement ce qui est utilisé.
+
+## Définir la validité, y compris en Unicode
+
+Un schéma utile dit plus que « c'est une chaîne ». Il fixe le type, la longueur, le format, l'intervalle des nombres et l'ensemble des champs admis. Deux subtilités propres à JavaScript méritent d'être connues.
+
+**La longueur n'est pas celle que tu crois.** `.length` compte des unités de code UTF-16 : `'😀'.length` vaut 2, et `'é'` peut valoir 1 ou 2 selon qu'il est précomposé ou écrit « e + accent combinant ». PostgreSQL, lui, compte des caractères dans un `varchar(n)`. Une borne cohérente de bout en bout se choisit en connaissance de cause.
+
+**La normalisation peut changer la donnée.** NFKC transforme les caractères de compatibilité en leur forme simple : un « Ｊ » pleine chasse devient « J », la ligature « ﬁ » devient « fi ». C'est ce qui empêche deux comptes `Ｊohn` et `John` de coexister. Mais certains caractères s'étendent fortement (le caractère U+FDFA produit 18 caractères en NFKC) : on normalise d'abord, puis on vérifie la longueur.
+
+<Code file="apps/api/src/schemas/common.ts">
+
+```ts
+import { z } from 'zod';
+
+const canonical = (v: unknown) => (typeof v === 'string' ? v.normalize('NFKC').trim() : v);
+
+export const Email = z.preprocess(
+  (v) => (typeof v === 'string' ? v.normalize('NFKC').trim().toLowerCase() : v),
+  z.string().email().max(254),
+);
+export const DisplayName = z.preprocess(canonical, z.string().min(1).max(100));
+export const ObjectIdStr = z.string().regex(/^[a-f0-9]{24}$/);
+```
+
+</Code>
+
+Le `preprocess` ne touche que les chaînes : un objet reste un objet, et il sera rejeté par `z.string()`. La normalisation ne doit jamais servir à « réparer » un type inattendu.
+
+## Rendre la validation impossible à oublier
+
+Un schéma qui existe mais qu'une route oublie d'appeler ne protège rien. Le contrôle de classe consiste à brancher la validation dans le framework, puis à faire en sorte que les handlers **ne puissent lire que la donnée validée**. Express 5 impose au passage un détail : `req.query` est désormais un getter, on ne peut plus le réaffecter. Un middleware hérité d'Express 4 qui faisait `req.query = schema.parse(req.query)` lève une `TypeError` dans un module en mode strict (ESM, TypeScript compilé) ; dans un vieux fichier CommonJS non strict, l'affectation est ignorée en silence et le handler lit la query brute sans que personne ne s'en aperçoive. Le second cas est le plus dangereux.
+
+<Code file="apps/api/src/middleware/validate.ts" hl="10-13">
+
+```ts
+import type { RequestHandler } from 'express';
+import type { ZodType } from 'zod';
+
+type Shapes = { body?: ZodType; query?: ZodType; params?: ZodType };
+
+declare module 'express-serve-static-core' {
+  interface Request { valid?: Record<string, unknown> }
+}
+
+export const validate = (shapes: Shapes): RequestHandler => (req, _res, next) => {
+  // Express 5 : req.query est un getter, on range la version validée à part.
+  req.valid = Object.fromEntries(
+    Object.entries(shapes).map(([k, schema]) => [k, (schema as ZodType).parse(req[k as keyof Shapes])]),
+  );
+  next();
+};
+```
+
+</Code>
+
+Une `ZodError` levée ici part vers le middleware d'erreur, qui la traduit en 400 (leçon 5). La leçon 8 va plus loin avec un `defineRoute` qui rend le schéma obligatoire à la compilation et une règle de lint qui interdit de lire `req.body` directement dans un handler.
+
+## Injection NoSQL
+
+<Diff file="apps/api/src/routes/auth.ts" hlBefore="3" hlAfter="3-6,9">
+
+```ts
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = await users.findOne({ email, password: hash(password) });
+  if (!user) return res.status(401).end();
+  res.json(issueToken(user));
+});
+```
+
+```ts
+import { z } from 'zod';
+
+const Login = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(1).max(200),
+}).strict();
+
+router.post('/login', async (req, res) => {
+  const { email, password } = Login.parse(req.body);
+  const user = await users.findOne({ email });
+  if (!user || !(await verify(user.passwordHash, password))) return res.status(401).end();
+  res.json(issueToken(user));
+});
+```
+
+</Diff>
+
+Le schéma impose des **types**, des **longueurs** et interdit les **champs inconnus** (`.strict()`). Un objet `{"$ne": null}` à la place d'une chaîne est rejeté avant d'atteindre Mongo. Remarque aussi le second correctif, discret : le mot de passe n'est plus comparé dans la requête, mais vérifié après coup contre un hash lent. Le filtre Mongo ne porte plus que sur une donnée d'identification.
+
+En défense en profondeur, trois couches complémentaires :
+
+- l'option `sanitizeFilter` de Mongoose (globale via `mongoose.set('sanitizeFilter', true)`) qui enveloppe dans un `$eq` tout objet imbriqué d'un filtre portant une clé commençant par `$` (`trusted()` sert à marquer les rares opérateurs légitimes) ;
+- `mongo-sanitize`, qui retire ces clés d'un objet (attention aux middlewares qui réécrivent `req.query` : ils ne fonctionnent plus tels quels en Express 5) ;
+- côté serveur MongoDB, `security.javascriptEnabled: false` dans la configuration de `mongod` si tu n'utilises ni `$where` ni `$function` : la classe « JavaScript côté serveur » disparaît.
+
+<Callout kind="info">
+Express 5 utilise désormais par défaut le parser de query string **simple**, qui ne construit pas d'objets imbriqués. C'est une réduction de surface bienvenue : `?email[$ne]=x` ne produit plus un objet. Si une équipe réactive `extended` pour un besoin fonctionnel, la validation par schéma redevient indispensable côté query. Le corps JSON, lui, a toujours pu contenir des objets : cette évolution ne le protège en rien.
+</Callout>
+
+## Injection SQL malgré l'ORM
+
+Les ORM et query builders paramètrent par défaut, mais tous offrent une échappatoire vers le SQL brut : `knex.raw`, `sequelize.literal`, `sequelize.query`, `$queryRawUnsafe` de Prisma. C'est là que se logent les injections dans les bases de code modernes, souvent pour un tri ou un filtre dynamique.
+
+<Diff file="apps/api/src/routes/invoices.ts" hlBefore="2" hlAfter="1,3" stack>
+
+```ts
+const sort = req.query.sort ?? 'created_at';
+const rows = await prisma.$queryRawUnsafe(`SELECT * FROM invoice WHERE tenant_id = $1 ORDER BY ${sort}`, tenantId);
+```
+
+```ts
+const SORTS = { date: 'createdAt', amount: 'amount' } as const;
+const sort = SORTS[req.query.sort as keyof typeof SORTS] ?? 'createdAt';
+const rows = await prisma.invoice.findMany({ where: { tenantId }, orderBy: { [sort]: 'desc' } });
+```
+
+</Diff>
+
+Un nom de colonne ou un sens de tri ne se paramètre pas : on le choisit dans une **liste blanche**. Et on surveille les échappatoires : une règle de lint ou de SAST qui interdit `$queryRawUnsafe` en dehors d'un module revu est un excellent contrôle de classe (M13).
+
+Chaque outil a une forme sûre et une forme dangereuse qui se ressemblent beaucoup. C'est ce qui rend la revue difficile :
+
+| Outil | Forme paramétrée | Forme à surveiller |
+| --- | --- | --- |
+| Prisma | `` prisma.$queryRaw`… ${v}` `` (template étiqueté), `Prisma.sql`, `Prisma.join` | `$queryRawUnsafe`, `$executeRawUnsafe`, `Prisma.raw` |
+| knex | `knex.raw('… where id = ?', [v])`, `??` pour un identifiant | `knex.raw` avec une chaîne construite par concaténation |
+| Sequelize | `sequelize.query(sql, { replacements })` ou `bind` | `sequelize.literal`, `sequelize.query` avec interpolation |
+
+<Callout kind="warn">
+Le piège Prisma le plus fréquent en revue : `` $queryRaw`…` `` est sûr **parce que** c'est un template étiqueté, qui reçoit les valeurs séparément du texte. Le jour où quelqu'un construit la requête dans une variable pour la rendre « plus lisible », puis la passe à `$queryRawUnsafe`, les mêmes `${…}` deviennent de la concaténation. Même syntaxe à l'œil, sémantique opposée.
+</Callout>
+
+## Mass assignment
+
+<Diff file="apps/api/src/routes/profile.ts" hlBefore="2" hlAfter="1,4" stack>
+
+```ts
+router.patch('/me', async (req, res) => {
+  const user = await User.findByIdAndUpdate(req.user.id, req.body, { new: true });
+  res.json(user);
+});
+```
+
+```ts
+const ProfileUpdate = z.object({ name: z.string().max(100), locale: z.enum(['fr', 'en']) }).partial().strict();
+
+router.patch('/me', async (req, res) => {
+  const patch = ProfileUpdate.parse(req.body);
+  const user = await User.findByIdAndUpdate(req.user.id, patch, { new: true });
+  res.json(toPublicUser(user));
+});
+```
+
+</Diff>
+
+Deux corrections en une : la **liste blanche** des champs modifiables en entrée, et une fonction de **sérialisation explicite** (`toPublicUser`) en sortie, pour ne pas renvoyer `passwordHash`, `mfaSecret` ou `tenantId` (API3, exposition excessive).
+
+Une idée reçue à désamorcer : le mode `strict` de Mongoose, actif par défaut, ignore les champs **absents du schéma**. Il ne protège pas contre `role`, `plan` ou `tenantId`, qui sont justement dans le schéma. Le modèle de données dit ce qui peut exister, pas ce qu'un utilisateur a le droit de modifier : ce sont deux décisions différentes, et la seconde appartient à la route.
+
+Côté sortie, rends l'oubli difficile au niveau du modèle : `select: false` sur les champs sensibles d'un schéma Mongoose, et l'option `omit` globale de Prisma Client (disponible en GA depuis Prisma 6.2.0) pour que `passwordHash` ne sorte d'aucune requête sans le demander explicitement.
+
+```ts
+export const prisma = new PrismaClient({
+  omit: { user: { passwordHash: true, mfaSecret: true } },
+});
+```
+
+## BOLA et BFLA
+
+Une route qui fait `Invoice.findById(req.params.id)` sans filtrer par tenant est vulnérable, quelle que soit la qualité du reste. Le contrôle de classe consiste à **ne jamais requêter sans le périmètre de l'utilisateur** : un repository qui exige le `tenantId`, ou la sécurité au niveau des lignes de PostgreSQL. On y revient en détail en M8 (autorisation) et M12 (revue orientée autorisation).
+
+<Diff file="apps/api/src/repositories/invoices.ts" hlBefore="1" hlAfter="1-2">
+
+```ts
+export const getInvoice = (id: string) => Invoice.findById(id);
+```
+
+```ts
+export const getInvoice = (ctx: TenantContext, id: string) =>
+  Invoice.findOne({ _id: id, tenantId: ctx.tenantId });
+```
+
+</Diff>
+
+La BFLA est la variante « fonction » : l'utilisateur n'accède pas à l'objet d'un autre, il appelle une action qui ne lui est pas destinée (`POST /tenants/:id/users/:uid/role` accessible à un simple comptable). Elle naît souvent d'un routeur d'administration monté sans le middleware de rôle, ou d'une route ajoutée plus tard au mauvais endroit. Le contrôle : une permission déclarée sur **chaque** route, refus par défaut si elle manque.
+
+Ces deux classes se prêtent très bien aux tests automatisés, parce que l'oracle est simple : l'utilisateur du tenant B ne doit **jamais** obtenir la ressource du tenant A. Un 404 plutôt qu'un 403 évite en plus de confirmer que l'identifiant existe.
+
+<Code file="apps/api/test/authz.cross-tenant.test.ts">
+
+```ts
+import request from 'supertest';
+import { describe, it, expect } from 'vitest';
+import { app } from '../src/app';
+import { seedTwoTenants } from './fixtures';
+
+describe('isolation entre tenants', () => {
+  it('refuse la facture d’un autre tenant', async () => {
+    const { acme, globex } = await seedTwoTenants();
+    const res = await request(app)
+      .get(`/invoices/${acme.invoiceId}`)
+      .set('Authorization', `Bearer ${globex.accountantToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('refuse le changement de rôle à un comptable', async () => {
+    const { acme } = await seedTwoTenants();
+    const res = await request(app)
+      .post(`/tenants/${acme.id}/users/${acme.adminId}/role`)
+      .set('Authorization', `Bearer ${acme.accountantToken}`)
+      .send({ role: 'owner' });
+    expect(res.status).toBe(403);
+  });
+});
+```
+
+</Code>
+
+<Callout kind="novafact">
+Inventaire de l'API Novafact (chiffres fictifs) : 184 routes, dont 41 sans schéma d'entrée, 9 qui utilisent le SQL brut et 3 qui passent `req.body` directement à Mongoose. Plutôt que 53 tickets, l'équipe AppSec livre le middleware `validate`, la règle de lint qui interdit `$queryRawUnsafe` hors du dossier `db/raw/`, et un test d'isolation générique qui rejoue chaque route `GET /:id` avec un jeton d'un autre tenant. Les équipes corrigent ensuite ce que le lint et les tests signalent.
+</Callout>
+
+## Checklist de revue d'une route Express
+
+<Steps items={[
+  { title: "Entrée", text: "Body, query et params passent-ils par un schéma strict, et le handler ne lit-il que la version validée ?" },
+  { title: "Requête", text: "Aucune interpolation dans du SQL brut ; les colonnes et sens de tri viennent d'une liste blanche." },
+  { title: "Périmètre", text: "Chaque lecture et écriture est filtrée par le tenant issu de la session, jamais du corps de la requête." },
+  { title: "Fonction", text: "La route déclare une permission, et le refus est le comportement par défaut." },
+  { title: "Sortie", text: "La réponse passe par une sérialisation explicite ; les champs sensibles sont exclus au niveau du modèle." },
+]} />
+
+<Recap items={[
+  "La cause racine commune : le code fait confiance à la forme des données entrantes, et TypeScript ne vérifie rien à l'exécution.",
+  "Rejeter plutôt que corriger ; seule une normalisation canonique, faite avant la validation, est acceptable.",
+  "Un schéma strict (types, longueurs, champs connus) à l'entrée de chaque route élimine l'injection d'opérateurs ; en Express 5, la donnée validée se range à part.",
+  "Les injections SQL modernes se logent dans les échappatoires vers le SQL brut : liste blanche et règle de lint.",
+  "Mass assignment : liste blanche en entrée, sérialisation explicite en sortie ; le mode strict de Mongoose ne suffit pas.",
+  "BOLA et BFLA : aucune requête sans le périmètre du tenant, une permission par route, et des tests inter-tenants automatisés.",
+]} />
+
+<Lab id="ps-nosql" />
+<Lab id="ps-access-control" />
+
+<Sources items={[
+  { title: "OWASP Cheat Sheet : Injection Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Injection_Prevention_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Mass Assignment", url: "https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Input Validation", url: "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html" },
+  { title: "Express 5 : guide de migration", url: "https://expressjs.com/en/guide/migrating-5.html" },
+  { title: "Prisma : raw queries et risques d'injection", url: "https://www.prisma.io/docs/orm/prisma-client/using-raw-sql/raw-queries" },
+  { title: "Prisma ORM 6.2.0 : l'API omit passe en GA", url: "https://www.prisma.io/changelog/2025-01-09" },
+  { title: "Mongoose : option sanitizeFilter", url: "https://mongoosejs.com/docs/api/mongoose.html#Mongoose.prototype.set()" },
+]} />

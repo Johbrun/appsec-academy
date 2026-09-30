@@ -1,0 +1,54 @@
+# Points de détection applicatifs — corrigé de référence.
+#
+# Les points d'AppSensor sont la contribution la plus sous-estimée d'OWASP :
+# l'application sait des choses que le réseau ignore. Elle sait qu'une session
+# a changé d'adresse, qu'un compte demande des identifiants qui ne sont pas les
+# siens, que la chaîne d'intégrité de son propre journal est rompue.
+#
+# Le critère inverse compte autant : aucun de ces points ne doit se déclencher
+# sur le parcours légitime du corpus — qui contient exprès les quasi-jumeaux
+# de chacun (un poste partagé, des 403 isolés, des préchecks CORS, un mobile
+# qui change de réseau entre deux sessions, l'export officiel).
+points:
+  - id: AE1
+    name: Plusieurs identifiants depuis une même source
+    window: 5m
+    where:
+      - { field: event.action, op: eq, value: authn_login_fail }
+    group_by: [source.ip]
+    having:
+      - { metric: distinct, field: user.name, op: gte, value: 5 }
+
+  - id: ACE3
+    name: Navigation forcée sur des identifiants successifs
+    window: 2m
+    where:
+      - { field: url.path, op: starts_with, value: /api/invoices/ }
+      - { field: http.response.status_code, op: eq, value: 403 }
+    group_by: [user.name]
+    having:
+      - { metric: distinct, field: url.path, op: gte, value: 8 }
+
+  - id: RE2
+    name: Méthode HTTP non supportée
+    where:
+      - { field: http.request.method, op: in, value: [TRACE, CONNECT, TRACK, PUT] }
+
+  - id: SE5
+    name: Changement d'adresse source en cours de session
+    window: 10m
+    where:
+      - { field: novafact.session.id, op: exists }
+    group_by: [novafact.session.id]
+    having:
+      - { metric: distinct, field: source.ip, op: gte, value: 2 }
+
+  - id: HT2
+    name: Ressource leurre demandée
+    where:
+      - { field: url.path, op: eq, value: /api/admin/export-all }
+
+  - id: IE5
+    name: Intégrité du journal d'audit rompue
+    where:
+      - { field: novafact.audit.integrity, op: eq, value: broken }

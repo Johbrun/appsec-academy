@@ -1,0 +1,117 @@
+[
+  {
+    "id": "sondage-1",
+    "malicious": false,
+    "label": "le sondage d’identifiants n°1"
+  },
+  {
+    "id": "sondage-2",
+    "malicious": false,
+    "label": "le sondage d’identifiants n°2"
+  },
+  {
+    "id": "sondage-3",
+    "malicious": false,
+    "label": "le sondage d’identifiants n°3"
+  },
+  {
+    "id": "comptable-01",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-02",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-03",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-04",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-05",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-06",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-07",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-08",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-09",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-10",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-11",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-12",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-13",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-14",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-15",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-16",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-17",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-18",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-19",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  },
+  {
+    "id": "comptable-20",
+    "malicious": false,
+    "label": "un comptable qui parcourt les factures de son tenant"
+  }
+]

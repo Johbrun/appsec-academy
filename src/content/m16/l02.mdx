@@ -1,0 +1,229 @@
+export const questions = [
+  {
+    q: "Pourquoi scanner le plan Terraform en JSON en plus du code HCL ?",
+    options: [
+      "Parce que le HCL est réévalué à l'apply, alors que le plan est figé et fait foi",
+      "Parce que les scanners de HCL n'analysent pas les modules distants du registre public",
+      "Parce que le plan porte les valeurs résolues : variables, modules, `for_each` appliqués",
+      "Parce que le plan contient aussi l'état courant rafraîchi, donc la dérive introduite hors du code",
+    ],
+    answer: 2,
+    explain: "Le scan du HCL est rapide et pointe la ligne du fichier ; le scan du plan voit ce qui sera réellement créé dans *cet* environnement, une fois `count`, `for_each` et les variables résolus. Le plan porte bien l'état courant, mais le lire n'est pas de la détection de dérive : les scanners regardent `planned_values`, c'est-à-dire l'intention, jamais l'écart avec le réel. Les deux scans se complètent et aucun ne remplace l'autre.",
+  },
+  {
+    q: "Avec cdk-nag v3, comment une équipe accepte-t-elle un finding justifié sur une construction précise ?",
+    options: [
+      "En désactivant le pack de règles sur la pile concernée, puis en documentant l'écart",
+      "Avec `Validations.of(construct).acknowledge({ id, reason })`, qui trace le finding et sa raison",
+      "Avec `NagSuppressions.addResourceSuppressions`, l'API de cdk-nag v2 gardée par compatibilité",
+      "En ajoutant une métadonnée `cdk-nag:suppress` sur la construction dans le template",
+    ],
+    answer: 1,
+    explain: "cdk-nag v3 (juin 2026) s'appuie sur l'API native `Validations` du CDK : l'acceptation vise un finding identifié, par exemple `AwsSolutions-IAM5[Action::s3:*]`, et porte une justification relue en PR. `NagSuppressions` est le réflexe à mettre à jour — c'est l'API de la v2, et une suppression posée au niveau de la pile ou d'un parent couvre bien plus que le finding visé. Désactiver le pack ou poser une métadonnée libre revient à masquer sans laisser de trace exploitable.",
+  },
+  {
+    q: "Quelle stratégie de blocage limite le mieux le rejet des scanners IaC par les équipes ?",
+    options: [
+      "Bloquer sur toutes les règles dès le premier jour, quitte à ouvrir des exceptions ensuite",
+      "N'afficher que des avertissements : la revue de PR tranche, l'outil ne bloque jamais",
+      "Une courte liste de règles bloquantes à fort impact, le reste en information",
+      "Bloquer sur la sévérité HIGH et CRITICAL de l'outil, sans trier les règles une à une",
+    ],
+    answer: 2,
+    explain: "Un scanner qui bloque sur 400 règles le premier jour finit contourné par un `skip` global ou par un dépôt qui ne l'appelle plus ; on bloque peu, sur ce qui compte et sur ce qui produit peu de faux positifs, avec une baseline pour ne signaler que les nouveaux findings. Le filtre par sévérité paraît plus objectif et l'est moins : on hérite du barème de l'éditeur, faux positifs compris, sur des règles qu'on n'a jamais relues. Et ne jamais bloquer laisse passer la régression dès la première PR pressée.",
+  },
+  {
+    q: "Quel outil valide la conformité d'un template CloudFormation au schéma des ressources (propriétés inconnues, types invalides) plutôt que sa sécurité ?",
+    options: [
+      "cfn-guard",
+      "KICS",
+      "Trivy",
+      "cfn-lint",
+    ],
+    answer: 3,
+    explain: "cfn-lint confronte le template aux spécifications des ressources : propriété inconnue, type invalide, référence cassée. cfn-guard est le faux jumeau par le nom : il évalue des règles de politique que tu écris toi-même (leçon 3), pas le schéma. KICS et Trivy cherchent des misconfigurations de sécurité, et aucun des trois ne te dira qu'une propriété n'existe pas.",
+  },
+];
+
+<YouKnow>
+Tu connais le SAST sur le code applicatif (M13). Les scanners IaC appliquent la même idée à l'infrastructure : des règles qui repèrent les configurations dangereuses dans Terraform, CloudFormation ou le CDK avant le déploiement. Les mêmes problèmes aussi : bruit, faux positifs, et une adoption qui dépend de là où on les place.
+</YouKnow>
+
+## Le paysage
+
+| Outil | Éditeur | Cibles principales | Points forts |
+| --- | --- | --- | --- |
+| **Checkov** | Palo Alto Networks (Prisma Cloud), open source | Terraform (HCL et plan), CloudFormation, CDK synthétisé, Kubernetes, Helm, Dockerfile, GitHub Actions | Très large catalogue, contrôles « graphe » entre ressources, politiques maison en YAML ou Python |
+| **Trivy** | Aqua Security, open source | Terraform, CloudFormation, Kubernetes, Helm, Dockerfile, ARM (commande `trivy config`) | Un seul binaire pour images, dépendances et IaC ; a absorbé le moteur de tfsec |
+| **KICS** | Checkmarx, open source | Terraform, CloudFormation, CDK (template), Kubernetes, Ansible, OpenAPI… | Requêtes en Rego, donc extensibles avec le langage d'OPA |
+| **cdk-nag** | AWS (cdklabs) | Applications CDK, à la synthèse | Packs de règles (AWS Solutions, HIPAA, NIST 800-53, PCI DSS, Serverless), intégré au code TS |
+| **cfn-lint** | AWS | Templates CloudFormation | Validité contre les spécifications des ressources, quelques bonnes pratiques |
+| **cfn-guard** | AWS | Tout document JSON ou YAML, surtout CloudFormation | Langage de règles déclaratif (leçon 3) |
+
+Tous ces outils ont un tronc commun (bucket public, security group ouvert, chiffrement absent), et des différences sur les règles avancées et le format des exceptions. Choisis **un** scanner généraliste pour Terraform et CloudFormation, cdk-nag pour le CDK, et évite d'empiler trois scanners qui produisent trois fois le même finding.
+
+## Quoi scanner : le code, le plan ou le template
+
+Le même problème se voit à trois niveaux :
+
+- le **code source** (HCL, TypeScript) : rapide, précis sur la ligne à corriger, idéal en pre-commit et en PR. Mais il ne voit pas les valeurs qui viennent des variables ou des modules distants ;
+- le **plan Terraform** en JSON (`terraform show -json tfplan`) : les variables sont résolues, les modules développés, `count` et `for_each` appliqués. C'est ce qui sera réellement créé dans **cet** environnement ;
+- le **template synthétisé** (`cdk synth` écrit dans `cdk.out`) : pour le CDK, c'est le seul objet que les scanners génériques comprennent, et c'est ce que CloudFormation déploiera.
+
+<Callout kind="novafact">
+Un module Terraform interne crée des buckets avec `block_public_acls = var.public_website`. Le scan du HCL ne voit qu'une variable. Le scan du plan de l'environnement `marketing` voit `false` et bloque la PR : quelqu'un avait réutilisé le module du site vitrine pour stocker des exports clients.
+</Callout>
+
+## Où les placer
+
+<Steps items={[
+  { title: "Dans l'éditeur", text: "Extensions Checkov ou Trivy pour VS Code : le développeur voit le problème en écrivant. Aucune obligation, juste du confort." },
+  { title: "En pre-commit", text: "Un scan rapide des fichiers modifiés, limité aux règles bloquantes. Il peut être contourné : il ne remplace pas la CI." },
+  { title: "En PR", text: "Scan du code et du plan (ou du template synthétisé), résultats en SARIF dans GitHub code scanning pour annoter les lignes, échec sur les règles bloquantes." },
+  { title: "Avant l'apply", text: "Le plan revu et scanné est celui qui est appliqué (leçon 4). Les règles de policy as code (leçon 3) s'y ajoutent." },
+  { title: "Après le déploiement", text: "Le CSPM (leçon 5) vérifie ce qui existe vraiment, y compris ce qui n'est pas passé par l'IaC." },
+]} />
+
+<Code file=".github/workflows/iac-scan.yml" hl="27,28,29,33,34,35">
+
+```yaml
+name: iac-scan
+on:
+  pull_request:
+    paths: ['infra/terraform/**']
+permissions:
+  contents: read
+  id-token: write
+  security-events: write
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::777788889999:role/gha-terraform-plan-staging
+          aws-region: eu-west-3
+      - name: Plan
+        working-directory: infra/terraform/envs/staging
+        run: |
+          terraform init -input=false -lockfile=readonly
+          terraform plan -input=false -out=tfplan
+          terraform show -json tfplan > tfplan.json
+      - name: Checkov sur le code (nouveaux findings seulement)
+        run: |
+          pipx run checkov -d infra/terraform --framework terraform \
+            --baseline infra/terraform/.checkov.baseline \
+            --soft-fail --hard-fail-on CKV2_AWS_6,CKV_AWS_24,CKV_AWS_17,CKV_AWS_79,CKV_AWS_286 \
+            -o cli -o sarif --output-file-path console,checkov-hcl.sarif
+      - name: Checkov sur le plan de staging
+        run: |
+          pipx run checkov -f infra/terraform/envs/staging/tfplan.json \
+            --repo-root-for-plan-enrichment infra/terraform \
+            --soft-fail --hard-fail-on CKV2_AWS_6,CKV_AWS_24,CKV_AWS_17,CKV_AWS_79,CKV_AWS_286
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        if: always()
+        with:
+          sarif_file: checkov-hcl.sarif
+          category: checkov-terraform
+```
+
+</Code>
+
+Quelques détails qui comptent : le job de scan utilise le rôle **de plan** en lecture seule (leçon 4), jamais le rôle d'apply ; `-lockfile=readonly` refuse un lock file modifié en douce ; `--soft-fail` avec `--hard-fail-on` rend bloquantes les seules règles listées ; la baseline ne s'applique qu'au scan du répertoire (`-d`), et Checkov n'accepte pas `-d` et `-f` dans la même commande, d'où deux étapes ; `--repo-root-for-plan-enrichment` relie les findings du plan aux lignes du HCL ; enfin, le plan JSON peut contenir des valeurs sensibles, il n'est donc **pas** publié comme artefact.
+
+### Trivy et KICS, si c'est ton outil
+
+Les mêmes principes s'appliquent aux autres scanners. Trivy analyse un répertoire d'IaC avec `trivy config`, filtre par sévérité et échoue selon le code de sortie demandé ; KICS s'utilise de la même façon et produit du SARIF :
+
+<Code file="scripts/ci/iac-scan-alternatives.sh">
+
+```bash
+# Trivy : échouer seulement sur HIGH et CRITICAL ; exceptions listées dans .trivyignore, relu en PR
+trivy config --severity HIGH,CRITICAL --exit-code 1 infra/
+
+# KICS : rapport SARIF pour GitHub code scanning
+kics scan -p infra/ -o results/ --report-formats sarif
+
+# CDK : scanner aussi le template synthétisé avec l'outil généraliste
+npx cdk synth --quiet && checkov -d cdk.out --framework cloudformation --soft-fail
+```
+
+</Code>
+
+Le dernier cas est utile même avec cdk-nag : les deux jeux de règles ne se recouvrent pas entièrement, et un contrôle transverse de l'organisation (par exemple une règle maison sur les tags de classification, leçon 3) s'écrit une seule fois pour Terraform et pour les templates issus du CDK.
+
+## cdk-nag : les règles dans le code TypeScript
+
+cdk-nag s'exécute pendant la synthèse et fait échouer `cdk synth` en cas d'erreur. La version 3 (juin 2026) s'appuie sur l'API native `Validations` du CDK ; les applications en v2 utilisaient `Aspects` et `NagSuppressions`, que tu croiseras encore dans beaucoup de dépôts.
+
+<Code file="infra/cdk/bin/novafact.ts" hl="7,12,13,14,15">
+
+```ts
+import { App, Validations } from 'aws-cdk-lib';
+import { AwsSolutionsChecks } from 'cdk-nag';
+import { InvoicingStack } from '../lib/invoicing-stack';
+
+const app = new App();
+const invoicing = new InvoicingStack(app, 'novafact-prod-invoicing', { env: { account: '111122223333', region: 'eu-west-3' } });
+Validations.of(app).addPlugins(new AwsSolutionsChecks(app, { verbose: true }));
+
+// Acceptation au niveau de la pile, justifiée et relue en PR. Pour un finding à plusieurs
+// occurrences (AwsSolutions-IAM5[…]), on acquitte chaque identifiant exact affiché par cdk synth,
+// sur la construction concernée plutôt que sur toute la pile.
+Validations.of(invoicing).acknowledge({
+  id: 'AwsSolutions-S1',
+  reason: 'Journaux d’accès S3 remplacés par les data events CloudTrail envoyés à Elastic (décision ADR-031).',
+});
+```
+
+</Code>
+
+Deux bonnes pratiques : chaque acceptation référence un identifiant d'exception ou de décision, et une règle de revue (CODEOWNERS sur les lignes `acknowledge`) fait valider les nouvelles acceptations par l'équipe AppSec.
+
+## Trier, accepter, ne pas se noyer
+
+Le premier scan d'un dépôt existant produit des centaines de findings. Trois leviers évitent le rejet :
+
+| Levier | Comment | Effet |
+| --- | --- | --- |
+| **Baseline** | `checkov --create-baseline` enregistre l'existant ; les scans suivants avec `--baseline` ne signalent que le nouveau | La PR du jour n'hérite pas de la dette |
+| **Règles bloquantes courtes** | Cinq à quinze règles choisies (exposition publique, chiffrement des données clients, IAM) | Chaque blocage est compris et rare |
+| **Suppressions justifiées en ligne** | `#checkov:skip=CKV_AWS_18:Bucket de logs, pas de journalisation de lui-même` dans la ressource concernée | L'exception vit à côté du code, visible en revue |
+
+La dette mise en baseline ne disparaît pas : elle devient un backlog suivi, avec un propriétaire par composant et un objectif trimestriel, dans le même outil que les findings applicatifs (M13).
+
+<Callout kind="warn">
+Une suppression sans justification, ou copiée d'un autre fichier, est une porte ouverte. Fais échouer la CI si une suppression Checkov n'a pas de texte après l'identifiant, et relis les suppressions dans les PR avec la même attention que le code.
+</Callout>
+
+## Mesurer pour régler
+
+Un scanner se règle comme une règle de détection : avec des chiffres. Chaque trimestre, Novafact regarde quatre indicateurs, extraits du SARIF et des PR :
+
+- **taux de PR bloquées** par les règles bloquantes : trop haut, la liste est trop longue ou mal choisie ; nul pendant des mois, elle ne sert peut-être à rien ;
+- **délai de correction** d'un blocage : s'il dépasse la journée, le message de la règle n'explique pas assez comment corriger ;
+- **nombre et âge des suppressions** : une croissance rapide signale une règle inadaptée ou une équipe qui contourne ;
+- **findings de production non vus en CI** (leçon 5) : chaque cas révèle soit une ressource créée hors IaC, soit une règle manquante.
+
+Une règle qui génère surtout des suppressions est retirée de la liste bloquante ou réécrite ; une misconfiguration trouvée en production devient une règle bloquante si elle est grave et fréquente.
+
+<Recap items={[
+  "Checkov, Trivy et KICS couvrent Terraform et CloudFormation ; cdk-nag vit dans le CDK ; cfn-lint valide, cfn-guard exprime des règles.",
+  "Scanner le code pour la précision, le plan ou le template pour la réalité de l'environnement.",
+  "Placer les scanners à plusieurs étages : éditeur, pre-commit, PR (SARIF), avant l'apply, puis CSPM en production.",
+  "Peu de règles bloquantes, une baseline pour l'existant, des suppressions justifiées et relues.",
+  "cdk-nag v3 : Validations.of(app).addPlugins(...) et acknowledge({ id, reason }) sur une construction précise.",
+]} />
+
+<Lab id="cfngoat" />
+
+<Sources items={[
+  { title: "Checkov", url: "https://www.checkov.io/" },
+  { title: "Trivy", url: "https://trivy.dev/" },
+  { title: "KICS (Checkmarx)", url: "https://github.com/Checkmarx/kics" },
+  { title: "cdk-nag", url: "https://github.com/cdklabs/cdk-nag" },
+  { title: "cfn-lint", url: "https://github.com/aws-cloudformation/cfn-lint" },
+  { title: "AWS CloudFormation Guard", url: "https://github.com/aws-cloudformation/cloudformation-guard" },
+]} />

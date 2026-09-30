@@ -1,0 +1,23 @@
+# Fixtures de `honeytoken-access`.
+#
+# Le quasi-jumeau ne diffère que par le chemin : la route officielle d'export
+# existe, et elle est demandée tous les jours. Une règle en `starts_with`
+# passerait le test positif et échouerait ici — c'est exactement ce que la
+# fixture négative est là pour empêcher.
+rule: honeytoken-access
+
+positive:
+  - "@timestamp": "2026-03-04T10:12:03.114Z"
+    event: { id: fx-ht-1, kind: event, category: [web], type: [access], action: http_request, outcome: success }
+    user: { name: dev@acme.example }
+    source: { ip: 203.0.113.44 }
+    url: { path: /api/admin/export-all }
+    http: { request: { method: GET }, response: { status_code: 200 } }
+
+negative:
+  - "@timestamp": "2026-03-04T10:12:41.220Z"
+    event: { id: fx-ht-2, kind: event, category: [web], type: [access], action: http_request, outcome: success }
+    user: { name: dev@acme.example }
+    source: { ip: 203.0.113.44 }
+    url: { path: /api/admin/export }
+    http: { request: { method: GET }, response: { status_code: 200 } }

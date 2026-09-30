@@ -1,0 +1,32 @@
+{
+  "_comment": "VULNÉRABLE — fixture du lab, ne pas réutiliser",
+  "PolicyName": "novafact-app",
+  "Description": "Politique attachée au rôle applicatif de l'API Novafact.",
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "LireLesFactures",
+        "Effect": "Allow",
+        "Action": ["s3:GetObject"],
+        "Resource": "arn:aws:s3:::novafact-invoices/factures/*"
+      },
+      {
+        "Sid": "GererSaProprePolitique",
+        "Effect": "Allow",
+        "Action": ["iam:CreatePolicyVersion", "iam:SetDefaultPolicyVersion"],
+        "Resource": "arn:aws:iam::123456789012:policy/novafact-app"
+      },
+      {
+        "Sid": "DepannerLesAccesEnProduction",
+        "Effect": "Allow",
+        "Action": [
+          "iam:AttachRolePolicy",
+          "iam:UpdateAssumeRolePolicy",
+          "iam:CreateAccessKey"
+        ],
+        "Resource": "arn:aws:iam::123456789012:role/novafact-task-role"
+      }
+    ]
+  }
+}

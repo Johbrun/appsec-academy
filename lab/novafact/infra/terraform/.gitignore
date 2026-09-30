@@ -1,0 +1,9 @@
+# VULNÉRABLE — fixture du lab, ne pas réutiliser
+#
+# Le dossier de travail est exclu. Le state, lui, ne l'est pas — et il est
+# dans le dépôt, à côté de ce fichier.
+
+.terraform/
+*.tfplan
+crash.log
+crash.*.log

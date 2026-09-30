@@ -1,0 +1,197 @@
+export const questions = [
+  {
+    q: "Avec require-trusted-types-for 'script' actif, que se passe-t-il pour element.innerHTML = chaîne ?",
+    options: [
+      "La chaîne est assainie automatiquement par le navigateur avant insertion",
+      "Le navigateur journalise une violation CSP, mais exécute l'affectation",
+      "L'affectation lève une erreur : le sink n'accepte qu'un TrustedHTML",
+      "L'affectation passe si la chaîne ne contient aucune balise exécutable",
+    ],
+    answer: 2,
+    explain: "Trusted Types transforme les sinks dangereux en API typées : le contrôle porte sur le type de la valeur, jamais sur son contenu — une chaîne sans balise script est refusée comme les autres. Le navigateur n'assainit rien de lui-même, c'est le rôle de la politique que tu déclares, et en mode bloquant la violation n'est pas seulement rapportée : l'affectation échoue.",
+  },
+  {
+    q: "Depuis quand Trusted Types est-il disponible dans tous les navigateurs majeurs ?",
+    options: [
+      "Depuis 2020 : Chrome 83 a été suivi de près par Firefox et Safari",
+      "Depuis février 2026, quand Firefox 148 l'a livré à son tour",
+      "Il ne l'est pas : c'est resté une spécification propre à Chrome",
+      "Depuis Safari 26 ; Firefox ne l'expose que derrière un drapeau",
+    ],
+    answer: 1,
+    explain: "Chrome et Edge le prennent en charge depuis 2020, Safari depuis la version 26, et Firefox seulement depuis la 148, en février 2026 : c'est cette dernière date qui fait le socle commun. Tant qu'on croit Firefox absent ou l'API réservée à Chrome, on traite Trusted Types comme un bonus, alors qu'il couvre désormais l'essentiel du trafic.",
+  },
+  {
+    q: "Un développeur crée une politique createHTML: (s) => s pour faire disparaître les erreurs, et l'exporte dans un module utilitaire. Qu'a-t-il obtenu ?",
+    options: [
+      "Une politique de transition acceptable, à condition de la nommer default",
+      "Une erreur au chargement : la directive trusted-types refuse une politique vide",
+      "Une protection partielle : le navigateur assainit encore avant d'insérer",
+      "Une politique qui ne vérifie rien : le sink est simplement renommé",
+    ],
+    answer: 3,
+    explain: "Trusted Types ne protège que par ce que font les politiques ; un passe-plat exporté partout remet l'application dans son état d'avant, avec en prime l'impression d'être conforme. Le navigateur n'assainit rien de son côté : il vérifie seulement qu'une politique déclarée a produit la valeur. Et la renommer default n'arrange rien — ce filet n'est acceptable que s'il journalise et assainit.",
+  },
+  {
+    q: "À quoi sert raisonnablement une politique nommée default ?",
+    options: [
+      "À journaliser et assainir les chaînes brutes restantes, le temps d'une migration",
+      "À dispenser de nonce les scripts déjà couverts par la directive trusted-types",
+      "À servir de repli sur les navigateurs qui ne connaissent pas Trusted Types",
+      "À s'appliquer quand aucune autre politique n'est listée dans la directive",
+    ],
+    answer: 0,
+    explain: "Le navigateur appelle la politique nommée default quand une chaîne brute atteint un sink sans être passée par une politique explicite : c'est un filet de migration, et chaque passage par elle est un appel à corriger. Ce n'est pas un repli pour navigateurs anciens — ceux-là ignorent Trusted Types tout entier — ni un défaut qui s'activerait faute d'autre politique déclarée : elle doit être créée et listée comme les autres.",
+  },
+];
+
+<YouKnow>
+Tu trouves des DOM XSS en suivant une source (URL, message, stockage) jusqu'à un sink (innerHTML, script.src, eval). Trusted Types ferme les sinks eux-mêmes : c'est le contrôle de classe du DOM XSS.
+</YouKnow>
+
+## Le principe
+
+Trusted Types part d'un constat : les DOM XSS passent par une poignée de **sinks** (`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `script.src`, `eval`…). Plutôt que de vérifier chaque chemin, on **change le type** attendu par ces sinks : ils n'acceptent plus une chaîne, mais un objet `TrustedHTML`, `TrustedScript` ou `TrustedScriptURL`, produit uniquement par une **politique** déclarée.
+
+Activé par la directive CSP `require-trusted-types-for 'script'`, le navigateur refuse toute chaîne brute envoyée à un sink. Un DOM XSS devient une **erreur de type**, visible dès les tests.
+
+Le changement de perspective est le même que celui des requêtes paramétrées pour l'injection SQL. On ne demande plus à chaque développeur de penser à assainir au bon endroit ; on rend l'erreur **impossible à écrire sans le vouloir**. La revue de sécurité se déplace : au lieu de suivre des centaines de flux de données dans l'application, on relit la poignée de fonctions qui fabriquent des valeurs de confiance.
+
+| Type | Sinks concernés (exemples) | Ce qu'une politique doit garantir |
+| --- | --- | --- |
+| `TrustedHTML` | `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `srcdoc` d'une iframe | Le HTML ne contient rien d'exécutable (assainissement) |
+| `TrustedScript` | `eval`, `setTimeout` avec une chaîne, le texte d'un élément `script` | Presque jamais légitime : la meilleure politique est de ne pas en avoir |
+| `TrustedScriptURL` | `script.src`, `new Worker(url)` | L'URL pointe vers une origine et un chemin attendus |
+
+## Disponible partout
+
+Chrome et Edge le supportent depuis 2020, Safari depuis la version 26, et **Firefox depuis la version 148 (février 2026)**. Trusted Types fait désormais partie du socle commun des navigateurs : ce n'est plus une protection réservée à Chrome.
+
+Conséquence pratique : jusqu'ici, une partie des visiteurs échappait à la protection, et les équipes la voyaient comme un bonus. Désormais, elle couvre l'essentiel du trafic, et un DOM XSS signalé dans une application Novafact où Trusted Types est actif devrait être rare et limité aux politiques elles-mêmes.
+
+## En pratique
+
+<Code file="apps/web/src/security/trustedTypes.ts">
+
+```ts
+import DOMPurify from 'dompurify';
+
+// Une seule politique nommée, dans un module revu, pour tout le HTML dynamique.
+export const htmlPolicy = window.trustedTypes?.createPolicy('novafact-html', {
+  createHTML: (input: string) => DOMPurify.sanitize(input),
+});
+
+export const toTrustedHtml = (input: string) => (htmlPolicy ? htmlPolicy.createHTML(input) : DOMPurify.sanitize(input));
+```
+
+</Code>
+
+```text
+Content-Security-Policy: require-trusted-types-for 'script'; trusted-types novafact-html dompurify
+```
+
+La directive `trusted-types` liste les **noms de politiques autorisés** : impossible de créer une politique non prévue ailleurs dans le code. Les endroits où du HTML dynamique entre dans la page se réduisent à une liste courte, facile à relire. Le nom `dompurify` figure dans la liste parce que DOMPurify tente de créer sa propre politique sous ce nom quand Trusted Types est disponible (il peut alors renvoyer directement un `TrustedHTML` avec l'option `RETURN_TRUSTED_TYPE`). Si tu n'appelles DOMPurify que depuis ta propre politique, les versions récentes acceptent `TRUSTED_TYPES_POLICY: null` pour qu'il n'en crée pas : `dompurify` peut alors sortir de la liste, qui ne contient plus qu'un nom.
+
+## Concevoir de bonnes politiques
+
+Une politique est un **mini-composant de sécurité**. Trois règles la rendent utile :
+
+- **elle vérifie vraiment** : assainissement pour le HTML, liste blanche d'origines et de chemins pour les URL de script. Une politique qui renvoie son entrée telle quelle n'apporte rien ;
+- **elle reste privée** : l'objet politique n'est pas exporté ; le module expose des fonctions au rôle précis (afficher une note de facture, charger un module de graphique), pas un `createHTML` générique ;
+- **elle est configurée pour son usage** : le HTML d'une note de facture n'a besoin ni de tableaux ni d'images. Une liste restreinte de balises réduit la surface, y compris face à une future faille de l'assainisseur.
+
+<Code file="apps/web/src/security/policies.ts" hl="5,6,10-12">
+
+```ts
+import DOMPurify from 'dompurify';
+
+const policy = window.trustedTypes?.createPolicy('novafact-html', {
+  createHTML: (input: string) =>
+    DOMPurify.sanitize(input, { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a'],
+      ALLOWED_ATTR: ['href'] }),
+  createScriptURL: (input: string) => {
+    const url = new URL(input, location.origin);
+    const ok = url.origin === location.origin && url.pathname.startsWith('/assets/');
+    if (!ok) throw new TypeError(`URL de script refusée : ${url.href}`);
+    return url.href;
+  },
+});
+
+// Seules ces fonctions sortent du module.
+export const invoiceNoteHtml = (html: string) => policy?.createHTML(html) ?? html;
+export const chartWorkerUrl = () => policy?.createScriptURL('/assets/chart-worker.js') ?? '/assets/chart-worker.js';
+```
+
+</Code>
+
+Le repli `?? html` ne sert qu'aux environnements sans Trusted Types (tests unitaires sous jsdom, par exemple). Si tu dois encore servir des navigateurs anciens, passe par DOMPurify dans ce repli, comme dans le premier module.
+
+## React et les bibliothèques
+
+React n'utilise pas les sinks dangereux pour son rendu normal, donc une application React est souvent compatible avec peu de changements. Les points à traiter : `dangerouslySetInnerHTML` (passer par la politique), les bibliothèques de rendu Markdown ou d'éditeur riche, et les scripts tiers qui écrivent du HTML. Commence en **Report-Only** pour les repérer (leçon 4).
+
+React accepte une valeur `TrustedHTML` dans `dangerouslySetInnerHTML` et la transmet au navigateur sans la convertir en chaîne (depuis React 17.0.2 ; les versions plus anciennes la transformaient en texte, ce qui la faisait refuser).
+
+<Diff file="apps/web/src/invoices/InvoiceNote.tsx" hlBefore="2" hlAfter="1,3">
+
+```tsx
+export function InvoiceNote({ note }: { note: { html: string } }) {
+  return <div className="note" dangerouslySetInnerHTML={{ __html: note.html }} />;
+}
+```
+
+```tsx
+import { invoiceNoteHtml } from '../security/policies';
+export function InvoiceNote({ note }: { note: { html: string } }) {
+  return <div className="note" dangerouslySetInnerHTML={{ __html: invoiceNoteHtml(note.html) }} />;
+}
+```
+
+</Diff>
+
+Au niveau du code, deux règles ESLint complètent le contrôle du navigateur : `react/no-danger` signale chaque `dangerouslySetInnerHTML`, et le plugin `no-unsanitized` de Mozilla signale les affectations directes à `innerHTML` et consorts. Le lint attrape le problème à l'écriture ; Trusted Types le bloque à l'exécution, y compris dans les dépendances que le lint ne voit pas.
+
+## Migrer une application existante
+
+<Steps items={[
+  { title: "Observer", text: "Activer require-trusted-types-for 'script' en Report-Only : chaque rapport indique le sink concerné et un extrait de la valeur. En quelques jours, la liste des appels à traiter se dessine." },
+  { title: "Corriger ton code", text: "Remplacer innerHTML par textContent quand aucun HTML n'est voulu, ou passer par une fonction du module de politiques." },
+  { title: "Traiter les dépendances", text: "Mettre à jour les bibliothèques (beaucoup gèrent désormais Trusted Types), les configurer, ou les remplacer." },
+  { title: "Poser un filet temporaire", text: "Une politique nommée default reçoit les chaînes brutes restantes : elle journalise le sink et assainit, le temps de corriger." },
+  { title: "Bloquer", text: "Passer la directive en mode bloquant, puis retirer la politique default dès que ses journaux sont vides." },
+]} />
+
+<Callout kind="debate">
+Faut-il garder une politique `default` en production ? Pour : elle évite qu'une dépendance oubliée casse une page le jour de la bascule. Contre : elle rend à nouveau toutes les chaînes acceptables pour tous les sinks, et elle a tendance à devenir permanente. La position défendable : une politique `default` qui **journalise et assainit**, jamais une qui laisse passer ; une date de retrait inscrite dans le ticket ; et une alerte si elle est appelée sur la page de paiement.
+</Callout>
+
+## La Sanitizer API
+
+La **Sanitizer API** propose un assainissement natif : `element.setHTML(input)` insère du HTML en retirant ce qui est dangereux, sans bibliothèque. Firefox 148 a été le premier navigateur à la livrer sous sa forme sûre, en février 2026. En attendant un support complet partout, **DOMPurify** reste la valeur sûre en repli, et les deux se combinent bien avec Trusted Types.
+
+L'API distingue deux familles de méthodes. Les méthodes **sûres** (`setHTML`, `Document.parseHTML`) retirent toujours les éléments et attributs exécutables, même si la configuration passée les autorise. Les méthodes **non sûres** (`setHTMLUnsafe`, `Document.parseHTMLUnsafe`) appliquent la configuration à la lettre. La configuration s'écrit soit en liste d'autorisation (`elements`, `attributes`), soit en liste de retrait (`removeElements`, `removeAttributes`) : préfère la première, pour la même raison qu'en validation d'entrée.
+
+<Callout kind="novafact">
+Chez Novafact, le back-office affiche des notes de facture en Markdown. Décision : rendu Markdown sans HTML brut, puis assainissement par la politique `novafact-html` avec six balises autorisées. Le jour où `setHTML` sera disponible pour tous les navigateurs cibles, la politique l'appellera à la place de DOMPurify ; le reste du code ne changera pas, puisqu'il ne connaît que `invoiceNoteHtml`.
+</Callout>
+
+<Recap items={[
+  "Trusted Types remplace les chaînes par des types dans les sinks dangereux du DOM : un DOM XSS devient une erreur de type.",
+  "Disponible dans tous les navigateurs majeurs depuis Firefox 148 (février 2026).",
+  "Des politiques peu nombreuses, privées, qui vérifient vraiment, listées par la directive trusted-types.",
+  "React transmet un TrustedHTML dans dangerouslySetInnerHTML ; ESLint complète au moment de l'écriture.",
+  "Migration : Report-Only, corrections, politique default temporaire qui journalise, puis blocage.",
+  "setHTML arrive nativement et retire toujours l'exécutable ; DOMPurify reste le repli sûr.",
+]} />
+
+<Lab id="ps-dom" note="Refais un lab DOM-based en activant mentalement Trusted Types : quel sink aurait levé une erreur ?" />
+
+<Sources items={[
+  { title: "web.dev : Trusted Types", url: "https://web.dev/articles/trusted-types" },
+  { title: "MDN : require-trusted-types-for", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/require-trusted-types-for" },
+  { title: "MDN : Trusted Types API", url: "https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API" },
+  { title: "React : dangerouslySetInnerHTML et TrustedHTML", url: "https://react.dev/reference/react-dom/components/common" },
+  { title: "MDN : HTML Sanitizer API", url: "https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API" },
+  { title: "DOMPurify", url: "https://github.com/cure53/DOMPurify" },
+  { title: "eslint-plugin-no-unsanitized (Mozilla)", url: "https://github.com/mozilla/eslint-plugin-no-unsanitized" },
+]} />

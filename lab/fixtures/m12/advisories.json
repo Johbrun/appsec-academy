@@ -1,0 +1,23 @@
+{
+  "_": "Trois avis de sécurité, sans correctif et sans emplacement : c'est tout ce qu'on a le jour où il faut décider. Les paquets vulnérables sont sous fixtures/m12/packages/, avec l'exploit qui sert d'oracle.",
+  "advisories": [
+    {
+      "id": "NOVA-2024-014",
+      "package": "nova-deepset",
+      "affected": "< 2.1.1",
+      "summary": "Un correctif de configuration fabriqué permet de modifier des propriétés que l'appelant n'a pas fournies, y compris sur des objets qu'il n'a jamais touchés. L'effet survit à la fin de la requête."
+    },
+    {
+      "id": "NOVA-2024-031",
+      "package": "nova-static",
+      "affected": "< 1.4.3",
+      "summary": "Une URL fabriquée permet d'obtenir le contenu de fichiers situés en dehors du dossier servi."
+    },
+    {
+      "id": "NOVA-2025-007",
+      "package": "nova-validate",
+      "affected": "<= 0.9.3",
+      "summary": "Une chaîne courte et fabriquée fait consommer un temps de calcul très supérieur à sa taille lors de la validation, sur le thread qui traite la requête."
+    }
+  ]
+}

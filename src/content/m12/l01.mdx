@@ -1,0 +1,181 @@
+export const questions = [
+  {
+    q: "Quelle classe de vulnérabilités la revue de code trouve-t-elle nettement mieux que les outils automatiques ?",
+    options: [
+      "Les injections SQL par concaténation, qu'un motif syntaxique retrouve déjà",
+      "Les failles d'autorisation et de logique métier",
+      "Les secrets en dur, qu'un scanner d'historique Git repère plus vite",
+      "Les dépendances vulnérables, listées par une SCA à partir du lockfile",
+    ],
+    answer: 1,
+    explain: "Un outil ne sait pas qui a le droit de voir quelle facture ; un relecteur qui connaît le métier, si. Les trois autres classes sont justement celles où la machine bat l'humain : motif syntaxique, entropie, inventaire du lockfile. C'est pour ça qu'on les lui laisse.",
+  },
+  {
+    q: "Qu'est-ce que la « deuxième passe sécurité » recommandée par Kohnfelder ?",
+    options: [
+      "Router les changements sensibles vers l'AppSec, qui fait la revue de sécurité",
+      "Exiger deux approbations humaines sur toute PR touchant l'authentification",
+      "Relire le même changement une seconde fois, en ne cherchant que la sécurité",
+      "Relancer le SAST après la revue humaine, pour rattraper ce qu'elle a manqué",
+    ],
+    answer: 2,
+    explain: "C'est un changement de posture chez le même relecteur, pas un second relecteur ni un second outil. Router vers l'AppSec est utile (CODEOWNERS) mais ne passe pas à l'échelle : la deuxième passe existe précisément pour que chaque relecteur sache mettre le chapeau sans attendre un spécialiste.",
+  },
+  {
+    q: "Le CODEOWNERS de Novafact contient `/apps/api/src/ @novafact/api` puis, plus bas, `/apps/api/src/auth/ @novafact/appsec`. Un développeur déplace la seconde ligne tout en haut du fichier. Conséquence ?",
+    options: [
+      "auth/ ne requiert plus l'AppSec : c'est la dernière règle correspondante qui gagne",
+      "Rien ne change : GitHub cumule les propriétaires de toutes les règles qui correspondent",
+      "Rien ne change : c'est la règle la plus spécifique qui l'emporte, où qu'elle soit",
+      "Les deux équipes deviennent obligatoires sur auth/, l'ordre ne jouant qu'à l'affichage",
+    ],
+    answer: 0,
+    explain: "Ce n'est ni la règle la plus spécifique ni l'union des règles : comme dans un .gitignore, c'est le dernier motif correspondant qui l'emporte. Déplacer une ligne suffit donc à désarmer le routage — raison pour laquelle le fichier CODEOWNERS doit lui-même appartenir à l'AppSec.",
+  },
+  {
+    q: "En relisant une PR, tu soupçonnes qu'un montant négatif passe la validation d'un avoir. Que fais-tu, selon l'esprit de la deuxième passe ?",
+    options: [
+      "Tu bloques la PR en expliquant ton intuition et en demandant à l'auteur de vérifier",
+      "Tu approuves en laissant un commentaire non bloquant pour la prochaine itération",
+      "Tu écris le test qui envoie un montant négatif, et tu joins le résultat",
+      "Tu ouvres un ticket de dette de sécurité à traiter lors de la revue ciblée du module facturation",
+    ],
+    answer: 2,
+    explain: "Bloquer sur une intuition est défendable, mais coûteux : si tu te trompes, tu as arrêté une PR pour rien et l'auteur apprend à discuter plutôt qu'à vérifier. Le test tranche en quelques minutes et, si le bug existe, il devient le test de régression du correctif.",
+  },
+];
+
+<YouKnow>
+Tu lis déjà du code pour trouver des vulnérabilités, souvent sous contrainte de temps. La revue de code AppSec est le même geste, fait avant la production, à grande échelle, et avec les équipes.
+</YouKnow>
+
+## Trois formats
+
+| Format | Quand | Profondeur | Qui |
+| --- | --- | --- | --- |
+| **Revue de PR** | À chaque changement, avec une passe sécurité sur les changements sensibles | Le diff et son contexte, en quelques minutes | Un pair de l'équipe, un champion, l'AppSec sur les zones routées |
+| **Revue ciblée** | Une fonctionnalité critique, une zone à risque (authentification, paiement, import de fichiers) | Quelques heures sur un périmètre précis | AppSec avec un développeur de l'équipe |
+| **Audit complet** | Avant une mise en production majeure, sur demande d'un client, après un incident | Plusieurs jours, avec une méthode (leçon 7) | AppSec, ou prestataire externe |
+
+Les trois se complètent. La revue de PR voit tout passer mais de près seulement : elle ne voit pas le système entier, et un défaut réparti sur trois PR successives lui échappe. La revue ciblée prend du recul sur une fonctionnalité. L'audit reconstruit la vue d'ensemble, mais il arrive tard et coûte cher. Une équipe qui ne fait que des audits annuels découvre ses BOLA onze mois après leur écriture ; une équipe qui ne fait que des revues de PR ne voit jamais la faiblesse de conception qui traverse dix routes.
+
+## Ce que la revue trouve et que les outils ratent
+
+Les outils (M13) excellent sur les motifs connus : SQL brut, `innerHTML`, dépendances vulnérables, secrets. Ils sont faibles sur :
+
+- l'**autorisation** : qui a le droit de voir quoi, par tenant, par rôle (leçon 5) ;
+- la **logique métier** : invariants, états, montants (M10) ;
+- les **choix de conception** qui se lisent dans le code : un contrôle placé au mauvais endroit, un secret transmis là où il ne devrait pas ;
+- les **chaînes** de petits défauts (M3) ;
+- l'**absence** de quelque chose : un contrôle qui manque ne produit aucun motif à détecter.
+
+Ce dernier point est le plus important. Un SAST cherche une source qui atteint un sink. Dans la PR suivante, il n'y a ni SQL brut ni sortie HTML : juste une donnée de la requête qui décide du périmètre de l'export.
+
+<Diff file="apps/api/src/routes/exports.ts" hlBefore="3" hlAfter="3">
+
+```ts
+export const exportInvoices = defineRoute({ permission: 'invoices:export' }, async (req, res) => {
+  const { from, to } = ExportQuery.parse(req.query);
+  const tenantId = req.query.tenantId as string;                 // le client choisit le tenant
+  const rows = await invoices.listBetween(tenantId, from, to);
+  res.type('text/csv').send(toCsv(rows));
+});
+```
+
+```ts
+export const exportInvoices = defineRoute({ permission: 'invoices:export' }, async (req, res) => {
+  const { from, to } = ExportQuery.parse(req.query);
+  const tenantId = tenantOf(req);                                 // le tenant vient de la session
+  const rows = await invoices.listBetween(tenantId, from, to);
+  res.type('text/csv').send(toCsv(rows));
+});
+```
+
+</Diff>
+
+La version de gauche est authentifiée, a une permission, valide ses dates et passe tous les scanners. Elle permet pourtant à un comptable d'Acme d'exporter les factures de Globex. Seul quelqu'un qui sait que le tenant vient toujours de la session (M8) voit le problème. C'est là que ton expérience offensive fait la différence.
+
+## Tout le monde relit
+
+Kohnfelder (K13) propose une idée simple : chaque relecteur, lors d'une revue de code classique, ajoute une **deuxième passe avec le chapeau sécurité** quand le changement le justifie. La première passe lit pour comprendre et vérifier que le code fait ce qu'il annonce. La seconde relit le même diff avec d'autres questions :
+
+- Quelles **entrées non fiables** ce code reçoit-il, et où sont-elles validées ?
+- Le code agit-il **au nom de quelqu'un** (appel à un service, écriture en base, requête sortante) avec des droits supérieurs à ceux de l'appelant ? C'est le terrain du *confused deputy*.
+- Que se passe-t-il **en cas d'erreur** : le code échoue-t-il en refusant, ou en laissant passer ?
+- Ce code est-il **critique** pour la sécurité ? Si oui, il mérite un seuil de qualité plus élevé et des tests qui vérifient les refus (M13).
+
+Kohnfelder ajoute un conseil que les pentesters appliquent d'instinct : si tu soupçonnes qu'une entrée pose problème, **écris le test** plutôt que de supposer. Le test tranche le débat en quelques minutes et, si la vulnérabilité existe, il devient le test de régression du correctif.
+
+L'équipe AppSec ne peut pas relire toutes les PR ; les développeurs et les champions (M6) le peuvent, avec une méthode et des checklists (leçon 3). Si le relecteur ne se sent pas compétent sur la partie sécurité d'un changement, il la délègue explicitement à quelqu'un qui l'est : c'est un geste normal, pas un aveu.
+
+<Callout kind="case">
+En avril 2021, le noyau Linux a banni les contributions de l'université du Minnesota. Des chercheurs y avaient soumis des correctifs volontairement défectueux pour un article sur les *hypocrite commits* : mesurer si des vulnérabilités peuvent entrer dans un projet open source sous couvert de corrections anodines. L'article a été retiré et les mainteneurs ont réexaminé tous les correctifs de l'université. La leçon pour une équipe produit : la revue est un contrôle de sécurité à part entière, et la réputation de l'auteur ne remplace pas la lecture du diff.
+</Callout>
+
+## Quand déclencher quoi
+
+Une règle simple évite deux écueils : relire tout avec la même intensité (impossible), ou ne rien relire en profondeur (dangereux).
+
+| Signal | Réponse chez Novafact |
+| --- | --- |
+| PR ordinaire (UI, texte, refactoring local) | Revue d'un pair, deuxième passe si une entrée ou un accès aux données change |
+| PR qui touche `auth/`, `billing/`, les workflows CI ou l'IaC | Revue d'un pair et d'un code owner AppSec ou champion |
+| Nouvelle fonctionnalité exposée (import de fichiers, webhook entrant, outil de l'assistant IA) | Revue ciblée avant l'ouverture, liée au threat model (M11) |
+| Refonte de l'authentification, nouveau tenant d'envergure, demande d'un client | Audit ciblé et limité dans le temps (leçon 7) |
+| Incident ou finding de pentest | Revue des variantes (leçon 4) et règle outillée (M13) |
+
+## Router vers la bonne personne
+
+Le fichier **CODEOWNERS** de GitHub désigne des relecteurs obligatoires par chemin. Pour Novafact :
+
+```text
+# La dernière règle qui correspond l'emporte : du général au particulier
+/apps/api/src/               @novafact/api
+/apps/api/src/auth/          @novafact/appsec @novafact/champions-api
+/apps/api/src/billing/       @novafact/champions-api
+/.github/workflows/          @novafact/appsec @novafact/platform
+/infra/                      @novafact/platform @novafact/appsec
+package-lock.json            @novafact/champions-api
+/.github/CODEOWNERS          @novafact/appsec
+```
+
+Avec une règle de protection de branche (ou un *ruleset*) qui exige l'approbation des *code owners*, aucun changement de ces zones ne part sans relecture compétente. Trois détails font la différence :
+
+- **L'ordre compte** : pour un fichier donné, c'est le **dernier** motif correspondant qui s'applique. Une règle générale placée après une règle précise l'écrase silencieusement.
+- **Le fichier CODEOWNERS se protège lui-même** : sans la dernière ligne, n'importe quel auteur peut retirer l'AppSec d'un chemin dans la même PR qui modifie ce chemin.
+- **Les approbations doivent rester valables** : active le rejet des approbations obsolètes quand de nouveaux commits arrivent, et l'exigence d'approbation du dernier push. Sinon, un commit ajouté après l'approbation part sans relecture.
+
+Les équipes désignées doivent avoir un droit d'écriture explicite sur le dépôt. Une ligne à la syntaxe invalide est simplement ignorée : ouvre le fichier dans l'interface de GitHub, qui signale ces erreurs, après chaque modification.
+
+<Callout kind="info">
+La revue est aussi une exigence de conformité. PCI DSS v4.0 demande que le logiciel développé sur mesure soit revu avant sa mise en production (exigence 6.2.3) et, quand la revue est manuelle, qu'elle soit faite par une autre personne que l'auteur, formée aux techniques de revue et au code sécurisé (6.2.3.1). Les journaux de revue de GitHub servent alors de preuve d'audit, comme pour la gestion des changements de SOC 2.
+</Callout>
+
+<Callout kind="debate">
+**L'AppSec doit-elle être code owner ?** Pour : les zones critiques ne partent jamais sans un regard expert. Contre : l'AppSec devient un goulot, les PR attendent, et les équipes contournent (découpage artificiel, déplacement de code). La voie médiane chez Novafact : l'AppSec est propriétaire de quelques chemins très étroits (`auth/`, workflows, CODEOWNERS), les champions couvrent le reste, et le délai de réponse de l'AppSec est suivi comme un indicateur de service.
+</Callout>
+
+## En pratique chez toi
+
+<Steps items={[
+  { title: "Lister les zones critiques", text: "Authentification, autorisation, paiement, crypto, workflows CI, IaC, lockfiles : cinq à dix chemins, pas plus." },
+  { title: "Écrire le CODEOWNERS", text: "Du général au particulier, avec le fichier lui-même protégé par l'AppSec." },
+  { title: "Activer la protection", text: "Approbation des code owners, rejet des approbations obsolètes, approbation du dernier push." },
+  { title: "Former à la deuxième passe", text: "Une checklist d'une page (leçon 3) et deux ou trois PR relues ensemble avec les champions." },
+  { title: "Mesurer", text: "Délai de première réponse, part des findings trouvés en revue plutôt qu'en pentest." },
+]} />
+
+<Recap items={[
+  "Trois formats complémentaires : revue de PR, revue ciblée, audit complet.",
+  "La revue trouve ce que les outils ratent : autorisation, logique, conception, chaînes, et surtout les contrôles absents.",
+  "La deuxième passe sécurité de Kohnfelder : chaque relecteur peut la faire, et écrit un test plutôt que de supposer.",
+  "CODEOWNERS et la protection de branche routent les changements sensibles ; l'ordre des règles et la protection du fichier lui-même comptent.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Code Review Guide", url: "https://owasp.org/www-project-code-review-guide/" },
+  { title: "GitHub : à propos des code owners", url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners" },
+  { title: "GitHub : à propos des branches protégées", url: "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches" },
+  { title: "LWN : An update on the UMN affair", url: "https://lwn.net/Articles/854645/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 13, Security Code Reviews" },
+]} />

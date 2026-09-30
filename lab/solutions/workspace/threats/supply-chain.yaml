@@ -1,0 +1,32 @@
+# Modèle de menaces nº 2 — la chaîne de construction — livrable de référence.
+#
+# L'inventaire n'est pas au choix — ce sont les jobs que les workflows de
+# `novafact/` déclarent vraiment, sous la forme « fichier.yml:job ».
+
+pipeline:
+  - ai-triage.yml:triage
+  - automerge.yml:merge
+  - ci.yml:build
+  - deploy.yml:deploy
+  - e2e.yml:e2e
+  - pr-check.yml:check
+  - release.yml:publish
+  - release.yml:notify
+  - triage.yml:label
+
+threats:
+  - threat: Une étape interpole une donnée écrite par l'auteur d'une issue dans un script shell, qui l'exécute avec le jeton du dépôt.
+    boundary: Contribution externe → exécution privilégiée du runner
+    control: novafact/.github/workflows/triage.yml
+  - threat: Le job déclenché par les pull requests fait un checkout du code de la contribution puis le construit, dans un contexte qui a les secrets.
+    boundary: Fork → contexte de la branche de base
+    control: novafact/.github/workflows/pr-check.yml
+  - threat: Les actions tierces sont référencées par étiquette mobile, que leur mainteneur peut repointer sur un autre commit à tout moment.
+    boundary: Dépôt tiers → exécution dans la chaîne
+    control: novafact/.github/workflows/ci.yml
+  - threat: La publication du paquet s'appuie sur un jeton de longue durée, sans attestation de provenance à vérifier par l'aval.
+    boundary: Chaîne de construction → registre public
+    control: novafact/.github/workflows/release.yml
+  - threat: Le cache restauré par le job de publication a été écrit par un job de privilège inférieur, déclenché par une contribution.
+    boundary: Job faiblement privilégié → job de publication
+    control: novafact/.github/workflows/release.yml

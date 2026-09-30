@@ -1,0 +1,67 @@
+export const questions = [];
+
+<YouKnow>
+La fonctionnalité de paiement augmente la surface d’abus : plus de comptes, plus de connexions, plus de factures envoyées. Cette étape durcit les contrôles anti-abus de Novafact, avec le module 10.
+</YouKnow>
+
+## Étape 6 : contrôles anti-abus
+
+Trois points d’entrée concentrent l’abus sur Novafact : l’**inscription**, la **connexion** et l’**envoi de factures**. Ton livrable : pour chacun, la menace, le contrôle retenu et le compromis assumé entre bloquer l’abus et gêner les clients.
+
+## Inscription
+
+<Steps items={[
+  { title: "Menace", text: "Création de comptes en série pour envoyer de fausses factures depuis l’infrastructure de Novafact (usurpation de marque, atteinte à la réputation d’envoi)." },
+  { title: "Contrôles", text: "Turnstile invisible, vérification de l’adresse e-mail avant le premier envoi, quota d’envoi réduit les premiers jours, détection des domaines jetables." },
+  { title: "Compromis", text: "Chaque friction coûte des inscriptions légitimes. Le quota d’ouverture gêne peu une vraie PME (rarement plus de 30 factures le premier jour) mais casse l’économie du fraudeur." },
+]} />
+
+## Connexion
+
+<Steps items={[
+  { title: "Menace", text: "Credential stuffing (rejeu d’identifiants volés, beaucoup de comptes, une tentative chacun) et attaque ciblée sur les comptes administrateurs." },
+  { title: "Contrôles", text: "Ralentissement progressif par compte, vérification des mots de passe contre une base de fuites, signaux d’AWS WAF ATP, MFA pour les administrateurs de tenant." },
+  { title: "Compromis", text: "Une limite par IP seule punit les réseaux partagés (le cabinet comptable derrière un NAT) sans arrêter un botnet réparti. Les signaux qualitatifs valent mieux que les seuls volumes." },
+]} />
+
+## Envoi de factures
+
+<Steps items={[
+  { title: "Menace", text: "Un compte compromis ou frauduleux envoie massivement des factures, ce qui dégrade la réputation du domaine d’envoi et peut viser les clients (fraude au virement)." },
+  { title: "Contrôles", text: "Quotas par tenant et par âge de compte, alerte sur les pics anormaux, journalisation vers Elastic (étape 10), séparation des domaines d’envoi." },
+  { title: "Compromis", text: "Un quota trop bas bloque une grosse PME en fin de mois ; un quota par tenant, ajusté à l’historique, est plus juste qu’un plafond global." },
+]} />
+
+## Le tableau de synthèse
+
+| Point d’entrée | Menace principale | Contrôle retenu | Coût pour les clients |
+| --- | --- | --- | --- |
+| Inscription | Comptes de fraude en série | Turnstile + e-mail vérifié + quota d’ouverture | Faible, sauf inscriptions en masse légitimes (rare) |
+| Connexion | Credential stuffing, ATO admin | Ralentissement par compte + mots de passe fuités + MFA admin | Quasi nul si progressif |
+| Envoi | Spam de factures, fraude | Quotas par tenant + alertes + logs | Faible si calibré sur l’historique |
+
+<Callout kind="tip">
+C’est exactement l’arbitrage que le jeu **Abuse Desk** fait manipuler : maximiser l’abus bloqué tout en minimisant les clients gênés. La bonne réponse combine des signaux qualitatifs (identifiants fuités, réputation) plutôt que des seuils de volume brutaux.
+</Callout>
+
+## Relier au reste du dossier
+
+Chaque contrôle de cette étape se rattache à une exigence (étape 1) et alimente une détection (étape 10) : un pic d’échecs de connexion, une explosion d’envois par un compte neuf. L’anti-abus n’est pas qu’un filtre en entrée, c’est aussi un signal pour la détection.
+
+## Livrable de l’étape
+
+- Pour l’**inscription**, la **connexion** et l’**envoi**, le tableau menace / contrôle / compromis.
+- Les **seuils** retenus pour Novafact, justifiés par l’usage légitime.
+- Les **signaux** que ces contrôles enverront à la détection.
+
+<Recap items={[
+  "Trois points d’entrée à durcir : inscription, connexion, envoi de factures.",
+  "Préférer les signaux qualitatifs (identifiants fuités, réputation) aux seuils de volume aveugles.",
+  "Chaque contrôle a un coût pour les clients légitimes : l’assumer et le calibrer sur l’usage réel.",
+  "Les contrôles anti-abus alimentent aussi la détection (étape 10).",
+]} />
+
+<Sources items={[
+  { title: "OWASP Automated Threats to Web Applications", url: "https://owasp.org/www-project-automated-threats-to-web-applications/" },
+  { title: "OWASP Credential Stuffing Prevention Cheat Sheet", url: "https://cheatsheetseries.owasp.org/cheatsheets/Credential_Stuffing_Prevention_Cheat_Sheet.html" },
+]} />

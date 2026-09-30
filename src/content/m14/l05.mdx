@@ -1,0 +1,202 @@
+export const questions = [
+  {
+    q: "Pourquoi utiliser `npm ci` plutôt que `npm install` dans le pipeline ?",
+    options: [
+      "Parce qu'il n'exécute pas les scripts postinstall des dépendances installées",
+      "Parce qu'il installe exactement le lockfile et échoue en cas de divergence",
+      "Parce qu'il vérifie la signature de provenance de chaque paquet téléchargé",
+      "Parce qu'il installe uniquement les dépendances de production, sans les devDependencies",
+    ],
+    answer: 1,
+    explain: "Les trois autres propriétés sont prêtées à `npm ci` un peu partout, et aucune n'est vraie : il exécute bien les scripts d'installation, ne vérifie aucune provenance, et installe aussi les devDependencies. Ce qu'il fait réellement : supprimer node_modules, poser l'arbre exact du lockfile, contrôler les empreintes `integrity`, et échouer si `package.json` et le lockfile divergent — là où `npm install` peut résoudre une version plus récente dans une plage `^`.",
+  },
+  {
+    q: "TanStack publiait par trusted publishing (OIDC) et a quand même été compromis en mai 2026. Quelle mesure aurait ajouté une barrière ?",
+    options: [
+      "Restreindre le jeton OIDC au seul workflow de release officiel, via la condition sub",
+      "Exiger la provenance sur toutes les versions publiées du paquet",
+      "Imposer la 2FA à tous les mainteneurs du paquet sur leur compte npm",
+      "Le staged publishing : la version n'est publique qu'après approbation humaine",
+    ],
+    answer: 3,
+    explain: "Aucune des trois autres mesures ne mord sur ce scénario, et c'est ce qui le rend instructif : le code malveillant s'exécutait dans le workflow de release officiel — la condition `sub` était donc satisfaite, la provenance était authentique, et aucun jeton personnel n'entrait en jeu, ce qui met la 2FA des mainteneurs hors sujet. Il fallait une approbation humaine par publication : le workflow dépose une version en attente, un mainteneur la rend publique.",
+  },
+  {
+    q: "Un assistant de code propose `npm install express-session-guard` pour sécuriser les sessions. Quel réflexe ?",
+    options: [
+      "Vérifier que le paquet existe, qui le publie, depuis quand, et ses scripts",
+      "Installer puis lancer npm audit pour vérifier qu'aucun avis ne le concerne",
+      "Installer avec --ignore-scripts, ce qui neutralise le risque d'un paquet piégé",
+      "Demander à l'assistant la source et la documentation officielle du paquet",
+    ],
+    answer: 0,
+    explain: "`--ignore-scripts` bloque le postinstall, pas le code exécuté à l'import : c'est un demi-contrôle. `npm audit` après installation arrive trop tard, et ne dit rien d'un paquet sans avis publié. Quant à demander sa documentation à l'assistant, un modèle qui a halluciné le nom hallucinera l'URL. Les modèles inventent des noms plausibles de façon répétable, et des attaquants les enregistrent : la vérification porte sur le registre, avant l'installation.",
+  },
+  {
+    q: "Pourquoi le délai de quarantaine (`min-release-age`, `minimumReleaseAge`) est-il efficace contre les vers npm ?",
+    options: [
+      "Parce qu'il empêche l'exécution des scripts d'installation pendant toute la durée du délai",
+      "Parce qu'il force la relecture humaine de chaque nouvelle version installée",
+      "Parce que la plupart des versions malveillantes sont retirées en quelques heures",
+      "Parce qu'il impose l'usage du lockfile, qui fige les versions déjà validées",
+    ],
+    answer: 2,
+    explain: "Le délai n'ajoute ni blocage de scripts, ni relecture, ni lockfile : ce sont trois autres contrôles, qu'il ne remplace pas. Son efficacité tient entièrement à une statistique — les versions de CHAINDROP ou de TanStack ont été signalées en moins d'une heure. Attendre quelques jours revient à laisser l'écosystème réagir à ta place ; en contrepartie, un correctif urgent demande une exception explicite.",
+  },
+];
+
+<YouKnow>
+Tu sais qu'un `npm install` exécute du code arbitraire. Cette leçon passe en revue les réglages qui, du côté de l'installation comme de la publication de `@novafact/sdk`, transforment cette exécution implicite en décisions explicites.
+</YouKnow>
+
+## Installer ce qui a été relu : `npm ci` et le lockfile
+
+Le lockfile (`package-lock.json`, `pnpm-lock.yaml`) fige l'arbre complet : version, URL de téléchargement (`resolved`) et empreinte `integrity` de chaque paquet. En CI, **`npm ci`** installe exactement cet arbre, vérifie chaque empreinte et échoue si `package.json` et le lockfile ne concordent pas. `npm install`, lui, peut résoudre une nouvelle version dans une plage `^1.2.0` et réécrire le lockfile : ce qui s'exécute n'est plus ce qui a été relu.
+
+Le lockfile est donc un **artefact de sécurité** qui se relit :
+
+- une dépendance ajoutée sans raison, une URL `resolved` qui pointe vers un autre registre ou un tarball distant, une empreinte modifiée sans changement de version sont des signaux d'alerte ;
+- une PR qui modifie seulement le lockfile mérite autant d'attention qu'une PR de code (CODEOWNERS, leçon 2) ;
+- les outils de revue de dépendances (Dependency Review de GitHub, Socket) commentent ces changements directement dans la PR.
+
+## Les scripts d'installation, en liste d'autorisation
+
+Les scripts `preinstall`, `install` et `postinstall` sont le point d'exécution de presque tous les paquets malveillants récents. Les gestionnaires de paquets ont inversé le défaut :
+
+| Outil | Comportement | Autoriser un paquet |
+| --- | --- | --- |
+| **npm 12** (juillet 2026) | Scripts des dépendances et builds `node-gyp` implicites désactivés par défaut ; dépendances Git et URL distantes refusées par défaut | `npm approve-scripts`, écrit dans le champ `allowScripts` de `package.json` |
+| **npm 11** | Scripts exécutés par défaut | `--ignore-scripts` ou `ignore-scripts=true`, puis `npm rebuild` ciblé |
+| **pnpm 10 et 11** | Scripts des dépendances bloqués par défaut ; `strictDepBuilds` fait échouer l'installation si un script n'a pas été revu | `allowBuilds` dans `pnpm-workspace.yaml` |
+
+<Code file="package.json (extrait)">
+
+```json
+{
+  "name": "@novafact/api",
+  "private": true,
+  "allowScripts": {
+    "esbuild@0.25.9": true,
+    "core-js": false
+  }
+}
+```
+
+</Code>
+
+`npm approve-scripts --allow-scripts-pending` liste les paquets dont les scripts ont été sautés, puis enregistre tes décisions ; par défaut, l'approbation est **épinglée à la version** installée. C'est voulu : si une nouvelle version d'un paquet autorisé arrive avec un script modifié, elle repasse en revue.
+
+<Code file="pnpm-workspace.yaml">
+
+```yaml
+minimumReleaseAge: 10080        # 7 jours, en minutes
+minimumReleaseAgeExclude:
+  - "@novafact/*"               # nos propres paquets, publiés par notre CI
+allowBuilds:
+  esbuild: true
+strictDepBuilds: true           # échec si un script n'a pas été revu
+trustPolicy: no-downgrade       # échec si une version perd son niveau de confiance (provenance…)
+blockExoticSubdeps: true        # pas de Git ni de tarball distant en dépendance transitive
+```
+
+</Code>
+
+## Le délai de quarantaine
+
+La plupart des versions malveillantes sont repérées en quelques heures : moins d'une demi-heure pour TanStack, quelques heures pour CHAINDROP. N'adopter une version qu'après quelques jours évite d'être dans la première vague.
+
+- **npm** (11.10 et plus) : `min-release-age=7` (en jours) dans `.npmrc`, et `min-release-age-exclude` pour les exceptions.
+- **pnpm** : `minimumReleaseAge` en minutes, introduit en 10.16 ; pnpm 11 applique par défaut un jour.
+- **Dependabot** : l'option `cooldown` retarde les PR de mise à jour ; zizmor la vérifie (audit `dependabot-cooldown`).
+
+<Callout kind="debate">
+Le délai retarde aussi les **correctifs de sécurité**. Face à une CVE critique exploitée, attendre sept jours est inacceptable. La réponse n'est pas de renoncer au délai, mais d'outiller l'exception : une PR explicite qui ajoute la version corrigée à la liste d'exclusion, relue par l'AppSec, avec une date de retrait. Certains préfèrent un délai court (un à trois jours) partout plutôt qu'un délai long assorti d'exceptions fréquentes.
+</Callout>
+
+## Confusion, typosquatting, slopsquatting
+
+**Dependency confusion** : si un paquet interne non scopé (`novafact-pdf`) n'existe que sur un registre privé, un attaquant peut publier le même nom sur npmjs avec une version plus haute, et certaines configurations le préfèrent. La parade tient en trois points : tous les paquets internes sous un **scope** que Novafact possède sur npmjs (`@novafact`), une ligne `@novafact:registry=` dans `.npmrc` qui fixe le registre du scope, et aucun nom non scopé en interne.
+
+**Typosquatting** : un nom proche d'un paquet populaire, qui compte sur une faute de frappe ou une recopie approximative.
+
+**Slopsquatting** : un nom **inventé par un assistant de code**, puis enregistré par un attaquant. Une étude présentée à USENIX Security 2025 a mesuré qu'environ un paquet sur cinq recommandé par les modèles testés n'existait pas, et que ces hallucinations se répètent d'une requête à l'autre, ce qui les rend prévisibles. Toute dépendance proposée par une IA se vérifie : existence, éditeur, âge, usage, scripts (leçon 6).
+
+## Publier `@novafact/sdk` : trusted publishing et provenance
+
+Le **trusted publishing** remplace le jeton npm par une relation de confiance OIDC : sur npmjs.com, le paquet déclare le dépôt, le workflow et éventuellement l'environnement GitHub autorisés à publier. Le job obtient un jeton éphémère, valable pour cette publication. Il demande npm 11.5.1 ou plus, Node 22.14 ou plus, la permission `id-token: write`, et ne fonctionne pas sur runner self-hosted. Depuis GitHub Actions ou GitLab CI, npm génère automatiquement une **attestation de provenance** (sauf pour un dépôt privé). Une fois en place, règle le paquet sur « exiger la 2FA et interdire les jetons ».
+
+L'incident **TanStack** (mai 2026) montre la limite : un workflow `pull_request_target` a empoisonné le cache, le workflow de release a restauré ce cache, et le code malveillant a obtenu le jeton OIDC du job pour publier 84 versions malveillantes. Le postmortem le dit simplement : la liaison OIDC n'impose aucune revue **par publication**. Tout code qui s'exécute dans le job autorisé peut publier.
+
+## Staged publishing : une approbation humaine par version
+
+Le **staged publishing**, disponible depuis mai 2026 (npm 11.15.0 ou plus), ajoute cette revue. `npm stage publish` dépose le tarball dans une file d'attente, sans le rendre installable. Un mainteneur l'inspecte (`npm stage list`, `npm stage view`, `npm stage download`) puis l'approuve avec `npm stage approve`, **avec une vérification 2FA**, en CLI ou sur npmjs.com. Le dépôt en file fonctionne avec l'OIDC ; la preuve de présence humaine se déplace à l'approbation.
+
+<Code file=".github/workflows/release-sdk.yml" hl="13,22,23,31">
+
+```yaml
+name: release-sdk
+on:
+  release: { types: [published] }
+permissions: {}
+jobs:
+  build:                                   # installe et teste : aucun droit de publication
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    cache-mode: none
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - run: npm ci && npm test && npm pack
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with: { name: sdk-tarball, path: "*.tgz" }
+  stage:                                   # n'exécute aucune dépendance
+    needs: build
+    runs-on: ubuntu-latest
+    environment: npm-release               # approbateurs requis
+    permissions: { contents: read, id-token: write }
+    cache-mode: none
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: sdk-tarball }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24, registry-url: "https://registry.npmjs.org" }
+      - run: npm install -g npm@12         # trusted publishing ≥ 11.5.1, stage ≥ 11.15.0
+      - run: npm stage publish ./*.tgz     # un mainteneur approuve ensuite avec 2FA
+```
+
+</Code>
+
+Le découpage compte autant que la commande : le job qui détient `id-token: write` ne lance ni `npm ci`, ni tests, ni cache. Le code tiers s'exécute dans un job qui n'a rien à voler.
+
+## La fin des jetons qui contournent la 2FA
+
+| Date | Changement |
+| --- | --- |
+| Automne 2025 | Jetons *classic* révoqués et plus créables ; jetons granulaires en écriture limités à 7 jours par défaut, 90 jours au maximum |
+| Début août 2026 | Les jetons granulaires « bypass 2FA » ne peuvent plus effectuer d'opérations sensibles (jetons, mainteneurs, accès, configuration du trusted publishing) sans 2FA |
+| Vers janvier 2027 (annoncé) | Ces jetons ne peuvent plus publier directement : lecture des paquets privés et dépôt en staged publishing uniquement |
+
+Pour Novafact, la cible est claire : aucun jeton npm en écriture, nulle part. La CI dépose par OIDC, un humain approuve avec 2FA.
+
+<Callout kind="novafact">
+Migration de `@novafact/sdk` (fictive) : le jeton d'automatisation stocké dans les secrets du dépôt est révoqué ; trusted publishing configuré sur `novafact/sdk`, workflow `release-sdk.yml`, environnement `npm-release` ; le paquet passe en « 2FA requise, jetons interdits » ; staged publishing activé, avec deux mainteneurs habilités à approuver sur clé FIDO. Côté consommation, `npm ci`, `min-release-age=3` et `allowScripts` sur les quatre dépôts Node ; la PR d'exception pour un correctif urgent est documentée dans le runbook.
+</Callout>
+
+<Recap items={[
+  "`npm ci` et un lockfile relu : ce qui s'installe est ce qui a été validé.",
+  "Scripts d'installation en liste d'autorisation : `allowScripts` (npm 12), `allowBuilds` et `strictDepBuilds` (pnpm).",
+  "Un délai de quarantaine évite la première vague ; les correctifs urgents passent par une exception explicite.",
+  "Scopes et registre par scope contre la dependency confusion ; vérifier toute dépendance proposée par une IA.",
+  "Trusted publishing et provenance suppriment le jeton, mais pas le risque d'un workflow empoisonné : staged publishing ajoute l'approbation 2FA par version.",
+  "Les jetons qui contournent la 2FA sont restreints depuis août 2026 et ne pourront plus publier directement vers janvier 2027.",
+]} />
+
+<Sources items={[
+  { title: "npm Docs : trusted publishing", url: "https://docs.npmjs.com/trusted-publishers/" },
+  { title: "npm Docs : staged publishing", url: "https://docs.npmjs.com/staged-publishing/" },
+  { title: "GitHub Changelog : npm 12, sécurité à l'installation et jetons bypass 2FA (juillet 2026)", url: "https://github.blog/changelog/2026-07-08-npm-install-time-security-and-gat-bypass2fa-deprecation/" },
+  { title: "GitHub Changelog : jetons npm, changements de septembre 2025", url: "https://github.blog/changelog/2025-09-29-strengthening-npm-security-important-changes-to-authentication-and-token-management/" },
+  { title: "pnpm : supply chain security", url: "https://pnpm.io/supply-chain-security" },
+  { title: "npm Docs : configuration (min-release-age)", url: "https://docs.npmjs.com/cli/v11/using-npm/config" },
+  { title: "TanStack : postmortem de la compromission npm", url: "https://tanstack.com/blog/npm-supply-chain-compromise-postmortem" },
+]} />

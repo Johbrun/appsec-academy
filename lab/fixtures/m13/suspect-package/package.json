@@ -1,0 +1,11 @@
+{
+  "name": "@novafact/ui-kit",
+  "version": "1.2.0",
+  "description": "Composants d'interface de Novafact. Paquet embarqué — fixture du lab.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "postinstall": "node ./scripts/setup.js"
+  },
+  "files": ["dist", "scripts"]
+}

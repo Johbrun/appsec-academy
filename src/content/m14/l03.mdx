@@ -1,0 +1,169 @@
+export const questions = [
+  {
+    q: "Un paquet compromis s'installe sur le portable d'un développeur de Novafact. Qu'est-ce qui limite le plus les dégâts ?",
+    options: [
+      "L'absence d'identifiants puissants et durables sur le poste",
+      "Le chiffrement du disque et le verrouillage automatique de la session",
+      "Un antivirus à jour, capable de détecter les scripts postinstall malveillants",
+      "L'exécution de npm install sans droits administrateur sur la machine",
+    ],
+    answer: 0,
+    explain: "Les trois autres mesures visent un autre attaquant : le chiffrement du disque protège du vol physique, l'absence de droits administrateur d'une élévation, l'antivirus de signatures déjà connues. Le code hostile, lui, s'exécute avec ta session et lit ce que tu peux lire. Les vers de la famille Shai-Hulud ramassent ce qu'ils trouvent — jetons npm, jetons GitHub, clés cloud —, et ce qui n'est pas sur le poste ne peut pas être volé.",
+  },
+  {
+    q: "Pourquoi un dev container ne suffit-il pas, à lui seul, à isoler un essai risqué ?",
+    options: [
+      "Parce qu'un conteneur partage le noyau de l'hôte, exploitable par une évasion",
+      "Parce que les images de dev container sont rarement épinglées à un digest précis",
+      "Parce que l'éditeur y transmet souvent tes identifiants Git et ton agent SSH",
+      "Parce que le conteneur monte le dossier du projet, que le code malveillant modifie",
+    ],
+    answer: 2,
+    explain: "Les trois autres objections sont fondées, mais la plus dangereuse n'est pas celle qu'on croit : l'évasion par le noyau reste rare, et le montage du projet ne dépasse pas le dépôt. Le problème pratique est celui qu'on installe soi-même — l'éditeur transmet au conteneur les identifiants Git et l'agent SSH pour le confort, et un conteneur qui accède au socket Docker contrôle l'hôte. Il isole des fichiers et des processus, pas les identifiants qu'on y fait entrer.",
+  },
+  {
+    q: "La vague CHAINDROP (août 2026) a ajouté des fichiers de configuration d'éditeur et d'assistant de code dans des dépôts. Quelle leçon pour le poste du dev ?",
+    options: [
+      "Ces fichiers ne s'exécutent qu'après un npm install explicite du développeur",
+      "Ouvrir un dépôt peut suffire à exécuter du code : relire .vscode/ et les agents",
+      "Il faut interdire les dev containers et les extensions non signées de l'éditeur",
+      "Il faut exclure .vscode/ du dépôt et le placer dans le .gitignore de chaque projet",
+    ],
+    answer: 1,
+    explain: "Exclure `.vscode/` du dépôt paraît propre et fait exactement l'inverse de ce qu'il faut : la configuration sort du champ de la revue au lieu d'y entrer, et chacun retrouve la sienne sans contrôle. Interdire les extensions ne couvre pas les hooks d'assistant de code. Le fait à retenir est plus simple : tâche exécutée à l'ouverture du dossier, hook au démarrage d'une session — ce sont des points d'exécution qu'on ne relit pas comme du code, alors qu'ils en sont.",
+  },
+];
+
+<YouKnow>
+En test d'intrusion interne, le poste d'un développeur est une mine : clés SSH, jetons, fichiers `.env`, accès VPN. Kohnfelder (chapitre 13) en tire la conséquence défensive : le **code source est l'actif principal**, et l'environnement qui le produit se protège comme la production.
+</YouKnow>
+
+## Pourquoi le poste du dev est devenu la cible
+
+Les campagnes Shai-Hulud (septembre 2025, novembre 2025, puis les vagues de 2026) ont toutes le même objectif : s'exécuter là où se trouvent les identifiants, c'est-à-dire **sur le poste du développeur et sur le runner CI**, au moment d'un `npm install`. Elles cherchent les jetons npm dans `~/.npmrc`, les jetons GitHub, les identifiants AWS, GCP et Azure, les clés d'API des outils d'IA, les jetons Kubernetes et Vault. Avec un jeton npm qui peut publier, le ver se republie dans tous les paquets du mainteneur.
+
+La vague **CHAINDROP** d'août 2026 a ajouté un étage : avec un jeton GitHub, elle poussait dans les dépôts de la victime des fichiers de configuration d'éditeur (une tâche VS Code déclenchée à l'ouverture du dossier) et d'assistant de code (un hook exécuté au démarrage d'une session). Le simple fait d'**ouvrir** le dépôt suffisait alors à relancer l'infection chez un collègue.
+
+Le runner CI est la même cible avec moins de friction : il installe tout, sans humain devant l'écran, souvent avec plus de droits. Les règles de la leçon 2 (jobs sans secrets pour le code non fiable, OIDC, runners éphémères) sont la version CI de ce qui suit.
+
+## Séparer développement et production
+
+Kohnfelder recommande un **mur** entre les deux : le développeur n'a pas accès aux données de production, et la production n'a pas d'accès en écriture au code source. Le passage de l'un à l'autre se fait par un processus de release formel, pas par une commande lancée depuis un portable.
+
+Chez Novafact, cela se traduit par :
+
+- des comptes AWS séparés (dev, staging, production) ; les développeurs n'ont un rôle que dans le compte de dev ;
+- des identifiants **temporaires** via IAM Identity Center, jamais de clé d'accès dans `~/.aws/credentials` ;
+- le déploiement en production uniquement par le pipeline (environnement protégé, OIDC) ;
+- un accès d'urgence (*break-glass*) distinct, journalisé et rarement utilisé (M15) ;
+- des données de test générées ou pseudonymisées, jamais une copie de la base de production (M13).
+
+<Code file="~/.aws/config">
+
+```ini
+[sso-session novafact]
+sso_start_url = https://novafact.awsapps.com/start
+sso_region = eu-west-3
+sso_registration_scopes = sso:account:access
+
+[profile novafact-dev]
+sso_session = novafact
+sso_account_id = 111122223333
+sso_role_name = DeveloperAccess
+region = eu-west-3
+# aucun profil de production sur le poste : la prod passe par le pipeline
+```
+
+</Code>
+
+## Inventorier ce qui traîne sur un poste
+
+| Identifiant | Où il se trouve souvent | Ce qu'on vise chez Novafact |
+| --- | --- | --- |
+| Jeton npm de publication | `~/.npmrc` | Aucun : `@novafact/sdk` se publie par trusted publishing depuis la CI (leçon 5) |
+| Clé AWS | `~/.aws/credentials` | Sessions IAM Identity Center de quelques heures, compte de dev uniquement |
+| Jeton GitHub | variable d'environnement, fichier de configuration | Authentification de `gh` stockée dans le trousseau du système, jetons à portée et durée limitées |
+| Secrets applicatifs | fichiers `.env` | Secrets de dev uniquement, jamais ceux de staging ou de prod |
+| Clés d'API des outils d'IA | variables, fichiers de configuration | Clés dédiées, plafonnées, révocables sans casser le reste |
+| Clé SSH | `~/.ssh/` | Clé liée à une clé matérielle FIDO, ou protégée par phrase de passe et agent |
+
+Cet inventaire sert deux fois : pour réduire l'exposition aujourd'hui, et pour savoir **quoi révoquer** le jour où un poste est touché (leçon 10).
+
+## Vérifier les outils avant de les installer
+
+Un outil de développement s'exécute avec tes droits, sur ta session, à côté de tous tes identifiants. Avant d'installer une extension d'éditeur, une CLI, un serveur MCP ou un paquet lancé par `npx`, pose les questions de la leçon 6 : qui le publie, depuis quand, avec quel historique, quelles permissions demande-t-il ?
+
+- Les **extensions d'éditeur** sont du code sans bac à sable. GlassWorm (octobre 2025) s'est propagé par des extensions publiées sur OpenVSX et le Marketplace, en cachant son code dans des caractères Unicode invisibles, et volait jetons npm, GitHub et OpenVSX pour infecter d'autres extensions.
+- `curl … | sh` exécute un script que tu n'as pas lu, servi par un domaine que tu ne contrôles pas. Télécharge, lis, vérifie l'empreinte ou la signature, puis exécute.
+- `npx un-paquet` télécharge et exécute la dernière version publiée, sans lockfile. Pour un outil récurrent, installe une version précise dans le projet.
+- La **confiance d'espace de travail** de VS Code (*Workspace Trust*) ouvre les dossiers inconnus en mode restreint : pas de tâches automatiques, pas de débogage, extensions limitées. Ne clique pas « faire confiance » par réflexe sur un dépôt cloné pour une revue.
+
+<Callout kind="case">
+**CHAINDROP, août 2026.** Le compte d'un mainteneur de paquets très utilisés (`keyv`, `flat-cache`, `cacheable`…) est compromis ; plus de 400 paquets sont republiés en quelques heures avec un script `preinstall`. Le code vole les identifiants du poste ou du runner, se republie avec les jetons npm trouvés, et persiste dans les dépôts GitHub accessibles via des fichiers `.vscode/tasks.json` et `.claude/settings.json`. Les recommandations d'Elastic Security Labs recoupent cette leçon : délai avant d'adopter une nouvelle version, npm 12 qui bloque les scripts d'installation par défaut, révocation de tous les jetons présents sur les machines touchées, et recherche des commits de configuration suspects.
+</Callout>
+
+## Un bac à sable pour les essais
+
+Kohnfelder conseille un environnement isolé pour les essais et les travaux ponctuels qui ne font pas partie du développement courant. Aujourd'hui, trois options :
+
+| Option | Isolation | Piège |
+| --- | --- | --- |
+| Dev container | Fichiers et processus | L'extension Dev Containers transmet par défaut tes identifiants Git et ton agent SSH ; monter le socket Docker donne le contrôle de l'hôte |
+| Environnement cloud (Codespaces, etc.) | Machine distante jetable | Les secrets configurés pour l'environnement y sont présents ; le jeton GitHub de la session aussi |
+| VM locale jetable | Noyau séparé | Plus lourde, mais la seule vraiment adaptée pour un paquet suspect |
+
+Pour analyser un paquet douteux (M13, leçon 9) : VM ou conteneur **sans aucun identifiant**, réseau surveillé, `--ignore-scripts` pour une première lecture statique.
+
+## Des postes à jour et configurés
+
+Système, navigateur, Node LTS, gestionnaire de paquets et extensions se mettent à jour automatiquement ; un poste qui a six mois de retard est une cible facile. Côté npm, la configuration utilisateur applique les mêmes garde-fous qu'en CI :
+
+<Code file="~/.npmrc">
+
+```ini
+# pas de version publiée il y a moins de 7 jours (npm ≥ 11.10)
+min-release-age=7
+# pas de dépendance tirée d'un dépôt Git (défaut de npm 12)
+allow-git=none
+# npm 11 uniquement : couper les scripts d'installation ;
+# npm 12 les désactive déjà par défaut et les autorise via allowScripts
+ignore-scripts=true
+```
+
+</Code>
+
+Avec **npm 12** (disponible depuis juillet 2026), les scripts `preinstall`, `install` et `postinstall` des dépendances ne s'exécutent plus sans autorisation explicite ; **pnpm** les bloque depuis la version 10. C'est le contrôle qui aurait désamorcé l'exécution automatique des vagues Shai-Hulud sur la plupart des postes (leçon 5).
+
+<Callout kind="novafact">
+Politique « poste de développement » de Novafact (fictive) : disque chiffré et mises à jour automatiques gérés par le MDM ; aucune clé AWS longue durée ni jeton npm de publication ; `gh` authentifié via le trousseau ; `~/.npmrc` standard déployé ; extensions d'éditeur limitées à une liste revue par l'équipe plateforme ; `.vscode/` et `.claude/` sous CODEOWNERS dans tous les dépôts ; une VM jetable fournie pour les essais d'outils. Le coût : une demi-journée d'intégration par nouvel arrivant. Le gain : un poste compromis ne donne ni la production, ni la publication du SDK.
+</Callout>
+
+## Modéliser l'environnement de développement
+
+Kohnfelder propose de **faire le threat modeling de l'environnement de développement** lui-même (M11) : actifs (code, clés de signature, identifiants de publication), surfaces (postes, dépôts, CI, registres, outils), menaces. Ses mitigations de base, reformulées pour Novafact :
+
+<Steps items={[
+  { title: "Postes configurés et mis à jour", text: "Configuration de référence, mises à jour automatiques, usage personnel limité sur les machines de développement." },
+  { title: "Dépendances et outils revus", text: "Chaque nouveau composant ou outil passe une revue légère (leçon 6) ; délai avant adoption des nouvelles versions." },
+  { title: "Build et release administrés à part", text: "Les machines de build et de publication sont durcies et séparées des postes (runners éphémères, OIDC)." },
+  { title: "Secrets et authentification forte", text: "Clés de signature et de publication hors des postes ; MFA résistante au phishing sur GitHub, npm et AWS." },
+  { title: "Surveillance des commits", text: "Auditer les modifications anormales : workflows, configurations d'éditeur ou d'agent, lockfiles modifiés sans raison." },
+  { title: "Sauvegardes", text: "Copies sûres du code source et de l'environnement de build, pour reconstruire après un incident." },
+]} />
+
+<Recap items={[
+  "Le poste du dev et le runner CI sont les cibles : c'est là que s'exécutent les installations et que vivent les identifiants.",
+  "Séparer dev et prod : comptes distincts, identifiants temporaires, déploiement uniquement par le pipeline.",
+  "Ce qui n'est pas sur le poste ne peut pas être volé : pas de jeton de publication, pas de clé AWS longue durée.",
+  "Vérifier les outils avant installation ; garder la confiance d'espace de travail ; VM jetable pour les essais risqués.",
+  "npm 12 et pnpm 10+ bloquent les scripts d'installation ; `min-release-age` ajoute un délai de quarantaine.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 13, environnement de développement sécurisé" },
+  { title: "Elastic Security Labs : CHAINDROP (août 2026)", url: "https://www.elastic.co/security-labs/shai-hulud-chaindrop-npm-supply-chain" },
+  { title: "CISA : compromission généralisée de l'écosystème npm (Shai-Hulud)", url: "https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem" },
+  { title: "GitHub Changelog : npm 12, sécurité à l'installation (juillet 2026)", url: "https://github.blog/changelog/2026-07-08-npm-install-time-security-and-gat-bypass2fa-deprecation/" },
+  { title: "VS Code : Workspace Trust", url: "https://code.visualstudio.com/docs/editing/workspaces/workspace-trust" },
+  { title: "Koi Security : GlassWorm", url: "https://www.koi.ai/blog/glassworm-returns-new-wave-openvsx-malware-expose-attacker-infrastructure" },
+]} />

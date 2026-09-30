@@ -1,0 +1,209 @@
+export const questions = [
+  {
+    q: "Tu veux qu'aucun principal extérieur à l'organisation ne puisse lire les objets des buckets de production, même si une équipe écrit par erreur une politique de bucket publique. Quel contrôle est le bon ?",
+    options: [
+      "Une SCP sur les comptes de production, qui refuse `s3:GetObject` hors de l'organisation",
+      "Une RCP sur les comptes de production, qui refuse S3 hors de `aws:PrincipalOrgID`",
+      "Le blocage d'accès public S3 au niveau du compte, qui couvre tout accès externe",
+      "Une permission boundary sur les rôles habilités à écrire une politique de bucket",
+    ],
+    answer: 1,
+    explain: "Une SCP ne s'applique qu'aux principals du compte : elle ne dit rien d'un appelant extérieur qui accède à *tes* ressources. La RCP, elle, s'attache aux ressources et s'évalue quel que soit l'appelant — c'est le périmètre d'identité. Le blocage d'accès public est le faux ami le plus coûteux : il neutralise les ACL et les politiques ouvertes à `Principal: *`, mais laisse passer une politique de bucket qui nomme explicitement un compte tiers, c'est-à-dire précisément le cas visé. Pense aux exceptions pour les principals de service AWS.",
+  },
+  {
+    q: "Une SCP de périmètre de ressources refuse les actions dont la ressource n'appartient pas à l'organisation (`aws:ResourceOrgID`). Quel scénario d'exfiltration bloque-t-elle ?",
+    options: [
+      "Un attaquant externe qui lit un bucket de Novafact resté ouvert à `Principal: *`",
+      "Un développeur autorisé qui télécharge les factures sur son poste depuis la console",
+      "Un rôle lié à un service AWS qui écrit ses journaux dans un bucket géré par le service, hors organisation",
+      "Une session de rôle volée qui copie les factures vers le bucket du compte de l'attaquant",
+    ],
+    answer: 3,
+    explain: "Le périmètre de ressources empêche les identités de l'organisation d'agir sur des ressources qui n'en font pas partie : le `s3:PutObject` vers le bucket de l'attaquant est refusé, même avec une session parfaitement valide. Le bucket public est l'erreur de sens la plus fréquente : là, l'appelant est extérieur et la ressource est à toi, c'est donc une RCP qu'il faut. Quant aux rôles liés à un service, ils sont la vraie difficulté du contrôle : sans exception `aws:PrincipalIsAWSService`, on casse la journalisation.",
+  },
+  {
+    q: "Pourquoi le compte de gestion de l'organisation doit-il rester presque vide ?",
+    options: [
+      "Parce que les SCP et les RCP ne s'y appliquent pas : ce qui y tourne est hors garde-fous",
+      "Parce qu'AWS y interdit les ressources autres que celles d'Organizations",
+      "Parce que ses appels échappent au trail de l'organisation et donc à la détection",
+      "Parce que le rayon d'explosion y est maximal, avec un seul compte de gestion",
+    ],
+    answer: 0,
+    explain: "Le compte de gestion est hors de portée des politiques d'organisation : une SCP ou une RCP attachée à la racine ne s'applique pas à ses propres principals. Un rôle compromis y est donc sans plafond. Le rayon d'explosion souvent invoqué est réel, mais c'est une conséquence et non le mécanisme : c'est l'absence de garde-fou qui le rend maximal. On y garde le strict nécessaire et on délègue l'administration des services à des comptes membres.",
+  },
+  {
+    q: "Quel est l'usage légitime de Pacu ou de CloudFox pour l'équipe AppSec de Novafact ?",
+    options: [
+      "Les interdire : un outil d'exploitation n'a pas sa place dans un référentiel d'entreprise",
+      "Les lancer sur les comptes des clients pour leur produire un rapport d'exposition",
+      "Les utiliser, avec autorisation, sur ses propres comptes pour valider les garde-fous",
+      "Les exécuter en continu en production depuis un rôle d'audit en lecture seule",
+    ],
+    answer: 2,
+    explain: "Ces outils montrent les chemins d'escalade et les expositions du point de vue d'une identité donnée : c'est exactement ce qu'il faut pour éprouver une SCP, une RCP ou une boundary, sur ses propres comptes et avec un mandat écrit. Les bannir laisse l'attaquant seul à les utiliser. L'exécution continue en production est la fausse bonne idée : Pacu tente des actions qui modifient l'état (versions de politique, rôles de test) et bruite CloudTrail — la recette est le bon terrain.",
+  },
+];
+
+<YouKnow>
+En pentest cloud, la première question après un accès initial est « dans quel compte suis-je, et que puis-je atteindre d'ici ? ». Une architecture multi-comptes bien faite rend la réponse décevante pour l'attaquant : un compte est la frontière d'isolation la plus solide d'AWS, et les politiques d'organisation fixent ce qui est impossible quel que soit le rôle compromis.
+</YouKnow>
+
+## Le compte comme frontière
+
+Dans un compte unique, tout finit par se toucher : un rôle trop large en recette voit les données de production, une erreur de politique IAM ouvre tout. Le **compte AWS** est la frontière d'isolation par défaut : aucun principal d'un compte n'accède aux ressources d'un autre sans une politique explicite des deux côtés (leçon 1). AWS Organizations regroupe les comptes en **OU** et y attache des politiques qui s'héritent.
+
+<Callout kind="novafact">
+L'organisation de Novafact suit la structure proposée par l'AWS Security Reference Architecture, simplifiée :
+
+- **compte de gestion** : Organizations, facturation, rien d'autre ;
+- **OU Security** : `log-archive` (CloudTrail d'organisation, logs en lecture seule) et `security-tooling` (administrateur délégué de GuardDuty, Security Hub, Access Analyzer, IAM Identity Center) ;
+- **OU Infrastructure** : `shared-services` (CI, registre ECR), `network` ;
+- **OU Workloads** : `prod` et `staging`, séparés ;
+- **OU Sandbox** : comptes jetables des développeurs, budget plafonné ;
+- **OU Suspended** : comptes en cours de fermeture, tout refusé.
+</Callout>
+
+Deux règles découlent du modèle de politiques : le **compte de gestion** n'est soumis ni aux SCP ni aux RCP, il reste donc presque vide et son accès est le plus surveillé de tous ; et les services de sécurité sont administrés depuis un compte membre **délégué**, où les garde-fous s'appliquent.
+
+## SCP et RCP : ce qui est impossible partout
+
+Les SCP plafonnent les **principals** des comptes membres, les RCP plafonnent l'accès aux **ressources** de ces comptes. Ni l'une ni l'autre n'accorde de droit (leçon 1). Depuis septembre 2025, les SCP acceptent le langage IAM complet (conditions dans les `Allow`, `NotResource`, jokers au milieu des noms d'action), ce qui simplifie les exceptions.
+
+Les garde-fous de Novafact, attachés à la racine ou aux OU :
+
+| Garde-fou | Type | Pourquoi |
+| --- | --- | --- |
+| Interdire de quitter l'organisation (`organizations:LeaveOrganization`) | SCP | Un compte détaché échappe à tout |
+| Interdire l'arrêt de CloudTrail, GuardDuty, Config, Access Analyzer | SCP | Un attaquant commence par éteindre la lumière |
+| Régions autorisées (`aws:RequestedRegion`) sauf services globaux | SCP | Réduit la surface et les mineurs de cryptomonnaie en région exotique |
+| Pas d'utilisateurs IAM ni de clés (leçon 2) | SCP | Identités temporaires uniquement |
+| TLS obligatoire sur S3, KMS, Secrets Manager | RCP | Même si une politique de ressource l'oublie |
+| Identités hors organisation refusées sur les ressources sensibles | RCP | Périmètre d'identité (section suivante) |
+| IMDSv2 imposé, blocage de l'accès public des instantanés | Politique déclarative EC2 | Configuration de service appliquée à toute l'organisation |
+
+<Code file="infra/org/scp-protect-security-services.json" hl="7,8,9,10,11,12,13,14,15,16,17,18">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ProtectSecurityServices",
+      "Effect": "Deny",
+      "Action": [
+        "cloudtrail:StopLogging",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:PutEventSelectors",
+        "guardduty:DeleteDetector",
+        "guardduty:DisassociateFromAdministratorAccount",
+        "config:StopConfigurationRecorder",
+        "config:DeleteConfigurationRecorder",
+        "access-analyzer:DeleteAnalyzer",
+        "organizations:LeaveOrganization"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": { "aws:PrincipalArn": "arn:aws:iam::*:role/org-security-automation" }
+      }
+    }
+  ]
+}
+```
+
+</Code>
+
+<Callout kind="warn">
+Une SCP ou une RCP mal écrite casse l'organisation entière. AWS recommande de les attacher d'abord à des comptes de test, puis à des OU basses, et de surveiller les `AccessDenied` dans CloudTrail avant de monter vers la racine. Chez Novafact, chaque politique d'organisation passe par une PR, un déploiement sur l'OU Sandbox pendant une semaine, puis Workloads/staging, puis prod.
+</Callout>
+
+## Le data perimeter
+
+Le **data perimeter** d'AWS formalise une idée simple : **seules des identités de confiance accèdent à des ressources de confiance depuis des réseaux attendus**. Trois périmètres, appliqués avec trois familles de politiques :
+
+| Périmètre | Question | Politique | Clés de condition |
+| --- | --- | --- | --- |
+| **Identité** | Qui peut accéder à MES ressources ? | RCP, politiques de ressource | `aws:PrincipalOrgID`, `aws:PrincipalIsAWSService`, `aws:SourceOrgID` |
+| **Ressource** | À quelles ressources MES identités peuvent-elles accéder ? | SCP, politiques de VPC endpoint | `aws:ResourceOrgID` |
+| **Réseau** | Depuis où ? | SCP, RCP, politiques de VPC endpoint | `aws:SourceVpc`, `aws:SourceVpce`, `aws:SourceIp`, `aws:ViaAWSService`, `aws:EC2InstanceSourceVPC` |
+
+Le périmètre d'**identité** bloque l'attaquant extérieur qui profite d'une politique de ressource trop ouverte. Le périmètre de **ressource** bloque l'exfiltration par une session volée vers un bucket de l'attaquant. Le périmètre **réseau** rend une session volée inutilisable hors des réseaux de Novafact : c'est la réponse structurelle au scénario Capital One (leçon 3).
+
+<Code file="infra/org/rcp-identity-perimeter.json" hl="8,9,10,11,12,13,14,15">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EnforceOrgIdentities",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": ["s3:*", "sqs:*", "kms:*", "secretsmanager:*", "sts:AssumeRole"],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEqualsIfExists": {
+          "aws:PrincipalOrgID": "o-a1b2c3d4e5",
+          "aws:ResourceTag/dp:exclude:identity": "true"
+        },
+        "BoolIfExists": { "aws:PrincipalIsAWSService": "false" }
+      }
+    }
+  ]
+}
+```
+
+</Code>
+
+Cette RCP est adaptée des exemples publiés par AWS (`aws-samples/data-perimeter-policy-examples`). Lis-la attentivement : le `Deny` s'applique si l'appelant n'est pas de l'organisation **et** que la ressource n'est pas marquée par le tag d'exception **et** que l'appelant n'est pas un service AWS agissant avec son propre principal. Les appels de services au nom de tes ressources (CloudTrail qui écrit dans le bucket de logs, par exemple) doivent alors être protégés par une autre instruction fondée sur `aws:SourceOrgID` ou `aws:SourceAccount`, comme le fait l'exemple complet d'AWS.
+
+Les exceptions sont la vraie difficulté du data perimeter : partenaires qui lisent un bucket, éditeurs SaaS, buckets publics gérés par AWS lus pendant une installation. Chaque exception est **nommée** (compte tiers listé, tag d'exclusion dont la pose est elle-même réservée à un rôle par SCP), **documentée** et **revue**. Le rôle de l'éditeur de monitoring de la leçon 4, par exemple, porte le tag `dp:exclude:identity` : sans lui, la RCP bloquerait son `sts:AssumeRole` depuis un compte hors de l'organisation.
+
+## Break-glass : prévoir l'échec de la fédération
+
+Si l'IdP est indisponible, ou si une SCP mal écrite bloque les administrateurs, il faut un accès d'urgence. C'est la seule exception assumée au « zéro utilisateur IAM » :
+
+<Steps items={[
+  { title: "Deux identités d'urgence", text: "Deux utilisateurs IAM dans un compte dédié à l'identité, avec clés de sécurité FIDO2, sans clé d'accès, pouvant endosser un rôle org-breakglass-admin dans les autres comptes." },
+  { title: "Exemptées, mais pas invisibles", text: "Les SCP exemptent ce rôle par aws:PrincipalArn ; toute connexion ou tout AssumeRole de ces identités déclenche une alerte critique dans Elastic, en dehors des heures comprises." },
+  { title: "Secrets sous double contrôle", text: "Mot de passe et clé physique séparés, conservés par deux personnes différentes." },
+  { title: "Procédure écrite et testée", text: "Un exercice trimestriel : connexion, action témoin, déconnexion, revue de l'alerte et rotation du mot de passe." },
+]} />
+
+Un accès d'urgence qui n'a jamais été testé n'existe pas ; un accès d'urgence qui ne déclenche pas d'alerte est une porte dérobée.
+
+## Voir ce que voit l'attaquant
+
+Les outils offensifs servent aussi à vérifier les garde-fous, dans un cadre autorisé et sur tes propres comptes :
+
+| Outil | Ce qu'il fait | Usage défensif |
+| --- | --- | --- |
+| **Prowler** | Contrôles de posture (CIS, AWS Foundational Security Best Practices, référentiels de conformité) | Mesure continue, écart par rapport à la baseline (M16, leçon 5) |
+| **CloudFox** | Cartographie « situational awareness » : rôles et trust policies, secrets, points d'entrée exposés | Revue d'un compte du point de vue d'une identité donnée |
+| **PMapper** | Graphe des privilèges et chemins d'escalade | Liste des principals équivalents à administrateur (leçon 4) |
+| **Pacu** | Framework d'exploitation AWS modulaire (Rhino Security Labs) | Exercices purple team en recette : l'attaque est-elle bloquée, est-elle détectée ? |
+
+<Callout kind="debate">
+SCP en liste d'interdictions ou en liste d'autorisations ? La liste d'autorisations (remplacer `FullAWSAccess` par les seuls services utilisés) est la plus stricte, mais chaque nouveau service devient une demande à l'équipe plateforme, ce qui pousse au contournement. La liste d'interdictions (garder `FullAWSAccess`, ajouter des `Deny` ciblés) est plus lisible et plus facile à faire adopter. Novafact combine les deux : liste d'autorisations sur l'OU prod, où le catalogue de services est stable, liste d'interdictions ailleurs.
+</Callout>
+
+<Recap items={[
+  "Le compte est la frontière d'isolation d'AWS ; l'organisation en OU porte les garde-fous.",
+  "Le compte de gestion échappe aux SCP et RCP : presque vide, administration déléguée.",
+  "SCP pour les principals, RCP pour les ressources, politiques déclaratives pour la configuration des services ; déploiement progressif par OU.",
+  "Data perimeter : identité (RCP, aws:PrincipalOrgID), ressource (SCP, aws:ResourceOrgID), réseau (aws:SourceVpc, aws:SourceVpce).",
+  "Les exceptions sont nommées, documentées et revues ; les services AWS se traitent avec aws:PrincipalIsAWSService et aws:SourceOrgID.",
+  "Break-glass : deux identités, FIDO2, alerte à chaque usage, test trimestriel.",
+]} />
+
+<Lab id="flaws2" />
+
+<Sources items={[
+  { title: "AWS : Data perimeters on AWS", url: "https://aws.amazon.com/identity/data-perimeters-on-aws/" },
+  { title: "AWS Samples : data-perimeter-policy-examples", url: "https://github.com/aws-samples/data-perimeter-policy-examples" },
+  { title: "AWS Organizations : Service control policies", url: "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html" },
+  { title: "AWS Organizations : Resource control policies", url: "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_rcps.html" },
+  { title: "AWS : langage IAM complet dans les SCP (septembre 2025)", url: "https://aws.amazon.com/about-aws/whats-new/2025/09/aws-organizations-iam-language-service-control-policies" },
+  { title: "AWS Security Reference Architecture", url: "https://docs.aws.amazon.com/prescriptive-guidance/latest/security-reference-architecture/welcome.html" },
+  { title: "CloudFox (Bishop Fox)", url: "https://github.com/BishopFox/cloudfox" },
+]} />

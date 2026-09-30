@@ -1,0 +1,48 @@
+# Livrable de référence du challenge « reachability-ast ».
+#
+# Pour chaque avis : soit la chaîne d'appel, du point d'entrée HTTP réellement
+# monté jusqu'au symbole vulnérable, soit la démonstration qu'elle n'existe pas.
+# Le harnais rejoue chaque maillon contre le code : un chemin inventé ne tient pas.
+
+avis:
+  - id: NF-ADV-2026-001
+    statut: atteignable
+    route: PUT /api/settings
+    chaine:
+      - server/routes/settings.ts#deepMerge
+    note: >-
+      Le gestionnaire de PUT /api/settings fusionne req.body dans les réglages du
+      locataire. Le corps de la requête est entièrement contrôlé par le client.
+
+  - id: NF-ADV-2026-002
+    statut: atteignable
+    route: POST /api/invoices
+    chaine:
+      - server/routes/invoices.ts#computeTotal
+    note: >-
+      Le gestionnaire de création appelle computeTotal() sur les lignes reçues,
+      sans borner ni les quantités ni les prix unitaires.
+
+  - id: NF-ADV-2026-003
+    statut: atteignable
+    route: POST /api/webhooks/test
+    chaine:
+      - server/routes/webhooks.ts#isInternal
+    note: >-
+      Le test de webhook décide de la nature interne de l'hôte avec isInternal(),
+      sur le nom d'hôte textuel fourni par le client.
+
+  - id: NF-ADV-2026-004
+    statut: non_atteignable
+    raison: jamais_appelee
+    note: >-
+      resetAll() est bien définie dans server/store.ts, mais aucun appelant :
+      la remise à zéro exposée par /api/lab/reset passe par resetData(), qui
+      conserve les drapeaux. Aucune route montée ne mène au symbole.
+
+  - id: NF-ADV-2026-005
+    statut: non_atteignable
+    raison: symbole_absent
+    note: >-
+      server/lib/xml.ts n'existe pas dans l'arbre : le composant @novafact/legacy-xml
+      n'est pas embarqué, l'avis ne concerne pas cette application.
