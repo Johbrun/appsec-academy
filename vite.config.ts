@@ -9,4 +9,6 @@ export default defineConfig({
     react({ include: /\.(mdx|jsx|tsx|ts|js)$/ }),
   ],
   base: './',
+  // En développement, l'API tourne à part (npm run dev:server) ; le navigateur ne voit qu'une seule origine.
+  server: { proxy: { '/api': 'http://127.0.0.1:4300' } },
 });

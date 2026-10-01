@@ -1,9 +1,9 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
+import { Feedback, GameHeader, shuffle } from '../components/ui';
 import { CodeBlock } from '../components/Code';
-import { raceScenarios, type RaceOption } from '../data/game-races';
-import { useProgress } from '../store/progress';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { raceScenarios, raceSeries, type RaceOption, type RaceScenario } from '../data/game-races';
 
 // Frise d'entrelacement : toutes les lectures passent avant les écritures,
 // sauf une fois le correctif appliqué, où seule la première réussit.
@@ -30,13 +30,22 @@ function Timeline({ n, fixed }: { n: number; fixed: boolean }) {
   );
 }
 
-/** On ne joue pas tout le pool : rejouer doit encore apprendre quelque chose. */
-const ROUNDS = 7;
-
 export default function RaceWindow() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(raceScenarios).slice(0, ROUNDS).map((s) => ({ ...s, fixes: shuffle(s.fixes) })), [seed]);
+  return (
+    <SeriesGame
+      gameId="race-window"
+      title="Race Window"
+      set={raceSeries}
+      unit="scénarios"
+      intro={`Neuf séries, de la course check-then-act évidente aux limites distribuées où le verrou en mémoire ne voit qu’un processus. ${raceScenarios.length} scénarios, dont plusieurs tirés d’incidents réels et de recherches publiées.`}
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<RaceScenario> }) {
+  const rounds = useMemo(() => play.items.map((s) => ({ ...s, fixes: shuffle(s.fixes) })), [play.items]);
   const [i, setI] = useState(0);
   const [outcome, setOutcome] = useState<number | null>(null);
   const [fix, setFix] = useState<number | null>(null);
@@ -57,15 +66,14 @@ export default function RaceWindow() {
   };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round((points / rounds.length) * 100));
       setDone(true);
-      recordScore('race-window', Math.round((points / rounds.length) * 100));
     } else { setI(i + 1); setOutcome(null); setFix(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setOutcome(null); setFix(null); setPoints(0); setDone(false); };
 
   if (done) {
     const pct = Math.round((points / rounds.length) * 100);
-    return <section className="block"><ScoreScreen pct={pct} title="Fenêtres de course refermées" onRetry={restart} /></section>;
+    return <SeriesScore play={play} pct={pct} title={`${pct} % de fenêtres refermées`} />;
   }
 
   const options = (list: RaceOption[], chosen: number | null, onPick: (k: number) => void) => (
@@ -87,7 +95,14 @@ export default function RaceWindow() {
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="race-window" title="Race Window" current={i} total={rounds.length} extra={<span className="tag mono">{Math.round(points * 100)} pts</span>} />
+        <GameHeader
+          id="race-window"
+          title={`Race Window · ${play.info.title}`}
+          level={play.info.level}
+          current={i}
+          total={rounds.length}
+          extra={<span className="tag mono">{Math.round(points * 100)} pts</span>}
+        />
         <div className="card q-card">
           <span className="label">{r.requests} requêtes simultanées</span>
           <h3 style={{ marginTop: 10 }}>{r.title}</h3>

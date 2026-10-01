@@ -1,19 +1,30 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
-import { attackNames, flowScenarios } from '../data/game-oauth';
-import { useProgress } from '../store/progress';
-
-const ROUNDS = 6;
+import { Feedback, GameHeader, shuffle } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { attackNames, oauthSeries, type FlowScenario } from '../data/game-oauth';
 
 export default function OAuthDebugger() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(flowScenarios).slice(0, ROUNDS).map((s) => ({
+  return (
+    <SeriesGame
+      gameId="oauth-debugger"
+      title="OAuth Flow Debugger"
+      set={oauthSeries}
+      unit="flux"
+      intro="Huit séries, du paramètre manquant à la revue d’architecture. OAuth 2.x, OIDC et SAML mêlés : trouve l’étape faible, nomme l’attaque, retiens la bonne correction."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<FlowScenario> }) {
+  const rounds = useMemo(() => play.items.map((s) => ({
     ...s,
     attacks: shuffle([s.attack, ...shuffle(attackNames.filter((a) => a !== s.attack)).slice(0, 3)]),
     fixOptions: shuffle(s.fixes),
-  })), [seed]);
+  })), [play.items]);
+
   const [i, setI] = useState(0);
   const [step, setStep] = useState<number | null>(null);
   const [attack, setAttack] = useState<string | null>(null);
@@ -33,13 +44,15 @@ export default function OAuthDebugger() {
 
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round((score / total) * 100));
       setDone(true);
-      recordScore('oauth-debugger', Math.round((score / total) * 100));
     } else { setI(i + 1); setStep(null); setAttack(null); setFix(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setStep(null); setAttack(null); setFix(null); setScore(0); setDone(false); };
 
-  if (done) return <section className="block"><ScoreScreen pct={Math.round((score / total) * 100)} title={`${score} / ${total} points sur ${rounds.length} flux`} onRetry={restart} /></section>;
+  if (done) {
+    const pct = Math.round((score / total) * 100);
+    return <SeriesScore play={play} pct={pct} title={`${score} / ${total} points sur ${rounds.length} flux`} />;
+  }
 
   const stepClass = (n: number) => {
     if (step === null) return '';
@@ -50,7 +63,14 @@ export default function OAuthDebugger() {
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="oauth-debugger" title="OAuth Flow Debugger" current={i} total={rounds.length} extra={<span className="tag mono">{score} / {total}</span>} />
+        <GameHeader
+          id="oauth-debugger"
+          title={`OAuth Flow Debugger · ${play.info.title}`}
+          level={play.info.level}
+          current={i}
+          total={rounds.length}
+          extra={<span className="tag mono">{score} / {total}</span>}
+        />
         <div className="card q-card">
           <span className="label">{r.title}</span>
           <p className="muted small" style={{ margin: '8px 0 0' }}>{r.context}</p>

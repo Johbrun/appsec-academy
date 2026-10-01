@@ -1,19 +1,25 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
-import { classes, dataItems, type DataClass } from '../data/game-datamap';
-import { useProgress } from '../store/progress';
-
-/** Dix données par partie : le pool en garde autant pour la suivante. */
-const ROUNDS = 10;
+import { Feedback, GameHeader, shuffle } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { classes, dataMapSeries, type DataClass, type DataItem } from '../data/game-datamap';
 
 export default function DataMap() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(dataItems).slice(0, ROUNDS).map((d) => {
-    const order = shuffle(d.controls.map((_, k) => k));
-    return { ...d, order };
-  }), [seed]);
+  return (
+    <SeriesGame
+      gameId="data-map"
+      title="Data Map"
+      set={dataMapSeries}
+      unit="données"
+      intro="Huit séries, de la donnée qui se classe à son nom à celle dont la classe tient à un détail : trois colonnes qui ré-identifient, un dérivé qui hérite de sa source, un secret déguisé en configuration."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<DataItem> }) {
+  const rounds = useMemo(() => play.items.map((d) => ({ ...d, order: shuffle(d.controls.map((_, k) => k)) })), [play.items]);
   const [i, setI] = useState(0);
   const [cls, setCls] = useState<DataClass | null>(null);
   const [ctrl, setCtrl] = useState<number | null>(null);
@@ -22,6 +28,7 @@ export default function DataMap() {
 
   const d = rounds[i];
   const label = (id: DataClass) => classes.find((c) => c.id === id)!.label;
+  const fmt = (n: number) => n.toString().replace('.', ',');
 
   const pickClass = (c: DataClass) => {
     if (cls) return;
@@ -35,21 +42,27 @@ export default function DataMap() {
   };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round((points / rounds.length) * 100));
       setDone(true);
-      recordScore('data-map', Math.round((points / rounds.length) * 100));
     } else { setI(i + 1); setCls(null); setCtrl(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setCls(null); setCtrl(null); setPoints(0); setDone(false); };
 
   if (done) {
     const pct = Math.round((points / rounds.length) * 100);
-    return <section className="block"><ScoreScreen pct={pct} title="Cartographie des données terminée" onRetry={restart} /></section>;
+    return <SeriesScore play={play} pct={pct} title={`${fmt(points)} / ${rounds.length} points`} />;
   }
 
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="data-map" title="Data Map" current={i} total={rounds.length} extra={<span className="tag mono">{points.toString().replace('.', ',')} pts</span>} />
+        <GameHeader
+          id="data-map"
+          title={`Data Map · ${play.info.title}`}
+          level={play.info.level}
+          current={i}
+          total={rounds.length}
+          extra={<span className="tag mono">{fmt(points)} pts</span>}
+        />
         <div className="card q-card">
           <span className="label">Donnée de Novafact</span>
           <h3 style={{ marginTop: 10 }}>{d.name}</h3>

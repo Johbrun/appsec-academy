@@ -1,19 +1,29 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, RotateCcw } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
-import { incidents } from '../data/game-supply';
-import { useProgress } from '../store/progress';
-
-const ROUNDS = 4;
+import { Feedback, GameHeader, shuffle } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { supplySeries, type Incident } from '../data/game-supply';
 
 export default function SupplyChain() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(incidents).slice(0, ROUNDS).map((inc) => ({
+  return (
+    <SeriesGame
+      gameId="supply-chain"
+      title="Supply Chain Kill Chain"
+      set={supplySeries}
+      unit="incidents"
+      intro="Sept séries d’incidents réels et documentés : trois par niveau (initiation, panorama, crescendo), trois thématiques (registres npm/PyPI, CI/CD, build & éditeur), et une « Mêlée ». Remets chaque incident dans l’ordre, puis place le contrôle qui l’aurait cassé le plus tôt."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<Incident> }) {
+  const rounds = useMemo(() => play.items.map((inc) => ({
     ...inc,
     deck: shuffle(inc.steps.map((text, idx) => ({ text, idx }))),
     options: shuffle(inc.controls),
-  })), [seed]);
+  })), [play.items]);
   const [i, setI] = useState(0);
   const [order, setOrder] = useState<number[]>([]);
   const [orderChecked, setOrderChecked] = useState(false);
@@ -33,21 +43,20 @@ export default function SupplyChain() {
   };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
       setDone(true);
-      recordScore('supply-chain', Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
     } else { setI(i + 1); setOrder([]); setOrderChecked(false); setControl(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setOrder([]); setOrderChecked(false); setControl(null); setScores([]); setDone(false); };
 
   if (done) {
     const pct = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-    return <section className="block"><ScoreScreen pct={pct} title={`${rounds.length} incidents reconstitués`} onRetry={restart} /></section>;
+    return <SeriesScore play={play} pct={pct} title={`${rounds.length} incidents reconstitués`} />;
   }
 
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="supply-chain" title="Supply Chain Kill Chain" current={i} total={rounds.length} />
+        <GameHeader id="supply-chain" title={`Supply Chain Kill Chain · ${play.info.title}`} level={play.info.level} current={i} total={rounds.length} />
         <div className="card q-card">
           <span className="label">{r.name} · {r.date}</span>
           <p className="muted small" style={{ margin: '8px 0 0' }}>{r.viewpoint}</p>

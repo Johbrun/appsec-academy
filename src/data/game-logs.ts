@@ -5,12 +5,34 @@
 // le nom le plus précis était le bon, et il se repérait sans lire un seul
 // événement. Les libellés font donc tous entre trente et quarante caractères, et
 // les distracteurs de chaque cas sont des lectures défendables des mêmes lignes.
-//
 // `npm run games` vérifie que la bonne réponse n'est pas la plus longue.
+//
+// La difficulté est **structurelle** — combien de lignes il faut relier pour
+// conclure, pas la rareté de la technique :
+//
+//   N1 · **Une ligne signe l'attaque.** Un motif décisif visible d'un coup :
+//        un opérateur NoSQL dans un mot de passe, StopLogging, un port de minage.
+//        Les distracteurs sont faux pour une raison qu'on nomme sans hésiter.
+//
+//   N2 · **Du bruit légitime est mêlé, avec un faux indice.** Une destination
+//        déclarée par le client, une sauvegarde routinière, un « pas d'erreur
+//        SQL » rassurant. Il faut lire le contexte pour trier signal et bruit,
+//        et au moins un distracteur est une lecture à moitié juste.
+//
+//   N3 · **L'attaque est étalée.** Low and slow, plusieurs sources à corréler,
+//        des changements anodins pris un à un mais dévastateurs bout à bout. La
+//        conclusion ne tient qu'en reliant des lignes distantes.
+//
+// Techniques ATT&CK vérifiées sur attack.mitre.org en septembre 2026, sous-techniques comprises.
+// Plusieurs cas s'inspirent d'incidents publics, cités dans le contexte ou le « why ».
+
+import type { Level } from '../lib/series';
+import { defineSeries, type SeriesProfile } from '../lib/series';
 
 export type LogEvent = { source: string; line: string; suspect?: boolean };
 export type LogCase = {
   id: string;
+  level: Level;
   context: string;
   events: LogEvent[];
   attack: string;
@@ -19,6 +41,8 @@ export type LogCase = {
   techniqueName: string;
   techniqueOptions: { id: string; name: string }[]; // sans la bonne réponse
   why: string;
+  /** Cas de structure jumelle, à ne pas mettre dans la même série. */
+  avoid?: string[];
 };
 
 export const attackChoices = [
@@ -36,10 +60,27 @@ export const attackChoices = [
   'Contournement du second facteur',
   'Récupération de secrets en clair',
   'Exfiltration par un service web tiers',
+  'Pulvérisation de mots de passe',
+  'Extraction de secrets du coffre managé',
+  'Effacement des journaux CloudTrail',
+  'Minage de cryptomonnaie sur le cloud',
+  'Énumération de comptes à l’inscription',
+  'Balayage de chemins par dictionnaire',
+  'Fatigue MFA par notifications répétées',
+  'Rejeu d’un cookie de session volé',
+  'Copie d’instantané vers un compte tiers',
+  'Création d’un utilisateur IAM discret',
+  'Contournement d’authentification NoSQL',
+  'Vol de jetons d’une intégration OAuth',
+  'Vol de secrets dans un dépôt public',
+  'Exfiltration de données par tunnel DNS',
+  'Inscription d’un second facteur pirate',
 ];
 
 export const techniqueChoices = [
   { id: 'T1110', name: 'Brute Force' },
+  { id: 'T1110.001', name: 'Password Guessing' },
+  { id: 'T1110.003', name: 'Password Spraying' },
   { id: 'T1110.004', name: 'Credential Stuffing' },
   { id: 'T1078', name: 'Valid Accounts' },
   { id: 'T1580', name: 'Cloud Infrastructure Discovery' },
@@ -50,14 +91,31 @@ export const techniqueChoices = [
   { id: 'T1071', name: 'Application Layer Protocol' },
   { id: 'T1499', name: 'Endpoint Denial of Service' },
   { id: 'T1111', name: 'Multi-Factor Authentication Interception' },
+  { id: 'T1621', name: 'Multi-Factor Authentication Request Generation' },
   { id: 'T1552', name: 'Unsecured Credentials' },
+  { id: 'T1555.006', name: 'Cloud Secrets Management Stores' },
   { id: 'T1567', name: 'Exfiltration Over Web Service' },
+  { id: 'T1567.001', name: 'Exfiltration to Code Repository' },
+  { id: 'T1195.001', name: 'Compromise Software Dependencies and Development Tools' },
   { id: 'T1195.002', name: 'Compromise Software Supply Chain' },
+  { id: 'T1550.001', name: 'Application Access Token' },
+  { id: 'T1550.004', name: 'Web Session Cookie' },
+  { id: 'T1562.008', name: 'Disable or Modify Cloud Logs' },
+  { id: 'T1537', name: 'Transfer Data to Cloud Account' },
+  { id: 'T1589.002', name: 'Email Addresses' },
+  { id: 'T1595.002', name: 'Vulnerability Scanning' },
+  { id: 'T1595.003', name: 'Wordlist Scanning' },
+  { id: 'T1496.001', name: 'Compute Hijacking' },
+  { id: 'T1098.003', name: 'Additional Cloud Roles' },
+  { id: 'T1098.005', name: 'Device Registration' },
+  { id: 'T1136.003', name: 'Cloud Account' },
+  { id: 'T1048.003', name: 'Exfiltration Over Unencrypted Non-C2 Protocol' },
 ];
 
 export const logCases: LogCase[] = [
   {
     id: 'stuffing',
+    level: 1,
     context: 'Journaux d’authentification de l’API (pino/ECS), fenêtre de 2 minutes.',
     events: [
       { source: 'api.auth', line: 'event.action=login.failure user.email=a.martin@acme.example source.ip=45.map[…] http.request.headers.user-agent="okhttp/4"', suspect: true },
@@ -72,9 +130,11 @@ export const logCases: LogCase[] = [
     techniqueName: 'Credential Stuffing',
     techniqueOptions: [{ id: 'T1110', name: 'Brute Force' }, { id: 'T1078', name: 'Valid Accounts' }, { id: 'T1071', name: 'Application Layer Protocol' }],
     why: 'Beaucoup de comptes distincts, un seul essai chacun, depuis peu d’adresses : c’est du rejeu d’identifiants volés ailleurs (T1110.004), et non une force brute qui s’acharne sur un compte. Le succès isolé signale une réutilisation de mot de passe.',
+    avoid: ['spray', 'brute-single', 'low-slow-stuffing'],
   },
   {
     id: 'imds',
+    level: 3,
     context: 'Journaux applicatifs de l’API et flux VPC de la tâche ECS.',
     events: [
       { source: 'api.http', line: 'event.action=pdf.import url.path=/api/imports body.logo_url="http://169.254.169.254/latest/meta-data/iam/security-credentials/"', suspect: true },
@@ -91,6 +151,7 @@ export const logCases: LogCase[] = [
   },
   {
     id: 'bola',
+    level: 1,
     context: 'Journaux d’accès de l’API, un seul utilisateur authentifié.',
     events: [
       { source: 'api.http', line: 'user.id=u_881 tenant=acme event.action=invoice.read invoice.id=inv_acme_0450 status=200' },
@@ -107,6 +168,7 @@ export const logCases: LogCase[] = [
   },
   {
     id: 'privesc',
+    level: 2,
     context: 'CloudTrail, compte de production.',
     events: [
       { source: 'aws.cloudtrail', line: 'eventName=CreatePolicyVersion userIdentity.arn=role/support-tools requestParameters.setAsDefault=true', suspect: true },
@@ -120,9 +182,11 @@ export const logCases: LogCase[] = [
     techniqueName: 'Abuse Elevation Control Mechanism',
     techniqueOptions: [{ id: 'T1078', name: 'Valid Accounts' }, { id: 'T1580', name: 'Cloud Infrastructure Discovery' }, { id: 'T1190', name: 'Exploit Public-Facing Application' }],
     why: 'Un rôle publie une version de sa propre politique, s’attache AdministratorAccess, puis crée une clé pour un compte d’urgence : c’est la séquence d’élévation du Pathfinder (M15). Toute gestion d’IAM hors du pipeline d’infrastructure devrait alerter immédiatement.',
+    avoid: ['privesc-slow', 'iam-user-persist'],
   },
   {
     id: 'token-theft',
+    level: 2,
     context: 'Journaux d’authentification et d’accès, compte d’un administrateur de tenant.',
     events: [
       { source: 'api.auth', line: 'event.action=session.start user.id=u_204 source.ip=88.map[FR] user-agent="Chrome/141 macOS"' },
@@ -131,14 +195,16 @@ export const logCases: LogCase[] = [
       { source: 'api.http', line: 'user.id=u_204 event.action=apikey.create source.ip=196.map[ZA] user-agent="python-requests/2"', suspect: true },
     ],
     attack: 'Détournement d’une session valide',
-    attackOptions: ['Rejeu massif d’identifiants volés', 'Force brute ciblée sur un compte', 'Contournement du second facteur'],
+    attackOptions: ['Rejeu massif d’identifiants volés', 'Force brute ciblée sur un compte', 'Fatigue MFA par notifications répétées'],
     technique: 'T1078',
     techniqueName: 'Valid Accounts',
     techniqueOptions: [{ id: 'T1110', name: 'Brute Force' }, { id: 'T1110.004', name: 'Credential Stuffing' }, { id: 'T1530', name: 'Data from Cloud Storage' }],
     why: 'La même session passe de la France à l’Afrique du Sud et d’un navigateur à un client script en quelques minutes : c’est un jeton rejoué ailleurs, pas une authentification forcée — aucun échec ne précède. Lier la session à un contexte et réauthentifier les actions sensibles limite l’impact.',
+    avoid: ['session-cookie'],
   },
   {
     id: 's3-dump',
+    level: 2,
     context: 'CloudTrail données et journaux d’accès S3, nuit de samedi.',
     events: [
       { source: 'aws.cloudtrail', line: 'eventName=GetObject bucket=novafact-invoices key=pdf/acme/… userIdentity.arn=role/api-task sourceIPAddress=203.0.113.map[…]', suspect: true },
@@ -155,6 +221,7 @@ export const logCases: LogCase[] = [
   },
   {
     id: 'blind-sqli',
+    level: 2,
     context: 'Journaux d’accès de l’API et métriques de latence de la base.',
     events: [
       { source: 'api.http', line: 'url.path=/api/customers/search query.q="acme\' AND SLEEP(5)--" status=200 event.duration=5 041 ms', suspect: true },
@@ -171,6 +238,7 @@ export const logCases: LogCase[] = [
   },
   {
     id: 'redos',
+    level: 2,
     context: 'Métriques du processus Node et journaux de la passerelle.',
     events: [
       { source: 'api.http', line: 'url.path=/api/invoices query.label="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!" status=504', suspect: true },
@@ -187,6 +255,7 @@ export const logCases: LogCase[] = [
   },
   {
     id: 'mfa-replay',
+    level: 2,
     context: 'Journaux d’authentification, compte d’un gestionnaire de paie.',
     events: [
       { source: 'api.auth', line: 'event.action=mfa.verify user.id=u_517 code=482913 result=success source.ip=91.map[FR]' },
@@ -200,9 +269,11 @@ export const logCases: LogCase[] = [
     techniqueName: 'Multi-Factor Authentication Interception',
     techniqueOptions: [{ id: 'T1078', name: 'Valid Accounts' }, { id: 'T1110', name: 'Brute Force' }, { id: 'T1110.004', name: 'Credential Stuffing' }],
     why: 'Le même code est accepté trois fois en moins d’une seconde : le facteur existe et sa consommation n’est pas atomique. Ce n’est pas du devinage — il n’y a aucun échec — mais un rejeu qui traverse la fenêtre entre la vérification et le marquage (voir « Race Window »).',
+    avoid: ['mfa-fatigue', 'mfa-device-register'],
   },
   {
     id: 'ci-secrets',
+    level: 2,
     context: 'Journaux de la forge et du registre de paquets, après une pull request externe.',
     events: [
       { source: 'github.actions', line: 'workflow=e2e.yml event=pull_request_target ref=refs/pull/318/merge actor=nouveau-contributeur', suspect: true },
@@ -216,10 +287,12 @@ export const logCases: LogCase[] = [
     techniqueName: 'Unsecured Credentials',
     techniqueOptions: [{ id: 'T1195.002', name: 'Compromise Software Supply Chain' }, { id: 'T1567', name: 'Exfiltration Over Web Service' }, { id: 'T1190', name: 'Exploit Public-Facing Application' }],
     why: 'Un titre de pull request interpolé dans une commande, sur un déclencheur qui donne accès aux secrets : le runner exécute ce que le contributeur a écrit, et les variables d’environnement partent. Rien n’est encore publié, donc la chaîne de build n’est pas compromise — les secrets, si.',
+    avoid: ['shaihulud'],
   },
   {
     id: 'action-tamper',
-    context: 'Journaux de la forge, sur l’ensemble des dépôts de l’organisation.',
+    level: 3,
+    context: 'Journaux de la forge, sur l’ensemble des dépôts de l’organisation. Inspiré de tj-actions/changed-files (CVE-2025-30066, mars 2025).',
     events: [
       { source: 'github.actions', line: 'uses=tiers/changed-files@v42 resolved_sha=b4ec3a… (le tag pointait sur 9f1c02… la veille)', suspect: true },
       { source: 'runner.log', line: 'step "changed-files" a exécuté un script distant non présent dans le dépôt de l’action', suspect: true },
@@ -231,10 +304,11 @@ export const logCases: LogCase[] = [
     technique: 'T1195.002',
     techniqueName: 'Compromise Software Supply Chain',
     techniqueOptions: [{ id: 'T1552', name: 'Unsecured Credentials' }, { id: 'T1567', name: 'Exfiltration Over Web Service' }, { id: 'T1078', name: 'Valid Accounts' }],
-    why: 'Un tag mutable a été déplacé vers un commit malveillant, et tout ce qui référençait ce tag l’a exécuté : la fuite de secrets est la conséquence, la compromission de la dépendance est la cause. L’épinglage par SHA complet (M14) l’aurait empêché sur les 41 dépôts.',
+    why: 'Un tag mutable a été déplacé vers un commit malveillant, et tout ce qui référençait ce tag l’a exécuté : la fuite de secrets est la conséquence, la compromission de la dépendance est la cause. C’est exactement l’attaque tj-actions/changed-files de 2025. L’épinglage par SHA complet (M14) l’aurait empêchée sur les 41 dépôts.',
   },
   {
     id: 'webhook-exfil',
+    level: 2,
     context: 'Journaux applicatifs et flux sortants, fonctionnalité de webhooks clients.',
     events: [
       { source: 'api.http', line: 'event.action=webhook.update tenant=globex url="https://hooks.example.io/T0/B4/xxxx"' },
@@ -249,4 +323,355 @@ export const logCases: LogCase[] = [
     techniqueOptions: [{ id: 'T1530', name: 'Data from Cloud Storage' }, { id: 'T1526', name: 'Cloud Service Discovery' }, { id: 'T1071', name: 'Application Layer Protocol' }],
     why: 'La destination est légitime, déclarée par le client, et c’est ce qui rend le flux invisible aux règles de sortie : seul le volume dénonce. Les données quittent l’application par une fonctionnalité prévue — le contrôle manquant est une limite de débit sur les exports, pas un filtre réseau.',
   },
+
+  // ── N1 : une ligne signe l'attaque ──────────────────────────────────────────
+  {
+    id: 'spray',
+    level: 1,
+    context: 'Journaux d’authentification de l’API (pino/ECS), fenêtre de 20 minutes.',
+    events: [
+      { source: 'api.auth', line: 'event.action=login.failure user.email=a.martin@acme.example password="Automne2026!" source.ip=varie', suspect: true },
+      { source: 'api.auth', line: 'event.action=login.failure user.email=b.petit@globex.example password="Automne2026!" source.ip=varie', suspect: true },
+      { source: 'api.auth', line: '… 3 000 comptes distincts, deux essais chacun, toujours le même mot de passe, sous le seuil de verrouillage', suspect: true },
+      { source: 'api.auth', line: 'event.action=login.success user.email=c.roux@initech.example (le seul à réutiliser ce mot de passe)', suspect: true },
+    ],
+    attack: 'Pulvérisation de mots de passe',
+    attackOptions: ['Rejeu massif d’identifiants volés', 'Force brute ciblée sur un compte', 'Reconnaissance des points d’entrée'],
+    technique: 'T1110.003',
+    techniqueName: 'Password Spraying',
+    techniqueOptions: [{ id: 'T1110.004', name: 'Credential Stuffing' }, { id: 'T1110', name: 'Brute Force' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Un seul mot de passe testé contre des milliers de comptes, deux essais par compte pour rester sous le verrouillage : c’est de la pulvérisation (T1110.003). Le stuffing teste des couples volés, la force brute s’acharne sur un compte — ici c’est l’inverse.',
+    avoid: ['stuffing', 'brute-single'],
+  },
+  {
+    id: 'brute-single',
+    level: 1,
+    context: 'Journaux d’authentification, un compte administrateur ciblé.',
+    events: [
+      { source: 'api.auth', line: 'event.action=login.failure user.email=admin@novafact.example source.ip=77.map[…]', suspect: true },
+      { source: 'api.auth', line: '… 9 500 tentatives sur ce seul compte en 15 min, mots de passe d’un dictionnaire connu', suspect: true },
+      { source: 'api.auth', line: 'aucun défi ni plafond d’échecs déclenché sur le compte', suspect: true },
+      { source: 'api.auth', line: 'event.action=login.success user.email=admin@novafact.example (après 9 500 essais)', suspect: true },
+    ],
+    attack: 'Force brute ciblée sur un compte',
+    attackOptions: ['Pulvérisation de mots de passe', 'Rejeu massif d’identifiants volés', 'Contournement du second facteur'],
+    technique: 'T1110.001',
+    techniqueName: 'Password Guessing',
+    techniqueOptions: [{ id: 'T1110.004', name: 'Credential Stuffing' }, { id: 'T1110.003', name: 'Password Spraying' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Des milliers d’essais contre un seul compte, avec un dictionnaire : c’est du devinage en ligne (T1110.001). La pulvérisation ferait l’inverse — un mot de passe sur beaucoup de comptes. Il manque un plafond d’échecs et un défi.',
+    avoid: ['spray', 'stuffing'],
+  },
+  {
+    id: 'secrets-manager',
+    level: 1,
+    context: 'CloudTrail, compte de production.',
+    events: [
+      { source: 'aws.cloudtrail', line: 'eventName=GetSecretValue secretId=prod/db/master userIdentity.arn=role/api-task', suspect: true },
+      { source: 'aws.cloudtrail', line: '… role/api-task lit 40 secrets en 30 s, dont prod/ses et prod/stripe, hors de son périmètre', suspect: true },
+      { source: 'aws.cloudtrail', line: 'eventName=BatchGetSecretValue sourceIPAddress=203.0.113.map[…] (hors du VPC)', suspect: true },
+      { source: 'aws.cloudtrail', line: 'eventName=GetCallerIdentity userIdentity.arn=role/api-task' },
+    ],
+    attack: 'Extraction de secrets du coffre managé',
+    attackOptions: ['Récupération de secrets en clair', 'Escalade de privilèges dans IAM', 'Exfiltration massive depuis S3'],
+    technique: 'T1555.006',
+    techniqueName: 'Cloud Secrets Management Stores',
+    techniqueOptions: [{ id: 'T1552', name: 'Unsecured Credentials' }, { id: 'T1530', name: 'Data from Cloud Storage' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Un rôle applicatif vide Secrets Manager d’un coup, bien au-delà des secrets dont il a besoin, depuis une adresse externe : c’est de la collecte dans un coffre managé (T1555.006). Un périmètre IAM au plus juste sur chaque secret limiterait la casse.',
+  },
+  {
+    id: 'cloudtrail-off',
+    level: 1,
+    context: 'CloudTrail (journal de l’organisation), compte de production.',
+    events: [
+      { source: 'aws.cloudtrail', line: 'eventName=StopLogging name=org-trail userIdentity.arn=role/support-tools', suspect: true },
+      { source: 'aws.cloudtrail', line: 'eventName=DeleteTrail name=org-trail', suspect: true },
+      { source: 'aws.cloudtrail', line: '… puis vingt minutes sans le moindre événement enregistré', suspect: true },
+      { source: 'aws.cloudtrail', line: 'eventName=PutBucketPolicy bucket=cloudtrail-logs (droits de lecture retirés aux analystes)', suspect: true },
+    ],
+    attack: 'Effacement des journaux CloudTrail',
+    attackOptions: ['Escalade de privilèges dans IAM', 'Extraction de secrets du coffre managé', 'Détournement d’une session valide'],
+    technique: 'T1562.008',
+    techniqueName: 'Disable or Modify Cloud Logs',
+    techniqueOptions: [{ id: 'T1548', name: 'Abuse Elevation Control Mechanism' }, { id: 'T1078', name: 'Valid Accounts' }, { id: 'T1530', name: 'Data from Cloud Storage' }],
+    why: 'Couper puis supprimer le trail, c’est éteindre la lumière avant d’agir (T1562.008). Le trou de vingt minutes est le signe. Un trail multi-régions verrouillé et une alerte sur StopLogging/DeleteTrail rendent le geste visible.',
+  },
+  {
+    id: 'resource-hijack',
+    level: 1,
+    context: 'CloudTrail, compte rarement utilisé pour la préproduction.',
+    events: [
+      { source: 'aws.cloudtrail', line: 'eventName=RunInstances count=40 instanceType=p4d.24xlarge region=ap-south-1 (jamais utilisée)', suspect: true },
+      { source: 'aws.cloudtrail', line: 'eventName=CreateSecurityGroup ingress=0.0.0.0/0 tcp/3333 (port de pool de minage)', suspect: true },
+      { source: 'aws.billing', line: '… facture EC2 multipliée par 60 en deux heures', suspect: true },
+      { source: 'aws.cloudtrail', line: 'userIdentity.accessKeyId=AKIA… (clé d’un ancien stagiaire, jamais révoquée)', suspect: true },
+    ],
+    attack: 'Minage de cryptomonnaie sur le cloud',
+    attackOptions: ['Escalade de privilèges dans IAM', 'Exfiltration massive depuis S3', 'Reconnaissance des points d’entrée'],
+    technique: 'T1496.001',
+    techniqueName: 'Compute Hijacking',
+    techniqueOptions: [{ id: 'T1580', name: 'Cloud Infrastructure Discovery' }, { id: 'T1136.003', name: 'Cloud Account' }, { id: 'T1530', name: 'Data from Cloud Storage' }],
+    why: 'Quarante instances GPU dans une région jamais utilisée, un port de pool de minage ouvert, la facture qui explose : c’est du détournement de ressources pour miner (T1496.001), pas une escalade ni une exfiltration. La clé d’un ancien compte aurait dû être révoquée.',
+  },
+  {
+    id: 'email-enum',
+    level: 1,
+    context: 'Journaux applicatifs de l’inscription et de la réinitialisation de mot de passe.',
+    events: [
+      { source: 'api.http', line: 'event.action=signup.check email=a@acme.example response="adresse déjà utilisée"', suspect: true },
+      { source: 'api.http', line: 'event.action=signup.check email=b@acme.example response="disponible"', suspect: true },
+      { source: 'api.http', line: '… 8 000 adresses testées en 10 min depuis une seule IP, réponses triées en deux listes', suspect: true },
+      { source: 'api.http', line: 'event.action=password.reset email=… (uniquement sur les adresses « déjà utilisées »)', suspect: true },
+    ],
+    attack: 'Énumération de comptes à l’inscription',
+    attackOptions: ['Rejeu massif d’identifiants volés', 'Reconnaissance des points d’entrée', 'Force brute ciblée sur un compte'],
+    technique: 'T1589.002',
+    techniqueName: 'Email Addresses',
+    techniqueOptions: [{ id: 'T1110.004', name: 'Credential Stuffing' }, { id: 'T1595.003', name: 'Wordlist Scanning' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'La réponse diffère selon que l’adresse existe ou non : l’attaquant trie ainsi une liste de comptes valides (T1589.002) avant de les cibler. Des réponses uniformes à l’inscription et à la réinitialisation ferment cette fuite.',
+  },
+  {
+    id: 'wordlist-scan',
+    level: 1,
+    context: 'Journaux d’accès de CloudFront, une seule adresse source.',
+    events: [
+      { source: 'cloudfront', line: 'url.path=/.env status=404 source.ip=185.map[…]', suspect: true },
+      { source: 'cloudfront', line: 'url.path=/backup.zip status=404 ; url.path=/.git/config status=404', suspect: true },
+      { source: 'cloudfront', line: 'url.path=/admin status=404 ; url.path=/api/v1/../ status=404', suspect: true },
+      { source: 'cloudfront', line: '… 6 000 chemins tirés d’une liste connue en 4 min, aucune ressource applicative légitime', suspect: true },
+    ],
+    attack: 'Balayage de chemins par dictionnaire',
+    attackOptions: ['Reconnaissance des points d’entrée', 'Énumération d’objets par un client', 'Injection SQL aveugle sur la recherche'],
+    technique: 'T1595.003',
+    techniqueName: 'Wordlist Scanning',
+    techniqueOptions: [{ id: 'T1595.002', name: 'Vulnerability Scanning' }, { id: 'T1190', name: 'Exploit Public-Facing Application' }, { id: 'T1526', name: 'Cloud Service Discovery' }],
+    why: 'Des milliers de chemins tirés d’une liste toute faite (.env, .git, backup.zip) : c’est du balayage par dictionnaire (T1595.003), à la recherche de fichiers exposés. « Reconnaissance des points d’entrée » est plus vague ; ici le motif est précis.',
+    avoid: ['bola'],
+  },
+
+  // ── N2 : bruit légitime mêlé, faux indice ───────────────────────────────────
+  {
+    id: 'mfa-fatigue',
+    level: 2,
+    context: 'Journaux d’authentification, compte d’un directeur financier ; soirée.',
+    events: [
+      { source: 'api.auth', line: 'event.action=login.success user.id=u_990 source.ip=203.map[…] (mot de passe correct)', suspect: true },
+      { source: 'api.auth', line: 'event.action=mfa.push result=denied ×47 en 6 min', suspect: true },
+      { source: 'api.auth', line: 'event.action=mfa.push result=approved source.ip=203.map[…] (nouvelle adresse)', suspect: true },
+      { source: 'api.auth', line: 'session ouverte immédiatement après l’approbation' },
+    ],
+    attack: 'Fatigue MFA par notifications répétées',
+    attackOptions: ['Contournement du second facteur', 'Détournement d’une session valide', 'Rejeu massif d’identifiants volés'],
+    technique: 'T1621',
+    techniqueName: 'Multi-Factor Authentication Request Generation',
+    techniqueOptions: [{ id: 'T1111', name: 'Multi-Factor Authentication Interception' }, { id: 'T1078', name: 'Valid Accounts' }, { id: 'T1110.004', name: 'Credential Stuffing' }],
+    why: 'Le mot de passe est déjà connu de l’attaquant ; il bombarde de push jusqu’à ce que la victime cède par lassitude (T1621). Ce n’est pas une interception du facteur — aucun code n’est volé. Le number matching casse la manœuvre.',
+    avoid: ['mfa-replay'],
+  },
+  {
+    id: 'session-cookie',
+    level: 2,
+    context: 'Journaux d’accès, compte d’un ingénieur support. Inspiré de la fuite des fichiers HAR d’Okta (2023).',
+    events: [
+      { source: 'api.support', line: 'event.action=har.upload user.id=u_55 (fichier de diagnostic joint à un ticket)' },
+      { source: 'api.http', line: 'user.id=u_55 event.action=invoice.read source.ip=88.map[FR] cookie=sess_ab… (nominal)' },
+      { source: 'api.http', line: 'user.id=u_55 source.ip=45.map[US] même cookie de session, aucun login préalable', suspect: true },
+      { source: 'api.http', line: 'user.id=u_55 event.action=apikey.create source.ip=45.map[US]', suspect: true },
+    ],
+    attack: 'Rejeu d’un cookie de session volé',
+    attackOptions: ['Détournement d’une session valide', 'Contournement du second facteur', 'Vol de jetons d’une intégration OAuth'],
+    technique: 'T1550.004',
+    techniqueName: 'Web Session Cookie',
+    techniqueOptions: [{ id: 'T1078', name: 'Valid Accounts' }, { id: 'T1111', name: 'Multi-Factor Authentication Interception' }, { id: 'T1195.002', name: 'Compromise Software Supply Chain' }],
+    why: 'Le même cookie de session apparaît depuis une autre adresse sans nouvelle authentification : il a été extrait d’un artefact de diagnostic, comme les fichiers HAR volés à Okta en 2023 (T1550.004). Lier la session à un contexte et n’exporter que des journaux expurgés l’empêche.',
+    avoid: ['token-theft'],
+  },
+  {
+    id: 'snapshot-share',
+    level: 2,
+    context: 'CloudTrail, base de données de production.',
+    events: [
+      { source: 'aws.cloudtrail', line: 'eventName=CreateDBSnapshot dBInstanceIdentifier=prod-billing (sauvegarde hebdomadaire nominale)' },
+      { source: 'aws.cloudtrail', line: 'eventName=ModifyDBSnapshotAttribute attributeName=restore valuesToAdd=["4471…"]', suspect: true },
+      { source: 'aws.cloudtrail', line: '… le compte 4471… n’appartient pas à l’organisation Novafact', suspect: true },
+      { source: 'aws.cloudtrail', line: 'eventName=CopyDBSnapshot déclenché depuis le compte externe 4471…', suspect: true },
+    ],
+    attack: 'Copie d’instantané vers un compte tiers',
+    attackOptions: ['Exfiltration massive depuis S3', 'Escalade de privilèges dans IAM', 'Récupération de secrets en clair'],
+    technique: 'T1537',
+    techniqueName: 'Transfer Data to Cloud Account',
+    techniqueOptions: [{ id: 'T1530', name: 'Data from Cloud Storage' }, { id: 'T1048.003', name: 'Exfiltration Over Unencrypted Non-C2 Protocol' }, { id: 'T1567', name: 'Exfiltration Over Web Service' }],
+    why: 'La sauvegarde est routinière ; ce qui ne l’est pas, c’est le partage de l’instantané avec un compte hors de l’organisation, d’où il est copié (T1537). La donnée sort sans jamais transiter par le réseau. Une politique interdisant le partage cross-account l’aurait bloqué.',
+  },
+  {
+    id: 'mongo-nosql',
+    level: 2,
+    context: 'Journaux d’accès de l’API et requêtes MongoDB.',
+    events: [
+      { source: 'api.http', line: 'event.action=login body.email="admin@novafact.example" body.password={"$gt":""} status=200', suspect: true },
+      { source: 'api.auth', line: 'event.action=login.success user.email=admin@novafact.example (sans mot de passe correct)', suspect: true },
+      { source: 'api.http', line: '… quelques connexions légitimes intercalées, en 200 elles aussi' },
+      { source: 'mongodb', line: 'query={ email:…, password:{ $gt:"" } } → premier admin renvoyé', suspect: true },
+    ],
+    attack: 'Contournement d’authentification NoSQL',
+    attackOptions: ['Injection SQL aveugle sur la recherche', 'Rejeu massif d’identifiants volés', 'Force brute ciblée sur un compte'],
+    technique: 'T1190',
+    techniqueName: 'Exploit Public-Facing Application',
+    techniqueOptions: [{ id: 'T1110.004', name: 'Credential Stuffing' }, { id: 'T1078', name: 'Valid Accounts' }, { id: 'T1526', name: 'Cloud Service Discovery' }],
+    why: 'Un opérateur Mongo ($gt:"") passé en guise de mot de passe est toujours vrai : l’authentification est contournée sans rien deviner (T1190). Le succès en 200 ressemble à une connexion normale — le piège. Valider les types d’entrée coupe l’injection.',
+  },
+  {
+    id: 'iam-user-persist',
+    level: 2,
+    context: 'CloudTrail, compte de production ; nuit.',
+    events: [
+      { source: 'aws.cloudtrail', line: 'eventName=CreateUser userName=metrics-sync userIdentity.arn=role/deployer', suspect: true },
+      { source: 'aws.cloudtrail', line: 'eventName=CreateAccessKey userName=metrics-sync', suspect: true },
+      { source: 'aws.cloudtrail', line: 'eventName=AttachUserPolicy userName=metrics-sync policyArn=…/ReadOnlyAccess', suspect: true },
+      { source: 'aws.cloudtrail', line: '… aucun pipeline d’infrastructure n’a créé cet utilisateur ; le nom se fond dans le décor', suspect: true },
+    ],
+    attack: 'Création d’un utilisateur IAM discret',
+    attackOptions: ['Escalade de privilèges dans IAM', 'Récupération de secrets en clair', 'Détournement d’une session valide'],
+    technique: 'T1136.003',
+    techniqueName: 'Cloud Account',
+    techniqueOptions: [{ id: 'T1098.003', name: 'Additional Cloud Roles' }, { id: 'T1548', name: 'Abuse Elevation Control Mechanism' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Créer un utilisateur au nom anodin avec sa propre clé, hors de tout pipeline, c’est se ménager une porte pour plus tard (T1136.003). La politique ReadOnly n’est qu’un leurre de discrétion. Interdire la création d’IAM hors infrastructure-as-code ferme la voie.',
+    avoid: ['privesc', 'privesc-slow'],
+  },
+
+  // ── N3 : attaque étalée, à corréler ─────────────────────────────────────────
+  {
+    id: 'drift-oauth-log',
+    level: 3,
+    context: 'Journaux d’accès de l’API, jeton d’une intégration analytique tierce. Inspiré de la campagne Salesloft Drift (UNC6395, 2025).',
+    events: [
+      { source: 'api.http', line: 'auth=oauth.integration client=drift-analytics event.action=invoice.list (faible volume, nominal)' },
+      { source: 'api.http', line: '… sur trois jours, le même jeton lit Account puis Case, puis exporte des champs libres', suspect: true },
+      { source: 'api.http', line: 'query recherche les motifs "AKIA", "password", "secret" dans les données lues', suspect: true },
+      { source: 'api.egress', line: 'destination=éditeur-tiers, volume en légère hausse, réparti pour ne pas alerter', suspect: true },
+    ],
+    attack: 'Vol de jetons d’une intégration OAuth',
+    attackOptions: ['Exfiltration par un service web tiers', 'Extraction de secrets du coffre managé', 'Énumération d’objets par un client'],
+    technique: 'T1550.001',
+    techniqueName: 'Application Access Token',
+    techniqueOptions: [{ id: 'T1567', name: 'Exfiltration Over Web Service' }, { id: 'T1552', name: 'Unsecured Credentials' }, { id: 'T1526', name: 'Cloud Service Discovery' }],
+    why: 'Un jeton d’intégration légitime, mais utilisé pour fouiller les données à la recherche de clés AWS (AKIA) et de mots de passe, à bas bruit sur plusieurs jours : c’est l’emploi d’un jeton d’application volé (T1550.001), comme dans la campagne Drift de 2025. Surveiller l’usage par intégration le révèle.',
+  },
+  {
+    id: 'shaihulud',
+    level: 3,
+    context: 'Journaux de CI et de la forge, après une mise à jour de dépendance. Inspiré du ver npm Shai-Hulud (septembre 2025).',
+    events: [
+      { source: 'github.actions', line: 'step="npm install" : le postinstall de @ctrl/tinycolor exécute un script bundlé', suspect: true },
+      { source: 'runner.exec', line: 'télécharge et lance trufflehog pour balayer le disque et l’IMDS', suspect: true },
+      { source: 'runner.exec', line: '… clés AWS validées, jetons npm et GitHub collectés', suspect: true },
+      { source: 'github.repo', line: 'event=repository.create name=Shai-Hulud visibility=public, contenu = secrets exfiltrés', suspect: true },
+    ],
+    attack: 'Vol de secrets dans un dépôt public',
+    attackOptions: ['Compromission de la chaîne de build', 'Récupération de secrets en clair', 'Exfiltration par un service web tiers'],
+    technique: 'T1567.001',
+    techniqueName: 'Exfiltration to Code Repository',
+    techniqueOptions: [{ id: 'T1195.001', name: 'Compromise Software Dependencies and Development Tools' }, { id: 'T1552', name: 'Unsecured Credentials' }, { id: 'T1567', name: 'Exfiltration Over Web Service' }],
+    why: 'Le hook postinstall d’un paquet piégé récolte les secrets avec trufflehog, puis les publie dans un dépôt GitHub public créé pour l’occasion (T1567.001) — la marque du ver Shai-Hulud (2025). La dépendance compromise est la cause ; l’exfiltration vers le dépôt est ce que montrent ces lignes.',
+    avoid: ['ci-secrets'],
+  },
+  {
+    id: 'dns-exfil',
+    level: 3,
+    context: 'Journaux de requêtes Route 53 Resolver, sur plusieurs heures.',
+    events: [
+      { source: 'route53', line: 'dns.query name=a4f9c2.data.exfil.example type=TXT (nominal en apparence)' },
+      { source: 'route53', line: '… 12 000 requêtes vers des sous-domaines uniques de exfil.example en 6 h, quelques octets chacune', suspect: true },
+      { source: 'route53', line: 'noms encodés en base32, longueur maximale, cadence régulière', suspect: true },
+      { source: 'api.egress', line: 'aucun flux HTTP sortant anormal sur la période (seul le DNS porte les données)', suspect: true },
+    ],
+    attack: 'Exfiltration de données par tunnel DNS',
+    attackOptions: ['Exfiltration par un service web tiers', 'SSRF vers le service de métadonnées', 'Copie d’instantané vers un compte tiers'],
+    technique: 'T1048.003',
+    techniqueName: 'Exfiltration Over Unencrypted Non-C2 Protocol',
+    techniqueOptions: [{ id: 'T1567', name: 'Exfiltration Over Web Service' }, { id: 'T1071', name: 'Application Layer Protocol' }, { id: 'T1530', name: 'Data from Cloud Storage' }],
+    why: 'Des milliers de sous-domaines uniques encodés, quelques octets par requête, étalés sur des heures : les données sortent par le DNS, un protocole en clair rarement filtré (T1048.003). Aucun flux HTTP ne l’accompagne — c’est ce qui le rend discret.',
+  },
+  {
+    id: 'privesc-slow',
+    level: 3,
+    context: 'CloudTrail, sur cinq jours ; corrélation nécessaire.',
+    events: [
+      { source: 'aws.cloudtrail', line: 'jour 1 · eventName=AttachUserPolicy policyArn=…/IAMReadOnlyAccess role/support-tools', suspect: true },
+      { source: 'aws.cloudtrail', line: 'jour 2 · eventName=CreatePolicyVersion (ajoute iam:PassRole, discrètement)', suspect: true },
+      { source: 'aws.cloudtrail', line: 'jour 4 · eventName=CreatePolicyVersion (ajoute iam:AttachRolePolicy)', suspect: true },
+      { source: 'aws.cloudtrail', line: '… bout à bout, support-tools s’est donné de quoi devenir administrateur, une permission à la fois', suspect: true },
+    ],
+    attack: 'Escalade de privilèges dans IAM',
+    attackOptions: ['Création d’un utilisateur IAM discret', 'Détournement d’une session valide', 'Récupération de secrets en clair'],
+    technique: 'T1098.003',
+    techniqueName: 'Additional Cloud Roles',
+    techniqueOptions: [{ id: 'T1548', name: 'Abuse Elevation Control Mechanism' }, { id: 'T1078', name: 'Valid Accounts' }, { id: 'T1136.003', name: 'Cloud Account' }],
+    why: 'Chaque changement, pris seul, semble anodin ; corrélés sur cinq jours, ils composent un chemin vers l’administration (T1098.003). C’est la lenteur qui masque l’escalade. Revoir les diffs de politiques IAM dans le temps la fait ressortir.',
+    avoid: ['privesc', 'iam-user-persist'],
+  },
+  {
+    id: 'mfa-device-register',
+    level: 3,
+    context: 'Journaux d’authentification et de Cognito, sur deux semaines. Inspiré de Storm-2372 (2025).',
+    events: [
+      { source: 'api.auth', line: 'event.action=login.success user.id=u_302 source.ip=91.map[FR] (nominal)' },
+      { source: 'cognito', line: '… dix jours plus tard, event.action=mfa.device.register nouveau TOTP source.ip=196.map[ZA]', suspect: true },
+      { source: 'cognito', line: 'aucun retrait de l’ancien appareil, aucune notification à l’utilisateur', suspect: true },
+      { source: 'api.auth', line: '… l’attaquant se connecte ensuite à volonté, MFA à son nom, sans réémettre de mot de passe', suspect: true },
+    ],
+    attack: 'Inscription d’un second facteur pirate',
+    attackOptions: ['Contournement du second facteur', 'Détournement d’une session valide', 'Fatigue MFA par notifications répétées'],
+    technique: 'T1098.005',
+    techniqueName: 'Device Registration',
+    techniqueOptions: [{ id: 'T1111', name: 'Multi-Factor Authentication Interception' }, { id: 'T1078', name: 'Valid Accounts' }, { id: 'T1621', name: 'Multi-Factor Authentication Request Generation' }],
+    why: 'Après un premier accès, l’attaquant enregistre son propre second facteur pour s’installer durablement (T1098.005) — la persistance recherchée par Storm-2372 (2025). Le délai de dix jours et l’absence de retrait de l’ancien appareil trahissent la manœuvre. Alerter sur tout nouvel enrôlement MFA la révèle.',
+    avoid: ['mfa-fatigue', 'mfa-replay'],
+  },
+  {
+    id: 'low-slow-stuffing',
+    level: 3,
+    context: 'Journaux d’authentification agrégés, sur trois jours ; nombreuses sources.',
+    events: [
+      { source: 'api.auth', line: 'login.failure depuis 2 400 adresses IP distinctes, une tentative par IP et par heure', suspect: true },
+      { source: 'api.auth', line: '… chaque compte reçoit un ou deux essais répartis sur trois jours, sous tous les seuils', suspect: true },
+      { source: 'api.auth', line: 'login.success sur 0,3 % des comptes (mots de passe réutilisés)', suspect: true },
+      { source: 'api.auth', line: 'user-agents variés, aucun pic ; invisible pour une règle de vélocité par IP', suspect: true },
+    ],
+    attack: 'Rejeu massif d’identifiants volés',
+    attackOptions: ['Pulvérisation de mots de passe', 'Force brute ciblée sur un compte', 'Reconnaissance des points d’entrée'],
+    technique: 'T1110.004',
+    techniqueName: 'Credential Stuffing',
+    techniqueOptions: [{ id: 'T1110.003', name: 'Password Spraying' }, { id: 'T1110.001', name: 'Password Guessing' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Des couples volés testés une fois par compte, dilués sur des milliers d’IP et trois jours : c’est du stuffing « low and slow » (T1110.004), conçu pour passer sous les seuils de vélocité. Corréler par compte plutôt que par IP, et vérifier les mots de passe compromis, le rattrape.',
+    avoid: ['stuffing', 'spray'],
+  },
 ];
+
+// ── Les séries ──────────────────────────────────────────────────────────────
+
+const mix = (n1: number, n2: number, n3: number): [number, number, number] => [n1, n2, n3];
+
+const IDENT_IDS = ['stuffing', 'spray', 'brute-single', 'mfa-fatigue', 'session-cookie', 'mfa-replay'];
+const CLOUD_IDS = ['imds', 's3-dump', 'privesc', 'secrets-manager', 'cloudtrail-off', 'snapshot-share'];
+const REAL_IDS = ['shaihulud', 'drift-oauth-log', 'session-cookie', 'action-tamper', 'mfa-device-register'];
+
+const PROFILES: SeriesProfile<LogCase>[] = [
+  { id: 'signature', title: 'La ligne qui signe', mix: mix(5, 0, 0), level: 1,
+    text: 'Une seule ligne décisive par cas : un opérateur NoSQL dans un mot de passe, StopLogging, un port de minage. On apprend à repérer le motif.' },
+  { id: 'bruit', title: 'Le bruit légitime', mix: mix(1, 4, 0), level: 2,
+    text: 'Du trafic normal est mêlé aux traces, avec un faux indice rassurant : une destination déclarée, une sauvegarde routinière, « aucune erreur SQL ».' },
+  { id: 'identite', title: 'Comptes & identités', filter: (c) => IDENT_IDS.includes(c.id), level: 2,
+    text: 'Six façons d’attaquer l’authentification : stuffing, pulvérisation, force brute, fatigue MFA, rejeu de cookie, rejeu de code.' },
+  { id: 'cloud', title: 'Traces AWS', filter: (c) => CLOUD_IDS.includes(c.id), level: 2,
+    text: 'Tout se lit dans CloudTrail et S3 : SSRF vers l’IMDS, exfiltration, escalade IAM, coffre vidé, journaux coupés, instantané partagé.' },
+  { id: 'low-slow', title: 'En sourdine', mix: mix(0, 1, 4), level: 3,
+    text: 'Attaques étalées et diluées : plusieurs sources à corréler, des gestes anodins un à un mais décisifs bout à bout.' },
+  { id: 'reels', title: 'Incidents publics', filter: (c) => REAL_IDS.includes(c.id), level: 3,
+    text: 'Cinq cas documentés : ver Shai-Hulud, jetons Drift, HAR Okta, tj-actions, enrôlement MFA façon Storm-2372.' },
+  { id: 'expert', title: 'Corrélation', mix: mix(0, 0, 5), level: 3,
+    text: 'Rien ne se lit sur une ligne : il faut relier des événements distants, sur des heures ou des jours, et distinguer cause et conséquence.' },
+  { id: 'melee', title: 'Mêlée', mix: mix(2, 2, 2), level: 2, shuffleEachTime: true,
+    text: 'Tous niveaux confondus, recomposée à chaque partie. La seule série qu’on ne peut pas réviser.' },
+];
+
+export const logSeries = defineSeries(logCases, PROFILES);

@@ -1,35 +1,49 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowRight, Check, Flag } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen } from '../components/ui';
-import { reviewDocs, type Priority, type ReviewDoc } from '../data/game-review';
-import { useProgress } from '../store/progress';
+import { Feedback, GameHeader, shuffle } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { reviewSeries, type Priority, type ReviewDoc } from '../data/game-review';
 
-type Step = 'choose' | 'study' | 'write' | 'collaborate' | 'done';
+type Step = 'study' | 'write' | 'collaborate' | 'done';
 
 const prioLabels: Record<Priority, string> = { must: 'Must', ought: 'Ought', should: 'Should' };
-const stepIndex: Record<Step, number> = { choose: 0, study: 1, write: 2, collaborate: 3, done: 4 };
+const stepIndex: Record<Step, number> = { study: 1, write: 2, collaborate: 3, done: 4 };
 
 export default function DesignReview() {
-  const { recordScore } = useProgress();
-  const [doc, setDoc] = useState<ReviewDoc | null>(null);
-  const [step, setStep] = useState<Step>('choose');
+  return (
+    <SeriesGame
+      gameId="design-review"
+      title="Design Review Simulator"
+      set={reviewSeries}
+      unit="design doc"
+      intro="Huit documents de conception de Novafact, du lien de partage au SSO SAML. Tu suis les étapes de Kohnfelder : lire et identifier, rédiger et prioriser, puis défendre tes constats face au designer. Plus on avance, plus le défaut se cache entre deux phrases, et plus certaines phrases ont l’air fautives sans l’être."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<ReviewDoc> }) {
+  const doc = play.items[0];
+  const [step, setStep] = useState<Step>('study');
   const [flags, setFlags] = useState<string[]>([]);
   const [prios, setPrios] = useState<Record<string, Priority>>({});
   const [pbIndex, setPbIndex] = useState(0);
   const [pbPick, setPbPick] = useState<number | null>(null);
   const [dialogue, setDialogue] = useState(0);
   const [final, setFinal] = useState<{ pct: number; detection: number; priority: number; dialog: number } | null>(null);
+  // Les réponses au designer sont rebattues à chaque partie : la bonne ne doit
+  // pas se retrouver toujours à la même place.
+  const replies = useMemo(() => doc.pushbacks.map((p) => shuffle(p.replies)), [doc]);
 
-  const statements = doc ? doc.sections.flatMap((s) => s.statements) : [];
+  const statements = doc.sections.flatMap((s) => s.statements);
   const issues = statements.filter((s) => s.issue);
   const found = issues.filter((s) => flags.includes(s.id));
   const falseFlags = flags.filter((id) => !statements.find((s) => s.id === id)?.issue);
 
-  const start = (d: ReviewDoc) => { setDoc(d); setStep('study'); setFlags([]); setPrios({}); setPbIndex(0); setPbPick(null); setDialogue(0); setFinal(null); };
   const toggle = (id: string) => setFlags((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
 
   const finish = (dialogPoints: number) => {
-    if (!doc) return;
     const precision = flags.length ? found.length / flags.length : 0;
     const recall = issues.length ? found.length / issues.length : 0;
     const f1 = precision + recall ? (2 * precision * recall) / (precision + recall) : 0;
@@ -38,39 +52,18 @@ export default function DesignReview() {
     const pct = Math.round(f1 * 40 + prioOk * 40 + dialog * 20);
     setFinal({ pct, detection: Math.round(f1 * 100), priority: Math.round(prioOk * 100), dialog: Math.round(dialog * 100) });
     setStep('done');
-    recordScore('design-review', pct);
+    play.finish(pct);
   };
-
-  if (step === 'choose' || !doc) {
-    return (
-      <section className="block">
-        <div className="game-wrap">
-          <GameHeader id="design-review" title="Design Review Simulator" current={0} total={4} />
-          <p className="q-hint" style={{ marginTop: 0 }}>Choisis le document de conception à relire. Tu suivras les étapes de Kohnfelder : lire et identifier, rédiger et prioriser, puis défendre tes constats.</p>
-          <div className="grid" style={{ gap: 12 }}>
-            {reviewDocs.map((d) => (
-              <button key={d.id} className="option" onClick={() => start(d)}>
-                <span className="key">{d.level}</span>
-                <span><b style={{ fontWeight: 500 }}>{d.title}</b><span className="desc">{d.intro}</span></span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
 
   if (step === 'done' && final) {
     return (
-      <section className="block">
-        <ScoreScreen pct={final.pct} title={`Revue de conception : ${doc.title}`} onRetry={() => start(doc)}>
-          <div className="kv" style={{ maxWidth: 420, margin: '0 auto 12px' }}>
-            <div><span className="label">Détection</span><b>{final.detection}%</b></div>
-            <div><span className="label">Priorités</span><b>{final.priority}%</b></div>
-            <div><span className="label">Dialogue</span><b>{final.dialog}%</b></div>
-          </div>
-        </ScoreScreen>
-      </section>
+      <SeriesScore play={play} pct={final.pct} title="Revue de conception">
+        <div className="kv" style={{ maxWidth: 420, margin: '0 auto 12px' }}>
+          <div><span className="label">Détection</span><b>{final.detection}%</b></div>
+          <div><span className="label">Priorités</span><b>{final.priority}%</b></div>
+          <div><span className="label">Dialogue</span><b>{final.dialog}%</b></div>
+        </div>
+      </SeriesScore>
     );
   }
 
@@ -79,7 +72,7 @@ export default function DesignReview() {
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="design-review" title={`Design review : ${doc.title}`} current={stepIndex[step]} total={4} />
+        <GameHeader id="design-review" title={`Design Review Simulator · ${play.info.title}`} level={play.info.level} current={stepIndex[step]} total={4} />
 
         {step === 'study' && (
           <>
@@ -141,7 +134,7 @@ export default function DesignReview() {
               <>
                 <div className="section-title">Signalements superflus</div>
                 {falseFlags.map((id) => (
-                  <Feedback key={id} good={false}><b>{statements.find((s) => s.id === id)!.text}</b><div className="small muted">Cette phrase décrit une bonne décision : la mentionner comme telle dans le rapport aide à la protéger lors des évolutions.</div></Feedback>
+                  <Feedback key={id} good={false}><b>{statements.find((s) => s.id === id)!.text}</b><div className="small muted">{statements.find((s) => s.id === id)!.note ?? 'Cette phrase décrit une bonne décision : la mentionner comme telle dans le rapport aide à la protéger lors des évolutions.'}</div></Feedback>
                 ))}
               </>
             )}
@@ -167,12 +160,12 @@ export default function DesignReview() {
             <div className="card q-card speaker">
               <span className="label">Collaborate · le designer conteste</span>
               <div className="bubble">
-                <b>{doc.id === 'export' ? 'Sacha, lead API' : 'Alix, PO'}</b>
+                <b>{doc.designer}</b>
                 <p>« {pb.objection} »</p>
               </div>
             </div>
             <div className="grid" style={{ gap: 10 }}>
-              {pb.replies.map((rep, k) => {
+              {replies[pbIndex].map((rep, k) => {
                 const cls = pbPick !== null ? (rep.points === 2 ? 'correct' : k === pbPick ? (rep.points === 1 ? 'selected' : 'wrong') : '') : '';
                 return (
                   <button key={k} className={`option ${cls}`} disabled={pbPick !== null} onClick={() => { setPbPick(k); setDialogue(dialogue + rep.points); }}>

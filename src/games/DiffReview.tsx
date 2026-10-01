@@ -1,12 +1,11 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Highlight } from 'prism-react-renderer';
 import { ArrowRight, Bot, Check, GitPullRequest, MessageSquarePlus, X } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
+import { Feedback, GameHeader } from '../components/ui';
 import { codeTheme, langAliases } from '../components/Code';
-import { pullRequests, severityLabels, type PullRequest, type Severity } from '../data/game-diff';
-import { useProgress } from '../store/progress';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { diffSeries, severityLabels, type PullRequest, type Severity } from '../data/game-diff';
 
-const ROUNDS = 4;
 type Decision = 'approve' | 'changes';
 type Comments = Record<string, Severity | null>; // clé « fichier:ligne »
 
@@ -98,9 +97,21 @@ function DiffFile({ file, fi, comments, locked, reveal, onToggle, onSev }: {
 }
 
 export default function DiffReview() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(pullRequests).slice(0, ROUNDS), [seed]);
+  return (
+    <SeriesGame
+      gameId="diff-review"
+      title="Diff Review"
+      set={diffSeries}
+      unit="PR"
+      intro="Huit séries de trois pull requests. On passe du défaut net dans les lignes ajoutées à celui qui n’existe que par ce que la PR retire ou déplace, et à la PR qu’il faut savoir approuver malgré les apparences."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<PullRequest> }) {
+  const rounds = play.items;
   const [i, setI] = useState(0);
   const [comments, setComments] = useState<Comments>({});
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -110,6 +121,7 @@ export default function DiffReview() {
   const pr = rounds[i];
   const result = decision ? scorePr(pr, comments, decision) : null;
   const unqualified = Object.values(comments).some((s) => s === null);
+  const avg = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
 
   const toggle = (k: string) => setComments((c) => {
     if (k in c) { const { [k]: _drop, ...rest } = c; return rest; }
@@ -123,22 +135,18 @@ export default function DiffReview() {
   };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(avg(scores));
       setDone(true);
-      recordScore('diff-review', Math.round(scores.reduce((a, b) => a + b, 0) / scores.length));
     } else { setI(i + 1); setComments({}); setDecision(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setComments({}); setDecision(null); setScores([]); setDone(false); };
 
   if (done) {
-    const pct = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
     return (
-      <section className="block">
-        <ScoreScreen pct={pct} title={`${rounds.length} PR relues`} onRetry={restart}>
-          <div className="kv" style={{ maxWidth: 520, margin: '0 auto 12px' }}>
-            {rounds.map((r, n) => <div key={r.id}><span className="label">#{r.number}</span><b>{scores[n]} %</b></div>)}
-          </div>
-        </ScoreScreen>
-      </section>
+      <SeriesScore play={play} pct={avg(scores)} title={`${rounds.length} PR relues`}>
+        <div className="kv" style={{ maxWidth: 520, margin: '0 auto 12px' }}>
+          {rounds.map((r, n) => <div key={r.id}><span className="label">#{r.number}</span><b>{scores[n]} %</b></div>)}
+        </div>
+      </SeriesScore>
     );
   }
 
@@ -149,10 +157,17 @@ export default function DiffReview() {
     result.falseFlags.forEach((k) => { reveal[k] = 'ko'; });
   }
 
+  // Les leurres ne se montrent qu'à la correction, avec la raison pour laquelle
+  // il ne fallait pas les commenter.
+  const decoyKey = (d: NonNullable<PullRequest['decoys']>[number]) => {
+    const n = pr.files[d.file].lines.findIndex((l) => l.includes(d.match));
+    return `${d.file}:${n}`;
+  };
+
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="diff-review" title="Diff Review" current={i} total={rounds.length} />
+        <GameHeader id="diff-review" title={`Diff Review · ${play.info.title}`} level={play.info.level} current={i} total={rounds.length} />
         <div className="card pr-head">
           <div className="pr-title"><GitPullRequest size={18} /><h3 className="m0">{pr.title} <span className="dim">#{pr.number}</span></h3></div>
           <div className="small muted pr-author">{pr.bot ? <Bot size={14} /> : null}<b style={{ fontWeight: 500 }}>{pr.author}</b> souhaite fusionner dans <span className="mono">main</span></div>
@@ -177,7 +192,7 @@ export default function DiffReview() {
           <>
             <Feedback good={result.decisionOk}>
               <b>{result.decisionOk ? 'Bonne décision.' : result.expected === 'approve' ? 'Cette PR pouvait être approuvée.' : 'Cette PR ne devait pas être fusionnée en l’état.'}</b>
-              {pr.issues.length === 0 && <div className="small muted">La PR remplace une comparaison fragile par la vérification officielle, à temps constant et avec tolérance d’horodatage, et ignore les rejeux. Savoir approuver vite une bonne PR fait aussi partie du travail.</div>}
+              {pr.verdict && <div className="small muted">{pr.verdict}</div>}
             </Feedback>
             {pr.issues.map((iss, n) => {
               const f = result.found[n];
@@ -192,6 +207,15 @@ export default function DiffReview() {
             {result.falseFlags.length > 0 && (
               <Feedback good={false}><b>{result.falseFlags.length} commentaire{result.falseFlags.length > 1 ? 's' : ''} sans objet</b><div className="small muted">Chaque commentaire superflu coûte du temps à l’auteur et de la crédibilité à la revue.</div></Feedback>
             )}
+            {(pr.decoys ?? []).map((d, n) => {
+              const fell = decoyKey(d) in comments;
+              return (
+                <Feedback key={`d${n}`} good={!fell}>
+                  <b>{pr.files[d.file].path.split('/').pop()} · ligne saine · {fell ? 'commentée à tort' : 'bien laissée de côté'}</b>
+                  <div className="small muted">{d.text}</div>
+                </Feedback>
+              );
+            })}
             <div className="actions between">
               <span className="small dim">Score de la PR : {result.pct} %</span>
               <button className="btn primary" onClick={next}>{i + 1 >= rounds.length ? 'Voir le bilan' : 'PR suivante'} <ArrowRight size={16} className="arrow" /></button>

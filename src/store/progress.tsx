@@ -1,4 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ApiError, api, messageOf } from '../lib/api';
+import { setFlusher } from '../lib/flush';
+import { Screen } from '../components/ui';
+import { mergeProgress } from './merge';
+import { useSession } from './session';
 import { blocks, lessonKey, modules } from '../data/catalog';
 import { availableGames, games } from '../data/games';
 
@@ -28,7 +33,10 @@ const empty: Progress = {
   version: 1, name: '', xp: 0, lessons: {}, modules: [], scores: {},
   labs: [], leitner: {}, badges: [], checkpoints: {},
 };
-const KEY = 'appsec-academy-v1';
+/** Taille au-delà de laquelle le serveur refuse le document (256 Ko) : on prévient avant d'envoyer. */
+const MAX_DOC_CHARS = 250_000;
+const SAVE_DELAY_MS = 800;
+const RETRY_DELAY_MS = 10_000;
 
 export const levels = [
   { min: 0, title: 'Recrue AppSec' },
@@ -100,15 +108,20 @@ interface Ctx {
   recordCheckpoint: (moduleId: string, phase: 'avant' | 'apres', pct: number) => void;
   toggleLab: (labId: string) => void;
   reviewCard: (cardId: string, correct: boolean) => void;
-  setName: (name: string) => void;
-  importProgress: (raw: string) => string | null;
-  reset: () => void;
+  /** Les trois actions qui touchent le serveur renvoient un message d'erreur, ou `null` si tout s'est bien passé. */
+  setName: (name: string) => Promise<string | null>;
+  importProgress: (raw: string) => Promise<string | null>;
+  reset: () => Promise<string | null>;
+  /** État de l'enregistrement sur le serveur. */
+  sync: SyncState;
   toasts: Toast[];
 }
 
+export type SyncState = 'saved' | 'saving' | 'offline' | 'rejected';
+
 const ProgressContext = createContext<Ctx | null>(null);
 
-function sanitize(raw: unknown): Progress | null {
+export function sanitize(raw: unknown): Progress | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Partial<Progress>;
   if (r.version !== 1) return null;
@@ -126,23 +139,60 @@ function sanitize(raw: unknown): Progress | null {
   } as Progress;
 }
 
-function load(): Progress {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return (raw && sanitize(JSON.parse(raw))) || empty;
-  } catch {
-    return empty;
-  }
-}
-
 const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 export const LEITNER_INTERVALS = [0, 1, 2, 4, 8, 16]; // en jours, par boîte (1 à 5)
 
+type Loaded = { doc: Progress; rev: number };
+
+/** Charge la progression depuis le serveur, puis monte le moteur. Rien ne s'affiche avant : pas de flash d'un état vide. */
 export function ProgressProvider({ children }: { children: ReactNode }) {
-  const [progress, setProgress] = useState<Progress>(load);
+  const [state, setState] = useState<Loaded | { error: string } | null>(null);
+
+  const load = useCallback(async () => {
+    setState(null);
+    try {
+      const r = await api<{ data: unknown; rev: number }>('/progress');
+      if (r.data === null) return setState({ doc: empty, rev: r.rev });
+      const doc = sanitize(r.data);
+      // On ne recouvre jamais une progression qu'on ne sait pas lire : elle serait perdue.
+      setState(doc ? { doc, rev: r.rev } : { error: 'Ta progression enregistrée a un format que cette version ne comprend pas. Elle n’a pas été modifiée.' });
+    } catch (e) {
+      setState({ error: messageOf(e) });
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (!state) return <Screen><p className="muted" role="status">Chargement de ta progression…</p></Screen>;
+  if ('error' in state) {
+    return (
+      <Screen>
+        <p role="alert">{state.error}</p>
+        <button className="btn primary sm" onClick={() => void load()}>Réessayer</button>
+      </Screen>
+    );
+  }
+  return <ProgressEngine initial={state.doc} initialRev={state.rev}>{children}</ProgressEngine>;
+}
+
+function ProgressEngine({ initial, initialRev, children }: { initial: Progress; initialRev: number; children: ReactNode }) {
+  const { user, setName: setAccountName } = useSession();
+  const [doc, setProgress] = useState<Progress>(initial);
+  // Le nom vit dans le compte, pas dans le document de progression : tout le reste de l'app lit `progress.name`.
+  const progress = useMemo(() => ({ ...doc, name: user?.name ?? '' }), [doc, user?.name]);
+  const [sync, setSync] = useState<SyncState>('saved');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
+
+  const latest = useRef(doc);
+  latest.current = doc;
+  const revRef = useRef(initialRev);
+  /** La dernière version que le serveur a confirmée. Égale à `doc` : rien à envoyer. */
+  const savedRef = useRef<Progress>(initial);
+  const running = useRef<Promise<void> | null>(null);
+  const saveTimer = useRef<number>();
+  const retryTimer = useRef<number>();
 
   const pushToast = useCallback((t: Omit<Toast, 'id'>) => {
     const id = ++toastId.current;
@@ -165,9 +215,88 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     });
   }, [pushToast]);
 
+  const wire = (p: Progress): Progress => ({ ...p, name: '' });
+
+  /**
+   * Envoie l'état courant tant qu'il diffère de ce que le serveur a confirmé. Sur un conflit (409, un autre
+   * onglet ou appareil a écrit entre-temps) on fusionne avec la version du serveur puis on réessaie.
+   * Ne rejette jamais : une panne réseau passe en « hors ligne » et réessaie toute seule.
+   */
+  const run = useCallback(async () => {
+    setSync('saving');
+    let conflicts = 0;
+    try {
+      while (latest.current !== savedRef.current) {
+        const sent = latest.current;
+        try {
+          const r = await api<{ rev: number }>('/progress', { method: 'PUT', body: { data: wire(sent), rev: revRef.current } });
+          revRef.current = r.rev;
+          savedRef.current = sent;
+        } catch (e) {
+          if (!(e instanceof ApiError && e.status === 409 && conflicts++ < 5)) throw e;
+          const theirs = sanitize((e.body as { data: unknown }).data);
+          revRef.current = (e.body as { rev: number }).rev;
+          if (theirs) {
+            const merged = mergeProgress(latest.current, theirs);
+            latest.current = merged;
+            setProgress(merged);
+          }
+        }
+      }
+      setSync('saved');
+    } catch (e) {
+      // Un refus définitif (document trop gros ou invalide) ne se répare pas en réessayant.
+      const definitive = e instanceof ApiError && e.status >= 400 && e.status < 500 && ![401, 409, 429].includes(e.status);
+      setSync(definitive ? 'rejected' : 'offline');
+      if (!definitive) {
+        window.clearTimeout(retryTimer.current);
+        retryTimer.current = window.setTimeout(() => void flush(), RETRY_DELAY_MS);
+      }
+    }
+  }, []);
+
+  const flush = useCallback((): Promise<void> => {
+    window.clearTimeout(saveTimer.current);
+    if (!running.current) running.current = run().finally(() => { running.current = null; });
+    return running.current;
+  }, [run]);
+
+  // Enregistrement différé : on regroupe les actions rapprochées (un jeu qui enchaîne les réponses).
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(progress)); } catch { /* stockage indisponible */ }
-  }, [progress]);
+    if (doc === savedRef.current) return;
+    // Dès qu'il y a du nouveau, l'indicateur ne doit plus annoncer « enregistré » : hors ligne, on garde l'alerte.
+    setSync((state) => (state === 'offline' ? state : 'saving'));
+    window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => void flush(), SAVE_DELAY_MS);
+    return () => window.clearTimeout(saveTimer.current);
+  }, [doc, flush]);
+
+  useEffect(() => () => window.clearTimeout(retryTimer.current), []);
+
+  // Avant de fermer la session, on laisse partir ce qui est en attente.
+  useEffect(() => {
+    setFlusher(flush);
+    return () => setFlusher(null);
+  }, [flush]);
+
+  // À la fermeture de l'onglet, meilleur effort : la requête survit à la page (keepalive, limité à ~64 Ko).
+  useEffect(() => {
+    const leave = () => {
+      if (latest.current === savedRef.current) return;
+      const body = { data: wire(latest.current), rev: revRef.current };
+      api('/progress', { method: 'PUT', body, keepalive: JSON.stringify(body).length < 60_000 }).catch(() => undefined);
+    };
+    const onHidden = () => { if (document.visibilityState === 'hidden') leave(); };
+    const onOnline = () => void flush();
+    window.addEventListener('pagehide', leave);
+    document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('pagehide', leave);
+      document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [flush]);
 
   // Valide une leçon ; le module est validé quand toutes ses leçons rédigées le sont.
   const completeLesson = useCallback((moduleId: string, lessonId: string, xp: number, writtenLessons: string[]) => {
@@ -240,22 +369,39 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     });
   }, [update]);
 
-  const setName = useCallback((name: string) => setProgress((p) => ({ ...p, name })), []);
-  const reset = useCallback(() => setProgress(empty), []);
+  const setName = useCallback(async (name: string) => {
+    try { await setAccountName(name); return null; } catch (e) { return messageOf(e); }
+  }, [setAccountName]);
 
-  const importProgress = useCallback((raw: string) => {
+  /** Efface la progression côté serveur, puis repart de `next`. Le serveur décide : on ne change l'état local qu'ensuite. */
+  const replaceAll = useCallback(async (next: Progress): Promise<string | null> => {
+    window.clearTimeout(saveTimer.current);
     try {
-      const parsed = sanitize(JSON.parse(raw));
-      if (!parsed) return 'Fichier non reconnu : ce n’est pas une sauvegarde AppSec Academy.';
-      setProgress(parsed);
-      return null;
-    } catch {
-      return 'Fichier illisible : JSON invalide.';
+      await running.current;
+      await api('/progress', { method: 'DELETE' });
+    } catch (e) {
+      return messageOf(e);
     }
+    revRef.current = 0;
+    savedRef.current = empty;
+    latest.current = next;
+    setProgress(next);      // `next` ≠ `empty` : l'effet d'enregistrement prend le relais
+    setSync('saved');
+    return null;
   }, []);
 
+  const reset = useCallback(() => replaceAll(empty), [replaceAll]);
+
+  const importProgress = useCallback(async (raw: string) => {
+    let parsed: Progress | null;
+    try { parsed = sanitize(JSON.parse(raw)); } catch { return 'Fichier illisible : JSON invalide.'; }
+    if (!parsed) return 'Fichier non reconnu : ce n’est pas une sauvegarde AppSec Academy.';
+    if (JSON.stringify(parsed).length > MAX_DOC_CHARS) return 'Sauvegarde trop volumineuse pour être importée.';
+    return replaceAll(parsed);
+  }, [replaceAll]);
+
   return (
-    <ProgressContext.Provider value={{ progress, completeLesson, recordScore, recordExam, recordCheckpoint, toggleLab, reviewCard, setName, importProgress, reset, toasts }}>
+    <ProgressContext.Provider value={{ progress, completeLesson, recordScore, recordExam, recordCheckpoint, toggleLab, reviewCard, setName, importProgress, reset, sync, toasts }}>
       {children}
     </ProgressContext.Provider>
   );

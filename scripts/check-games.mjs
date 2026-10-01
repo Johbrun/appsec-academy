@@ -55,13 +55,13 @@ const len = (s) => String(s ?? '').length;
 const GAMES = [
   { file: 'game-patches.ts', name: 'patches', rounds: 6,
     sets: (m) => m.patchScenarios.map((s) => ({ opts: s.options, right: (o) => o.holds, text: (o) => o.label + ' ' + (o.code ?? '') })) },
-  { file: 'game-races.ts', name: 'races', rounds: 7,
+  { file: 'game-races.ts', name: 'races', rounds: 8,
     sets: (m) => m.raceScenarios.flatMap((s) => ['outcomes', 'fixes'].map((k) => ({ opts: s[k], right: (o) => o.right, text: (o) => o.label }))) },
-  { file: 'game-parsers.ts', name: 'parsers', rounds: 6,
+  { file: 'game-parsers.ts', name: 'parsers', rounds: 7,
     sets: (m) => m.parserScenarios.flatMap((s) => ['divergence', 'impact', 'fix'].map((k) => ({ opts: s[k], right: (o) => o.right, text: (o) => o.text }))) },
-  { file: 'game-stones.ts', name: 'stones', rounds: 6,
+  { file: 'game-stones.ts', name: 'stones', rounds: 5,
     sets: (m) => m.stoneScenarios.map((s) => { const mx = Math.max(...s.fixes.map((f) => f.points)); return { opts: s.fixes, right: (o) => o.points === mx, text: (o) => o.label }; }) },
-  { file: 'game-pushback.ts', name: 'pushback', rounds: 10,
+  { file: 'game-pushback.ts', name: 'pushback', rounds: 8,
     sets: (m) => m.scenes.map((s) => ({ opts: s.replies, right: (o) => o.points === 2, text: (o) => o.text })) },
   { file: 'game-findings.ts', name: 'findings', rounds: 6,
     sets: (m) => m.findings.map((f) => ({ opts: f.reasons, right: (_o, i) => i === 0, text: (o) => o })) },
@@ -73,11 +73,16 @@ const GAMES = [
     sets: (m) => m.crises.flatMap((c) => c.decisions.map((d) => ({ opts: d.choices, right: (o) => o.quality === 2, text: (o) => o.label }))) },
   { file: 'game-logs.ts', name: 'logs', rounds: 6,
     sets: (m) => m.logCases.map((c) => ({ opts: [c.attack, ...c.attackOptions], right: (_o, i) => i === 0, text: (o) => o })) },
-  { file: 'game-datamap.ts', name: 'datamap', rounds: 10,
+  { file: 'game-datamap.ts', name: 'datamap', rounds: 8,
     sets: (m) => m.dataItems.map((d) => ({ opts: d.controls, right: (_o, i) => i === d.best, text: (o) => o })) },
+  { file: 'game-triage.ts', name: 'triage', rounds: 1,
+    sets: (m) => Object.values(m.sprints).map((sp) => ({ opts: sp.plans, right: (o) => o.right, text: (o) => o.text })) },
   { file: 'game-supply.ts', name: 'supply', rounds: 4,
     sets: (m) => m.incidents.map((i) => ({ opts: i.controls, right: (_o, k) => k === 0, text: (o) => o })) },
 ];
+
+// `rounds` est la taille de la plus grande série du jeu : depuis les séries, une
+// partie ne tire plus au hasard dans tout le pool, elle joue une série.
 
 /**
  * La taille du pool et le nombre de manches jouées. `rounds: null` veut dire
@@ -96,6 +101,7 @@ const POOLS = {
   logs: (m) => m.logCases.length,
   supply: (m) => m.incidents.length,
   datamap: (m) => m.dataItems.length,
+  triage: (m) => Object.keys(m.sprints).length,
 };
 
 const problems = [];
@@ -169,6 +175,15 @@ const dataFiles = [
     .filter((e) => e.isDirectory() && fs.existsSync(path.join(D, e.name, 'index.ts')))
     .map((e) => `${e.name}/index.ts`),
 ];
+
+// Chaque jeu passe par l'écran de séries : directement (`SeriesGame`) ou via
+// la mécanique d'audit ligne à ligne (`LineAudit`), qui s'appuie dessus. Un jeu
+// ajouté sans séries retomberait sur un tirage au hasard dans tout le pool.
+const G = path.join(root, 'src/games');
+for (const f of fs.readdirSync(G).filter((f) => f.endsWith('.tsx'))) {
+  const src = fs.readFileSync(path.join(G, f), 'utf8');
+  if (!/\b(SeriesGame|LineAudit)\b/.test(src)) problems.push(`src/games/${f} : le jeu ne passe pas par l'écran de séries`);
+}
 
 const seriesRows = [];
 for (const f of dataFiles) {

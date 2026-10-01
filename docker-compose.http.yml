@@ -1,0 +1,25 @@
+# Mode HTTP, sans TLS : à superposer au fichier principal.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.http.yml up -d --build
+#
+# À n'utiliser que pour une mise en route ou une démonstration. Le cookie de session
+# et les mots de passe circulent **en clair** : quiconque est sur le chemin réseau peut
+# lire un identifiant de session et prendre la place de son propriétaire. Dès que le DNS
+# pointe sur le VPS, repasse au fichier principal seul (profil `proxy`) : il n'y a rien
+# à migrer, la base ne change pas.
+services:
+  app:
+    environment:
+      # Le seul réglage qui compte : en production, le serveur impose une origine https
+      # (server/config.ts) et nomme le cookie `__Host-appsec_sid`, que le navigateur
+      # refuse hors HTTPS — la session ne se poserait jamais. Hors production, le cookie
+      # est `appsec_sid`, sans l'attribut `Secure`.
+      NODE_ENV: development
+      # Ici PUBLIC_ORIGIN est en http, avec le port si tu n'utilises pas le 80.
+      # Il doit correspondre exactement à ce que tu tapes dans la barre d'adresse,
+      # sinon les écritures sont refusées (contrôle d'origine).
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+      # Accès direct, sans proxy devant : aucune en-tête X-Forwarded-For n'est digne de confiance.
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+    ports: !override
+      - "${BIND_ADDR:-0.0.0.0}:${BIND_PORT:-80}:4300"

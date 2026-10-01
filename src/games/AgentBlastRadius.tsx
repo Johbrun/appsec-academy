@@ -1,39 +1,84 @@
 import { useState } from 'react';
 import { ArrowRight, Play, ShieldCheck, ShieldAlert } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen } from '../components/ui';
-import { defaultConfig, runsToCompletion, scenarios, score, tools, type Config, type ToolId } from '../data/game-agent';
-import { useProgress } from '../store/progress';
+import { Feedback, GameHeader } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { agentSeries, owaspLlm2026, runsToCompletion, score, type Agent, type Config, type ToolId } from '../data/game-agent';
 
 export default function AgentBlastRadius() {
-  const { recordScore } = useProgress();
-  const [cfg, setCfg] = useState<Config>(defaultConfig);
+  return (
+    <SeriesGame
+      gameId="agent-blast-radius"
+      title="Agent Blast Radius"
+      set={agentSeries}
+      unit={(n) => (n > 1 ? 'agents' : 'agent')}
+      intro="Six agents IA de Novafact, de l’assistant du support qui lit des tickets à l’assistant de l’IDE branché sur des serveurs MCP. Pour chacun, règle les outils puis rejoue ses scénarios : bloquer les injections sans casser les usages légitimes. Le fil conducteur est la lethal trifecta : données privées, contenu non fiable, canal de sortie."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<Agent> }) {
+  const agents = play.items;
+  const [i, setI] = useState(0);
+  const agent = agents[i];
+  const [cfg, setCfg] = useState<Config>(agent.defaultConfig);
   const [tested, setTested] = useState(false);
   const [best, setBest] = useState(0);
+  const [results, setResults] = useState<number[]>([]);
   const [done, setDone] = useState(false);
 
-  const s = score(cfg);
+  const s = score(cfg, agent);
   const toggle = (id: ToolId, key: 'enabled' | 'confirm' | 'tenantScoped') =>
     setCfg((c) => ({ ...c, [id]: { ...c[id], [key]: !c[id][key] } }));
 
   const run = () => { setTested(true); setBest((b) => Math.max(b, s.pct)); };
   const retry = () => { setTested(false); };
-  const finish = () => { setDone(true); recordScore('agent-blast-radius', Math.max(best, s.pct)); };
-  const restart = () => { setCfg(defaultConfig); setTested(false); setBest(0); setDone(false); };
+  const finish = () => {
+    const all = [...results, Math.max(best, s.pct)];
+    if (i + 1 >= agents.length) {
+      play.finish(Math.round(all.reduce((a, b) => a + b, 0) / all.length));
+      setResults(all);
+      setDone(true);
+    } else {
+      setResults(all);
+      setI(i + 1); setCfg(agents[i + 1].defaultConfig); setTested(false); setBest(0);
+    }
+  };
 
-  if (done) return <section className="block"><ScoreScreen pct={Math.max(best, s.pct)} title="Assistant Novafact configuré" onRetry={restart}>
-    <p className="small muted" style={{ maxWidth: 520, margin: '0 auto 12px' }}>La meilleure configuration neutralise les injections en coupant un côté de la règle de deux : retirer fetch_url et l’export massif, confirmer les actions qui écrivent, limiter les lectures au tenant.</p>
-  </ScoreScreen></section>;
+  if (done) {
+    const pct = Math.round(results.reduce((a, b) => a + b, 0) / results.length);
+    return (
+      <SeriesScore play={play} pct={pct} title={agents.length > 1 ? `${agents.length} agents configurés` : `${agent.name} configuré`}>
+        {agents.map((a) => (
+          <p key={a.id} className="small muted" style={{ maxWidth: 560, margin: '0 auto 12px' }}>{a.solution}</p>
+        ))}
+      </SeriesScore>
+    );
+  }
 
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="agent-blast-radius" title="Agent Blast Radius" current={tested ? 1 : 0} total={2} counter={false} extra={<span className="tag mono">{s.pct}%</span>} />
-        <p className="q-hint" style={{ marginTop: 0 }}>
-          Configure les outils de l’assistant Novafact, puis rejoue les scénarios. Objectif : bloquer les injections sans casser les usages légitimes. Pense à la règle de deux : évite qu’un même appel combine entrée non fiable, donnée sensible et action qui écrit ou communique.
+        <GameHeader
+          id="agent-blast-radius"
+          title={`Agent Blast Radius · ${play.info.title}`}
+          level={play.info.level}
+          current={agents.length > 1 ? i : (tested ? 0.5 : 0)}
+          total={agents.length}
+          counter={agents.length > 1}
+          extra={<span className="tag mono">{s.pct}%</span>}
+        />
+        <div className="card q-card">
+          <span className="label">{agent.name}</span>
+          <p className="muted small" style={{ margin: '8px 0 0' }}>{agent.context}</p>
+        </div>
+        <p className="q-hint">
+          Configure les outils, puis rejoue les scénarios. Objectif : bloquer les injections sans casser les usages légitimes. Pense à la lethal trifecta : données privées, contenu non fiable, canal de sortie. Couper un pied casse la chaîne, à condition que ce ne soit pas celui dont un usage légitime a besoin.
         </p>
 
         <div className="agent-tools">
-          {tools.map((t) => {
+          {agent.tools.map((t) => {
             const c = cfg[t.id];
             return (
               <div key={t.id} className={`agent-tool ${c.enabled ? '' : 'off'}`}>
@@ -52,7 +97,7 @@ export default function AgentBlastRadius() {
                 {c.enabled && (t.writes || t.scopable) && (
                   <div className="agent-guards">
                     {t.writes && <label className={`chip ${c.confirm ? 'on' : ''}`}><input type="checkbox" hidden checked={c.confirm} onChange={() => toggle(t.id, 'confirm')} />Confirmation humaine</label>}
-                    {t.scopable && <label className={`chip ${c.tenantScoped ? 'on' : ''}`}><input type="checkbox" hidden checked={c.tenantScoped} onChange={() => toggle(t.id, 'tenantScoped')} />Limité au tenant</label>}
+                    {t.scopable && <label className={`chip ${c.tenantScoped ? 'on' : ''}`}><input type="checkbox" hidden checked={c.tenantScoped} onChange={() => toggle(t.id, 'tenantScoped')} />{t.scopeLabel ?? 'Limité au tenant'}</label>}
                   </div>
                 )}
                 <p className="small agent-hint">{t.hint}</p>
@@ -68,17 +113,29 @@ export default function AgentBlastRadius() {
               <div><span className="label">Usages préservés</span><b>{s.keptLegit}/{s.totalLegit}</b></div>
             </div>
             <div className="section-title">Rejeu des scénarios</div>
-            {scenarios.map((sc) => {
-              const executed = runsToCompletion(sc, cfg);
+            {agent.scenarios.map((sc) => {
+              const executed = runsToCompletion(sc, cfg, agent.tools);
               const good = sc.kind === 'attack' ? !executed : executed;
               return (
                 <Feedback key={sc.id} good={good}>
                   <b>{sc.kind === 'attack' ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />} {sc.kind === 'attack' ? (executed ? 'Attaque réussie' : 'Attaque bloquée') : (executed ? 'Tâche exécutée' : 'Tâche bloquée')}</b>
+                  {sc.unattended && <span className="tag mono" style={{ marginLeft: 8 }}>sans humain</span>}
                   <div className="small" style={{ margin: '4px 0' }}>{sc.text}</div>
                   <div className="small muted">{good ? (sc.kind === 'attack' ? sc.explainBlocked : sc.explainAllowed) : (sc.kind === 'attack' ? sc.explainAllowed : sc.explainBlocked)}</div>
+                  {(sc.owasp ?? []).length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                      {sc.owasp!.map((id) => <span key={id} className="tag mono" title={owaspLlm2026[id]}>{id}:2026 {owaspLlm2026[id]}</span>)}
+                    </div>
+                  )}
                 </Feedback>
               );
             })}
+            {agent.realCase && (
+              <div className="card q-card" style={{ marginTop: 14 }}>
+                <span className="label">Cas réel · {agent.realCase.title}</span>
+                <p className="muted small" style={{ margin: '8px 0 0' }}>{agent.realCase.text}</p>
+              </div>
+            )}
           </>
         )}
 
@@ -88,7 +145,7 @@ export default function AgentBlastRadius() {
             ? <button className="btn primary" onClick={run}><Play size={15} /> Rejouer les scénarios</button>
             : <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn" onClick={retry}>Ajuster</button>
-                <button className="btn primary" onClick={finish}>Terminer <ArrowRight size={16} className="arrow" /></button>
+                <button className="btn primary" onClick={finish}>{i + 1 >= agents.length ? 'Terminer' : 'Agent suivant'} <ArrowRight size={16} className="arrow" /></button>
               </div>}
         </div>
       </div>

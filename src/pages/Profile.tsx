@@ -7,9 +7,12 @@ import { badgeDefs, levelFor, levels, useProgress } from '../store/progress';
 import { csslpDomains, lessonKey, modules, pad2, totalLessons } from '../data/catalog';
 import { availableGames, gameCategories } from '../data/games';
 import { labs } from '../data/labs';
+import { AccountPanel } from '../components/AccountPanel';
+import { useUser } from '../store/session';
 
 export default function Profile() {
-  const { progress, setName, reset, importProgress } = useProgress();
+  const { progress, reset, importProgress } = useProgress();
+  const user = useUser();
   const [confirming, setConfirming] = useState(false);
   const [onlyPlayed, setOnlyPlayed] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -59,7 +62,7 @@ export default function Profile() {
 
   const onImport = async (file?: File) => {
     if (!file) return;
-    const err = importProgress(await file.text());
+    const err = await importProgress(await file.text());
     setMessage(err ? { ok: false, text: err } : { ok: true, text: 'Progression restaurée.' });
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -67,7 +70,7 @@ export default function Profile() {
   return (
     <>
       <PageHead eyebrow="Mon espace" title="Progression & badges">
-        Ta progression est enregistrée dans ce navigateur. Sur un parcours de cette taille, pense à l’exporter de temps en temps.
+        Ta progression est enregistrée sur ton compte et te suit d’un appareil à l’autre. Tu peux aussi l’exporter dans un fichier.
       </PageHead>
 
       <Block>
@@ -76,8 +79,9 @@ export default function Profile() {
             <div className="row nowrap" style={{ gap: 20 }}>
               <Identicon name={progress.name} size={88} className="avatar-id" />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <label className="label" htmlFor="profile-name" style={{ display: 'block' }}>Nom affiché</label>
-                <input id="profile-name" className="field" style={{ marginTop: 8 }} placeholder="Ton nom" value={progress.name} onChange={(e) => setName(e.target.value)} />
+                <span className="label" style={{ display: 'block' }}>Nom affiché</span>
+                <div className="level-title" style={{ marginTop: 8, overflowWrap: 'anywhere' }}>{progress.name}</div>
+                <div className="small dim" style={{ overflowWrap: 'anywhere' }}>{user.email}</div>
               </div>
             </div>
             <div style={{ marginTop: 32 }}>
@@ -245,7 +249,9 @@ export default function Profile() {
         </div>
       </Block>
 
-      <Block eyebrow="Sauvegarde" title="Exporter ou restaurer" lead="Un fichier JSON avec toute ta progression. Utile pour changer de navigateur ou de machine.">
+      <AccountPanel />
+
+      <Block eyebrow="Sauvegarde" title="Exporter ou restaurer" lead="Un fichier JSON avec toute ta progression. Restaurer remplace ce qui est enregistré sur ton compte.">
         <div className="row" style={{ gap: 12 }}>
           <button className="btn" onClick={exportProgress}><Download size={16} /> Exporter ma progression</button>
           <button className="btn" onClick={() => fileRef.current?.click()}><Upload size={16} /> Restaurer une sauvegarde</button>
@@ -259,10 +265,10 @@ export default function Profile() {
           <div>
             <div className="label">Zone sensible</div>
             <div style={{ fontWeight: 500, marginTop: 6 }}>Réinitialiser ma progression</div>
-            <div className="small dim">Efface XP, leçons, labs, badges et scores de ce navigateur.</div>
+            <div className="small dim">Efface XP, leçons, labs, badges et scores de ton compte. Ton compte, lui, reste.</div>
           </div>
           {confirming
-            ? <div className="row"><button className="btn sm" onClick={() => setConfirming(false)}>Annuler</button><button className="btn sm danger" onClick={() => { reset(); setConfirming(false); }}>Confirmer l’effacement</button></div>
+            ? <div className="row"><button className="btn sm" onClick={() => setConfirming(false)}>Annuler</button><button className="btn sm danger" onClick={async () => { const err = await reset(); setConfirming(false); setMessage(err ? { ok: false, text: err } : { ok: true, text: 'Progression effacée.' }); }}>Confirmer l’effacement</button></div>
             : <button className="btn sm" onClick={() => setConfirming(true)}>Réinitialiser</button>}
         </div>
       </Block>

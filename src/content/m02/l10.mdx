@@ -1,0 +1,232 @@
+export const questions = [
+  {
+    q: "La page de relevé de Novafact contient <button onclick=\"retour('${next}')\">. Le serveur applique escapeHtml (& < > \" ') à next. Pourquoi une XSS reste-t-elle possible ?",
+    options: [
+      "Le navigateur décode les entités de l'attribut avant d'exécuter le JavaScript : ');alert(1)// ressort intact",
+      "escapeHtml laisse passer le point-virgule et les parenthèses, que la chaîne JavaScript accepte",
+      "Un gestionnaire d'événement en ligne ignore l'encodage HTML : il lit le texte brut de la réponse",
+      "Les guillemets doubles échappés sont ré-interprétés quand le navigateur analyse l'URL de la page",
+    ],
+    answer: 0,
+    explain: "L'échappement HTML protège le contexte HTML, pas le contexte JavaScript imbriqué dans l'attribut : le navigateur décode d'abord &#x27; en apostrophe, puis passe la valeur décodée à l'interpréteur JavaScript, où elle ferme la chaîne. La fonction traite bien l'apostrophe, et c'est précisément pour cela que le contournement fonctionne. La bonne conception ne met aucune donnée dans un gestionnaire en ligne : un attribut data-* lu par un script externe, ou une valeur choisie dans une liste fermée.",
+  },
+  {
+    q: "Novafact pose un cookie csrf=<aléatoire> non signé et compare avec le champ caché du formulaire. Quelle attaque cassait ce double submit selon l'OWASP ?",
+    options: [
+      "Un script de la page lit le cookie, faute d'HttpOnly, et rejoue la valeur dans un formulaire",
+      "Un sous-domaine vulnérable écrit le cookie csrf de son choix, puis soumet cette même valeur",
+      "Un attaquant devine la valeur : un jeton aléatoire non signé est statistiquement prévisible",
+      "Un site tiers lit le cookie grâce à CORS et reconstruit un formulaire valide",
+    ],
+    answer: 1,
+    explain: "Le double submit naïf ne compare que deux copies d'une même valeur, sans rien qui prouve que le serveur l'a émise : qui peut écrire un cookie sur le domaine, par exemple via un sous-domaine vulnérable, choisit la valeur des deux côtés. Un script de la page qui lirait le cookie serait déjà une XSS, un autre problème. CORS ne donne accès à aucun cookie, et l'aléa n'est pas en cause : il pouvait être parfait. La version signée et liée à la session, avec le préfixe __Host- sur le cookie, ferme le trou.",
+  },
+  {
+    q: "Le jeton CSRF de Novafact est un HMAC signé avec la clé serveur, mais calculé sur un nonce seul, sans identifiant de session. Quel scénario reste ouvert ?",
+    options: [
+      "Un attaquant forge un jeton valide : le HMAC se rejoue sans la clé secrète",
+      "Le jeton expire trop tard : un HMAC sans horodatage ne peut pas être révoqué",
+      "L'attaquant obtient un jeton valide depuis son propre compte, puis l'impose à la victime",
+      "Un attaquant retrouve la clé par force brute à partir de nonces observés sur le réseau",
+    ],
+    answer: 2,
+    explain: "Sans liaison à la session, le serveur ne peut vérifier qu'une chose : « ce jeton vient de moi ». Il vient bien de lui, il a été émis pour le compte de l'attaquant, et il est valide pour n'importe quelle session. La signature n'est donc pas la propriété qui manquait : forger sans la clé reste impossible, et retrouver une clé d'HMAC par force brute n'est pas réaliste. Inclure l'identifiant de session dans le message signé rattache le jeton à un seul navigateur.",
+  },
+  {
+    q: "Un lien d'export de relevé de Novafact contient ?token=… et la page affichée charge une image d'un autre domaine. Quelle mesure traite le mieux l'ensemble des fuites possibles ?",
+    options: [
+      "Ajouter rel=\"noopener\" sur les liens sortants de la page",
+      "Compter sur la valeur par défaut des navigateurs, qui n'envoie que l'origine à un autre site",
+      "Chiffrer le jeton dans l'URL avec une clé que seul le serveur connaît",
+      "Jeton à usage unique et courte durée, échangé contre un cookie puis redirection vers une URL propre",
+    ],
+    answer: 3,
+    explain: "Un jeton à usage unique, qui expire vite et disparaît de la barre d'adresse après échange, limite les dégâts quel que soit le canal : Referer, journaux d'accès, historique, proxy. La valeur par défaut protège d'une fuite vers un autre site, mais pas des journaux ni de l'historique, et un autre en-tête de politique peut la remplacer. noopener coupe window.opener, pas le Referer. Chiffrer le jeton ne change rien : l'URL chiffrée est elle-même l'identifiant qu'on rejoue, et elle fuit pareil.",
+  },
+  {
+    q: "Une vue Pug de Novafact rend le nom du client avec p!= client.name. Quelle est la correction minimale correcte, et quel risque subsiste ?",
+    options: [
+      "Remplacer par p= client.name : le corps est échappé, mais un href ou un script construit ailleurs reste à traiter",
+      "Remplacer par p= client.name : le moteur échappe alors le HTML, ce qui couvre aussi les URL et les scripts",
+      "Garder != et filtrer les chevrons < et > en entrée, ce qui suffit pour le corps HTML",
+      "Utiliser #{client.name} dans un script en ligne : l'interpolation échappée y est sûre",
+    ],
+    answer: 0,
+    explain: "Dans Pug, = échappe et != écrit tel quel, comme la documentation le dit avec son avertissement sur l'entrée utilisateur. Mais l'échappement du moteur est celui du corps HTML : un href construit à partir de la donnée a besoin d'une validation de schéma, et une donnée dans un script en ligne reste dangereuse. Filtrer les chevrons à l'entrée ne couvre ni les attributs sans guillemets ni les contextes URL. La bonne stratégie combine l'échappement par défaut et une validation propre à chaque contexte.",
+  },
+];
+
+<YouKnow>
+Tu sais casser un attribut avec un espace, poser un `javascript:` dans un `href`, forger du CSRF et fouiller des Referer. On regarde ici comment le code Node produit ces trous, et pourquoi les « correctifs » courants échouent.
+</YouKnow>
+
+## HTML construit par le serveur
+
+React (leçon 6) échappe par défaut, mais beaucoup de HTML n'en passe pas par là : e-mail de facture, page d'erreur, relevé imprimable. Chez Novafact, ces sorties sont des littéraux de gabarit :
+
+<Code file="apps/api/src/routes/statement.ts">
+
+```ts
+app.get('/statements/:id/print', async (req, res) => {
+  const st = await statements.get(req.user.tenantId, req.params.id);
+  res.send(`<h1>Relevé de ${st.clientName}</h1>
+    <a href="${req.query.next}">Retour</a>
+    <button onclick="retour('${req.query.next}')">Retour</button>`);
+});
+```
+
+</Code>
+
+Chaque `${…}` est une sortie dans un **contexte** différent (corps, attribut, URL, JavaScript), et la cause est celle de l'injection SQL : on concatène du texte dans un langage. Kohnfelder (K11) en tire la règle : s'appuyer sur un mécanisme qui échappe par défaut plutôt que construire la sortie à la main. Variantes : **réfléchie** (le paramètre revient), **stockée** (le libellé d'un client s'affiche dans l'e-mail d'un autre), **DOM** (un script lit `location` et écrit dans un sink) ; seule la dernière naît côté client.
+
+## Pourquoi un seul échappement ne suffit pas
+
+L'OWASP XSS Prevention Cheat Sheet repose sur ce point : entités HTML dans le corps, guillemets autour des attributs, `\xHH` pour une valeur JavaScript entre guillemets, hexadécimal CSS pour une valeur de propriété, pourcentage pour un paramètre d'URL. Pour une URL complète dans un `href`, c'est une **validation** (`http:`, `https:`), pas un encodage. Et certains emplacements n'ont aucun échappement sûr : directement dans un `<script>`, un commentaire HTML, un gestionnaire d'événement.
+
+<Diff file="apps/api/src/lib/html.ts" hlBefore="1-4" hlAfter="1-5">
+
+```ts
+// Le « correctif » répandu : un échappement HTML unique, appliqué partout.
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+res.send(`<a href="${esc(next)}">Retour</a> <button onclick="retour('${esc(next)}')">`);
+```
+
+```ts
+// Valeur choisie dans une liste fermée ; aucune donnée libre dans un gestionnaire en ligne.
+const BACK = { statements: '/statements', invoices: '/invoices' } as const;
+const target = BACK[req.query.next as keyof typeof BACK] ?? '/';
+res.send(`<a href="${esc(target)}">Retour</a>
+  <button data-back="${esc(target)}">Retour</button>`);
+```
+
+</Diff>
+
+Trois payloads cassent la version de gauche :
+
+| Contexte | Payload dans `next` | Pourquoi `esc` ne l'arrête pas |
+| --- | --- | --- |
+| `href` | `javascript:alert(document.domain)` | Aucun caractère à échapper : le problème est le schéma |
+| `onclick` | `');alert(1)//` | Le navigateur décode `&#x27;` en `'` avant de passer la valeur à JavaScript |
+| attribut sans guillemets | `x onmouseover=alert(1)` | Un espace termine la valeur ; l'OWASP exige les guillemets |
+
+Dans un `<script>`, c'est pire : entités non décodées, `</script>` ferme l'élément. Passe la donnée par un attribut `data-*` lu par un script externe (CSP stricte, module 4, leçon 4).
+
+**Liste blanche plutôt qu'échappement**, dès que possible : `next` est une clé parmi deux destinations connues, plus de contexte à deviner.
+
+<Callout kind="case">
+Express a publié le 10 septembre 2024 l'avis CVE-2024-43796 (versions antérieures à 4.20.0 et à 5.0.0) : passer une entrée non fiable à `response.redirect()`, même après nettoyage, peut exécuter du code, à condition que l'utilisateur clique sur le lien de la page de redirection. L'avis conseille une liste blanche explicite : même le HTML écrit par le framework autour d'une donnée n'est pas à l'abri.
+</Callout>
+
+## Les moteurs de templates et leurs échappatoires
+
+Les moteurs courants échappent le corps HTML par défaut, et tous ont une syntaxe qui désactive l'échappement : à chercher en revue.
+
+| Moteur | Échappé | Brut (à surveiller) |
+| --- | --- | --- |
+| EJS | `<%= x %>` | `<%- x %>` |
+| Pug | `p= x`, `#{x}`, attributs | `p!= x`, `!{x}`, attribut avec `!=` |
+| Handlebars | `{{ x }}` | `{{{ x }}}` ; aide qui renvoie une `SafeString` |
+| Nunjucks | autoescape (vrai par défaut dans `configure`) | `{{ x \| safe }}` ; `autoescape: false` |
+
+L'échappement du moteur est celui du **corps HTML** : il ne remplace pas la validation d'un `href`, ni n'excuse une donnée dans un script ou un `style`. Un développeur de Novafact a ajouté `{{ client.name | safe }}` dans l'e-mail de facture parce que « Dupont & Fils » s'affichait mal : XSS stockée, dans la messagerie d'un tiers. Centralise ensuite (leçon 8, « Éliminer une classe entière ») : un wrapper de rendu, et une règle de lint sur `res.send` avec `${`, `<%-`, `!=`, `| safe` et `{{{`.
+
+## Un jeton CSRF qui tient
+
+Les défenses de la leçon 6 sont des couches ; si tu ajoutes un jeton, sa **construction** décide de sa valeur. Trois familles dans l'OWASP CSRF Prevention Cheat Sheet :
+
+<Steps items={[
+  { title: "Synchronizer token", text: "Stocké dans la session, renvoyé en champ caché ou en-tête, comparé à chaque écriture." },
+  { title: "Jeton HMAC", text: "Sans état : HMAC, avec clé secrète, de l'identifiant de session et d'un aléa." },
+  { title: "Double submit signé", text: "Cookie et champ égaux, valeur signée et liée à la session. La variante naïve (aléa non signé) est vulnérable à l'injection de cookie." },
+]} />
+
+L'OWASP précise que le double submit naïf est contournable par qui peut écrire des cookies sur le domaine cible, par exemple via un sous-domaine voisin vulnérable, et que `__Host-` empêche l'écrasement depuis un sous-domaine.
+
+<Diff file="apps/api/src/security/csrf.ts" hlBefore="1-5" hlAfter="1-11">
+
+```ts
+// Double submit naïf : cookie et en-tête doivent simplement être égaux.
+app.use((req, res, next) => {
+  if (SAFE.has(req.method)) return next();
+  if (!req.cookies.csrf || req.cookies.csrf !== req.get('x-csrf-token')) return res.status(403).end();
+  next();
+});
+```
+
+```ts
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+const mac = (sid: string, nonce: string) =>
+  createHmac('sha256', CSRF_KEY).update(`${sid}!${nonce}`).digest('base64url');
+// Jeton = aléa . HMAC(clé, identifiant de session ! aléa) : valable pour UNE session.
+export const issue = (sid: string) => { const n = randomBytes(16).toString('base64url'); return `${n}.${mac(sid, n)}`; };
+export const check = (sid: string, token = '') => {
+  const [n = '', tag = ''] = token.split('.');
+  const want = Buffer.from(mac(sid, n)), got = Buffer.from(tag);
+  return want.length === got.length && timingSafeEqual(want, got);
+};
+```
+
+</Diff>
+
+Payload qui casse la version naïve : depuis `support.novafact.example`, `document.cookie = "csrf=abc; Domain=novafact.example"`, puis une requête avec `x-csrf-token: abc`. Les valeurs sont égales, elle passe.
+
+La **liaison à la session** compte autant que la signature : un HMAC sur le seul nonce prouve que le jeton vient du serveur, pas pour qui. L'attaquant se connecte avec son propre compte, obtient un jeton valide, et l'impose à la victime via un cookie injecté. Avec l'identifiant de session dans le message signé, la victime le rejette. Le jeton se transmet en champ caché ou en en-tête, **jamais dans l'URL** (l'OWASP note qu'un GET peut le faire fuir par l'historique et les journaux), et aucune route `GET` ne modifie l'état.
+
+## Secrets et identifiants dans l'URL
+
+Une URL se copie partout : historique, journaux d'accès de CloudFront ou de l'équilibreur, proxys, supervision, et `Referer` des ressources chargées par la page.
+
+Chez Novafact, la prévisualisation d'un export charge une image d'un tiers et son URL porte `?token=…`, valable des jours : la requête de l'image peut transporter l'URL. Aujourd'hui, le défaut des navigateurs est `strict-origin-when-cross-origin` (MDN, depuis novembre 2020) : un autre site ne reçoit que l'origine. Mais une autre politique déclarée, une ressource de même origine, les journaux et l'historique restent concernés.
+
+<Callout kind="case">
+Le 11 janvier 2015, edX est alerté : depuis le lien de réinitialisation de mot de passe, un clic sur un lien « Follow Us » du pied de page envoie le jeton dans `Referer` au réseau social. L'avis CVE-2015-2286, publié le 30 janvier 2015, indique un correctif commité le 29. Le cas précède le défaut actuel des navigateurs.
+</Callout>
+
+Aussi : un identifiant stable (`/exports/8f3a…`) relie deux observations, journal du CDN et journal applicatif, ou deux visites. Opaque, il évite l'énumération, pas la corrélation ; il ne vaut jamais autorisation.
+
+<Diff file="apps/api/src/routes/export.ts" hlBefore="1" hlAfter="1-9">
+
+```ts
+app.get('/exports/download', (req, res) => exports.byToken(String(req.query.token)).then(render));
+```
+
+```ts
+// Usage unique, 5 minutes, haché en base, puis URL propre.
+app.get('/exports/claim', async (req, res) => {
+  res.set({ 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store' });
+  const ok = await exports.consumeToken(String(req.query.t));
+  if (!ok) return res.status(404).end();
+  res.cookie('__Host-dl', ok.session, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 300_000 });
+  res.redirect(303, `/exports/${ok.exportId}`);
+});
+morgan.token('safe-url', (req) => req.path); // journaux : chemin seul, jamais la query
+```
+
+</Diff>
+
+Correctifs, du plus fort au plus faible : **pas de secret dans l'URL** (`POST`, en-tête `Authorization`) ; si un lien est inévitable, jeton à usage unique et court, échangé puis remplacé par une redirection propre ; enfin `Referrer-Policy: no-referrer` et query masquée dans les journaux. Le cas OAuth, où le code revient dans l'URL du callback, est traité en module 9, leçon 4, « Attaques OAuth et OIDC ».
+
+<Recap items={[
+  "Chaque `${…}` est une sortie dans un contexte : corps, attribut, URL, JavaScript, CSS. Un échappement unique n'en couvre qu'un.",
+  "Payloads qui cassent l'échappement unique : `javascript:` dans href, `');alert(1)//` dans onclick, un espace dans un attribut sans guillemets.",
+  "Liste blanche de valeurs plutôt qu'échappement ; schéma d'URL validé ; aucune donnée libre dans un gestionnaire ou un script.",
+  "Jeton CSRF : synchronizer token ou HMAC lié à l'identifiant de session ; le double submit naïf tombe devant l'injection de cookie.",
+  "Secret dans l'URL : Referer, journaux, historique, proxys. POST ou en-tête, jeton à usage unique et court, Referrer-Policy, query masquée.",
+]} />
+
+<Lab id="ps-xss" note="Pour chaque lab, note le contexte de sortie exact (corps, attribut, script, URL) avant de choisir le payload, puis écris la règle qui l'aurait évité." />
+<Lab id="ps-csrf" />
+
+<Sources items={[
+  { title: "OWASP Cheat Sheet : Cross Site Scripting Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Cross-Site Request Forgery Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html" },
+  { title: "EJS : balises et échappement", url: "https://ejs.co/#docs" },
+  { title: "Pug : attributs échappés et non échappés", url: "https://pugjs.org/language/attributes.html" },
+  { title: "Handlebars : expressions et triple-stash", url: "https://handlebarsjs.com/guide/expressions.html" },
+  { title: "Nunjucks : autoescaping et filtre safe", url: "https://mozilla.github.io/nunjucks/templating.html" },
+  { title: "Nunjucks : API, option autoescape", url: "https://mozilla.github.io/nunjucks/api.html" },
+  { title: "MDN : en-tête Referrer-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy" },
+  { title: "Express : CVE-2024-43796", url: "https://github.com/expressjs/express/security/advisories/GHSA-qw6h-vgh9-j6wx" },
+  { title: "Open edX : CVE-2015-2286", url: "https://openedx.org/announcements/cve-2015-2286" },
+]} />

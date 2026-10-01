@@ -1,16 +1,30 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, Bug, ShieldCheck } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
+import { Feedback, GameHeader, shuffle } from '../components/ui';
 import { CodeBlock } from '../components/Code';
-import { findings } from '../data/game-findings';
-import { useProgress } from '../store/progress';
-
-const ROUNDS = 6;
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { findingSeries, type Finding } from '../data/game-findings';
 
 export default function TrueFalsePositive() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(findings).slice(0, ROUNDS).map((f) => ({ ...f, options: shuffle(f.reasons) })), [seed]);
+  return (
+    <SeriesGame
+      gameId="true-false-positive"
+      title="True or False Positive"
+      set={findingSeries}
+      unit="findings"
+      intro="Huit séries, du premier tri au sanitizer trompeur. Des findings SAST, secrets et IA avec leur trace : vrai ou faux positif, et pourquoi ? Plusieurs cas s’inspirent d’incidents publics."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<Finding> }) {
+  const rounds = play.items;
+  // L'ordre des justifications est retiré à chaque partie : la bonne ne doit pas
+  // rester à la même place.
+  const optionSets = useMemo(() => rounds.map((f) => shuffle(f.reasons)), [rounds]);
+
   const [i, setI] = useState(0);
   const [verdict, setVerdict] = useState<'tp' | 'fp' | null>(null);
   const [reason, setReason] = useState<string | null>(null);
@@ -18,6 +32,7 @@ export default function TrueFalsePositive() {
   const [done, setDone] = useState(false);
 
   const r = rounds[i];
+  const options = optionSets[i];
   const total = rounds.length * 2;
   const verdictOk = verdict === r.verdict;
   const reasonOk = reason === r.reasons[0];
@@ -26,20 +41,29 @@ export default function TrueFalsePositive() {
   const pickReason = (x: string) => { if (reason) return; setReason(x); if (x === r.reasons[0]) setScore((s) => s + 1); };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round((score / total) * 100));
       setDone(true);
-      recordScore('true-false-positive', Math.round((score / total) * 100));
     } else { setI(i + 1); setVerdict(null); setReason(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setVerdict(null); setReason(null); setScore(0); setDone(false); };
 
-  if (done) return <section className="block"><ScoreScreen pct={Math.round((score / total) * 100)} title={`${score} / ${total} : findings triés et justifiés`} onRetry={restart} /></section>;
+  if (done) {
+    const pct = Math.round((score / total) * 100);
+    return <SeriesScore play={play} pct={pct} title={`${score} / ${total} : findings triés et justifiés`} />;
+  }
 
   const label = (v: 'tp' | 'fp') => (v === 'tp' ? 'vrai positif' : 'faux positif');
 
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="true-false-positive" title="True or False Positive" current={i} total={rounds.length} extra={<span className="tag mono">{score} / {total}</span>} />
+        <GameHeader
+          id="true-false-positive"
+          title={`True or False Positive · ${play.info.title}`}
+          level={play.info.level}
+          current={i}
+          total={rounds.length}
+          extra={<span className="tag mono">{score} / {total}</span>}
+        />
         <div className="card finding-card">
           <div className="finding-meta">
             <span className="tag mono">{r.tool}</span>
@@ -69,7 +93,7 @@ export default function TrueFalsePositive() {
           <>
             <Feedback good={verdictOk}><b>{verdictOk ? 'Bon verdict.' : `C’est un ${label(r.verdict)}.`}</b></Feedback>
             <div className="grid" style={{ gap: 10, marginTop: 16 }}>
-              {r.options.map((x, k) => {
+              {options.map((x, k) => {
                 const cls = reason ? (x === r.reasons[0] ? 'correct' : x === reason ? 'wrong' : '') : '';
                 return (
                   <button key={x} className={`option ${cls}`} disabled={!!reason} onClick={() => pickReason(x)}>
@@ -86,6 +110,7 @@ export default function TrueFalsePositive() {
             <Feedback good={reasonOk}>
               <b>{reasonOk ? 'Bonne justification.' : 'La bonne justification est celle en vert.'}</b>
               <div className="small muted">{r.why}</div>
+              {r.real && <div className="small muted" style={{ marginTop: 6 }}>Inspiré d’un cas réel : {r.real}.</div>}
             </Feedback>
             <div className="actions"><button className="btn primary" onClick={next}>{i + 1 >= rounds.length ? 'Voir le score' : 'Finding suivant'} <ArrowRight size={16} className="arrow" /></button></div>
           </>

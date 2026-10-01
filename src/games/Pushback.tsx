@@ -1,11 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
-import { scenes } from '../data/game-pushback';
-import { useProgress } from '../store/progress';
-
-/** Une semaine ne montre pas tout le pool : on peut rejouer sans revoir la même scène. */
-const ROUNDS = 10;
+import { Feedback, GameHeader, shuffle } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { pushbackSeries, type Scene } from '../data/game-pushback';
 
 function Gauge({ label, value, max }: { label: string; value: number; max: number }) {
   const pct = Math.max(0, Math.min(100, 50 + (value / max) * 50));
@@ -18,9 +15,23 @@ function Gauge({ label, value, max }: { label: string; value: number; max: numbe
 }
 
 export default function Pushback() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(scenes).slice(0, ROUNDS).map((s) => ({ ...s, replies: shuffle(s.replies) })), [seed]);
+  return (
+    <SeriesGame
+      gameId="pushback"
+      title="Pushback"
+      set={pushbackSeries}
+      unit="scènes"
+      intro="Neuf séries : une par interlocuteur, puis par difficulté. Au premier niveau, l’objection repose sur une idée fausse ; au dernier, elle a en partie raison, et la réponse la plus ferme est souvent le piège."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<Scene> }) {
+  // Les réponses sont rebattues à chaque partie : la bonne ne doit pas se
+  // retrouver toujours à la même place.
+  const rounds = useMemo(() => play.items.map((s) => ({ ...s, replies: shuffle(s.replies) })), [play.items]);
   const [i, setI] = useState(0);
   const [pick, setPick] = useState<number | null>(null);
   const [points, setPoints] = useState(0);
@@ -40,22 +51,19 @@ export default function Pushback() {
   const next = () => {
     if (i + 1 >= rounds.length) {
       setDone(true);
-      recordScore('pushback', Math.round((points / (2 * rounds.length)) * 100));
+      play.finish(Math.round((points / (2 * rounds.length)) * 100));
     } else { setI(i + 1); setPick(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setPick(null); setPoints(0); setTrust(0); setRisk(0); setDone(false); };
 
   if (done) {
     const pct = Math.round((points / (2 * rounds.length)) * 100);
     return (
-      <section className="block">
-        <ScoreScreen pct={pct} title="Fin de la semaine chez Novafact" onRetry={restart}>
-          <div style={{ maxWidth: 360, margin: '0 auto 8px' }}>
-            <Gauge label="Confiance des équipes" value={trust} max={rounds.length} />
-            <Gauge label="Risque réduit" value={risk} max={2 * rounds.length} />
-          </div>
-        </ScoreScreen>
-      </section>
+      <SeriesScore play={play} pct={pct} title="Fin de la semaine chez Novafact">
+        <div style={{ maxWidth: 360, margin: '0 auto 8px' }}>
+          <Gauge label="Confiance des équipes" value={trust} max={rounds.length} />
+          <Gauge label="Risque réduit" value={risk} max={2 * rounds.length} />
+        </div>
+      </SeriesScore>
     );
   }
 
@@ -63,7 +71,7 @@ export default function Pushback() {
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="pushback" title="Pushback" current={i} total={rounds.length} />
+        <GameHeader id="pushback" title={`Pushback · ${play.info.title}`} level={play.info.level} current={i} total={rounds.length} />
         <div className="gauges">
           <Gauge label="Confiance des équipes" value={trust} max={rounds.length} />
           <Gauge label="Risque réduit" value={risk} max={2 * rounds.length} />

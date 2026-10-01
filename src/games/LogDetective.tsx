@@ -1,19 +1,30 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
-import { logCases } from '../data/game-logs';
-import { useProgress } from '../store/progress';
-
-const ROUNDS = 6;
+import { Feedback, GameHeader, shuffle } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { logSeries, type LogCase } from '../data/game-logs';
 
 export default function LogDetective() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(logCases).slice(0, ROUNDS).map((c) => ({
+  return (
+    <SeriesGame
+      gameId="log-detective"
+      title="Log Detective AppSec"
+      set={logSeries}
+      unit="cas"
+      intro="Huit séries, de la ligne qui signe l’attaque à la corrélation « low and slow ». Des événements Elastic (pino/ECS, CloudTrail, WAF) : identifie l’attaque et la technique ATT&CK."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<LogCase> }) {
+  const rounds = useMemo(() => play.items.map((c) => ({
     ...c,
     attacks: shuffle([c.attack, ...c.attackOptions]),
     techniques: shuffle([{ id: c.technique, name: c.techniqueName }, ...c.techniqueOptions]),
-  })), [seed]);
+  })), [play.items]);
+
   const [i, setI] = useState(0);
   const [attack, setAttack] = useState<string | null>(null);
   const [tech, setTech] = useState<string | null>(null);
@@ -27,18 +38,27 @@ export default function LogDetective() {
   const pickTech = (t: string) => { if (tech) return; setTech(t); if (t === r.technique) setScore((s) => s + 1); };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round((score / total) * 100));
       setDone(true);
-      recordScore('log-detective', Math.round((score / total) * 100));
     } else { setI(i + 1); setAttack(null); setTech(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setAttack(null); setTech(null); setScore(0); setDone(false); };
 
-  if (done) return <section className="block"><ScoreScreen pct={Math.round((score / total) * 100)} title={`${score} / ${total} : attaques identifiées`} onRetry={restart} /></section>;
+  if (done) {
+    const pct = Math.round((score / total) * 100);
+    return <SeriesScore play={play} pct={pct} title={`${score} / ${total} : attaques identifiées`} />;
+  }
 
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="log-detective" title="Log Detective AppSec" current={i} total={rounds.length} extra={<span className="tag mono">{score} / {total}</span>} />
+        <GameHeader
+          id="log-detective"
+          title={`Log Detective AppSec · ${play.info.title}`}
+          level={play.info.level}
+          current={i}
+          total={rounds.length}
+          extra={<span className="tag mono">{score} / {total}</span>}
+        />
         <div className="card q-card">
           <span className="label">Contexte</span>
           <p className="muted small" style={{ margin: '8px 0 0' }}>{r.context}</p>
@@ -65,7 +85,7 @@ export default function LogDetective() {
         </div>
         {attack && (
           <>
-            <Feedback good={attack === r.attack}><b>{attack === r.attack ? 'Bien vu.' : `C’était : ${r.attack}.`}</b>{attack && <span className="small muted" style={{ display: 'block', marginTop: 4 }}>Les lignes suspectes sont surlignées ci-dessus.</span>}</Feedback>
+            <Feedback good={attack === r.attack}><b>{attack === r.attack ? 'Bien vu.' : `C’était : ${r.attack}.`}</b><span className="small muted" style={{ display: 'block', marginTop: 4 }}>Les lignes suspectes sont surlignées ci-dessus.</span></Feedback>
             <div className="grid g2" style={{ gap: 10, marginTop: 16 }}>
               {r.techniques.map((t) => {
                 const cls = tech ? (t.id === r.technique ? 'correct' : t.id === tech ? 'wrong' : '') : '';

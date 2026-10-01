@@ -195,3 +195,16 @@ export function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
+
+/** Carte centrée plein écran : chargement, erreur, états avant que l'application soit prête. */
+export function Screen({ children }: { children: ReactNode }) {
+  return (
+    <div className="app">
+      <main className="frame">
+        <section className="block">
+          <div className="card pad-lg" style={{ maxWidth: 480, marginInline: 'auto', textAlign: 'center' }}>{children}</div>
+        </section>
+      </main>
+    </div>
+  );
+}

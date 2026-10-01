@@ -10,12 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..600&family=Geist+Mono:wght@400..600&family=Inter:wght@400..600&display=swap" rel="stylesheet" />
     <title>AppSec Academy</title>
-    <script>
-      // Applique le thème mémorisé avant le premier rendu pour éviter un flash.
-      try {
-        if (localStorage.getItem('appsec-academy-theme') === 'dark') document.documentElement.dataset.theme = 'dark';
-      } catch (e) { /* stockage indisponible */ }
-    </script>
+    <script src="./theme.js"></script>
   </head>
   <body>
     <div id="root"></div>

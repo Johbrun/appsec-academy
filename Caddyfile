@@ -1,0 +1,15 @@
+# Lu par le service `caddy` de docker-compose.yml ; {$PUBLIC_ORIGIN} vient de son environnement.
+# L'adresse du site est l'origine publique elle-même : elle ne peut pas diverger de celle
+# que le serveur attend pour valider les requêtes.
+
+# Pour recevoir les avis d'expiration Let's Encrypt, décommente ce bloc et mets ton email :
+# {
+# 	email admin@example.org
+# }
+
+{$PUBLIC_ORIGIN} {
+	# Certificat, renouvellement et redirection depuis http:// : automatiques.
+	encode zstd gzip
+	# `app` est le nom du service : la résolution passe par le réseau de la stack.
+	reverse_proxy app:4300
+}

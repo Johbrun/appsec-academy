@@ -1,0 +1,14 @@
+node_modules
+dist
+data
+lab
+.git
+*.pdf
+*.db
+*.db-wal
+*.db-shm
+*.tsbuildinfo
+Caddyfile
+docker-compose.yml
+.env
+.env.example

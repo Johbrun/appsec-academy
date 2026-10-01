@@ -5,30 +5,49 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:all": "concurrently -n api,web -c cyan,magenta \"npm:dev:server\" \"npm:dev\"",
+    "start": "node --import tsx server/index.ts",
+    "user": "node --import tsx server/cli.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "check": "tsc -b --noEmit && node --import tsx scripts/check-quiz.mjs --ci && node --import tsx scripts/check-sinks.mjs --ci && node --import tsx scripts/check-games.mjs --ci",
+    "check": "tsc -b --noEmit && tsc -p server --noEmit && node --import tsx scripts/check-quiz.mjs --ci && node --import tsx scripts/check-sinks.mjs --ci && node --import tsx scripts/check-games.mjs --ci && npm run test:server",
     "quiz": "node --import tsx scripts/check-quiz.mjs --by-module",
     "sinks": "node --import tsx scripts/check-sinks.mjs",
-    "games": "node --import tsx scripts/check-games.mjs"
+    "games": "node --import tsx scripts/check-games.mjs",
+    "test:server": "node --import tsx --test 'server/test/**/*.test.ts'",
+    "test:security": "node --import tsx --test 'server/test/security/*.test.ts'"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.1",
+    "better-sqlite3": "^13.0.3",
+    "cookie": "^2.0.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "lucide-react": "^1.48.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.6"
+    "react-router-dom": "^6.30.6",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@mdx-js/rollup": "^3.1.1",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
     "@types/mdx": "^2.0.14",
+    "@types/node": "^22.20.4",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^10.0.5",
     "prismjs": "^1.30.0",
     "remark-gfm": "^4.0.1",
-    "tsx": "^4.23.15",
     "typescript": "~5.9.3",
     "vite": "^5.4.21"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

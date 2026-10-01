@@ -1,15 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
-import { stages, toolCards, type Stage } from '../data/game-tools';
-import { useProgress } from '../store/progress';
-
-const ROUNDS = 10;
+import { Feedback, GameHeader } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { stages, toolSeries, type Stage, type ToolCard } from '../data/game-tools';
 
 export default function RightTool() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(toolCards).slice(0, ROUNDS), [seed]);
+  return (
+    <SeriesGame
+      gameId="right-tool"
+      title="Right Tool, Right Stage"
+      set={toolSeries}
+      unit="outils"
+      intro="Neuf séries, des outils dont la description dit le moment jusqu’aux contre-emplois, où le nom de l’outil appelle la mauvaise étape. Une étape défendable mais moins bonne rapporte un demi-point."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<ToolCard> }) {
+  const rounds = play.items;
   const [i, setI] = useState(0);
   const [pick, setPick] = useState<Stage | null>(null);
   const [placed, setPlaced] = useState<{ tool: string; stage: Stage }[]>([]);
@@ -27,18 +37,17 @@ export default function RightTool() {
   };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round((score / rounds.length) * 100));
       setDone(true);
-      recordScore('right-tool', Math.round((score / rounds.length) * 100));
     } else { setI(i + 1); setPick(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setPick(null); setPlaced([]); setScore(0); setDone(false); };
 
-  if (done) return <section className="block"><ScoreScreen pct={Math.round((score / rounds.length) * 100)} title={`${score.toString().replace('.', ',')} / ${rounds.length} outils bien placés`} onRetry={restart} /></section>;
+  if (done) return <SeriesScore play={play} pct={Math.round((score / rounds.length) * 100)} title={`${score.toString().replace('.', ',')} / ${rounds.length} outils bien placés`} />;
 
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="right-tool" title="Right Tool, Right Stage" current={i} total={rounds.length} extra={<span className="tag mono">{score.toString().replace('.', ',')} pts</span>} />
+        <GameHeader id="right-tool" title={`Right Tool, Right Stage · ${play.info.title}`} level={play.info.level} current={i} total={rounds.length} extra={<span className="tag mono">{score.toString().replace('.', ',')} pts</span>} />
         <div className="pipeline">
           {stages.map((s) => (
             <div key={s.id} className={`pipe-stage ${pick ? (s.id === r.best ? 'best' : r.ok?.includes(s.id) ? 'ok' : s.id === pick ? 'ko' : '') : ''}`}>

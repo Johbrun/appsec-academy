@@ -1,16 +1,28 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, Check } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
-import { stoneScenarios } from '../data/game-stones';
-import { useProgress } from '../store/progress';
-
-/** Six chaînes par partie : le pool en garde pour la suivante. */
-const ROUNDS = 6;
+import { Feedback, GameHeader, shuffle } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { stoneSeries, type StoneScenario } from '../data/game-stones';
 
 export default function SteppingStones() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(stoneScenarios).slice(0, ROUNDS).map((s) => ({ ...s, stones: shuffle(s.stones), fixes: shuffle(s.fixes) })), [seed]);
+  return (
+    <SeriesGame
+      gameId="stepping-stones"
+      title="Stepping Stones"
+      set={stoneSeries}
+      unit="chaînes"
+      intro="Huit séries : cinq de difficulté croissante, deux thématiques (l’argent et les factures, le cloud et le pipeline), et une « Mêlée » recomposée à chaque partie. Relie des findings « faibles » en une chaîne, puis casse-la avec un seul correctif."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<StoneScenario> }) {
+  const rounds = useMemo(
+    () => play.items.map((s) => ({ ...s, stones: shuffle(s.stones), fixes: shuffle(s.fixes) })),
+    [play.items],
+  );
   const [i, setI] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [chainChecked, setChainChecked] = useState(false);
@@ -36,15 +48,14 @@ export default function SteppingStones() {
   };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round(points / rounds.length));
       setDone(true);
-      recordScore('stepping-stones', Math.round(points / rounds.length));
     } else { setI(i + 1); setSelected([]); setChainChecked(false); setFix(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setSelected([]); setChainChecked(false); setFix(null); setPoints(0); setDone(false); };
 
   if (done) {
     const pct = Math.round(points / rounds.length);
-    return <section className="block"><ScoreScreen pct={pct} title="Chaînes reconstituées et cassées" onRetry={restart} /></section>;
+    return <SeriesScore play={play} pct={pct} title="Chaînes reconstituées et cassées" />;
   }
 
   const best = Math.max(...r.fixes.map((f) => f.points));
@@ -53,11 +64,12 @@ export default function SteppingStones() {
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="stepping-stones" title="Stepping Stones" current={i} total={rounds.length} extra={<span className="tag mono">{Math.round(points)} pts</span>} />
+        <GameHeader id="stepping-stones" title={`Stepping Stones · ${play.info.title}`} level={play.info.level} current={i} total={rounds.length} extra={<span className="tag mono">{Math.round(points)} pts</span>} />
         <div className="card q-card">
           <span className="label">Objectif de l’attaquant</span>
           <h3 style={{ marginTop: 10 }}>{r.goal}</h3>
           <p className="muted small" style={{ margin: '8px 0 0' }}>{r.story}</p>
+          {r.real && <p className="muted small" style={{ margin: '6px 0 0', fontStyle: 'italic' }}>Inspiré d’un cas réel : {r.real}.</p>}
         </div>
         <p className="q-hint">{chainChecked ? 'Voici la chaîne.' : 'Sélectionne les findings qui, ensemble, permettent d’atteindre l’objectif.'}</p>
         <div className="stone-grid">

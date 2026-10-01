@@ -1,0 +1,66 @@
+# Déploiement sur un VPS. La base SQLite vit dans le volume nommé `appsec-data`,
+# jamais dans l'image : un `docker compose up -d --build` remplace le conteneur
+# sans toucher aux comptes ni à la progression.
+#
+#   docker compose up -d --build                    # l'app seule, derrière un proxy déjà installé sur l'hôte
+#   docker compose --profile proxy up -d --build    # l'app + Caddy, qui termine le TLS sur 80/443
+name: appsec-academy
+
+services:
+  app:
+    build: .
+    image: appsec-academy:latest
+    restart: unless-stopped
+    # Node gère SIGTERM lui-même (arrêt propre, fermeture de la base) ; `init` récolte
+    # les processus orphelins si une commande `exec` est interrompue.
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4300
+      # Dans le volume, pas dans la couche du conteneur.
+      DATABASE_PATH: /data/appsec.db
+      # Obligatoire : le serveur refuse de démarrer sans, et en https uniquement.
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?manquant — copie .env.example vers .env}
+      # 1 = un seul proxy de confiance devant le serveur. Sans ça, toutes les requêtes
+      # semblent venir de la même IP et les limites de tentatives deviennent communes.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+    volumes:
+      - appsec-data:/data
+    ports:
+      # Par défaut sur la boucle locale : c'est le reverse proxy qui est exposé, pas le serveur.
+      # docker-compose.http.yml ouvre cette adresse pour un accès direct, sans TLS.
+      - "${BIND_ADDR:-127.0.0.1}:${BIND_PORT:-4300}:4300"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    # Démarre seulement avec `--profile proxy` : inutile si l'hôte a déjà un Nginx ou un Caddy.
+    profiles: ["proxy"]
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      # Même valeur que pour l'app : c'est l'adresse du site dans le Caddyfile.
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Les certificats : ce volume évite de redemander un certificat à chaque redéploiement
+      # (Let's Encrypt limite le nombre de demandes par domaine et par semaine).
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+volumes:
+  appsec-data:
+  caddy-data:
+  caddy-config:

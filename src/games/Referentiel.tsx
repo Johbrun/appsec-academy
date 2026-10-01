@@ -1,16 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
-import { refItems, referentiels } from '../data/game-referentiel';
-import { useProgress } from '../store/progress';
+import { Feedback, GameHeader } from '../components/ui';
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { refSeries, referentiels, type RefItem } from '../data/game-referentiel';
 
-const ROUNDS = 15;
 const SECONDS = 120;
 
 export default function Referentiel() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(refItems).slice(0, ROUNDS), [seed]);
+  return (
+    <SeriesGame
+      gameId="referentiel"
+      title="Quel référentiel ?"
+      set={refSeries}
+      unit="intitulés"
+      intro="Huit séries, des intitulés qui portent le nom de leur liste jusqu’aux faux amis qui en évoquent une autre. Sept référentiels OWASP, un seul bon à chaque fois, deux minutes par série."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<RefItem> }) {
+  const rounds = play.items;
   const [i, setI] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [score, setScore] = useState(0);
@@ -26,7 +37,7 @@ export default function Referentiel() {
 
   function finish(final: number) {
     setDone(true);
-    recordScore('referentiel', Math.round((final / ROUNDS) * 100));
+    play.finish(Math.round((final / rounds.length) * 100));
   }
 
   const r = rounds[i];
@@ -39,21 +50,20 @@ export default function Referentiel() {
     if (i + 1 >= rounds.length) finish(score);
     else { setI(i + 1); setPicked(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setScore(0); setPicked(null); setLeft(SECONDS); setDone(false); };
 
-  if (done) return <section className="block"><ScoreScreen pct={Math.round((score / ROUNDS) * 100)} title={`${score} / ${ROUNDS} bien rangés`} onRetry={restart} /></section>;
+  if (done) return <SeriesScore play={play} pct={Math.round((score / rounds.length) * 100)} title={`${score} / ${rounds.length} bien rangés`} />;
 
   const right = referentiels.find((x) => x.id === r.ref)!;
   return (
     <section className="block">
       <div className="game-wrap">
-        <GameHeader id="referentiel" title="Quel référentiel ?" current={i} total={rounds.length}
+        <GameHeader id="referentiel" title={`Quel référentiel ? · ${play.info.title}`} level={play.info.level} current={i} total={rounds.length}
           extra={<span className={`timer ${left <= 15 ? 'urgent' : ''}`}><span className="led pulse" />{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>} />
         <div className="card q-card center">
-          <span className="label">Risque ou chapitre</span>
+          <span className="label">Risque, menace ou chapitre</span>
           <h2 style={{ margin: '14px 0 0' }}>{r.label}</h2>
         </div>
-        <p className="q-hint">Dans quel référentiel OWASP le trouve-t-on ?</p>
+        <p className="q-hint">Dans quel référentiel OWASP le trouve-t-on sous cet intitulé exact ?</p>
         <div className="grid g2" style={{ gap: 10 }}>
           {referentiels.map((ref, k) => {
             const cls = picked ? (ref.id === r.ref ? 'correct' : ref.id === picked ? 'wrong' : '') : '';

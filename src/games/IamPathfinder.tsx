@@ -1,17 +1,28 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
+import { Feedback, GameHeader, shuffle } from '../components/ui';
 import { CodeBlock } from '../components/Code';
-import { pathAudits } from '../data/game-pathfinder';
-import { useProgress } from '../store/progress';
-
-/** On ne joue pas tout le pool : un second passage doit encore apprendre quelque chose. */
-const ROUNDS = 7;
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { pathSeries, type PathAudit } from '../data/game-pathfinder';
 
 export default function IamPathfinder() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(pathAudits).slice(0, ROUNDS).map((a) => ({ ...a, options: shuffle(a.fixes) })), [seed]);
+  return (
+    <SeriesGame
+      gameId="iam-pathfinder"
+      title="IAM Privesc Pathfinder"
+      set={pathSeries}
+      unit="audits"
+      intro="Huit séries, d’un seul saut vers admin à des chaînes de trois sauts avec impasse leurre. Trouve l’instruction qui élève les droits, puis la correction qui coupe le chemin."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<PathAudit> }) {
+  // L'ordre des corrections est retiré à chaque partie : la bonne ne doit pas
+  // se retrouver toujours à la même place.
+  const rounds = useMemo(() => play.items.map((a) => ({ ...a, options: shuffle(a.fixes) })), [play.items]);
   const [i, setI] = useState(0);
   const [sid, setSid] = useState<string | null>(null);
   const [fix, setFix] = useState<string | null>(null);
@@ -25,18 +36,27 @@ export default function IamPathfinder() {
   const pickFix = (f: string) => { if (fix) return; setFix(f); if (f === r.fixes[0]) setScore((x) => x + 1); };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round((score / total) * 100));
       setDone(true);
-      recordScore('iam-pathfinder', Math.round((score / total) * 100));
     } else { setI(i + 1); setSid(null); setFix(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setSid(null); setFix(null); setScore(0); setDone(false); };
 
-  if (done) return <section className="block"><ScoreScreen pct={Math.round((score / total) * 100)} title={`${score} / ${total} : chemins trouvés et coupés`} onRetry={restart} /></section>;
+  if (done) {
+    const pct = Math.round((score / total) * 100);
+    return <SeriesScore play={play} pct={pct} title={`${score} / ${total} : chemins trouvés et coupés`} />;
+  }
 
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="iam-pathfinder" title="IAM Privesc Pathfinder" current={i} total={rounds.length} extra={<span className="tag mono">{score} / {total}</span>} />
+        <GameHeader
+          id="iam-pathfinder"
+          title={`IAM Privesc Pathfinder · ${play.info.title}`}
+          level={play.info.level}
+          current={i}
+          total={rounds.length}
+          extra={<span className="tag mono">{score} / {total}</span>}
+        />
         <div className="card q-card">
           <span className="label mono">{r.role}</span>
           <p className="muted small" style={{ margin: '8px 0 0' }}>{r.purpose}</p>

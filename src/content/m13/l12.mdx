@@ -1,0 +1,214 @@
+export const questions = [
+  {
+    q: "Un test mesure une regex à 16 puis 20 caractères : 0,2 ms puis 3,8 ms. L'entrée la plus longue autorisée fait 40 caractères. Que fait le test ?",
+    options: [
+      "Il exécute directement le cas de 40 caractères et chronomètre le résultat réel",
+      "Il déduit le facteur de croissance, projette le temps à 40 et le compare au seuil",
+      "Il mesure à 18 caractères et prend la moyenne des trois temps comme référence",
+      "Il vérifie que 20 caractères restent sous 50 ms, la croissance étant supposée régulière",
+    ],
+    answer: 1,
+    explain: "Exécuter le pire cas est exactement ce qu'on cherche à éviter : avec un facteur d'environ deux par caractère, il tournerait pendant plus d'une heure et bloquerait la CI. Une moyenne de temps mesurés ne dit rien du pire cas, et rester sous 50 ms à 20 caractères prouve seulement que 20 caractères passent. Deux mesures donnent la base de la croissance, qu'on prolonge jusqu'à la limite autorisée pour décider si ce coût est tolérable.",
+  },
+  {
+    q: "Pour la CI, quel réglage de ressources donne un signal exploitable sur l'empreinte mémoire d'une suite d'intégration, selon Kohnfelder ?",
+    options: [
+      "Une mémoire très généreuse, pour que les tests ne soient jamais ralentis par le ramasse-miettes",
+      "Une mémoire identique à celle de la production, afin que le comportement soit comparable",
+      "Environ 80 % de la mémoire de production : un succès garantit alors une marge de 20 %",
+      "Une mémoire proche de celle du poste du développeur, pour reproduire les échecs localement",
+    ],
+    answer: 2,
+    explain: "Avec les ressources exactes de la production, un test réussi ne dit rien de la marge : il peut passer à 1 % du plafond. Une mémoire généreuse masque la dérive, et celle d'un poste de développement n'a aucun rapport avec la cible. À 80 %, la réussite devient une preuve d'une marge de 20 %, et une consommation qui grimpe fait tomber la CI avant la production. Les tests unitaires, eux, tournent volontairement avec très peu de mémoire.",
+  },
+  {
+    q: "Une table Postgres a une clé `id SERIAL`. Quelle surveillance prévient l'incident avant que les insertions échouent ?",
+    options: [
+      "Une alerte quand l'espace disque libre de la base passe sous un seuil donné",
+      "Une alerte quand `last_value` approche de `max_value` dans `pg_sequences`, avec le rythme de croissance",
+      "Une alerte sur le nombre de lignes de la table, rapporté à la taille maximale de la colonne",
+      "Une alerte sur le taux d'erreurs 5xx de l'API, qui monte dès que les insertions échouent",
+    ],
+    answer: 1,
+    explain: "L'espace disque est une autre limite dure, pas celle-ci : une table peut manquer de numéros avec un disque quasi vide. Le nombre de lignes est un mauvais indicateur, car les identifiants sautent (transactions annulées, suppressions) : la séquence avance plus vite que le nombre de lignes. Quant au taux d'erreurs 5xx, il prévient quand l'incident a déjà eu lieu. La vue `pg_sequences` expose exactement la position et le plafond ; ramenée à un rythme, elle donne un délai avant l'échéance.",
+  },
+  {
+    q: "Un test de fuite cherche le mot de passe d'un compte sentinelle dans les logs, et la sortie contient `S3nt\\\"nel` au lieu de `S3nt\"nel`. Que s'est-il passé ?",
+    options: [
+      "Le logger a chiffré le champ, ce qui prouve que la redaction est active sur ce chemin",
+      "Le caractère a été échappé par la sérialisation JSON : la recherche doit viser la forme encodée",
+      "La chaîne a été tronquée par pino, qui limite par défaut la longueur de chaque champ",
+      "Le test a généré deux sentinelles différentes, une pour la requête et une pour l'assertion",
+    ],
+    answer: 1,
+    explain: "La barre oblique inverse ajoutée devant un guillemet n'a rien d'un chiffrement : c'est l'échappement normal d'une chaîne JSON, qui fait manquer la fuite à une recherche littérale. Rien dans ce symptôme n'évoque une troncature ni deux sentinelles différentes. Le test passerait au vert alors que le mot de passe est dans le journal : on choisit une sentinelle sans caractère à échapper, ou on cherche aussi ses formes encodées (JSON, URL, base64).",
+  },
+];
+
+<YouKnow>
+En pentest, tu pousses un système jusqu'à ce qu'il casse. Côté AppSec, on ne casse pas la CI : on **prédit** la cassure par des mesures bon marché, on **vérifie la marge** avant qu'elle s'épuise, et on **cherche une fuite** qu'on a soi-même plantée.
+</YouKnow>
+
+## Ce que les tests fonctionnels ne voient pas
+
+Le chapitre 12 de Kohnfelder regroupe quatre défauts qui ne font jamais échouer le chemin heureux : un coût qui explose sur certaines entrées, une consommation hors des ressources disponibles, une limite dure atteinte sans préavis, une donnée privée qui fuit par un canal imprévu.
+
+## Mesurer un coût non linéaire sans l'exécuter
+
+Le test ReDoS de la leçon 4 du module 5 chronomètre le pire cas, ce qui suppose qu'on puisse l'exécuter. Face à un coût exponentiel, Kohnfelder propose de mesurer à deux tailles voisines, d'en déduire le **facteur de croissance par unité d'entrée**, puis de **projeter** le temps à la taille maximale autorisée sans l'atteindre. Son exemple : 1 s à 20 caractères, 2 s à 21, donc environ 1 024 s à 30. Même raisonnement pour l'expansion d'entités XML ou un parseur récursif.
+
+Chez Novafact, la référence d'une facture importée est validée par une regex :
+
+<Code file="apps/api/src/imports/reference.ts">
+
+```ts
+export const MAX_REF_LEN = 40;
+export const isValidRef = (s: string) => /^([A-Z0-9]+-?)+$/.test(s);   // groupes imbriqués : retour arrière exponentiel
+```
+
+</Code>
+
+<Code file="apps/api/test/reference.cost.test.ts" hl="6,10,11">
+
+```ts
+import { performance } from 'node:perf_hooks';
+import { expect, test } from 'vitest';
+import { isValidRef, MAX_REF_LEN } from '../src/imports/reference';
+
+function cost(fn: (s: string) => unknown, len: number) {
+  const input = 'A'.repeat(len) + '!';                 // le « ! » force l'échec, donc le retour arrière
+  fn(input);                                           // chauffe : JIT, compilation de la regex
+  let best = Infinity;
+  for (let i = 0; i < 5; i++) { const t0 = performance.now(); fn(input); best = Math.min(best, performance.now() - t0); }
+  return best;
+}
+
+test('le coût projeté à la taille maximale reste sous 50 ms', () => {
+  const [n, k] = [16, 4];
+  const t1 = cost(isValidRef, n), t2 = cost(isValidRef, n + k);
+  const growth = Math.max(1, (t2 / t1) ** (1 / k));    // facteur par caractère, jamais < 1 : sous le bruit, on suppose « pas mieux »
+  expect(t2 * growth ** (MAX_REF_LEN - (n + k))).toBeLessThan(50);
+});
+```
+
+</Code>
+
+Sur le code vulnérable, la mesure donne environ 0,23 ms à 16 caractères et 3,8 ms à 20 (notre machine) : facteur proche de 2, projection à 40 supérieure à l'heure, test qui échoue en quelques millisecondes. Le mauvais correctif est d'**abaisser `MAX_REF_LEN`** : à 64, la projection se compte en années, et même à 40 le test échoue encore. Borner sans changer l'algorithme déplace la limite sans la supprimer. Le vrai correctif retire l'ambiguïté, puis garde la borne :
+
+<Diff file="apps/api/src/imports/reference.ts" hlBefore="2" hlAfter="2">
+
+```ts
+export const isValidRef = (s: string) => /^([A-Z0-9]+-?)+$/.test(s);
+```
+
+```ts
+export const isValidRef = (s: string) => s.length <= MAX_REF_LEN && /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(s);
+```
+
+</Diff>
+
+Le facteur retombe vers 1 ; un test jumeau vérifie que `FA-2026-0042` passe toujours.
+
+<Callout kind="warn">
+La mesure est un modèle. **Bruit** : sous la microseconde, le rapport de deux temps ne veut rien dire, d'où le meilleur de plusieurs passes et le plancher. **JIT** : la première passe est plus lente, d'où la chauffe. **Ramasse-miettes** : il injecte des pauses au hasard. Deux points peuvent ne pas suffire (Kohnfelder) : ajoute une troisième taille et vérifie que les facteurs concordent.
+</Callout>
+
+## Tester sous ressources contraintes
+
+Kohnfelder fait tourner les **tests unitaires** avec peu de mémoire (si la suite atteint la limite, cela mérite une enquête) et les **tests d'intégration** avec environ **80 %** des ressources de production : un succès démontre alors une marge de 20 %, et une régression gourmande fait tomber la CI avant la production.
+
+Côté Node, `--max-old-space-size=SIZE` (en MiB) plafonne l'ancienne génération du tas, et `--max-semi-space-size=SIZE` la jeune. Pour la suite : `NODE_OPTIONS=--max-old-space-size=256 npx vitest run`. Vérifie le réglage avec `v8.getHeapStatistics().heap_size_limit` (valeur un peu supérieure : elle inclut la jeune génération). Le conteneur ajoute l'autre plafond : `docker run --memory=512m --cpus=1.5` limite la mémoire (le noyau tue les processus qui la dépassent) et le CPU.
+
+## Alerter avant le mur
+
+Kohnfelder cite un compteur 32 bits repassé de 2 147 483 647 à 0, qui a dupliqué les identifiants des premiers objets ; une alerte à 0,99 × INT_MAX l'aurait évité. Chez Novafact, les murs à surveiller :
+
+| Limite | Valeur | Alerte utile |
+| --- | --- | --- |
+| Colonne `integer` / `serial` Postgres | 2 147 483 647 | `last_value` / `max_value` dans `pg_sequences`, avec le rythme |
+| Disque | capacité du volume | délai projeté avant saturation, pas un seuil à 99 % |
+| Certificats, clés, jetons | `notAfter`, `exp` | échéance à 30 puis 7 jours, partenaires compris |
+| Secondes Unix sur 32 bits signés | 19 janvier 2038, 03:14:07 UTC | inventaire des champs et bibliothèques concernés |
+
+```sql
+SELECT sequencename, data_type, last_value, max_value, round(100.0 * last_value / max_value, 2) AS pct_used
+FROM pg_sequences WHERE last_value IS NOT NULL   -- NULL : jamais lue, ou droits insuffisants
+ORDER BY pct_used DESC;
+```
+
+Une colonne `serial` repose sur `integer` ; sans `CYCLE`, `nextval` renvoie une erreur au maximum : les insertions s'arrêtent. Passer en `bigint` à 80 % est une migration ; à 100 %, un incident. Pour le disque, Kohnfelder préfère extrapoler une série de mesures plutôt que fixer un seuil arbitraire : même raisonnement que plus haut.
+
+<Callout kind="case">
+Le 1er mai 2015, la FAA a publié une consigne de navigabilité sur les Boeing 787 : un appareil sous tension en continu pendant 248 jours peut perdre toute son alimentation en courant alternatif, car les unités de contrôle des générateurs passent simultanément en mode de sécurité. La cause décrite est un compteur logiciel interne qui déborde après 248 jours. La consigne imposait une mise hors tension périodique en attendant un correctif. Aucun test fonctionnel ne dure 248 jours.
+</Callout>
+
+## Chercher une fuite par sentinelle
+
+Kohnfelder décrit un test d'intégration simple : se connecter avec un faux compte dont le mot de passe est une chaîne **distinctive**, puis chercher cette chaîne partout où elle ne devrait pas apparaître : journaux, fichiers résiduels, caches, pages, sorties d'erreur. Il l'associe au cas de 2018 d'une plateforme sociale qui écrivait des mots de passe en clair dans un journal (leçon 1 du module 18). En Node, on capture la sortie de pino dans un flux :
+
+<Code file="apps/api/src/routes/login.ts" hl="3,5">
+
+```ts
+app.post('/login', express.json(), (req, res) => {
+  const { email, password } = req.body;
+  req.log.info({ body: req.body }, 'login');                 // « pour déboguer »
+  if (!verify(email, password)) {
+    req.log.warn({ attempt: req.body }, 'échec de connexion');
+    return res.status(401).json({ error: 'invalid_credentials' });
+  }
+  res.json({ ok: true });
+});
+```
+
+</Code>
+
+<Code file="apps/api/test/leak.sentinel.test.ts">
+
+```ts
+const SENTINEL = 'S3ntinelPwd/123!abc$XYZ';   // sans guillemet ni antislash : le JSON ne l'altère pas
+
+test('le mot de passe ne sort dans aucune sortie observable', async () => {
+  const lines: string[] = [];
+  const sink = new Writable({ write(chunk, _enc, cb) { lines.push(chunk.toString()); cb(); } });
+  const app = createApp({ logDestination: sink });          // pino(options, destination)
+
+  const res = await request(app).post('/login').send({ email: 'sentinel@acme.example', password: SENTINEL });
+  expect(res.status).toBe(401);                             // le chemin d'échec journalise le plus
+
+  const observed = [lines.join(''), JSON.stringify(res.body), JSON.stringify(res.headers)].join('\n');
+  for (const form of [SENTINEL, encodeURIComponent(SENTINEL), Buffer.from(SENTINEL).toString('base64')]) {
+    expect(observed).not.toContain(form);
+  }
+});
+```
+
+</Code>
+
+Sur le code vulnérable, le test échoue. Le mauvais correctif classique est de **masquer le champ** : `pino({ redact: ['body.password'] })`. La première ligne devient propre, et le test échoue encore : la seconde journalise le même objet sous `attempt`, un chemin que personne n'avait listé. La redaction ne connaît que des noms de chemins ; le test cherche la **valeur**. Le vrai correctif cesse de recopier l'objet reçu et construit l'événement champ par champ (`securityEvent`, leçon 1 du module 18), la redaction restant un filet. Limite : le test ne trouve que les formes cherchées, dans les sorties capturées ; ses données restent fictives (leçon 8).
+
+## Deux garde-fous en plus : le linter et le commentaire
+
+Trois règles ESLint ciblent des formes proches de GotoFail. `curly` impose les accolades (option par défaut `"all"`), ce qui retire l'ambiguïté d'une ligne qui semble dépendre du `if`. `no-unreachable`, sans option et dans `eslint:recommended`, signale le code après un `return`, un `throw` ou un `break`, la forme JavaScript d'un `goto` dupliqué. `no-cond-assign`, aussi dans `eslint:recommended`, refuse `if (x = 0)` : `"except-parens"` (défaut) tolère l'affectation entre parenthèses supplémentaires, `"always"` l'interdit. Elles attrapent des formes, le test de refus l'effet.
+
+Documenter la sécurité dans le code complète le test : un commentaire utile dit **la conséquence** (« ne pas retirer le filtre `tenant_id` : la facture d'un autre client deviendrait lisible, voir `invoices.authz.test.ts` »). Il retient le relecteur, et le test contredit celui qui supprime quand même.
+
+<Recap items={[
+  "Un coût non linéaire se teste par extrapolation : deux tailles, un facteur de croissance, une projection à la taille maximale, un seuil.",
+  "Le test de projection est un modèle : chauffe, meilleur de plusieurs passes, plancher contre le bruit.",
+  "Peu de mémoire en unitaire, environ 80 % de la production en intégration ; Node par `--max-old-space-size`, le conteneur par ses limites.",
+  "Une limite dure s'alerte avant d'être atteinte : séquences `serial`, disque, certificats, jetons, 2038.",
+  "Un compte sentinelle recherché dans toutes les sorties, sous leurs formes encodées, trouve ce que la redaction ne voit pas.",
+]} />
+
+<Sources items={[
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 12, Security Testing : disponibilité, seuils, intégration" },
+  { title: "Node.js : options de ligne de commande", url: "https://nodejs.org/docs/latest-v22.x/api/cli.html" },
+  { title: "PostgreSQL : types numériques", url: "https://www.postgresql.org/docs/current/datatype-numeric.html" },
+  { title: "PostgreSQL : CREATE SEQUENCE", url: "https://www.postgresql.org/docs/current/sql-createsequence.html" },
+  { title: "PostgreSQL : vue pg_sequences", url: "https://www.postgresql.org/docs/current/view-pg-sequences.html" },
+  { title: "Docker : contraintes de ressources", url: "https://docs.docker.com/engine/containers/resource_constraints/" },
+  { title: "ESLint : no-unreachable", url: "https://eslint.org/docs/latest/rules/no-unreachable" },
+  { title: "ESLint : curly", url: "https://eslint.org/docs/latest/rules/curly" },
+  { title: "ESLint : no-cond-assign", url: "https://eslint.org/docs/latest/rules/no-cond-assign" },
+  { title: "Federal Register : consigne FAA sur le Boeing 787 (2015-10066)", url: "https://www.federalregister.gov/documents/2015/05/01/2015-10066/airworthiness-directives-the-boeing-company-airplanes" },
+]} />

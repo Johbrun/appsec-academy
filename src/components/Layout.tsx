@@ -3,10 +3,18 @@ import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-route
 import { ArrowRight, Award, Check, ChevronDown, Menu, Moon, Sparkles, Sun, X } from 'lucide-react';
 import { Brand, Icon, Orb } from './ui';
 import { Identicon } from './Marks';
-import { levelFor, useProgress } from '../store/progress';
+import { levelFor, useProgress, type SyncState } from '../store/progress';
+import { useSession } from '../store/session';
 import { blocks, lessonKey, modules, pad2 } from '../data/catalog';
 import { availableGames, gameById, gameCategories } from '../data/games';
 import { isWritten } from '../lib/content';
+
+const syncLabel: Record<SyncState, string> = {
+  saved: 'Progression enregistrée',
+  saving: 'Enregistrement…',
+  offline: 'Hors ligne : nouvel essai automatique',
+  rejected: 'Enregistrement refusé par le serveur',
+};
 
 type Theme = 'light' | 'dark';
 const THEME_KEY = 'appsec-academy-theme';
@@ -142,7 +150,8 @@ function GamesSubNav({ gameId }: { gameId?: string }) {
 }
 
 export function Layout() {
-  const { progress, toasts } = useProgress();
+  const { progress, toasts, sync } = useProgress();
+  const { user } = useSession();
   const [theme, toggleTheme] = useTheme();
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
@@ -215,16 +224,18 @@ export function Layout() {
             <NavLink to="/labs" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Labs</NavLink>
             <NavLink to="/examens" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Examens</NavLink>
             <NavLink to="/bibliotheque" className={({ isActive }) => `nav-link opt ${isActive ? 'active' : ''}`}>Bibliothèque</NavLink>
+            {user?.role === 'teacher' && <NavLink to="/enseignant" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Enseignant</NavLink>}
           </nav>
 
           <div className="nav-right">
-            <Link to="/profil" className="xp-pill" title="Ma progression">
+            <Link to="/profil" className="xp-pill" title={`Ma progression · ${syncLabel[sync]}`}>
               <Identicon name={progress.name} size={28} />
               <span className="xp-meta">
                 <span className="label">Niv.{lvl.index} · {lvl.title}</span>
                 <span className="meter"><div style={{ width: `${lvl.pct}%` }} /></span>
               </span>
               <span className="xp-val">{progress.xp} XP</span>
+              <i className={`sync-dot ${sync}`} role="img" aria-label={syncLabel[sync]} />
             </Link>
             <button className="icon-btn" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Passer au thème clair' : 'Passer au thème sombre'} title={theme === 'dark' ? 'Thème clair' : 'Thème sombre'}>
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
@@ -239,6 +250,14 @@ export function Layout() {
 
       {moduleMatch && <ModuleSubNav moduleId={moduleMatch[1]} />}
       {inGames && <GamesSubNav gameId={gameMatch?.[1]} />}
+
+      {(sync === 'offline' || sync === 'rejected') && (
+        <div className="sync-banner" role="status">
+          <div className="container">{sync === 'offline'
+            ? 'Hors ligne : ta progression sera enregistrée dès que la connexion revient. Garde cet onglet ouvert.'
+            : 'Ta progression n’a pas pu être enregistrée : le serveur a refusé le document. Exporte-la depuis ton profil pour ne rien perdre.'}</div>
+        </div>
+      )}
 
       <main className="frame">
         <Outlet />
@@ -270,7 +289,7 @@ export function Layout() {
           </div>
           <div className="footer-legal">
             <span>Contenu pédagogique non officiel. OWASP, MITRE ATT&CK®, CSSLP® (ISC2) et Burp Suite (PortSwigger) sont des marques de leurs détenteurs respectifs.</span>
-            <span className="mono">Progression stockée dans ton navigateur</span>
+            <span className="mono">Progression enregistrée sur ton compte</span>
           </div>
         </div>
       </footer>
@@ -308,7 +327,8 @@ export function Layout() {
           </div>
           <div className="sheet-group">
             <span className="label">Mon espace · Niv.{lvl.index} · {progress.xp} XP</span>
-            <Link to="/profil" className={`sheet-link ${pathname === '/profil' ? 'active' : ''}`}><Orb palette="gold" xs />Progression & badges</Link>
+            <Link to="/profil" className={`sheet-link ${pathname === '/profil' ? 'active' : ''}`}><Orb palette="gold" xs />Progression & compte</Link>
+            {user?.role === 'teacher' && <Link to="/enseignant" className={`sheet-link ${pathname.startsWith('/enseignant') ? 'active' : ''}`}><Orb palette="purple" xs />Espace enseignant</Link>}
             <Link to={next?.to ?? '/parcours'} className="sheet-link"><Orb palette="signal" xs />{started ? 'Reprendre' : 'Commencer'} <ArrowRight size={14} /></Link>
           </div>
         </div>

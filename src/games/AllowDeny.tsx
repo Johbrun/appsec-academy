@@ -1,16 +1,26 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ArrowRight, Check, X } from 'lucide-react';
-import { Feedback, GameHeader, ScoreScreen, shuffle } from '../components/ui';
+import { Feedback, GameHeader } from '../components/ui';
 import { CodeBlock } from '../components/Code';
-import { iamCases, stepNames, type Step } from '../data/game-iam';
-import { useProgress } from '../store/progress';
-
-const ROUNDS = 8;
+import { SeriesGame, SeriesScore, type SeriesPlay } from '../components/Series';
+import { iamSeries, stepNames, type IamCase, type Step } from '../data/game-iam';
 
 export default function AllowDeny() {
-  const { recordScore } = useProgress();
-  const [seed, setSeed] = useState(0);
-  const rounds = useMemo(() => shuffle(iamCases).slice(0, ROUNDS), [seed]);
+  return (
+    <SeriesGame
+      gameId="allow-deny"
+      title="Allow or Deny ?"
+      set={iamSeries}
+      unit="requêtes"
+      intro="Neuf séries, d’une politique d’identité isolée à l’évaluation cross-account complète. Prédis la décision d’AWS, puis nomme l’étape qui tranche."
+    >
+      {(play) => <Round play={play} />}
+    </SeriesGame>
+  );
+}
+
+function Round({ play }: { play: SeriesPlay<IamCase> }) {
+  const rounds = play.items;
   const [i, setI] = useState(0);
   const [decision, setDecision] = useState<'allow' | 'deny' | null>(null);
   const [step, setStep] = useState<Step | null>(null);
@@ -24,18 +34,27 @@ export default function AllowDeny() {
   const pickStep = (s: Step) => { if (step) return; setStep(s); if (s === r.step) setScore((x) => x + 1); };
   const next = () => {
     if (i + 1 >= rounds.length) {
+      play.finish(Math.round((score / total) * 100));
       setDone(true);
-      recordScore('allow-deny', Math.round((score / total) * 100));
     } else { setI(i + 1); setDecision(null); setStep(null); }
   };
-  const restart = () => { setSeed(seed + 1); setI(0); setDecision(null); setStep(null); setScore(0); setDone(false); };
 
-  if (done) return <section className="block"><ScoreScreen pct={Math.round((score / total) * 100)} title={`${score} / ${total} : décisions IAM prédites`} onRetry={restart} /></section>;
+  if (done) {
+    const pct = Math.round((score / total) * 100);
+    return <SeriesScore play={play} pct={pct} title={`${score} / ${total} : décisions IAM prédites`} />;
+  }
 
   return (
     <section className="block">
       <div className="game-wrap wide">
-        <GameHeader id="allow-deny" title="Allow or Deny ?" current={i} total={rounds.length} extra={<span className="tag mono">{score} / {total}</span>} />
+        <GameHeader
+          id="allow-deny"
+          title={`Allow or Deny ? · ${play.info.title}`}
+          level={play.info.level}
+          current={i}
+          total={rounds.length}
+          extra={<span className="tag mono">{score} / {total}</span>}
+        />
         <div className="card q-card">
           <span className="label">Requête</span>
           <h3 style={{ marginTop: 12 }} className="iam-request">{r.request}</h3>

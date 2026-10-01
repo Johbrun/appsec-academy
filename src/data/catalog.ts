@@ -75,6 +75,8 @@ export const modules: ModuleMeta[] = [
       L('l06', 'React et le navigateur', 2, ['D4', 'D5'], 'Sinks XSS de React, jetons, CSRF, CORS et postMessage.', [11]),
       L('l07', 'Next.js, RSC et Server Actions', 3, ['D5'], 'Des endpoints publics qui ne se voient pas, et trois CVE récentes à connaître.'),
       L('l08', 'Éliminer une classe entière', 3, ['D5'], 'Wrappers sûrs, règles de lint et paved roads plutôt que correctifs au cas par cas.'),
+      L('l09', 'XML, DTD et XXE', 2, ['D5'], 'Entités externes, expansion d’entités et parseurs XML sûrs dans Node.', [10]),
+      L('l10', 'HTML côté serveur, XSS et jetons CSRF', 2, ['D4', 'D5'], 'Contexte de sortie, moteurs de templates, jetons liés à la session et secrets dans l’URL.', [11]),
     ],
   },
   {
@@ -165,6 +167,8 @@ export const modules: ModuleMeta[] = [
       L('l08', 'Crypto pour développeurs', 2, ['D1', 'D5'], 'CSPRNG, MAC, signatures, KMS et agilité cryptographique.', [5]),
       L('l09', 'Conception d’interfaces', 3, ['D4'], 'Interfaces d’administration, de logs et entre services.'),
       L('l10', 'Patterns d’architecture', 3, ['D4', 'D5'], 'Gateway, BFF, services, upload isolé et tokenisation.'),
+      L('l11', 'TLS et certificats en pratique', 2, ['D1', 'D5'], 'Vérification du nom, confidentialité persistante, CAA et Certificate Transparency, et le cas DigiNotar.', [5, 11]),
+      L('l12', 'Crypto : hash, nonces et métadonnées', 2, ['D1', 'D5'], 'Ce qu’un hash ne prouve pas, ce que fuit un nonce réutilisé, RSA brut et ce que le chiffrement laisse voir.', [5]),
     ],
   },
   {
@@ -232,6 +236,7 @@ export const modules: ModuleMeta[] = [
       L('l09', 'Inspecter du code malveillant', 3, ['D5', 'D8'], 'Backdoors, bombes logiques et le cas xz utils.', [12]),
       L('l10', 'L’IA dans l’analyse de code', 3, ['D5', 'D6'], 'Revue par LLM, agents de pentest et leurs limites.'),
       L('l11', 'Bâtir la plateforme', 3, ['D6'], 'Orchestration, dédoublonnage et critères de blocage.'),
+      L('l12', 'Tests de limites, de ressources et de fuites', 2, ['D6'], 'Extrapoler un coût non linéaire, tester sous contrainte, alerter avant la limite et chercher une fuite par sentinelle.', [12]),
     ],
   },
   {
