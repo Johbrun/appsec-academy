@@ -70,12 +70,12 @@ Une tâche ECS a **deux rôles**, et la confusion entre les deux est le finding 
 - le **rôle d'exécution** sert à l'agent ECS : tirer l'image depuis ECR, lire les secrets injectés par `secrets`, écrire les logs ;
 - le **rôle de la tâche** est celui que ton code obtient via le SDK : lire le bucket des factures, envoyer par SES.
 
-Une RCE dans l'API obtient le rôle de la tâche. S'il contient les droits d'infrastructure du rôle d'exécution (ou l'inverse), le rayon d'action explose. Chaque service a son propre rôle de tâche, limité aux ARN qu'il utilise (M15).
+Une RCE dans l'API obtient le rôle de la tâche. S'il contient les droits d'infrastructure du rôle d'exécution (ou l'inverse), le rayon d'action explose. Chaque service a son propre rôle de tâche, limité aux ARN qu'il utilise (M19).
 
-Deux autres réglages comptent. **ECS Exec** (`enableExecuteCommand`) ouvre une session interactive dans un conteneur : utile en incident, dangereux en permanence. Réserve `ecs:ExecuteCommand` à un rôle d'astreinte et journalise les sessions. Et **l'accès aux identifiants** : Fargate n'expose pas l'IMDS d'EC2, les identifiants passent par un point de terminaison local dont le chemin aléatoire est fourni dans la variable `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`. Une SSRF seule a donc plus de mal à les atteindre qu'avec l'IMDSv1 ; une SSRF qui peut aussi lire l'environnement du processus, non. Le filtrage des sorties (M3) reste nécessaire.
+Deux autres réglages comptent. **ECS Exec** (`enableExecuteCommand`) ouvre une session interactive dans un conteneur : utile en incident, dangereux en permanence. Réserve `ecs:ExecuteCommand` à un rôle d'astreinte et journalise les sessions. Et **l'accès aux identifiants** : Fargate n'expose pas l'IMDS d'EC2, les identifiants passent par un point de terminaison local dont le chemin aléatoire est fourni dans la variable `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`. Une SSRF seule a donc plus de mal à les atteindre qu'avec l'IMDSv1 ; une SSRF qui peut aussi lire l'environnement du processus, non. Le filtrage des sorties (M9) reste nécessaire.
 
 <Callout kind="case">
-**Capital One (2019)**. Un pare-feu applicatif auto-hébergé sur EC2, mal configuré, permettait une SSRF vers le service de métadonnées de l'instance, alors en IMDSv1. Les identifiants du rôle obtenus donnaient la lecture de buckets S3 contenant les données de plus de 100 millions de clients. Trois contrôles de cette leçon et de M15 cassent la chaîne : IMDSv2 obligatoire (ou pas d'IMDS du tout, comme sur Fargate), un rôle limité à ce que le service utilise vraiment, et des points de terminaison VPC avec politique de périmètre de données.
+**Capital One (2019)**. Un pare-feu applicatif auto-hébergé sur EC2, mal configuré, permettait une SSRF vers le service de métadonnées de l'instance, alors en IMDSv1. Les identifiants du rôle obtenus donnaient la lecture de buckets S3 contenant les données de plus de 100 millions de clients. Trois contrôles de cette leçon et de M19 cassent la chaîne : IMDSv2 obligatoire (ou pas d'IMDS du tout, comme sur Fargate), un rôle limité à ce que le service utilise vraiment, et des points de terminaison VPC avec politique de périmètre de données.
 </Callout>
 
 ## Lambda
@@ -121,7 +121,7 @@ Une politique `default-deny` en sortie coupe aussi le DNS : ajoute une politique
 
 ## CloudFront et AWS WAF
 
-CloudFront est la porte d'entrée publique de Novafact ; AWS WAF y est associé. Une web ACL pour CloudFront a la portée `CLOUDFRONT` et se crée dans `us-east-1`. Les **règles gérées** d'AWS couvrent le générique : `AWSManagedRulesCommonRuleSet` (le socle OWASP), `AWSManagedRulesKnownBadInputsRuleSet` (motifs d'exploits connus, mis à jour lors des critiques comme React2Shell, leçon 8), `AWSManagedRulesAmazonIpReputationList`, plus Bot Control et la protection des connexions (M10). Les **règles rate-based** limitent le débit par clé d'agrégation (IP, en-tête, clés personnalisées) sur une fenêtre de 60, 120, 300 ou 600 secondes, avec une limite minimale de 10 requêtes ; la limitation est approximative, pas exacte.
+CloudFront est la porte d'entrée publique de Novafact ; AWS WAF y est associé. Une web ACL pour CloudFront a la portée `CLOUDFRONT` et se crée dans `us-east-1`. Les **règles gérées** d'AWS couvrent le générique : `AWSManagedRulesCommonRuleSet` (le socle OWASP), `AWSManagedRulesKnownBadInputsRuleSet` (motifs d'exploits connus, mis à jour lors des critiques comme React2Shell, leçon 8), `AWSManagedRulesAmazonIpReputationList`, plus Bot Control et la protection des connexions (M15). Les **règles rate-based** limitent le débit par clé d'agrégation (IP, en-tête, clés personnalisées) sur une fenêtre de 60, 120, 300 ou 600 secondes, avec une limite minimale de 10 requêtes ; la limitation est approximative, pas exacte.
 
 <Code file="infra/terraform/edge/waf.tf" hl="4,13,20,42,43">
 
@@ -202,7 +202,7 @@ resource "aws_wafv2_web_acl" "edge" {
 
 </Code>
 
-Le WAF ne protège que ce qui passe par CloudFront. **Verrouille l'origine** : avec une **VPC origin**, l'ALB vit dans un sous-réseau privé et n'accepte que le groupe de sécurité géré par CloudFront (`CloudFront-VPCOrigins-Service-SG`) ; à défaut, restreins le groupe de sécurité de l'ALB à la liste de préfixes gérée de CloudFront et exige un en-tête secret ajouté par CloudFront. Enfin, le cache est une surface : la politique de cache décide de la clé, et l'API répond `Cache-Control: private, no-store` sur toute réponse authentifiée (M3, cache poisoning et cache deception).
+Le WAF ne protège que ce qui passe par CloudFront. **Verrouille l'origine** : avec une **VPC origin**, l'ALB vit dans un sous-réseau privé et n'accepte que le groupe de sécurité géré par CloudFront (`CloudFront-VPCOrigins-Service-SG`) ; à défaut, restreins le groupe de sécurité de l'ALB à la liste de préfixes gérée de CloudFront et exige un en-tête secret ajouté par CloudFront. Enfin, le cache est une surface : la politique de cache décide de la clé, et l'API répond `Cache-Control: private, no-store` sur toute réponse authentifiée (M9, cache poisoning et cache deception).
 
 ## ALB : le mode desync mitigation
 
@@ -215,7 +215,7 @@ L'ALB classe chaque requête HTTP/1.1 avec la bibliothèque `http_desync_guardia
 | Ambiguous (interprétations divergentes possibles) | Autorisée | Routée, connexions fermées | Bloquée |
 | Severe (risque élevé) | Autorisée | Bloquée (400) | Bloquée |
 
-`defensive` est un bon défaut. `strictest` convient quand tous les clients sont des navigateurs et des SDK conformes, après une période d'observation. La métrique `DesyncMitigationMode_NonCompliant_Request_Count` et la classification présente dans les logs d'accès de l'ALB alimentent une détection dans Elastic (M18). Ajoute `routing.http.drop_invalid_header_fields.enabled` (désactivé par défaut), qui retire les en-têtes aux noms invalides, et garde le parseur HTTP de Node en mode strict : jamais `--insecure-http-parser` (M3).
+`defensive` est un bon défaut. `strictest` convient quand tous les clients sont des navigateurs et des SDK conformes, après une période d'observation. La métrique `DesyncMitigationMode_NonCompliant_Request_Count` et la classification présente dans les logs d'accès de l'ALB alimentent une détection dans Elastic (M24). Ajoute `routing.http.drop_invalid_header_fields.enabled` (désactivé par défaut), qui retire les en-têtes aux noms invalides, et garde le parseur HTTP de Node en mode strict : jamais `--insecure-http-parser` (M9).
 
 <Lab id="ps-smuggling" note="Pour chaque technique, demande-toi quelle classification l'ALB lui donnerait et quel mode la bloque." />
 
@@ -243,7 +243,7 @@ Le front React de Novafact est un site statique dans S3. Le bucket reste **priv�
 
 </Code>
 
-Sans la condition `AWS:SourceArn`, n'importe quelle distribution CloudFront de n'importe quel compte pourrait servir ton bucket : c'est le problème du *confused deputy* vu en M15. Si le bucket est chiffré en SSE-KMS, la politique de la clé doit aussi autoriser CloudFront avec la même condition.
+Sans la condition `AWS:SourceArn`, n'importe quelle distribution CloudFront de n'importe quel compte pourrait servir ton bucket : c'est le problème du *confused deputy* vu en M19. Si le bucket est chiffré en SSE-KMS, la politique de la clé doit aussi autoriser CloudFront avec la même condition.
 
 <Callout kind="novafact">
 Revue de plateforme avant l'ouverture du SSO entreprise (constats fictifs) : l'ALB de l'API était public, donc le WAF contournable, migré vers une VPC origin ; une function URL du webhook du prestataire en `AuthType: NONE` sans vérification de signature ; un rôle d'exécution ECS partagé par les trois services, avec `s3:*` ; le namespace des workers IA sans aucun label PSS. Le mode desync est resté en `defensive` : 0,02 % de requêtes Acceptable venaient d'un vieux client ERP d'un grand compte.

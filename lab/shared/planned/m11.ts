@@ -1,4 +1,4 @@
-// M11 · Threat modeling & MITRE — challenges spécifiés.
+// m11 · Threat modeling & MITRE — challenges spécifiés.
 //
 // Formats vérifiés en exécution réelle (pytm 1.4.0 lancé, Threagile lancé en
 // conteneur sans réseau, schémas lus dans les dépôts) :

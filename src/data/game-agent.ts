@@ -1,4 +1,4 @@
-// Jeu « Agent Blast Radius » (M19) : configurer les outils d'un agent IA de Novafact pour bloquer
+// Jeu « Agent Blast Radius » (M28) : configurer les outils d'un agent IA de Novafact pour bloquer
 // les injections sans casser les usages légitimes.
 //
 // Le fil conducteur est la **lethal trifecta** (Simon Willison, juin 2025) : un agent qui réunit
@@ -9,7 +9,7 @@
 // d'état ou communiquer vers l'extérieur — sinon, supervision. Les badges des outils reprennent
 // ces trois côtés : « non fiable », « sensible », « écrit ».
 //
-// Les risques cités suivent l'OWASP Top 10 for LLM Applications **2026**, comme la leçon M19-1
+// Les risques cités suivent l'OWASP Top 10 for LLM Applications **2026**, comme la leçon M27-1
 // (identifiants suffixés « :2026 » dans l'interface : les numéros changent d'une édition à l'autre).
 //
 // Une série = un agent complet : ses outils, sa configuration de départ, ses scénarios. Le joueur
@@ -59,7 +59,7 @@ export type Config = Record<ToolId, ToolConfig>;
 
 /**
  * OWASP Top 10 for LLM Applications 2026 : identifiants et intitulés, tels que
- * la leçon M19-1 les enseigne. Les numéros ont changé depuis 2025 (Excessive
+ * la leçon M27-1 les enseigne. Les numéros ont changé depuis 2025 (Excessive
  * Agency passe de LLM06 à LLM03) : l'interface suffixe toujours « :2026 ».
  */
 export const owaspLlm2026 = {

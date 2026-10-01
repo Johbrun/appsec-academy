@@ -1,198 +1,179 @@
 export const questions = [
   {
-    q: "Quelle fonction utiliser pour générer un jeton de réinitialisation dans Node ?",
+    q: "Novafact dépose chaque export PDF dans un bucket avec son SHA-256 à côté. Pourquoi ce condensé ne prouve-t-il pas l'intégrité face à un attaquant qui écrit dans le bucket ?",
     options: [
-      "crypto.createHash('sha256') appliqué à l'e-mail et à l'horodatage",
-      "crypto.pseudoRandomBytes(), plus rapide pour un usage non critique",
-      "crypto.randomBytes() ou crypto.randomUUID()",
-      "Math.random(), réamorcé à partir de process.hrtime()",
-    ],
-    answer: 2,
-    explain: "Seul un CSPRNG produit une valeur imprévisible : randomBytes et randomUUID s'appuient sur l'entropie du système. pseudoRandomBytes est le faux ami — c'est aujourd'hui un simple alias déprécié de randomBytes, mais son nom invite à s'en servir « quand ce n'est pas critique », et un jeton de réinitialisation l'est toujours. Hacher l'e-mail et l'heure ne crée aucun secret : l'attaquant connaît les deux, et Math.random ne se réamorce pas.",
-  },
-  {
-    q: "Avec AES-GCM, quelle est la règle absolue concernant le vecteur d'initialisation (IV) ?",
-    options: [
-      "Il doit rester secret, au même titre que la clé de chiffrement",
-      "Il ne doit jamais être réutilisé avec la même clé",
-      "Il doit faire 16 octets, comme la taille de bloc d'AES",
-      "Il doit être imprévisible, donc tiré d'un générateur cryptographique",
-    ],
-    answer: 1,
-    explain: "Réutiliser un IV avec la même clé en GCM détruit la confidentialité et révèle la clé d'authentification : deux messages suffisent à forger. L'IV n'a besoin d'être ni secret ni même imprévisible — un compteur convient, c'est l'unicité qui compte. En pratique on tire 12 octets aléatoires, la taille pour laquelle GCM est spécifié, et non 16.",
-  },
-  {
-    q: "Pourquoi la signature des webhooks de Novafact couvre-t-elle un horodatage, vérifié par le récepteur ?",
-    options: [
-      "Parce qu'un MAC prouve l'origine et l'intégrité, pas la fraîcheur du message",
-      "Parce que le récepteur doit pouvoir réordonner des événements arrivés en désordre",
-      "Parce qu'une signature qui ne couvre pas tout le corps reste partielle, donc contournable",
-      "Parce que la clé de signature est dérivée de l'horodatage à chaque envoi",
-    ],
-    answer: 0,
-    explain: "Un MAC dit que le message vient bien du prestataire et n'a pas été modifié ; il ne dit pas quand. Sans horodatage signé, un message capturé reste valide indéfiniment et se rejoue à volonté. L'ordonnancement est un vrai besoin, mais c'est un autre sujet, et les horodatages de webhooks sont à la seconde, donc inutilisables pour trier. L'horodatage borne la fenêtre de rejeu à 5 minutes ; la mémorisation des identifiants déjà vus la referme.",
-  },
-  {
-    q: "Dans le chiffrement d'enveloppe avec AWS KMS, qu'est-ce qui est stocké à côté des données chiffrées ?",
-    options: [
-      "La clé de données en clair, mise en cache pour éviter un appel KMS par objet",
-      "Rien : KMS conserve les clés de données et les retrouve par identifiant",
-      "Un condensat de la clé de données, pour vérifier qu'on utilise la bonne",
-      "La clé de données chiffrée par la clé KMS, jamais sa version en clair",
+      "Parce que SHA-256 admet des collisions faciles à produire, comme MD5 et SHA-1",
+      "Parce qu'un condensé se laisse inverser avec assez de puissance de calcul",
+      "Parce qu'un condensé de 256 bits est trop court pour couvrir un PDF volumineux",
+      "Parce qu'aucun secret n'y entre : qui peut modifier le fichier peut recalculer le condensé",
     ],
     answer: 3,
-    explain: "On range le blob chiffré, et la référence de la clé KMS, à côté des données ; la clé en clair ne vit qu'en mémoire, le temps de chiffrer, puis on l'écrase. La mise en cache de la clé en clair est la vraie tentation, puisqu'elle divise les appels KMS par mille — mais écrite à côté des données, elle vide l'enveloppe de tout intérêt. Et KMS ne garde aucune clé de données : c'est le principe, le déchiffrement repasse par IAM et laisse une trace dans CloudTrail.",
+    explain: "Un hash simple détecte une altération accidentelle (transfert tronqué, disque défaillant), pas une modification volontaire : l'attaquant remplace le PDF puis dépose le nouveau condensé. Il faut une clé, donc un MAC ou une signature. Les deux premières raisons sont fausses : aucune collision pratique n'est connue pour SHA-256, et l'inversion (préimage) reste hors de portée pour les fonctions actuelles. La taille du fichier n'entre pas en jeu, un condensé a une longueur fixe quelle que soit l'entrée.",
+  },
+  {
+    q: "Deux enregistrements sont chiffrés en AES-256-GCM avec la même clé et le même IV. Que gagne un attaquant qui observe les deux chiffrés ?",
+    options: [
+      "La clé AES, retrouvée en comparant les deux sorties du chiffrement",
+      "Le XOR des deux clairs : s'il en connaît un, il lit l'autre, et il peut forger des messages",
+      "Rien d'exploitable, puisque chaque bloc dépend du précédent et masque le suivant",
+      "Uniquement la longueur des clairs, déjà visible sans cette erreur",
+    ],
+    answer: 1,
+    explain: "GCM chiffre en mode compteur : un IV répété rejoue le même flux de clé, qui s'annule quand on combine les deux chiffrés par XOR et laisse le XOR des clairs. La clé AES ne s'en déduit pas, mais l'unicité de l'IV protège aussi l'authentification : en 2016, des chercheurs ont trouvé 184 serveurs HTTPS qui répétaient leurs nonces et ont montré qu'on pouvait y injecter du contenu. Le chaînage de blocs est le propre de CBC, pas de GCM. Et la longueur n'est que la partie la moins grave de la fuite.",
+  },
+  {
+    q: "Novafact chiffre des IBAN avec la clé publique RSA du service de paiement. Quelle configuration de crypto.publicEncrypt retenir ?",
+    options: [
+      "RSA_PKCS1_OAEP_PADDING avec oaepHash: 'sha256', la même valeur à la lecture",
+      "RSA_NO_PADDING : l'IBAN est court et ressemble déjà à une valeur aléatoire",
+      "RSA_PKCS1_PADDING : son remplissage aléatoire empêche déjà de tester des candidats",
+      "Chiffrer le SHA-256 de l'IBAN plutôt que l'IBAN, pour tenir dans un bloc RSA",
+    ],
+    answer: 0,
+    explain: "OAEP randomise chaque chiffrement, donc deviner un IBAN et le chiffrer avec la clé publique ne donne jamais le même chiffré ; il faut aussi que les deux côtés utilisent le même oaepHash, sinon le déchiffrement échoue. Sans remplissage, RSA est déterministe : l'attaquant teste ses candidats, et un IBAN se devine bien plus facilement qu'il n'y paraît. PKCS#1 v1.5 est randomisé, mais reste exposé aux attaques par oracle de remplissage (Bleichenbacher, puis Marvin dans Node en 2023-2024). Le hash d'un IBAN se teste par dictionnaire, exactement comme l'IBAN.",
+  },
+  {
+    q: "L'équipe désactive la compression TLS après avoir lu l'avis CRIME, mais un pentester extrait encore le jeton CSRF d'une page. Pourquoi ?",
+    options: [
+      "Parce que TLS 1.2 laisse la longueur des enregistrements lisible pour tout observateur",
+      "Parce que la compression TLS ne concernait que les cookies, jamais le corps des pages",
+      "Parce que BREACH vise la compression HTTP du corps, indépendante de celle de TLS",
+      "Parce que l'attaquant déchiffre le flux TLS dès qu'il en connaît la taille",
+    ],
+    answer: 2,
+    explain: "BREACH ne dépend pas de la compression TLS : il suffit que le serveur compresse le corps de la réponse (gzip), qu'une valeur choisie par l'attaquant y soit reflétée et qu'un secret figure dans la même réponse. La taille chiffrée varie alors selon que la supposition coïncide avec le secret. La longueur des enregistrements est certes visible, mais elle n'est pas la cause, et c'est la compression qui la rend exploitable. La compression TLS portait sur tout le flux, en-têtes comprises ; la taille seule ne déchiffre rien.",
   },
 ];
 
 <YouKnow>
-Tu as cassé des implémentations maison : ECB, IV fixes, MAC comparés en temps variable, clés dans le code. Kohnfelder (K5) résume l'essentiel pour les développeurs : utiliser les bons outils, correctement, sans en inventer.
+Tu sais qu'un `sha256sum` posé à côté d'un fichier ne protège de rien si tu peux écrire le fichier, qu'un IV fixe trahit les motifs, et que la taille d'une réponse HTTPS suffit parfois à en deviner le contenu. Kohnfelder (K5) donne le cadre : chaque outil n'offre que la propriété qu'il promet, et la plupart des failles viennent d'une propriété qu'on lui a prêtée.
 </YouKnow>
 
-## La règle d'or
+## Ce qu'un hash prouve, et ce qu'il ne prouve pas
 
-**Ne jamais inventer sa propre cryptographie**, ni ses propres protocoles. On utilise des bibliothèques éprouvées, avec des API de haut niveau, et on se concentre sur ce qui échoue en pratique : la gestion des clés et les erreurs d'usage. Les algorithmes modernes sont rarement cassés ; ce qui casse, ce sont les IV réutilisés, les chiffrements sans authentification, les comparaisons en temps variable et les clés qui traînent dans un dépôt.
-
-## La boîte à outils
-
-| Outil | Usage | Dans Node |
-| --- | --- | --- |
-| **Aléatoire cryptographique** (CSPRNG) | Jetons, identifiants, IV, sels | `crypto.randomBytes`, `crypto.randomUUID`, `crypto.randomInt` ; jamais `Math.random` |
-| **MAC** | Garantir l'intégrité et l'origine d'un message entre parties qui partagent une clé | `crypto.createHmac('sha256', clé)`, comparaison avec `timingSafeEqual` |
-| **Chiffrement symétrique authentifié** | Chiffrer des données avec une clé partagée | AES-256-GCM via `createCipheriv`, IV aléatoire de 12 octets, tag d'authentification vérifié |
-| **Chiffrement asymétrique et signatures** | Signer (intégrité, non-répudiation), échanger des clés | Ed25519 ou ECDSA via `crypto.sign`, ou WebCrypto (`crypto.subtle`) |
-| **Certificats** | Lier une clé publique à une identité | TLS, gestion par ACM sur AWS (M17) |
-| **Hachage de mots de passe** | Stocker des mots de passe | argon2id ou scrypt (leçon 6) |
-
-Deux précisions sur l'aléatoire. `Math.random` n'est pas seulement « moins aléatoire » : dans V8, son générateur (xorshift128+) a un petit état interne qu'on peut reconstituer à partir de quelques sorties, ce qui rend les valeurs suivantes prévisibles. Et pour tirer un nombre dans un intervalle, `crypto.randomInt(min, max)` évite le biais du modulo qu'introduit un `randomBytes(…) % n` écrit à la main.
+Un condensé est une empreinte de longueur fixe. Il vaut si deux messages distincts n'ont, en pratique, jamais la même (**résistance aux collisions**) et si l'on ne peut pas retrouver une entrée à partir d'un condensé donné (**résistance à la préimage**, que Kohnfelder range parmi les attaques les plus graves). Aucune des deux ne dit *qui* a calculé l'empreinte : sans secret, un hash détecte la corruption **accidentelle**, et face à quelqu'un qui peut modifier la donnée, il se recalcule. Le bon outil est le **MAC** de la leçon 7, ou une signature.
 
 <Callout kind="case">
-**Sony PlayStation 3 (2010)**. Une signature ECDSA exige un nombre aléatoire neuf à chaque signature. L'implémentation de Sony utilisait la même valeur pour toutes. Présenté au Chaos Communication Congress fin 2010 par le groupe fail0verflow, ce défaut permettait de calculer la clé privée de signature de la console à partir de deux signatures publiques. L'algorithme était sûr ; son usage ne l'était pas. Ed25519 génère ce nombre de façon déterministe à partir de la clé et du message, ce qui supprime cette classe d'erreur.
+**SHAttered (23 février 2017)**. Le CWI Amsterdam et Google publient la première collision pratique sur SHA-1 : deux PDF différents, même condensé, pour environ 9 milliards de milliards (2⁶³) de calculs, soit 6 500 années de CPU et 110 années de GPU. **Flame (2012)** en montre l'usage le plus grave : selon Microsoft, le maliciel portait une signature de code valide remontant à sa racine, obtenue en forgeant par collision à préfixe choisi un certificat md5RSA du service de licences Terminal Server, dont l'extension bloquante sous Vista et suivants avait été retirée. Dans les deux cas, l'attaquant choisit les deux versions : il fait signer l'une, livre l'autre.
 </Callout>
 
-## Le MAC et le rejeu
+Chez Novafact, l'export mensuel part dans un bucket avec son SHA-256. Le correctif réflexe, `sha256(SECRET + pdf)`, tombe sur un défaut des SHA-2 « classiques » : connaissant ce condensé et la longueur du secret, on calcule celui de `pdf ‖ remplissage ‖ suffixe` sans le secret (*length extension*). C'est la raison d'être de HMAC. En 2009, Duong et Rizzo l'ont appliqué à l'API de Flickr, dont les signatures étaient un MD5 de `secret ‖ paramètres` : leur avis recommandait de passer à HMAC.
 
-Un MAC prouve qu'un message n'a pas été modifié, pas qu'il n'a pas été **rejoué**. Kohnfelder insiste sur ce point : pour les webhooks de Novafact, la signature couvre un **horodatage**, le récepteur refuse les messages trop anciens (5 minutes) et garde les identifiants de messages déjà traités.
-
-<Code file="apps/api/src/webhooks/verify.ts" hl="9,13,14">
+<Diff file="apps/api/src/exports/seal.ts" hlBefore="4-5" hlAfter="1-5">
 
 ```ts
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
-const TOLERANCE_S = 300;
+// le condensé est déposé à côté du PDF : qui écrit l'un écrit l'autre
+const digest = createHash('sha256').update(pdf).digest('hex');
+await putObject(`${key}.sha256`, digest);
+```
 
-export function verifyWebhook(rawBody: Buffer, header: string, secret: string, now = Date.now()) {
-  // en-tête : t=1790000000,v1=5f0c… (horodatage et signature hexadécimale)
-  const parts = Object.fromEntries(header.split(',').map((p) => p.split('=') as [string, string]));
-  const t = Number(parts.t);
-  if (!Number.isInteger(t) || Math.abs(now / 1000 - t) > TOLERANCE_S) return false; // trop vieux ou dans le futur
-  const expected = createHmac('sha256', secret).update(`${t}.`).update(rawBody).digest();
-  const received = Buffer.from(parts.v1 ?? '', 'hex');
-  // timingSafeEqual lève une exception si les longueurs diffèrent : on les compare d'abord
-  if (received.length !== expected.length) return false;
-  return timingSafeEqual(received, expected);
-}
+```ts
+import { createHmac } from 'node:crypto';
+
+// clé hors du bucket ; le contexte est couvert : le PDF du tenant 7 ne passe pas pour celui du 42
+const mac = createHmac('sha256', exportKey).update(`${tenantId}|${period}|`).update(pdf).digest('hex');
+await putObject(`${key}.mac`, mac);
+```
+
+</Diff>
+
+Le test qui prouve la correction : modifier le PDF **et** recalculer un SHA-256 doit faire échouer la vérification.
+
+## Réutiliser une clé ou un nonce
+
+Un flux de clé combiné par XOR n'est sûr que s'il ne sert **qu'une fois**. Kohnfelder le montre avec le masque jetable : deux chiffrés produits avec le même secret, combinés, donnent le XOR des deux clairs, la clé s'étant annulée. Un clair connu ou devinable (début de JSON, en-tête fixe) suffit alors à lire l'autre. AES-GCM chiffre en mode compteur : un IV répété rejoue le même flux, et l'authentification s'effondre aussi (règle et `seal` en leçon 7). En 2016, Böck et ses coauteurs ont trouvé 184 serveurs HTTPS qui répétaient leurs nonces GCM et pouvaient donc y injecter du contenu.
+
+<Code file="scratch/nonce-reuse.mjs" hl="3,8">
+
+```js
+import { createCipheriv, randomBytes } from 'node:crypto';
+
+const key = randomBytes(32), iv = Buffer.alloc(12); // IV constant : « pour pouvoir chercher »
+const enc = (m) => { const c = createCipheriv('aes-256-gcm', key, iv); return Buffer.concat([c.update(m), c.final()]); };
+
+const known = Buffer.from('{"iban":"FR7630006000011234567890189"}');
+const c1 = enc(known), c2 = enc(Buffer.from('{"iban":"DE89370400440532013000","x":1}'));
+const out = Buffer.from(c1.map((b, i) => b ^ c2[i] ^ (known[i] ?? 0))); // XOR des chiffrés, puis du clair connu
+console.log(out.toString()); // {"iban":"DE89370400440532013000","x":1
 ```
 
 </Code>
 
-Trois détails comptent. La signature porte sur le **corps brut** (le `Buffer` reçu, pas un `JSON.stringify` d'un objet déjà parsé, qui ne redonne pas forcément les mêmes octets). La comparaison est en **temps constant**. Et la vérification de l'identifiant d'événement (déjà traité ou non) vient ensuite, dans un stockage partagé, pour fermer la fenêtre de 5 minutes.
+Le développeur voulait retrouver une ligne par son IBAN chiffré. Son « correctif », un compteur en mémoire, passe en local puis casse en production : deux tâches ECS repartent chacune de zéro, et un redémarrage aussi. Le bon correctif tire l'IV au hasard (`seal`) et cherche par **index aveugle** : un HMAC de l'IBAN, avec une clé distincte, stocké à côté. L'ECB est le cousin du défaut : deux blocs de clair égaux donnent deux blocs chiffrés égaux, et le motif reste visible.
 
-Pour les webhooks **sortants** vers ses clients, Novafact pourrait aussi signer en Ed25519 : le client vérifie avec une **clé publique**, sans secret partagé à protéger de son côté, et une fuite chez un client ne permet pas de forger des messages pour les autres. C'est le compromis MAC contre signature : le MAC est plus simple et plus rapide ; la signature permet une vérification publique et la non-répudiation.
+## Un clair devinable et la clé publique
 
-## Chiffrer : une API difficile à mal utiliser
+Tout le monde connaît la clé publique, donc tout le monde peut chiffrer. Si le clair se devine (IBAN, montant, oui/non), l'attaquant chiffre ses candidats et compare au chiffré observé. Kohnfelder y oppose des bits aléatoires ajoutés au message, ce qui revient à un remplissage randomisé. `publicEncrypt` propose `RSA_NO_PADDING` (déterministe), PKCS#1 v1.5 et OAEP ; d'après la documentation de Node, une clé passée seule (PEM ou `KeyObject`) donne OAEP, avec `sha1` pour le hash par défaut.
 
-Kohnfelder propose un exercice : envelopper l'API bas niveau dans une interface qui ne laisse **aucun choix dangereux** à l'appelant. Pour Novafact, un module `seal` / `open` impose AES-256-GCM, génère l'IV, lie le chiffré à son contexte et stocke la version de clé :
-
-<Code file="packages/crypto/src/seal.ts" hl="7,9,20,21">
+<Code file="packages/crypto/src/rsa.ts" hl="4,6,7">
 
 ```ts
-import { createCipheriv, createDecipheriv, randomBytes, type KeyObject } from 'node:crypto';
+import { publicEncrypt, privateDecrypt, constants } from 'node:crypto';
 
-const FORMAT_V1 = 1;
+// le RFC 8017 réserve OAEP aux nouvelles applications ; v1.5 reste « pour compatibilité »
+const opts = (key: string) => ({ key, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' });
 
-// sortie : [format 1 o][id de clé 1 o][IV 12 o][tag 16 o][chiffré]
-export function seal(key: { id: number; secret: KeyObject }, plaintext: Buffer, context: string): Buffer {
-  const iv = randomBytes(12);                                   // jamais fourni par l'appelant
-  const cipher = createCipheriv('aes-256-gcm', key.secret, iv);
-  cipher.setAAD(Buffer.from(context));                          // ex. "tenant:42|iban" : authentifié, non chiffré
-  const body = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-  return Buffer.concat([Buffer.from([FORMAT_V1, key.id]), iv, cipher.getAuthTag(), body]);
-}
-
-export function open(keys: Map<number, KeyObject>, sealed: Buffer, context: string): Buffer {
-  if (sealed[0] !== FORMAT_V1) throw new Error('format inconnu');
-  const secret = keys.get(sealed[1]);
-  if (!secret) throw new Error('clé inconnue');
-  const iv = sealed.subarray(2, 14), tag = sealed.subarray(14, 30), body = sealed.subarray(30);
-  const decipher = createDecipheriv('aes-256-gcm', secret, iv);
-  decipher.setAAD(Buffer.from(context));
-  decipher.setAuthTag(tag);                                     // final() échoue si tag ou contexte ne correspondent pas
-  return Buffer.concat([decipher.update(body), decipher.final()]);
-}
+export const sealIban = (pub: string, iban: string) => publicEncrypt(opts(pub), Buffer.from(iban));
+export const openIban = (priv: string, blob: Buffer) => privateDecrypt(opts(priv), blob).toString();
+// oaepHash identique des deux côtés, sinon ERR_OSSL_RSA_OAEP_DECODING_ERROR ; clair max : 190 octets (RSA-2048, sha256)
 ```
 
 </Code>
 
-Le **contexte** (données associées, AAD) empêche de déplacer un chiffré : l'IBAN chiffré du tenant 42, copié dans la ligne du tenant 7, ne se déchiffre plus. L'octet de **format** et l'**identifiant de clé** préparent l'avenir : changer d'algorithme ou de clé ne demande pas de migrer toutes les données d'un coup. Enfin, avec des IV aléatoires de 96 bits, NIST recommande de ne pas dépasser environ 2³² chiffrements par clé : une raison de plus pour faire tourner les clés, ou de chiffrer avec une clé de données par tenant.
+PKCS#1 v1.5 reste attaquable par oracle : Bleichenbacher en 1998, puis Node a désactivé `RSA_PKCS1_PADDING` dans `privateDecrypt` (sauf OpenSSL avec rejet implicite) dans ses versions de février 2024, après la CVE-2023-46809 (attaque Marvin). Le plafond de 190 octets impose le chiffrement hybride : RSA pour une clé de données, `seal` pour le reste. Enfin, « chiffrer le hash de l'IBAN » est un faux ami : un hash de donnée à faible entropie se teste par dictionnaire.
 
-## Les clés
+## Ce que le chiffrement laisse voir
 
-C'est là que tout se joue :
+Un chiffré cache le contenu, pas sa **taille**, sa **fréquence** ni son **volume**. Kohnfelder cite une caméra qui n'émet que sur mouvement : le trafic chiffré dit quand la maison est vide.
 
-<Steps items={[
-  { title: "Hors du code", text: "Jamais de clé dans le dépôt, ni dans une image Docker, ni dans une variable VITE_* (M4)." },
-  { title: "Dans un KMS", text: "AWS KMS garde les clés maîtresses sans jamais les exposer ; l'application chiffre et déchiffre par des appels à l'API, tracés dans CloudTrail." },
-  { title: "Chiffrement d'enveloppe", text: "Une clé de données chiffre les données ; la clé de données est elle-même chiffrée par la clé maîtresse du KMS. Une clé de données par tenant facilite l'isolation et la suppression." },
-  { title: "Rotation", text: "Des clés qui tournent, avec un identifiant de version stocké à côté des données chiffrées." },
-]} />
+Quand la réponse est **compressée** et mêle un secret à du contenu reflété, la taille devient un oracle. CRIME (2012, CVE-2012-4929, Rizzo et Duong) visait la compression TLS. **BREACH** (Black Hat USA 2013, Prado, Harris et Gluck) vise celle du corps HTTP (gzip) et exige trois conditions : page compressée, valeur de l'attaquant reflétée, secret dans la même page (jeton CSRF, donnée personnelle). L'attaquant teste ses suppositions caractère par caractère depuis le navigateur de la victime : la bonne se compresse mieux, la réponse chiffrée est plus courte (dans un essai local avec `gzipSync`, 90 octets contre 94). Couper la compression TLS n'y change rien.
 
-<Code file="packages/crypto/src/envelope.ts" hl="8,10,11">
+<Diff file="apps/api/src/app.ts" hlBefore="2" hlAfter="1-6">
 
 ```ts
-import { KMSClient, GenerateDataKeyCommand } from '@aws-sdk/client-kms';
-import { createSecretKey } from 'node:crypto';
-
-export async function newTenantDataKey(kms: KMSClient, tenantId: string) {
-  const { Plaintext, CiphertextBlob } = await kms.send(new GenerateDataKeyCommand({
-    KeyId: 'alias/novafact-tenant-data',
-    KeySpec: 'AES_256',
-    EncryptionContext: { tenantId },   // exigé à nouveau au déchiffrement, visible dans CloudTrail
-  }));
-  const secret = createSecretKey(Plaintext!); // le KeyObject garde sa propre copie
-  Plaintext!.fill(0);
-  return { secret, wrappedKey: CiphertextBlob! }; // wrappedKey est stockée avec le tenant ; secret reste en mémoire
-}
+import compression from 'compression';
+app.use(compression()); // compresse aussi les pages qui contiennent le jeton CSRF
 ```
 
-</Code>
+```ts
+import compression from 'compression';
+app.use(compression({ filter: (req, res) => !res.locals.hasSecret && compression.filter(req, res) }));
+app.get('/factures/nouveau', (req, res) => {
+  res.locals.hasSecret = true; // avant l'envoi : le filtre est évalué à l'écriture des en-têtes
+  res.render('nouveau', { csrf: maskToken(req.session.csrf) });
+});
+```
 
-Supprimer un tenant revient alors à détruire sa clé de données chiffrée : les données restantes, y compris dans les sauvegardes, deviennent illisibles (le *crypto-shredding*). Avant d'écrire ce code toi-même, regarde l'**AWS Encryption SDK** (`@aws-crypto/client-node`), qui implémente ce schéma avec un format de message documenté : c'est l'application directe de la règle d'or.
+</Diff>
 
-## L'agilité cryptographique
+La défense principale : **ne pas compresser** les réponses qui mêlent secret et contenu reflété, et laisser le CDN compresser le statique. La seconde : **masquer** le secret à chaque réponse, par XOR avec un aléa neuf (`maskToken` renvoie `aléa ‖ secret⊕aléa`, la vérification refait le XOR), pour qu'aucun préfixe stable ne reste à deviner. L'aléa de longueur et la limitation de débit, classés plus bas par les auteurs de BREACH, ne font que ralentir.
 
-Les algorithmes vieillissent : SHA-1 et RSA-1024 ont été abandonnés, et la migration vers des algorithmes résistants aux ordinateurs quantiques a commencé. En août 2024, le NIST a publié ses trois premières normes post-quantiques (FIPS 203 pour l'échange de clés ML-KEM, FIPS 204 et 205 pour les signatures ML-DSA et SLH-DSA). La priorité va à l'échange de clés : des données chiffrées et capturées aujourd'hui pourraient être déchiffrées plus tard (*harvest now, decrypt later*).
+## Chiffrer dès l'entrée, ou tokeniser
 
-L'**agilité cryptographique**, c'est pouvoir changer d'algorithme sans tout réécrire : stocker l'algorithme et la version de clé avec chaque donnée chiffrée ou chaque hash (comme l'octet de format de `seal`, ou le préfixe `$argon2id$`), centraliser la cryptographie dans un module unique, et tenir un **inventaire** des usages (quel algorithme, où, pour quelles données). Sans inventaire, une migration commence par des semaines d'archéologie dans le code.
+Kohnfelder propose de chiffrer les données sensibles dès leur arrivée sur le frontal, avec une **clé publique**, et de ne faire circuler que des blobs opaques jusqu'à la machine protégée qui détient la clé privée. Chez Novafact : l'API chiffre l'IBAN à la réception, le blob traverse la file SQS et les journaux sans être lisible, et seul le service de prélèvement le déchiffre. Une clé asymétrique AWS KMS (RSAES_OAEP_SHA_256) convient : on télécharge la clé publique par `GetPublicKey`, la privée ne quitte jamais KMS.
 
-<Callout kind="tip">
-Exercice tiré de Kohnfelder : reprends `seal` / `open` et ajoute un format v2 (par exemple une autre taille de tag ou un autre algorithme), en gardant la lecture du v1. Écris les tests : chiffré modifié, contexte différent, clé inconnue, format inconnu. Une API impossible à mal utiliser vaut mieux que toutes les formations sur les modes de chiffrement.
-</Callout>
+Face à la **tokenisation** (leçon 5) : le jeton n'a aucun lien mathématique avec la donnée mais exige un coffre en ligne ; le blob se traite sans service tiers, mais une clé privée volée ouvre aussi les blobs capturés avant. Chiffrer à l'entrée réduit le nombre de composants qui voient la donnée ; cela n'authentifie pas l'émetteur (n'importe qui fabrique un blob avec la clé publique) et ne cache ni taille ni fréquence. Enfin, un échange Diffie-Hellman non authentifié ne résiste pas à l'homme du milieu, qui joue deux échanges : c'est la signature du certificat de la leçon 4 de M6 qui le comble.
 
 <Recap items={[
-  "Ne jamais inventer sa cryptographie ; ce qui casse en pratique, ce sont les usages et les clés.",
-  "CSPRNG pour tout ce qui doit être imprévisible ; un nombre aléatoire réutilisé peut livrer une clé privée.",
-  "Un MAC ne protège pas du rejeu : horodatage signé, corps brut, comparaison en temps constant, identifiants mémorisés.",
-  "Une API seal / open impose AES-GCM, l'IV, le contexte (AAD) et la version de clé.",
-  "Clés dans un KMS avec chiffrement d'enveloppe et contexte ; agilité et inventaire pour préparer la migration post-quantique.",
+  "Un hash sans secret détecte l'accident, pas l'attaquant : MAC ou signature, contexte couvert. SHAttered et Flame sont des collisions : MD5 et SHA-1 sont à proscrire.",
+  "Un IV ou un flux de clé réutilisé fait fuir le XOR des clairs, et en GCM permet de forger : IV aléatoire par `seal`, index aveugle pour chercher, jamais d'ECB.",
+  "Clé publique connue : un clair devinable se teste. OAEP avec `oaepHash` explicite, ni v1.5 ni RSA brut ; clair court, donc chiffrement hybride.",
+  "Le chiffrement laisse voir taille, fréquence, volume. BREACH : ne pas compresser les pages avec secret et contenu reflété, masquer le secret.",
+  "Chiffrer à l'entrée donne des blobs opaques, la tokenisation retire la donnée du flux ; Diffie-Hellman sans authentification se fait intercepter.",
 ]} />
 
 <Sources items={[
-  { title: "Node.js : crypto", url: "https://nodejs.org/api/crypto.html" },
-  { title: "OWASP Cheat Sheet : Cryptographic Storage", url: "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html" },
-  { title: "AWS KMS : chiffrement d'enveloppe", url: "https://docs.aws.amazon.com/kms/latest/developerguide/kms-cryptography.html" },
-  { title: "AWS Encryption SDK for JavaScript", url: "https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/javascript.html" },
-  { title: "NIST FIPS 203 : ML-KEM", url: "https://csrc.nist.gov/pubs/fips/203/final" },
-  { title: "NIST SP 800-38D : GCM", url: "https://csrc.nist.gov/pubs/sp/800/38/d/final" },
+  { title: "Node.js : crypto (publicEncrypt, privateDecrypt)", url: "https://nodejs.org/docs/latest-v22.x/api/crypto.html" },
+  { title: "RFC 8017 (PKCS #1 v2.2) : OAEP, taille maximale, statut de v1.5", url: "https://www.rfc-editor.org/rfc/rfc8017" },
+  { title: "SHAttered : première collision SHA-1 (23 février 2017)", url: "https://shattered.io/" },
+  { title: "Microsoft MSRC : Flame, la collision expliquée (6 juin 2012)", url: "https://www.microsoft.com/en-us/msrc/blog/2012/06/flame-malware-collision-attack-explained/" },
+  { title: "Duong et Rizzo : Flickr's API Signature Forgery Vulnerability (28 septembre 2009)", url: "https://vnhacker.substack.com/p/flickrs-api-signature-forgery" },
+  { title: "Böck et al. : Nonce-Disrespecting Adversaries (WOOT 2016)", url: "https://eprint.iacr.org/2016/475" },
+  { title: "BREACH : SSL, gone in 30 seconds (Black Hat USA 2013)", url: "https://breachattack.com/" },
+  { title: "CVE-2012-4929 : attaque CRIME (Red Hat Bugzilla)", url: "https://bugzilla.redhat.com/show_bug.cgi?id=CRIME" },
+  { title: "Node.js : correctifs de février 2024 (CVE-2023-46809)", url: "https://nodejs.org/en/blog/vulnerability/february-2024-security-releases" },
+  { title: "AWS KMS : GetPublicKey", url: "https://docs.aws.amazon.com/kms/latest/APIReference/API_GetPublicKey.html" },
   { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 5" },
 ]} />

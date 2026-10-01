@@ -102,7 +102,7 @@ npm view express-validator-plus name time.created maintainers repository.url   #
 npm view express-validator-plus scripts                                        # un preinstall ou postinstall ?
 ```
 
-Un paquet créé la semaine dernière, sans dépôt, avec un script d'installation, n'entre pas. Les outils comme Socket automatisent ces signaux dans la PR (M13, M14).
+Un paquet créé la semaine dernière, sans dépôt, avec un script d'installation, n'entre pas. Les outils comme Socket automatisent ces signaux dans la PR (M17, M18).
 
 ## Le volume
 
@@ -110,7 +110,7 @@ Les assistants produisent plus de code, plus vite. La revue doit suivre sans dev
 
 <Steps items={[
   { title: "Des PR petites", text: "L'assistant génère beaucoup ; la PR reste découpée, et la description dit ce qui a été généré." },
-  { title: "Les contrôles de classe d'abord", text: "defineRoute, lint, Semgrep et tests (M2, M13) attrapent les erreurs répétitives avant l'humain : plus il y a de code généré, plus ces garde-fous rapportent." },
+  { title: "Les contrôles de classe d'abord", text: "defineRoute, lint, Semgrep et tests (M7, M17) attrapent les erreurs répétitives avant l'humain : plus il y a de code généré, plus ces garde-fous rapportent." },
   { title: "Rendre visibles les suppressions d'alertes", text: "La CI signale toute nouvelle ligne eslint-disable, nosemgrep ou @ts-ignore, et exige une justification." },
   { title: "Un relecteur IA en premier filtre", text: "CodeRabbit, Claude Code (commande /security-review) ou Copilot proposent des commentaires ; l'humain tranche." },
   { title: "L'humain sur ce qui compte", text: "Autorisation, logique métier, nouvelles dépendances, conception, et les tests modifiés." },
@@ -143,7 +143,7 @@ Le relecteur IA est lui-même une surface d'attaque. En janvier 2025, des cherch
 
 ## Les agents qui ouvrent des PR
 
-Les agents de code autonomes (qui lisent des issues et ouvrent des PR) ajoutent un risque : une **issue** ou un **commentaire** peut contenir des instructions cachées que l'agent suit (injection de prompt indirecte, M19). Les PR d'agents se relisent avec la même exigence que celles d'un contributeur externe inconnu.
+Les agents de code autonomes (qui lisent des issues et ouvrent des PR) ajoutent un risque : une **issue** ou un **commentaire** peut contenir des instructions cachées que l'agent suit (injection de prompt indirecte, M27). Les PR d'agents se relisent avec la même exigence que celles d'un contributeur externe inconnu.
 
 Les plateformes posent des garde-fous qu'il faut connaître et garder actifs. Pour l'agent de GitHub Copilot, la documentation précise que l'agent ne peut pas approuver ni fusionner son propre travail, que la personne qui lui a demandé la PR ne peut pas l'approuver non plus, et que par défaut les workflows GitHub Actions ne s'exécutent sur ses PR qu'après l'approbation d'un humain ayant les droits d'écriture.
 
@@ -152,7 +152,7 @@ Les plateformes posent des garde-fous qu'il faut connaître et garder actifs. Po
 </Callout>
 
 <Callout kind="warn">
-Le code généré n'arrive pas seulement par les PR. En juillet 2025, la version 1.84.0 de l'extension Amazon Q Developer pour VS Code a été publiée avec une consigne malveillante demandant à l'assistant d'effacer fichiers et ressources cloud. D'après le bulletin d'AWS, un jeton GitHub aux droits trop larges dans la configuration de build avait permis à l'attaquant de pousser ce code dans le dépôt, puis dans une release ; une erreur de syntaxe l'a empêché de s'exécuter. Les outils d'IA de tes développeurs font partie de ta chaîne d'approvisionnement (M14).
+Le code généré n'arrive pas seulement par les PR. En juillet 2025, la version 1.84.0 de l'extension Amazon Q Developer pour VS Code a été publiée avec une consigne malveillante demandant à l'assistant d'effacer fichiers et ressources cloud. D'après le bulletin d'AWS, un jeton GitHub aux droits trop larges dans la configuration de build avait permis à l'attaquant de pousser ce code dans le dépôt, puis dans une release ; une erreur de syntaxe l'a empêché de s'exécuter. Les outils d'IA de tes développeurs font partie de ta chaîne d'approvisionnement (M18).
 </Callout>
 
 <Recap items={[

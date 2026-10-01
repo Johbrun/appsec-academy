@@ -55,7 +55,7 @@ Le chapitre 12 de Kohnfelder regroupe quatre défauts qui ne font jamais échoue
 
 ## Mesurer un coût non linéaire sans l'exécuter
 
-Le test ReDoS de la leçon 4 du module 5 chronomètre le pire cas, ce qui suppose qu'on puisse l'exécuter. Face à un coût exponentiel, Kohnfelder propose de mesurer à deux tailles voisines, d'en déduire le **facteur de croissance par unité d'entrée**, puis de **projeter** le temps à la taille maximale autorisée sans l'atteindre. Son exemple : 1 s à 20 caractères, 2 s à 21, donc environ 1 024 s à 30. Même raisonnement pour l'expansion d'entités XML ou un parseur récursif.
+Le test ReDoS de la leçon 4 du module 26 chronomètre le pire cas, ce qui suppose qu'on puisse l'exécuter. Face à un coût exponentiel, Kohnfelder propose de mesurer à deux tailles voisines, d'en déduire le **facteur de croissance par unité d'entrée**, puis de **projeter** le temps à la taille maximale autorisée sans l'atteindre. Son exemple : 1 s à 20 caractères, 2 s à 21, donc environ 1 024 s à 30. Même raisonnement pour l'expansion d'entités XML ou un parseur récursif.
 
 Chez Novafact, la référence d'une facture importée est validée par une regex :
 
@@ -144,7 +144,7 @@ Le 1er mai 2015, la FAA a publié une consigne de navigabilité sur les Boeing 7
 
 ## Chercher une fuite par sentinelle
 
-Kohnfelder décrit un test d'intégration simple : se connecter avec un faux compte dont le mot de passe est une chaîne **distinctive**, puis chercher cette chaîne partout où elle ne devrait pas apparaître : journaux, fichiers résiduels, caches, pages, sorties d'erreur. Il l'associe au cas de 2018 d'une plateforme sociale qui écrivait des mots de passe en clair dans un journal (leçon 1 du module 18). En Node, on capture la sortie de pino dans un flux :
+Kohnfelder décrit un test d'intégration simple : se connecter avec un faux compte dont le mot de passe est une chaîne **distinctive**, puis chercher cette chaîne partout où elle ne devrait pas apparaître : journaux, fichiers résiduels, caches, pages, sorties d'erreur. Il l'associe au cas de 2018 d'une plateforme sociale qui écrivait des mots de passe en clair dans un journal (leçon 1 du module 23). En Node, on capture la sortie de pino dans un flux :
 
 <Code file="apps/api/src/routes/login.ts" hl="3,5">
 
@@ -184,7 +184,7 @@ test('le mot de passe ne sort dans aucune sortie observable', async () => {
 
 </Code>
 
-Sur le code vulnérable, le test échoue. Le mauvais correctif classique est de **masquer le champ** : `pino({ redact: ['body.password'] })`. La première ligne devient propre, et le test échoue encore : la seconde journalise le même objet sous `attempt`, un chemin que personne n'avait listé. La redaction ne connaît que des noms de chemins ; le test cherche la **valeur**. Le vrai correctif cesse de recopier l'objet reçu et construit l'événement champ par champ (`securityEvent`, leçon 1 du module 18), la redaction restant un filet. Limite : le test ne trouve que les formes cherchées, dans les sorties capturées ; ses données restent fictives (leçon 8).
+Sur le code vulnérable, le test échoue. Le mauvais correctif classique est de **masquer le champ** : `pino({ redact: ['body.password'] })`. La première ligne devient propre, et le test échoue encore : la seconde journalise le même objet sous `attempt`, un chemin que personne n'avait listé. La redaction ne connaît que des noms de chemins ; le test cherche la **valeur**. Le vrai correctif cesse de recopier l'objet reçu et construit l'événement champ par champ (`securityEvent`, leçon 1 du module 23), la redaction restant un filet. Limite : le test ne trouve que les formes cherchées, dans les sorties capturées ; ses données restent fictives (leçon 8).
 
 ## Deux garde-fous en plus : le linter et le commentaire
 

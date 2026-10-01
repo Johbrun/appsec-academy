@@ -220,11 +220,11 @@ it('un coupon à 1 utilisation ne sert qu’une fois sous concurrence', async ()
 
 </Code>
 
-Pour la revue de code, cherche le motif plutôt que les endpoints : un `findUnique` ou un `findFirst` suivi d'une condition, puis d'un `update` sur la même entité, sans écriture conditionnelle ni contrainte. C'est un bon candidat de règle Semgrep maison (M12) et une question systématique en revue de conception : « quel invariant cette route protège-t-elle, et qui le garantit ? ».
+Pour la revue de code, cherche le motif plutôt que les endpoints : un `findUnique` ou un `findFirst` suivi d'une condition, puis d'un `update` sur la même entité, sans écriture conditionnelle ni contrainte. C'est un bon candidat de règle Semgrep maison (M16) et une question systématique en revue de conception : « quel invariant cette route protège-t-elle, et qui le garantit ? ».
 
 ## Détecter
 
-Une attaque par race laisse une trace caractéristique : une rafale de requêtes identiques, du même utilisateur, dans la même milliseconde, suivie de plusieurs succès sur une ressource limitée. Deux signaux sont exploitables dans Elastic (M18) :
+Une attaque par race laisse une trace caractéristique : une rafale de requêtes identiques, du même utilisateur, dans la même milliseconde, suivie de plusieurs succès sur une ressource limitée. Deux signaux sont exploitables dans Elastic (M24) :
 
 - **les succès multiples** par ressource et par fenêtre très courte, si le correctif n'est pas encore en place ;
 - **les violations de contrainte** (`P2002`, `23505` côté PostgreSQL) et les réponses `409 already_redeemed` en rafale : une fois la base protégée, chaque tentative se transforme en erreur journalisée. C'est un bénéfice sous-estimé des contraintes : elles bloquent **et** signalent.

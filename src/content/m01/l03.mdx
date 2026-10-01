@@ -1,160 +1,216 @@
 export const questions = [
   {
-    q: "Combien de fonctions métier compte OWASP SAMM v2, et laquelle couvre la gestion des incidents ?",
+    q: "Pourquoi Kohnfelder appelle-t-il authentification, autorisation et audit le « Gold Standard » ?",
     options: [
-      "Quatre ; Deployment",
-      "Cinq ; Verification",
-      "Cinq ; Operations",
-      "Cinq ; Implementation",
+      "Parce qu'il figure comme référence de base dans la norme ISO 27002",
+      "Parce qu'il décrit le niveau de sécurité le plus élevé atteignable",
+      "Parce que les trois mots commencent par Au, symbole chimique de l'or",
+      "Parce qu'il complète la triade C-I-A comme un quatrième objectif",
     ],
     answer: 2,
-    explain: "Governance, Design, Implementation, Verification et Operations. « Quatre ; Deployment » vient de BSIMM, qui compte bien quatre domaines dont Deployment : c'est la confusion la plus courante entre les deux modèles. Implementation est tentant parce qu'il contient Defect Management, mais un défaut n'est pas un incident : Incident Management relève d'Operations, avec Environment et Operational Management.",
+    explain: "Aurum, Au : AUthentication, AUthorization, AUditing. Le jeu de mots est un moyen mnémotechnique, pas une prétention à l'excellence ni une référence normative. Surtout, ce n'est pas un quatrième objectif à côté de C-I-A : C-I-A dit ce qu'on veut obtenir, le Gold Standard décrit les moyens de l'obtenir.",
   },
   {
-    q: "Tu évalues Novafact sur « Threat Assessment » et obtiens 0,5. Quelle est la bonne réaction ?",
+    q: "Un administrateur de tenant supprime des factures. Laquelle des propriétés du Gold Standard permet de le prouver plus tard ?",
     options: [
-      "Viser 3 sur Threat Assessment, la pratique la plus basse, pour rattraper le retard",
-      "Viser 1 sur quelques pratiques choisies selon le risque de Novafact",
-      "Aligner toutes les pratiques sur la moyenne du benchmark SAMM, soit 1,44",
-      "Concentrer l'effort sur Security Testing, là où ton expérience rend le plus",
-    ],
-    answer: 1,
-    explain: "Chacun des trois autres prend un mauvais juge : le score lui-même (rattraper la pratique la plus basse), la moyenne des autres (1,44 vient d'un échantillon de grandes multinationales, c'est un repère, pas une cible), ou ton propre confort. Le juge, c'est le risque de Novafact. Et comme SAMM se gravit par marches de 0,25, passer de 0,5 à 1 sur deux pratiques bien choisies tient dans un trimestre, ce que « 3 partout » ne tiendra jamais.",
-  },
-  {
-    q: "Dans la Toolbox SAMM, les deux questions de niveau 1 de Threat Assessment reçoivent 1 (stream A) et 0 (stream B), et rien n'est acquis aux niveaux 2 et 3. Quel est le score de la pratique ?",
-    options: ["0,5", "1", "0,17", "0,25"],
-    answer: 0,
-    explain: "1 est le piège : c'est la somme des deux streams au lieu de leur moyenne, et c'est aussi ce qu'on obtient en retenant le meilleur des deux. 0,17 vient de diviser par les trois niveaux au lieu de les additionner. 0,25 est une valeur de réponse possible, jamais un score de pratique. La Toolbox fait la moyenne des streams à chaque niveau, puis additionne les niveaux : (1 + 0) / 2 = 0,5 au niveau 1, rien ensuite, soit 0,5 sur 3.",
-  },
-  {
-    q: "Le lead d'une équipe affirme que « toutes les applications ont un threat model ». Que fais-tu avant de noter la réponse ?",
-    options: [
-      "Tu notes « Yes, for most or all applications » : c'est exactement ce que dit la personne",
-      "Tu notes 0,5 par prudence, faute de pouvoir vérifier sur le moment",
-      "Tu poses la même question au lead d'une autre équipe pour recouper la réponse",
-      "Tu demandes deux threat models récents et tu les confrontes aux critères de qualité",
+      "L'autorisation, qui a laissé passer l'action et l'a donc enregistrée",
+      "L'intégrité, qui garantit que les factures n'ont pas été altérées",
+      "L'authentification, qui a établi l'identité de l'administrateur",
+      "L'audit, qui conserve qui a fait quoi, quand et avec quel résultat",
     ],
     answer: 3,
-    explain: "Recouper auprès d'un autre lead est le réflexe le plus tentant, et c'est encore une déclaration : deux témoignages concordants ne font pas une preuve. Noter 0,5 « par prudence » invente une donnée que personne ne pourra rejouer à la prochaine évaluation. SAMM tranche à ta place : sous chaque question figurent des critères de qualité, et tant qu'un artefact ne les démontre pas, la réponse reste « No », même si l'activité existe sur le papier.",
+    explain: "C'est l'audit qui produit la trace exploitable après coup, donc la non-répudiation. L'authentification en est la condition — sans identité individuelle, le journal le plus parfait n'impute rien à personne — mais elle ne conserve rien par elle-même. L'autorisation décide au moment de l'action et n'en garde pas mémoire ; l'intégrité protège les factures, pas la preuve de qui les a supprimées.",
+  },
+  {
+    q: "Trois administrateurs de la plateforme partagent le même compte « admin-ops ». Le journal d'audit est complet et inaltérable. Qu'est-ce qui est perdu ?",
+    options: [
+      "L'intégrité du journal, qu'un compte partagé permet de modifier",
+      "La non-répudiation : le journal dit ce que le compte a fait, pas qui",
+      "Rien : le journal est inaltérable, l'investigation reste possible",
+      "L'autorisation : un compte partagé cumule les droits des trois personnes",
+    ],
+    answer: 1,
+    explain: "L'audit dépend de l'authentification : un journal complet et inaltérable dit ce que « admin-ops » a fait, sans permettre d'imputer une action à l'une des trois personnes. Le cumul de droits est un vrai défaut des comptes partagés, mais il existerait aussi avec trois comptes trop permissifs : ce n'est pas ce que le partage détruit ici. Et l'inaltérabilité reste entière — elle ne suffit simplement pas, puisque l'investigation s'arrête au nom du compte.",
+  },
+  {
+    q: "Pourquoi la mise à jour d'une facture brouillon s'écrit-elle updateOne({ _id, tenantId, status: 'draft' }, …) plutôt que « lire la facture, vérifier le statut, puis écrire » ?",
+    options: [
+      "Parce que la condition est évaluée atomiquement au moment de l'écriture",
+      "Parce que la lecture préalable coûte un aller-retour supplémentaire",
+      "Parce que le filtre applique aussi l'isolation par tenant lors de l'écriture",
+      "Parce qu'un schéma valide alors le patch avant qu'il atteigne la base",
+    ],
+    answer: 0,
+    explain: "Lire puis écrire laisse une fenêtre — un TOCTOU — pendant laquelle la facture peut être émise : la vérification porte sur un état qui n'est plus celui de l'écriture. Placer la condition dans le filtre la fait évaluer par la base au moment même de la modification. Le correctif apporte bien deux autres gains, le filtre par tenant dans l'écriture et la validation du patch par un schéma, mais tous deux resteraient possibles en lisant d'abord : ce n'est pas ce qui justifie le changement de motif.",
   },
 ];
 
 <YouKnow>
-Tu as sans doute vu des grilles d'audit organisationnel. SAMM en est une, mais pensée pour la sécurité du logiciel et utilisable comme outil de pilotage, pas seulement de constat.
+Tu connais la triade C-I-A par cœur. Kohnfelder y ajoute un cadre simple pour les moyens, et c'est ce couple qui sert à formuler les exigences de Novafact.
 </YouKnow>
 
-## À quoi sert SAMM
+## C-I-A : les objectifs
 
-OWASP SAMM (Software Assurance Maturity Model) répond à une question simple : **où en est notre programme de sécurité logicielle, et quelle est la prochaine étape raisonnable ?** C'est un modèle **prescriptif** : il décrit ce qu'il faudrait faire, niveau par niveau, indépendamment de la taille ou de la technologie.
-
-La version 2 a été publiée le 31 janvier 2020. Elle a ajouté une cinquième fonction, **Implementation**, pour couvrir le build, le déploiement et la gestion des défauts, qui étaient mal représentés dans la version précédente. Elle se veut indépendante de la méthode de développement (cycle en V, agile, DevOps), et son contenu est publié en YAML, ce qui permet de l'intégrer dans des outils.
-
-## La structure
-
-SAMM v2 s'organise en **5 fonctions métier**, chacune avec **3 pratiques**, soit 15 pratiques. Chaque pratique a **2 streams** (A et B), et chaque stream a **3 niveaux de maturité**.
-
-| Fonction | Pratiques |
-| --- | --- |
-| Governance | Strategy & Metrics · Policy & Compliance · Education & Guidance |
-| Design | Threat Assessment · Security Requirements · Secure Architecture |
-| Implementation | Secure Build · Secure Deployment · Defect Management |
-| Verification | Architecture Assessment · Requirements-driven Testing · Security Testing |
-| Operations | Incident Management · Environment Management · Operational Management |
-
-Les niveaux suivent une logique commune : **1** = pratique ponctuelle ou initiale, **2** = pratique structurée et plus efficace, **3** = pratique optimisée et mesurée.
-
-Les streams sont ce qui rend SAMM utilisable : ils séparent deux axes d'une même pratique, qui avancent souvent à des rythmes différents.
-
-| Pratique | Stream A | Stream B |
+| Propriété | Ce qu'elle protège | Chez Novafact |
 | --- | --- | --- |
-| Threat Assessment | Application Risk Profile : classer les applications par risque | Threat Modeling : modéliser les menaces |
-| Security Requirements | Software Requirements : exigences du produit | Supplier Security : exigences envers les fournisseurs |
-| Defect Management | Defect Tracking : suivre et classer les défauts | Metrics and Feedback : en tirer des indicateurs |
+| **Confidentialité** | Seuls les accès autorisés aux données | Les factures d'un tenant ne sont visibles que par ce tenant |
+| **Intégrité** | Pas de modification ou de suppression non autorisée | Un montant de facture émise ne peut plus changer, sauf par un avoir |
+| **Disponibilité** | Pas de délai ou d'interruption significatifs | La plateforme reçoit les factures électroniques de ses clients sans interruption |
 
-Prends le stream Threat Modeling. Au niveau 1, on fait du threat modeling « au mieux », orienté risque, avec un brainstorming et les schémas existants. Au niveau 2, on standardise la formation, le processus et les outils pour que toutes les équipes le pratiquent de la même façon. Au niveau 3, on optimise et on automatise la méthode en continu. Chaque marche décrit un changement d'organisation, pas seulement un outil.
+Ces définitions paraissent évidentes. Elles deviennent utiles quand on les pousse jusqu'aux cas limites, là où les équipes ne pensent pas à les appliquer.
 
-## Comment se calcule un score
+## Pousser chaque propriété jusqu'au bout
 
-Dans la SAMM Toolbox, chaque activité correspond à une question. La réponse la plus basse est « No » (0) ; les autres traduisent une adoption de plus en plus large, avec des valeurs de 0,25, 0,5 et 1 (par exemple « Yes, for some applications », « Yes, for at least half of the applications », « Yes, for most or all of the applications »). Sous chaque question figurent des **critères de qualité** : s'ils ne sont pas remplis, la réponse reste « No », même si l'activité existe sur le papier.
+**La confidentialité ne concerne pas que le contenu.** Savoir qu'une facture numéro 2026-0412 existe chez un concurrent, combien de factures un client émet par mois ou à qui il facture, c'est déjà une fuite. Une API qui répond 403 pour « existe chez un autre tenant » et 404 pour « n'existe pas » divulgue l'existence ; un identifiant séquentiel divulgue le volume. Et la confidentialité se joue aussi hors de l'API : journaux, exports, environnements de test, réponses de l'assistant IA qui résume des factures.
 
-Pour chaque niveau, la Toolbox fait la moyenne des deux streams, puis additionne les trois niveaux. Le score d'une pratique va donc de 0 à 3.
+**L'intégrité ne concerne pas que les attaquants.** Une facture émise est un document comptable : la modifier, même avec les meilleures intentions, pose un problème légal. L'intégrité couvre aussi l'exactitude des calculs (montants et TVA calculés côté serveur, jamais repris du client, M7) et l'impossibilité de supprimer en silence.
 
-| Niveau | Stream A (Application Risk Profile) | Stream B (Threat Modeling) | Moyenne |
-| --- | --- | --- | --- |
-| 1 | 0,5 (au moins la moitié des applications) | 0,5 (au moins la moitié) | 0,5 |
-| 2 | 0 | 0 | 0 |
-| 3 | 0 | 0 | 0 |
-| **Pratique** | | | **0,5** |
+L'invariant « une facture émise ne change plus » doit être garanti **par le code qui écrit**, pas par une vérification préalable qui laisse une fenêtre entre la lecture et l'écriture :
 
-Ce calcul a une conséquence utile : un gain de 0,25 sur un seul stream se voit dans le score. Une équipe peut montrer une progression réelle au bout d'un trimestre, sans attendre d'avoir « validé » un niveau entier.
+<Diff file="apps/api/src/dal/invoices.ts" hlBefore="2,3" hlAfter="2,3,4,5,6" stack>
 
-## Mener une évaluation
+```ts
+export async function updateDraft(tenantId: string, id: ObjectId, patch: DraftPatch) {
+  const inv = await db.invoices.findOne({ _id: id, tenantId });
+  if (!inv || inv.status !== 'draft') throw new ConflictError('facture non modifiable');
+  await db.invoices.updateOne({ _id: id }, { $set: patch });
+}
+```
 
-<Steps items={[
-  { title: "Délimiter", text: "Toute l'organisation, un produit, ou une équipe. Pour Novafact, commence par le produit principal." },
-  { title: "Interroger", text: "Chaque activité se note par une question avec plusieurs réponses graduées. La SAMM Toolbox (tableur Excel ou Google Sheets fourni par OWASP) calcule les scores." },
-  { title: "Obtenir des preuves", text: "Une réponse sans preuve (document, pipeline, ticket) vaut moins qu'on ne le croit. Demande à voir." },
-  { title: "Fixer des cibles", text: "Une cible par pratique, justifiée par les risques et les moyens. Pas besoin de 3 partout." },
-  { title: "Planifier", text: "Des étapes de 3 à 6 mois, avec des activités concrètes et un propriétaire pour chacune." },
-]} />
+```ts
+export async function updateDraft(tenantId: string, id: ObjectId, patch: DraftPatch) {
+  // La condition d'intégrité fait partie du filtre : vérifiée atomiquement à l'écriture.
+  const res = await db.invoices.updateOne(
+    { _id: id, tenantId, status: 'draft' },
+    { $set: DraftPatch.parse(patch) },
+  );
+  if (res.matchedCount === 0) throw new ConflictError('facture introuvable ou déjà émise');
+}
+```
 
-Pour une première évaluation, compte une journée d'entretiens courts : un lead par équipe, le responsable plateforme, la personne qui gère les incidents, quelqu'un du produit. Si les pratiques varient beaucoup d'une équipe à l'autre, note par équipe puis consolide : une moyenne globale qui mélange une équipe à 2 et une autre à 0 ne dit rien d'utile. Au-delà du tableur, OWASP propose SAMMwise, un outil web à héberger soi-même, et il existe des outils tiers comme SAMMY (Codific).
+</Diff>
+
+La version corrigée règle trois problèmes d'un coup : la condition de statut ne peut plus être contournée par une émission concurrente, le filtre par tenant est présent dans l'écriture elle-même (pas seulement dans la lecture), et le correctif valide le contenu du patch par un schéma, ce qui empêche d'y glisser un `status` ou un `total`.
+
+**La disponibilité ne concerne pas que les pannes.** Dans un SaaS multi-tenant, un client qui lance un export de cinq ans de factures ne doit pas ralentir tous les autres : la disponibilité se conçoit **par tenant** (quotas, files séparées, limites de taille). Elle couvre aussi la capacité à **restaurer** : des sauvegardes qu'un attaquant ayant les droits de production peut supprimer ne garantissent aucune disponibilité (M21).
+
+## Quand les propriétés se contredisent
+
+Les trois propriétés tirent parfois dans des directions opposées. Les reconnaître évite des débats stériles :
+
+| Tension | Exemple chez Novafact | Arbitrage courant |
+| --- | --- | --- |
+| Confidentialité contre disponibilité | Chiffrer avec une clé KMS dont la perte rend les données illisibles | Clé gérée avec protection contre la suppression, procédure de récupération testée |
+| Audit contre minimisation | Les journaux d'audit contiennent des adresses e-mail et des adresses IP | Journaliser des identifiants plutôt que des valeurs, durée de conservation définie (leçon 4 de M12) |
+| Autorisation stricte contre disponibilité du support | Le support ne peut pas aider sans voir les données | Accès temporaire, par ticket, journalisé (leçon 2) |
+| Intégrité contre droit à l'effacement | Une facture émise ne se modifie pas, un client demande l'effacement | L'obligation légale de conservation prime, l'usage est restreint (leçon 4 de M12) |
+
+## Le Gold Standard : les moyens
+
+*Aurum*, le latin pour l'or, a donné le symbole chimique **Au**. Kohnfelder remarque que les trois mécanismes qui mettent en œuvre la sécurité commencent par ces deux lettres :
+
+| Mécanisme | Définition |
+| --- | --- |
+| **Authentification** (authN) | Établir avec un haut niveau de confiance l'identité d'un principal (personne, service, appareil) |
+| **Autorisation** (authZ) | Ne permettre une action qu'à un principal authentifié, selon des règles |
+| **Audit** | Conserver un enregistrement fiable des actions des principaux, pour inspection |
+
+Les trois dépendent les uns des autres : sans authentification, l'autorisation n'a pas de sujet ; sans audit, on ne peut ni vérifier les autorisations accordées ni investiguer un incident.
+
+Chez Novafact, les **principaux** ne sont pas que des personnes : un worker ECS, un job GitHub Actions qui déploie, l'assistant IA qui appelle un outil pour envoyer un e-mail. Chacun doit avoir une identité propre, sinon ni l'autorisation ni l'audit ne peuvent le distinguer des autres. Un assistant IA qui agit « avec les droits de l'API » est un principal sans identité : c'est la porte ouverte au *confused deputy* (M13, M27).
+
+L'authentification a aussi des **degrés** : un mot de passe seul, un second facteur, une passkey liée à l'appareil n'offrent pas la même assurance. Le niveau exigé se choisit selon l'action : consulter une facture et changer l'IBAN de réception des paiements ne méritent pas la même preuve d'identité (M14).
+
+## L'audit, parent pauvre
+
+Beaucoup d'applications ont une authentification et une autorisation correctes, mais un audit faible : journaux incomplets, modifiables par les administrateurs eux-mêmes, conservés trop peu de temps. Or c'est lui qui permet de :
+
+- faire confiance **en vérifiant** (leçon précédente) ;
+- prouver qui a fait quoi (**non-répudiation**) ;
+- investiguer un incident et en mesurer l'étendue ;
+- détecter un abus (M24).
+
+Kohnfelder insiste sur deux exigences souvent oubliées. D'abord, le journal doit être **difficile à altérer, y compris par les administrateurs** : pour les journaux les plus sensibles, il recommande un système géré sous un contrôle administratif distinct, pour que l'auteur d'un abus interne ne puisse pas effacer ses traces. Ensuite, la **non-répudiation dépend de l'authentification** : si plusieurs administrateurs partagent le même compte, le journal le plus parfait ne dit pas qui a agi.
+
+<Callout kind="case">
+Kohnfelder cite l'exemple de Twitter qui, en mai 2018, a révélé qu'une modification de code avait fait apparaître des mots de passe en clair dans des journaux internes. L'entreprise n'a pas constaté d'abus, mais a recommandé à ses utilisateurs de changer leur mot de passe. La leçon pour l'audit : un journal est lu par beaucoup de monde en interne, il doit enregistrer des faits opérationnels, pas des secrets ni des données privées.
+</Callout>
+
+## Un événement d'audit bien formé
+
+Un événement d'audit répond à six questions : **qui** (le principal authentifié, et au nom de qui s'il agit pour un autre), **quoi** (l'action), **sur quoi** (la cible), **quand** (horodatage fiable), **d'où** (origine réseau, client), **avec quel résultat** (autorisé, refusé, erreur). Le définir comme un schéma évite que chaque équipe invente le sien :
+
+<Code file="packages/audit/src/event.ts">
+
+```ts
+import { z } from 'zod';
+
+export const AuditEvent = z.object({
+  id: z.string().uuid(),                       // crypto.randomUUID()
+  at: z.string().datetime(),                   // horloge serveur, UTC
+  actor: z.object({
+    type: z.enum(['user', 'service', 'support', 'ai-agent']),
+    id: z.string(),
+    onBehalfOf: z.string().optional(),         // l'assistant IA agit pour un utilisateur
+  }),
+  tenantId: z.string(),
+  action: z.string().regex(/^[a-z]+\.[a-z_.]+$/), // ex. invoice.delete, role.grant
+  target: z.object({ type: z.string(), id: z.string() }),
+  outcome: z.enum(['allowed', 'denied', 'error']),
+  origin: z.object({ ip: z.string().optional(), client: z.string().optional() }),
+}).strict();                                   // aucun champ libre où glisser des données personnelles
+```
+
+</Code>
+
+Les refus (`denied`) comptent autant que les succès : une série de refus sur des factures d'autres tenants est le signal le plus clair d'une tentative de BOLA.
+
+Pour l'inaltérabilité, les événements sont écrits dans un bucket S3 d'un compte AWS dédié, avec **Object Lock en mode conformité** : pendant la durée de rétention, aucun utilisateur, y compris le compte racine, ne peut supprimer ni écraser un objet.
+
+<Code file="infra/audit/audit-archive-stack.ts">
+
+```ts
+import { Duration, Stack, StackProps } from 'aws-cdk-lib';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import { Construct } from 'constructs';
+
+export class AuditArchiveStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
+    super(scope, id, props);
+    new s3.Bucket(this, 'AuditArchive', {
+      objectLockEnabled: true,
+      objectLockDefaultRetention: s3.ObjectLockRetention.compliance(Duration.days(365)),
+      versioned: true,
+      encryption: s3.BucketEncryption.KMS_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+    });
+  }
+}
+```
+
+</Code>
 
 <Callout kind="warn">
-Le piège classique : transformer SAMM en concours de notes. Une organisation à 1,2 qui progresse sur les bonnes pratiques vaut mieux qu'une autre à 2,5 sur le papier, sans preuve. Le score est un outil de conversation, pas un objectif. Deuxième piège : n'interroger que des managers. Les réponses les plus fiables viennent de ceux qui font le travail, avec leurs artefacts sous les yeux.
+Le mode conformité ne se désactive pas pendant la période de rétention : un objet écrit par erreur (avec des données personnelles, par exemple) y restera un an. C'est une raison de plus pour valider les événements par un schéma strict **avant** de les écrire, et de tester le pipeline d'audit sur un bucket en mode gouvernance avant de passer en conformité.
 </Callout>
-
-Une pratique illustre bien la différence entre une note et un progrès : **Threat Assessment**, dans la fonction Conception. On atteint le niveau 1 en produisant un modèle de menaces ; on atteint le niveau 2 quand le modèle suit l'architecture livrée, c'est-à-dire quand une modification d'architecture invalide le modèle et qu'on le sait (M11). C'est un travail d'outillage, pas de rédaction — et c'est ce genre d'écart que l'évaluation doit faire apparaître.
-
-## Se situer : le SAMM Benchmark
-
-OWASP collecte des évaluations anonymisées dans le **SAMM Benchmark**. Le rapport publié repose sur un échantillon modeste, et il le dit lui-même.
-
-<Callout kind="info">
-Le rapport du SAMM Benchmark porte sur 30 évaluations, surtout de grandes multinationales, dont plus de 80 % ont été menées par des évaluateurs tiers. Le score moyen est de 1,44 sur 3. Operations est la fonction la mieux notée (1,81), Verification la plus faible (1,12). Les auteurs préviennent que cette moyenne est probablement plus élevée que celle d'entreprises plus petites.
-</Callout>
-
-Deux leçons pour Novafact. Un score autour de 1 n'a rien de honteux pour une entreprise de sa taille. Et la faiblesse de Verification rappelle que vérifier que les exigences de sécurité sont réellement implémentées reste rare, y compris chez les grands : c'est un terrain où un ancien pentester apporte beaucoup.
-
-## Ce que SAMM apporte à un ancien pentester
-
-Ton regard offensif te pousse naturellement vers **Security Testing** et **Defect Management**. SAMM t'oblige à regarder le reste : les exigences (Security Requirements), la conception (Threat Assessment, Secure Architecture), la formation (Education & Guidance) et l'exploitation (Incident Management). C'est souvent là que se trouvent les meilleurs leviers, parce que ce sont eux qui empêchent les vulnérabilités d'apparaître.
-
-Un exemple de lecture croisée : si ton pentest trouve des BOLA à chaque campagne, le problème n'est pas dans Security Testing (qui les trouve très bien) mais dans Security Requirements (aucune exigence d'autorisation écrite) et Secure Architecture (pas de composant d'autorisation central). Le score SAMM te donne un langage pour dire ça à une direction.
 
 <Callout kind="novafact">
-Première évaluation SAMM de Novafact (chiffres fictifs) :
-
-| Pratique | Score | Preuve observée | Cible à 12 mois |
-| --- | --- | --- | --- |
-| Security Testing | 1,5 | Pentest annuel, SAST installé mais non configuré | 1,75 |
-| Threat Assessment | 0,5 | Deux schémas d'architecture commentés, pas de profil de risque | 1 |
-| Security Requirements | 0 | Aucune exigence écrite | 1 |
-| Secure Build | 1 | CI unique, dépendances non épinglées | 1,5 |
-| Incident Management | 1 | Astreinte, mais aucun scénario applicatif | 1,25 |
-
-La roadmap détaillée arrive en fin de module.
+Exigence ajoutée au référentiel de Novafact : toute action d'un administrateur de tenant (suppression, export, changement de rôle) produit un événement d'audit horodaté, avec l'acteur, la cible et l'origine, écrit dans un stockage que ni l'application ni les administrateurs ne peuvent modifier, et conservé un an. Une copie consultable est envoyée dans Elastic pour la détection, et l'administrateur du tenant voit dans son espace les événements qui concernent son compte.
 </Callout>
 
-## Faire vivre l'évaluation
-
-Une évaluation SAMM n'a de valeur que répétée. Refais-la tous les 6 à 12 mois avec les mêmes interlocuteurs et la même méthode, sinon l'écart mesure le changement d'évaluateur plutôt que celui du programme. Garde les preuves dans un dossier versionné : à la réévaluation suivante, tu repars de ce qui existait et tu vérifies que ça existe toujours. Enfin, présente toujours le score avec sa cible et sa tendance ; un chiffre isolé invite aux comparaisons que tu veux éviter.
-
 <Recap items={[
-  "SAMM est un modèle prescriptif de maturité de la sécurité logicielle ; la v2 (janvier 2020) a ajouté la fonction Implementation.",
-  "5 fonctions, 15 pratiques, 2 streams par pratique, 3 niveaux.",
-  "Chaque réponse vaut 0, 0,25, 0,5 ou 1 ; moyenne des streams par niveau, somme des niveaux : un score de 0 à 3.",
-  "Une évaluation vaut par ses preuves et ses critères de qualité, pas par ses déclarations.",
-  "On fixe une cible par pratique selon le risque ; 3 partout n'est pas un objectif, et le benchmark place la moyenne autour de 1,4.",
-  "SAMM pousse à investir en amont (exigences, conception), là où un pentester regarde rarement.",
+  "C-I-A décrit les objectifs ; poussées jusqu'au bout, elles couvrent aussi les métadonnées, l'exactitude, l'équité entre tenants et la restauration.",
+  "Un invariant d'intégrité se vérifie dans l'écriture elle-même, pas dans une lecture préalable.",
+  "Les propriétés se contredisent parfois : nommer la tension permet de l'arbitrer.",
+  "Le Gold Standard décrit les moyens : authentification, autorisation, audit, pour tous les principaux, y compris services et agents IA.",
+  "L'audit est souvent le maillon faible : complet, sans secrets, infalsifiable même par les administrateurs, conservé assez longtemps.",
+  "Pas de non-répudiation sans identités individuelles.",
 ]} />
 
 <Sources items={[
-  { title: "OWASP SAMM : le modèle", url: "https://owaspsamm.org/model/" },
-  { title: "OWASP SAMM : évaluation et toolbox", url: "https://owaspsamm.org/assessment/" },
-  { title: "OWASP SAMM : pratique Threat Assessment", url: "https://owaspsamm.org/model/design/threat-assessment/" },
-  { title: "OWASP SAMM version 2, publication", url: "https://owaspsamm.org/blog/samm2-release/" },
-  { title: "OWASP SAMM Benchmark Report", url: "https://owaspsamm.org/benchmark/benchmark-report/" },
-  { title: "Dépôt GitHub OWASP SAMM", url: "https://github.com/OWASP/samm" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 1, Classic Principles" },
+  { title: "OWASP Cheat Sheet : Logging", url: "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html" },
+  { title: "AWS : S3 Object Lock", url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html" },
+  { title: "AWS CDK : ObjectLockRetention", url: "https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_s3.ObjectLockRetention.html" },
 ]} />

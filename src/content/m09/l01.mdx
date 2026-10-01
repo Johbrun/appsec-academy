@@ -1,170 +1,236 @@
 export const questions = [
   {
-    q: "Quels flux OAuth 2.1 supprime-t-il par rapport à OAuth 2.0 ?",
+    q: "Selon NIST SP 800-63B-4, quelle longueur minimale pour un mot de passe utilisé seul comme facteur d'authentification ?",
     options: [
-      "Implicit et Device Authorization Grant",
-      "Implicit et Resource Owner Password Credentials",
-      "Resource Owner Password Credentials et Client Credentials",
-      "Refresh Token sans rotation et Authorization Code sans PKCE",
+      "8 caractères, avec au moins une majuscule, un chiffre et un symbole",
+      "12 caractères, renouvelés au moins tous les 90 jours",
+      "15 caractères, sans règle de composition",
+      "8 caractères, à condition qu'un second facteur soit exigé",
+    ],
+    answer: 2,
+    explain: "La révision 4 fixe 15 caractères pour un mot de passe utilisé seul, et 8 seulement lorsqu'il est associé à un second facteur : c'est le piège, cette valeur est exacte mais hors du cas posé par la question. Les règles de composition et le renouvellement périodique sont, eux, explicitement écartés (SHALL NOT).",
+  },
+  {
+    q: "Comment stocker un jeton de réinitialisation de mot de passe ?",
+    options: [
+      "Un JWT signé contenant l'identifiant de l'utilisateur et une expiration courte",
+      "Une valeur aléatoire (CSPRNG), stockée hachée, à usage unique et de courte durée",
+      "Un UUID v4 stocké en clair, supprimé dès que le mot de passe est changé",
+      "Un HMAC de l'adresse e-mail et de l'horodatage, vérifiable sans rien stocker",
     ],
     answer: 1,
-    explain: "Le flux implicite (jetons renvoyés dans le fragment d'URL) et le flux par mot de passe (le client voit les identifiants de l'utilisateur) disparaissent ; Authorization Code avec PKCE devient le flux de référence. Le Device Authorization Grant, lui, est conservé et intégré à la spécification. Quant aux refresh tokens, 2.1 ne les supprime pas : il exige qu'ils soient liés au client ou tournés à chaque usage.",
+    explain: "Un jeton de réinitialisation est un secret équivalent au mot de passe : imprévisible, haché en base (une fuite de la table ne permet alors aucune réinitialisation), à usage unique, éphémère, et on révoque les sessions après usage. Le JWT signé est la proposition la plus fréquente et la plus tentante : il est bien imprévisible, mais sans état côté serveur rien n'empêche de le rejouer jusqu'à son expiration.",
   },
   {
-    q: "À quoi sert PKCE ?",
+    q: "Avec express-session, que faut-il faire de la session au moment où la connexion réussit ?",
     options: [
-      "À lier le code d'autorisation au client qui a démarré le flux",
-      "À éviter de stocker un secret client dans une application publique",
-      "À prouver au serveur que l'utilisateur a consenti sur la bonne page",
-      "À remplacer le paramètre state pour la protection contre le CSRF",
+      "Ajouter l'utilisateur à la session existante et prolonger sa durée de vie",
+      "Poser les attributs HttpOnly, Secure et SameSite=Lax sur le cookie de session",
+      "Supprimer le cookie et en réémettre un avec le même identifiant de session",
+      "La régénérer, c'est-à-dire changer d'identifiant avant d'y écrire l'utilisateur",
     ],
-    answer: 0,
-    explain: "Le client envoie l'empreinte d'un secret éphémère au départ (code_challenge), puis le secret lui-même à l'échange (code_verifier) : un code intercepté sans le verifier ne s'échange pas. PKCE ne remplace pas le secret client — une application publique n'en a pas et n'en aura pas davantage avec PKCE, il protège le code, pas l'identité du client. Sur le CSRF, il peut effectivement se substituer à state, mais c'est un effet de bord, et seulement si le serveur applique vraiment PKCE.",
+    answer: 3,
+    explain: "Si l'identifiant d'avant connexion survit, l'attaquant qui l'a imposé à la victime hérite de sa session authentifiée. Les attributs du cookie sont indispensables mais ne règlent pas la fixation : ils empêchent de lire ou d'envoyer le cookie, pas d'en imposer la valeur au départ. Réémettre le même identifiant ne change rien non plus, c'est la valeur qui doit changer. On régénère à la connexion et à chaque élévation de privilège.",
   },
   {
-    q: "Selon la RFC 9700, à quelle condition un client peut-il s'appuyer sur PKCE plutôt que sur state pour se protéger du CSRF sur le callback ?",
+    q: "Pourquoi une passkey résiste-t-elle au phishing, contrairement à un code TOTP ?",
     options: [
-      "Jamais : le paramètre state reste obligatoire dans tous les cas",
-      "S'il s'est assuré que le serveur d'autorisation applique bien PKCE",
-      "Si le client est une application publique, où state n'est pas vérifiable",
-      "Si le redirect_uri est enregistré en comparaison exacte et servi en HTTPS",
+      "Parce que la clé privée ne quitte jamais l'authentificateur, au contraire du secret TOTP",
+      "Parce que le défi signé est lié au RP ID : le navigateur refuse un domaine qui imite",
+      "Parce que la signature est vérifiée par le serveur, alors que le code TOTP est saisi",
+      "Parce qu'une passkey exige une biométrie, que l'attaquant ne peut pas reproduire",
     ],
     answer: 1,
-    explain: "Le code_verifier est lié à la session du client : un code injecté par un attaquant échoue à l'échange, ce qui couvre le CSRF du callback — mais seulement si le serveur applique réellement PKCE, sinon la protection est imaginaire. La comparaison exacte du redirect_uri protège d'autre chose, la fuite du code vers un chemin contrôlé, pas du code injecté. En OIDC, le nonce joue le même rôle ; state reste utile et ne coûte rien.",
-  },
-  {
-    q: "Le serveur d'autorisation accepte tout redirect_uri qui commence par https://app.novafact.example/. Pourquoi est-ce dangereux ?",
-    options: [
-      "Parce qu'un chemin quelconque du domaine peut recevoir le code d'autorisation",
-      "Parce que le préfixe n'empêche pas d'ajouter un paramètre de requête arbitraire",
-      "Parce que le sous-domaine n'est pas vérifié et qu'un attaquant peut le revendiquer",
-      "Parce qu'un redirect_uri dynamique est incompatible avec l'usage de PKCE",
-    ],
-    answer: 0,
-    explain: "Il suffit d'un open redirect, d'une page qui reflète son URL ou d'un contenu déposé par un utilisateur sous ce domaine pour capter le code. La RFC 9700 impose donc la comparaison exacte des chaînes, avec une seule exception : le port des URI localhost des applications natives. Le paramètre de requête arbitraire est un symptôme du même défaut, mais il ne suffit pas à détourner le code : c'est la liberté sur le chemin qui le permet.",
+    explain: "C'est la liaison au domaine qui fait tout : le navigateur ne présente la clé que pour le RP ID enregistré, donc sur un site qui imite Novafact il n'y a rien à signer ni à relayer. Le fait que la clé privée ne sorte pas de l'authentificateur est vrai et utile contre le vol du secret, mais un secret TOTP enfermé dans une puce sécurisée resterait phishable : l'utilisateur recopierait quand même le code sur le faux site.",
   },
 ];
 
 <YouKnow>
-Tu as joué avec des redirect_uri, des codes interceptés et des flux implicites sur des dizaines d'applications. Ce module part du flux sûr et remonte vers les pièges, avec les RFC récentes.
+Tu as contourné des réinitialisations de mot de passe, énuméré des comptes et joué avec des sessions mal invalidées. Cette leçon regroupe les choix qui ferment ces portes dans une application Express.
 </YouKnow>
 
-## OAuth 2.1 : faire le ménage
+## Sessions ou jetons ?
 
-OAuth 2.0 (RFC 6749, 2012) a accumulé les options dangereuses. **OAuth 2.1**, encore à l'état de draft à l'IETF (version 16, septembre 2026), consolide plus de dix ans de bonnes pratiques, dont celles de la RFC 9700 (leçon 5) :
+| Approche | Forces | Points d'attention |
+| --- | --- | --- |
+| **Session côté serveur** (cookie opaque) | Révocation immédiate, rien de sensible côté client | Stockage partagé entre instances (Redis), protection CSRF |
+| **Jeton autoportant** (JWT) | Pas de stockage, adapté aux API entre services | Révocation difficile avant expiration, vérification exigeante (M14) |
 
-| Supprimé ou imposé | Pourquoi |
-| --- | --- |
-| **Implicit** supprimé | Le jeton voyageait dans l'URL : historique, Referer, logs |
-| **Password** (ROPC) supprimé | Le client voyait les identifiants de l'utilisateur, et le flux interdit toute MFA moderne |
-| **PKCE** obligatoire pour tous les clients | Un code intercepté devient inutilisable |
-| **redirect_uri** comparé exactement | Plus de préfixe ni de joker |
-| Jetons **jamais dans l'URL** | Pas de `access_token` en paramètre de requête |
-| **Refresh tokens** liés à l'émetteur ou à usage unique pour les clients publics | Un refresh token volé ne sert qu'une fois |
+Pour le navigateur, Novafact utilise une **session** via un BFF (M14) ; pour les appels entre services, des jetons courts. Une session bien gérée repose sur quatre règles : un cookie durci, un identifiant **régénéré** à la connexion et à chaque élévation de privilège (contre la fixation de session), une expiration d'inactivité **et** une expiration absolue, et une révocation côté serveur. NIST SP 800-63B-4 donne des ordres de grandeur pour le niveau AAL2 : réauthentification au plus toutes les 24 heures, et après au plus une heure d'inactivité.
 
-Le flux implicite n'avait pas qu'un problème de fuite : le jeton arrivait directement dans le navigateur sans que le client puisse prouver qu'il l'avait demandé, ce qui ouvrait la porte à l'injection de jetons. Le flux par mot de passe, lui, habituait les utilisateurs à saisir leur mot de passe dans une application tierce, exactement le réflexe que le phishing exploite, et rendait impossibles les passkeys, la MFA du fournisseur et la fédération.
-
-On distingue deux types de clients. Un client **confidentiel** peut garder un secret (un serveur, comme le BFF de Novafact) et s'authentifie auprès du serveur d'autorisation. Un client **public** ne le peut pas (une SPA, une application mobile) : tout secret embarqué est extractible. PKCE protège les deux, mais c'est pour les clients publics qu'il est vital.
-
-## Authorization Code + PKCE, pas à pas
-
-<Steps items={[
-  { title: "Préparer", text: "Le client génère un code_verifier aléatoire, calcule code_challenge = BASE64URL(SHA-256(code_verifier)), et un state (et un nonce pour OIDC)." },
-  { title: "Rediriger", text: "Vers le serveur d'autorisation avec client_id, redirect_uri exact, scope, state, code_challenge et code_challenge_method=S256." },
-  { title: "Authentifier", text: "L'utilisateur se connecte et consent chez le fournisseur d'identité (Cognito pour Novafact)." },
-  { title: "Revenir", text: "Le navigateur revient sur le redirect_uri avec code et state. Le client vérifie que state correspond à celui qu'il a émis." },
-  { title: "Échanger", text: "Le client envoie code et code_verifier au point de terminaison token, côté serveur. Il reçoit access token, refresh token et, en OIDC, un ID token." },
-  { title: "Vérifier", text: "En OIDC, le client valide l'ID token : signature, iss, aud, exp, et nonce." },
-]} />
-
-Dans le BFF de Novafact, la bibliothèque `openid-client` (panva) fait ces vérifications ; le code applicatif se limite à conserver les valeurs de l'aller dans la session et à les fournir au retour.
-
-<Code file="apps/bff/src/auth/oidc.ts" hl="6,7,8,9,24,25,28,29,30">
+<Code file="apps/bff/src/auth/session.ts" hl="5,11,15">
 
 ```ts
-import * as client from 'openid-client';
+import session from 'express-session';
+import { promisify } from 'node:util';
 
-const config = await client.discovery(new URL(env.COGNITO_ISSUER), env.CLIENT_ID, env.CLIENT_SECRET);
-
-router.get('/auth/login', async (req, res) => {
-  const codeVerifier = client.randomPKCECodeVerifier();
-  const state = client.randomState();
-  const nonce = client.randomNonce();
-  req.session.oauth = { ...req.session.oauth, [state]: { codeVerifier, nonce, exp: Date.now() + 600_000 } }; // un flux par onglet
-  const url = client.buildAuthorizationUrl(config, {
-    redirect_uri: `${env.APP_URL}/auth/callback`,    // depuis la configuration, pas depuis Host
-    scope: 'openid email',
-    code_challenge: await client.calculatePKCECodeChallenge(codeVerifier),
-    code_challenge_method: 'S256',
-    state,
-    nonce,
-  });
-  res.redirect(url.href);
+export const sessionMiddleware = session({
+  name: '__Host-sid',               // préfixe __Host- : Secure, Path=/, pas d'attribut Domain
+  secret: config.sessionSecrets,    // tableau : la première signe, les suivantes vérifient (rotation)
+  store: redisSessionStore,
+  resave: false,
+  saveUninitialized: false,         // pas de session pour les visiteurs anonymes
+  rolling: true,                    // l'expiration d'inactivité repart à chaque requête
+  cookie: { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 1000 },
 });
 
-router.get('/auth/callback', async (req, res) => {
-  const currentUrl = new URL(req.originalUrl, env.APP_URL);
-  const state = currentUrl.searchParams.get('state') ?? '';
-  const pending = req.session.oauth?.[state];          // seul un state émis pour CETTE session est retrouvé
-  if (req.session.oauth) delete req.session.oauth[state]; // usage unique, même en cas d'échec
-  if (!pending || pending.exp < Date.now()) return res.sendStatus(400);
-  const tokens = await client.authorizationCodeGrant(config, currentUrl, {
-    pkceCodeVerifier: pending.codeVerifier,
-    expectedState: state,
-    expectedNonce: pending.nonce,
-  });
-  const claims = tokens.claims()!;                     // ID token déjà vérifié par la bibliothèque
-  await establishSession(req, { iss: claims.iss, sub: claims.sub }, tokens); // M8, leçon 6
-  res.redirect('/');
-});
+export async function establishSession(req: Request, user: { id: string; tenantId: string }) {
+  await promisify(req.session.regenerate.bind(req.session))(); // nouvel identifiant : anti-fixation
+  req.session.userId = user.id;
+  req.session.tenantId = user.tenantId;
+  req.session.absoluteExpiry = Date.now() + 12 * 60 * 60 * 1000; // vérifiée par un middleware
+}
 ```
 
 </Code>
 
-<Callout kind="warn">
-Trois erreurs d'implémentation reviennent en revue de code. **Un seul flux en attente par session** : si l'utilisateur ouvre deux onglets de connexion, le second écrase les valeurs du premier, qui échoue ; les équipes « corrigent » alors en désactivant la vérification de state. Mieux vaut indexer les flux en attente par `state`, avec une expiration de quelques minutes. **Des valeurs réutilisables** : le verifier, le state et le nonce sont supprimés dès le retour, même en cas d'échec. **Des valeurs exposées** : dans une SPA sans BFF, le code_verifier finit souvent dans `localStorage`, où la moindre XSS le lit (leçon 2).
-</Callout>
+La révocation n'a de sens que si l'utilisateur peut l'exercer : Novafact affiche la liste des sessions actives (appareil, dernière activité) avec un bouton « déconnecter », et révoque tout automatiquement après un changement de mot de passe ou de facteur.
 
-## Les trois paramètres qui comptent
+## Les mots de passe
 
-- **state** : protège contre le CSRF de connexion (un attaquant qui ferait se connecter la victime avec **son** compte). Imprévisible, lié à la session, vérifié au retour.
-- **nonce** (OIDC) : lie l'ID token à la demande, contre le rejeu.
-- **code_verifier** (PKCE) : lie le code au client.
-
-Les trois sont des valeurs **imprévisibles** (CSPRNG, M8), à usage unique, conservées côté serveur. Leurs rôles se recouvrent en partie : la RFC 9700 admet qu'un client qui s'est assuré que le serveur d'autorisation applique PKCE s'appuie sur lui contre le CSRF, et qu'en OIDC le nonce joue ce rôle. Novafact garde les trois : ils ne coûtent rien et couvrent des erreurs de configuration différentes.
-
-Deux détails de PKCE que les revues oublient. La méthode `plain` envoie le verifier lui-même dans la demande d'autorisation : quiconque lit cette URL (logs, historique) peut échanger le code. Seule `S256` ne l'expose pas. Et le serveur d'autorisation doit refuser un `code_verifier` à l'échange si aucun `code_challenge` n'a été envoyé au départ : sinon, un attaquant qui démarre un flux sans PKCE neutralise la protection (attaque par **rétrogradation** de PKCE).
-
-## Le redirect_uri, au caractère près
-
-La RFC 9700 impose la **comparaison exacte des chaînes** entre le `redirect_uri` reçu et une URL enregistrée, avec une seule exception : le numéro de port des URI `localhost` pour les applications natives, qui ouvrent un port éphémère. Tout le reste (préfixe, joker de sous-domaine, normalisation « intelligente ») donne à l'attaquant une chance de faire atterrir le code sur une page qu'il influence : une page avec redirection ouverte, un sous-domaine abandonné, un chemin qui sert du contenu utilisateur (leçon 4).
-
-Côté Novafact, la liste des URL de callback enregistrées dans Cognito fait partie de l'infrastructure versionnée : une URL de préproduction ou de test ne doit jamais figurer sur le client de production.
-
-## OpenID Connect, identité fédérée et SSO
-
-**OAuth** délègue une **autorisation** : il dit à une API ce qu'un client a le droit de faire. **OpenID Connect** ajoute l'**authentification** : l'ID token dit **qui** est l'utilisateur, à destination du client. OIDC apporte aussi un point de découverte (`/.well-known/openid-configuration`) qui publie les points de terminaison et l'URL des clés, et un point `userinfo`. Confondre OAuth et OIDC est à l'origine de nombreuses failles (leçon 3).
-
-L'**identité fédérée** consiste à confier l'authentification à un fournisseur d'identité externe. Chez Novafact, Cognito sert de courtier : il authentifie les utilisateurs locaux, et fédère ceux qui arrivent par Google ou par le SSO de leur entreprise (OIDC ou SAML, leçon 6). Le **SSO** apporte beaucoup à la sécurité : MFA et politiques centralisées chez le client, et surtout un départ d'employé qui coupe l'accès partout à la fois. Il concentre aussi le risque : faire confiance à un fournisseur d'identité, c'est accepter tout ce qu'il affirme. Deux conséquences de conception :
-
-- un fournisseur d'identité d'entreprise ne peut connecter que les comptes **du tenant** qui l'a configuré ;
-- un utilisateur fédéré est identifié par le couple **(`iss`, `sub`)**, jamais par son adresse e-mail seule (leçon 4).
-
-<Recap items={[
-  "OAuth 2.1 (draft 16, septembre 2026) supprime Implicit et ROPC, impose PKCE et la comparaison exacte des redirect_uri.",
-  "Authorization Code + PKCE (S256) est le flux de référence ; le serveur refuse un code_verifier sans code_challenge initial.",
-  "state contre le CSRF de connexion, nonce contre le rejeu de l'ID token, code_verifier contre l'interception du code : tous conservés côté serveur, à usage unique.",
-  "Le redirect_uri se compare au caractère près ; seule exception, le port localhost des applications natives.",
-  "OAuth autorise l'accès à une API ; OpenID Connect authentifie l'utilisateur auprès du client ; la fédération se borne au tenant et identifie par (iss, sub).",
+<Steps items={[
+  { title: "Le hachage", text: "argon2id (paquet argon2), avec au minimum les paramètres recommandés par OWASP (19 Mio de mémoire, 2 itérations, parallélisme 1) ; scrypt de node:crypto en alternative. Attention à bcrypt : il ignore tout au-delà de 72 octets." },
+  { title: "La politique", text: "NIST SP 800-63B-4 (2025) : 15 caractères minimum pour un mot de passe utilisé seul, au moins 64 acceptés, pas de règles de composition, pas de renouvellement périodique forcé, mais une vérification contre les mots de passe courants ou compromis." },
+  { title: "Les tentatives", text: "Limitation par compte et par origine, sans verrouiller le compte au point de permettre un déni de service (M15). NIST fixe un plafond : au plus 100 échecs consécutifs sur un compte." },
 ]} />
 
-<Lab id="ps-oauth" />
+Le format PHC (`$argon2id$v=19$m=19456,t=2,p=1$…`) stocke les paramètres avec le hash. C'est ce qui permet de les **relever** plus tard sans casser les comptes existants : à la connexion réussie, si le hash a été produit avec des paramètres plus faibles que la politique actuelle, on le recalcule. C'est l'agilité cryptographique (leçon 7 de M13) appliquée aux mots de passe.
+
+<Code file="apps/api/src/auth/passwords.ts" hl="3,9,10">
+
+```ts
+import argon2 from 'argon2';
+
+const POLICY = { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 } as const; // memoryCost en Kio
+
+export const hashPassword = (password: string) => argon2.hash(password, POLICY);
+
+export async function verifyAndUpgrade(user: { id: string; passwordHash: string }, password: string) {
+  const ok = await argon2.verify(user.passwordHash, password);
+  if (ok && argon2.needsRehash(user.passwordHash, POLICY)) {
+    await users.updatePasswordHash(user.id, await hashPassword(password)); // migration transparente
+  }
+  return ok;
+}
+```
+
+</Code>
+
+Pour la liste de mots de passe compromis, l'API **Pwned Passwords** fonctionne par k-anonymat : le client calcule le SHA-1 du mot de passe, n'envoie que les **5 premiers caractères** hexadécimaux, et reçoit tous les suffixes correspondants, qu'il compare localement. Le service ne voit jamais le mot de passe ni son hash complet. L'en-tête `Add-Padding: true` ajoute des réponses factices pour que la taille de la réponse ne trahisse rien.
+
+<Code file="apps/api/src/auth/breached.ts">
+
+```ts
+import { createHash } from 'node:crypto';
+
+export async function isBreached(password: string): Promise<boolean> {
+  const sha1 = createHash('sha1').update(password).digest('hex').toUpperCase();
+  const prefix = sha1.slice(0, 5), suffix = sha1.slice(5);
+  const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+    headers: { 'Add-Padding': 'true' },
+    signal: AbortSignal.timeout(2000),
+  });
+  if (!res.ok) return false; // service indisponible : on n'empêche pas l'inscription, on journalise
+  const body = await res.text();
+  return body.split('\n').some((line) => {
+    const [s, count] = line.trim().split(':');
+    return s === suffix && Number(count) > 0; // les entrées de remplissage ont un compteur à 0
+  });
+}
+```
+
+</Code>
+
+Ici, l'échec ouvert est un choix assumé : la vérification est une défense d'appoint, et bloquer toutes les inscriptions pendant une panne d'un service tiers serait disproportionné. Ce genre d'exception à *Fail Securely* se décide et s'écrit, il ne se découvre pas.
+
+## Les passkeys
+
+Les **passkeys** (WebAuthn) remplacent le mot de passe par une paire de clés liée au domaine : elles résistent au phishing et à la réutilisation. Le mécanisme est précis : la clé privée est associée à l'identifiant du site (RP ID, par exemple `novafact.example`), et c'est le **navigateur** qui refuse de l'utiliser pour un autre domaine. Un faux site n'obtient rien à relayer, contrairement à un code TOTP que l'utilisateur recopie de bonne foi.
+
+En Node, la bibliothèque **SimpleWebAuthn** gère l'enregistrement (`generateRegistrationOptions`, `verifyRegistrationResponse`) et la connexion (`generateAuthenticationOptions`, `verifyAuthenticationResponse`). Le serveur conserve pour chaque passkey sa clé publique, son identifiant et son compteur ; il vérifie à chaque connexion le défi (à usage unique, stocké en session), l'origine et le RP ID attendus.
+
+<Code file="apps/bff/src/auth/passkeys.ts" hl="3,4,5">
+
+```ts
+const { verified, authenticationInfo } = await verifyAuthenticationResponse({
+  response: req.body,
+  expectedChallenge: req.session.webauthnChallenge!, // émis par generateAuthenticationOptions, effacé après usage
+  expectedOrigin: 'https://app.novafact.example',
+  expectedRPID: 'novafact.example',
+  credential: { id: stored.id, publicKey: stored.publicKey, counter: stored.counter, transports: stored.transports },
+  requireUserVerification: true, // PIN ou biométrie sur l'appareil
+});
+delete req.session.webauthnChallenge;
+if (verified) await passkeys.updateCounter(stored.id, authenticationInfo.newCounter);
+```
+
+</Code>
+
+Deux points de conception. Les passkeys **synchronisées** (via le trousseau d'Apple, de Google ou d'un gestionnaire de mots de passe) sont pratiques et résistent au phishing, mais leur sécurité dépend du compte de synchronisation ; NIST les exclut du niveau AAL3. Et la **récupération de compte** devient le maillon faible : si un simple lien par e-mail permet d'ajouter une nouvelle passkey, l'attaquant vise ce flux. Pour Novafact : passkeys proposées à tous, **exigées** pour les administrateurs de tenant, et la récupération d'un compte administrateur passe par un autre administrateur du tenant.
+
+<Callout kind="case">
+**Uber (septembre 2022)**. Un attaquant possédant le mot de passe d'un prestataire l'a inondé de notifications MFA push. Le prestataire les refusait, jusqu'à ce que l'attaquant le contacte sur WhatsApp en se faisant passer pour le support informatique ; il a fini par accepter. De là, l'attaquant a obtenu des accès étendus à des outils internes. Une MFA qu'on « approuve » peut être extorquée ; une passkey, elle, ne fonctionne que sur le vrai domaine, et le correctif minimal d'une MFA push est d'exiger la saisie d'un nombre affiché à l'écran (*number matching*) et de limiter les sollicitations.
+</Callout>
+
+## La réinitialisation
+
+| Étape | Règle |
+| --- | --- |
+| Demande | Même réponse et même délai, que le compte existe ou non (pas d'énumération) |
+| Jeton | Aléatoire (CSPRNG), **stocké haché**, usage unique, expiration courte (15 à 60 min) |
+| Lien | Construit à partir d'APP_URL, jamais de l'en-tête Host (M9) |
+| Après | **Toutes les sessions sont révoquées**, l'utilisateur est prévenu par e-mail |
+
+Un jeton de 32 octets aléatoires n'a pas besoin d'un hachage lent : un SHA-256 suffit, car il n'y a rien à deviner par dictionnaire. Ce qui compte, c'est qu'une fuite de la table ne donne pas de jetons utilisables.
+
+<Code file="apps/api/src/auth/reset.ts">
+
+```ts
+import { randomBytes, createHash } from 'node:crypto';
+
+const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
+
+export async function createResetToken(userId: string) {
+  const token = randomBytes(32).toString('base64url');         // envoyé par e-mail, jamais stocké
+  await resetTokens.insert({ userId, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 30 * 60_000) });
+  return token;
+}
+
+export async function consumeResetToken(token: string) {
+  const row = await resetTokens.findOneAndDelete({ tokenHash: sha256(token) }); // usage unique, atomique
+  if (!row || row.expiresAt < new Date()) return null;
+  return row.userId;
+}
+```
+
+</Code>
+
+## L'énumération de comptes
+
+Inscription, connexion et réinitialisation doivent répondre de la même façon, dans le même délai, que le compte existe ou non. Pour l'inscription, la réponse neutre (« si l'adresse est disponible, un e-mail de confirmation a été envoyé ») évite de révéler les comptes existants.
+
+Le délai est le piège le plus fréquent : si la connexion d'un compte inexistant répond sans calculer d'argon2id, elle répond en quelques millisecondes au lieu de plusieurs dizaines. On vérifie donc le mot de passe contre un **hash factice** quand l'utilisateur n'existe pas, et l'envoi d'e-mail de réinitialisation se fait en tâche de fond, pour que la réponse HTTP parte au même moment dans les deux cas.
+
+## L'acceptabilité psychologique
+
+Un mécanisme trop pénible est contourné. C'est un principe classique (Saltzer et Schroeder, repris par le CSSLP) : la sécurité doit rester utilisable. Les passkeys en sont un bon exemple, plus sûres **et** plus simples qu'un mot de passe complexe. À l'inverse, des règles de composition et des renouvellements forcés produisent des `Novafact2026!` prévisibles : c'est précisément pour ça que NIST les interdit désormais.
+
+<Recap items={[
+  "Sessions côté serveur pour le navigateur : cookie __Host-, identifiant régénéré à la connexion, expirations d'inactivité et absolue, révocation visible.",
+  "argon2id en format PHC avec migration transparente des paramètres ; 15 caractères minimum, pas de composition, vérification k-anonyme contre les mots de passe compromis.",
+  "Passkeys liées au domaine, vérifiées avec défi, origine et RP ID ; la récupération de compte ne doit pas devenir le maillon faible.",
+  "Réinitialisation : jeton aléatoire haché, unique, court ; toutes les sessions révoquées ensuite.",
+  "Réponses identiques et délais identiques pour éviter l'énumération ; une sécurité utilisable est une sécurité appliquée.",
+]} />
+
+<Lab id="ps-authentication" />
 
 <Sources items={[
-  { title: "OAuth 2.1 (draft IETF)", url: "https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/" },
-  { title: "oauth.net : OAuth 2.1", url: "https://oauth.net/2.1/" },
-  { title: "RFC 7636 : PKCE", url: "https://www.rfc-editor.org/rfc/rfc7636" },
-  { title: "RFC 9700 : OAuth 2.0 Security Best Current Practice", url: "https://www.rfc-editor.org/rfc/rfc9700" },
-  { title: "OpenID Connect Core", url: "https://openid.net/specs/openid-connect-core-1_0.html" },
-  { title: "openid-client (panva)", url: "https://github.com/panva/openid-client" },
+  { title: "NIST SP 800-63B-4", url: "https://pages.nist.gov/800-63-4/sp800-63b.html" },
+  { title: "OWASP Cheat Sheet : Password Storage", url: "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Forgot Password", url: "https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Session Management", url: "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html" },
+  { title: "SimpleWebAuthn", url: "https://simplewebauthn.dev/" },
+  { title: "Have I Been Pwned : API Pwned Passwords", url: "https://haveibeenpwned.com/API/v3#PwnedPasswords" },
+  { title: "BleepingComputer : Uber links breach to Lapsus$ group (septembre 2022)", url: "https://www.bleepingcomputer.com/news/security/uber-links-breach-to-lapsus-group-blames-contractor-for-hack/" },
 ]} />

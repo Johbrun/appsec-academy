@@ -1,4 +1,4 @@
-// M17 · Déploiement, exploitation & résilience — challenges jouables.
+// m17 · Déploiement, exploitation & résilience — challenges jouables.
 //
 // Challenges « fix » : le défaut vit dans le dépôt fixture `novafact/`, pas
 // dans une requête. On l'audite, on corrige le fichier, et on relance l'audit
@@ -35,9 +35,9 @@ export const m17: ExerciseDef[] = [
     brief: 'L’image de base est référencée par étiquette mobile : deux constructions à une semaine d’écart ne produisent pas le même système.',
     goal: 'Épingler par empreinte, et brancher le renouvellement automatique.',
     file: 'novafact/Dockerfile',
-    lessons: ['m17/l02', 'm14/l09'],
+    lessons: ['m17/l02', 'm14/l10'],
     hints: [
-      'C’est la même question qu’en M14 pour les actions GitHub, posée à l’image de base.',
+      'C’est la même question qu’en M18 pour les actions GitHub, posée à l’image de base.',
       'Une étiquette est un alias que son propriétaire peut repointer ; l’empreinte, elle, EST l’image.',
       'Remplace `node:20` par `node:20.18.1-bookworm-slim@sha256:…` (64 caractères hexadécimaux), sur chaque `FROM` qui vient d’un registre. Renovate renouvelle ensuite la ligne.',
     ],
@@ -119,7 +119,7 @@ export const m17: ExerciseDef[] = [
     brief: 'N’importe quelle image portant le bon nom part en production : rien ne vérifie qui l’a construite ni depuis quel commit.',
     goal: 'Signer les artefacts à la construction, et n’admettre au déploiement que ceux dont la signature est vérifiée.',
     file: 'novafact/.github/workflows/deploy.yml',
-    lessons: ['m17/l03', 'm14/l09'],
+    lessons: ['m17/l03', 'm14/l10'],
     hints: [
       'Deux workflows sont concernés : celui qui construit, et celui qui déploie.',
       'La moitié qu’on oublie n’est pas la signature — c’est la vérification à l’admission.',

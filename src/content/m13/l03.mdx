@@ -58,7 +58,7 @@ Tu as sans doute déjà lancé Semgrep ou CodeQL. Ici, on les configure pour une
 | **SAST motifs** | **Semgrep** (règles `javascript`, `typescript`, `express`, `react`, `nextjs`) | Rapide, lisible, règles faciles à écrire |
 | **SAST flux** | **CodeQL** (JS/TS) | Taint tracking interprocédural, requêtes de variant analysis |
 
-Aucune couche ne voit tout. L'analyse statique lit le code, pas la configuration déployée (le WAF, les variables d'environnement, les politiques IAM), pas le comportement à l'exécution, et elle ne connaît pas les règles métier : une BOLA reste invisible tant qu'on n'a pas écrit la règle qui décrit « le tenant vient de la session » (leçon 4). C'est la raison d'être de la revue manuelle (M12) et du test dynamique (leçon 7).
+Aucune couche ne voit tout. L'analyse statique lit le code, pas la configuration déployée (le WAF, les variables d'environnement, les politiques IAM), pas le comportement à l'exécution, et elle ne connaît pas les règles métier : une BOLA reste invisible tant qu'on n'a pas écrit la règle qui décrit « le tenant vient de la session » (leçon 4). C'est la raison d'être de la revue manuelle (M16) et du test dynamique (leçon 7).
 
 ## Les types d'abord
 
@@ -135,7 +135,7 @@ paths-ignore:
 
 </Code>
 
-Exclure les tests et le code généré réduit les alertes sans valeur. N'exclus pas pour autant les scripts d'outillage : un script de migration ou de déploiement exécuté en CI avec des secrets est du code de production du point de vue d'un attaquant (M14).
+Exclure les tests et le code généré réduit les alertes sans valeur. N'exclus pas pour autant les scripts d'outillage : un script de migration ou de déploiement exécuté en CI avec des secrets est du code de production du point de vue d'un attaquant (M18).
 
 Côté coût : CodeQL est gratuit sur les dépôts publics. Sur les dépôts privés, il demande **GitHub Code Security**, vendu séparément depuis avril 2025 (auparavant inclus dans GitHub Advanced Security). Tous les outils produisent du **SARIF**, le format standard que GitHub affiche en annotations de PR : Semgrep, ESLint (via un formateur) et CodeQL peuvent ainsi arriver au même endroit.
 
@@ -157,10 +157,10 @@ Chaque finding reçoit une des quatre décisions suivantes, et la décision est 
 | **Vrai positif** | La donnée atteint vraiment le sink sans contrôle | Corriger, ajouter un test de régression |
 | **Faux positif** | L'outil se trompe (sanitizer non reconnu, chemin impossible) | Corriger la règle ou déclarer le sanitizer (leçon 4) ; à défaut, annotation motivée |
 | **Vrai mais non exploitable ici** | Le motif est dangereux, mais la donnée est constante ou interne | Annotation motivée, et souvent une correction quand même : le code sera copié ailleurs |
-| **Risque accepté** | Exploitable, correction différée | Ticket avec échéance et propriétaire (M5), pas un dismiss silencieux |
+| **Risque accepté** | Exploitable, correction différée | Ticket avec échéance et propriétaire (M26), pas un dismiss silencieux |
 
 <Callout kind="warn">
-Méfie-toi des annotations sans raison. Un `// nosemgrep` nu, ou un dismiss « Won't fix » sans commentaire, est un finding qui disparaît de tous les tableaux de bord. Une règle Semgrep maison peut d'ailleurs signaler les `nosemgrep` qui ne mentionnent pas d'identifiant de règle, et la revue (M12) les regarde de près, surtout dans les PR générées par IA.
+Méfie-toi des annotations sans raison. Un `// nosemgrep` nu, ou un dismiss « Won't fix » sans commentaire, est un finding qui disparaît de tous les tableaux de bord. Une règle Semgrep maison peut d'ailleurs signaler les `nosemgrep` qui ne mentionnent pas d'identifiant de règle, et la revue (M16) les regarde de près, surtout dans les PR générées par IA.
 </Callout>
 
 ## En pratique chez toi : introduire le SAST sur une base existante

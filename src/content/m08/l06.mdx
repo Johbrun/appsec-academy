@@ -1,236 +1,208 @@
 export const questions = [
   {
-    q: "Selon NIST SP 800-63B-4, quelle longueur minimale pour un mot de passe utilisé seul comme facteur d'authentification ?",
+    q: "Où placer l'interface d'administration interne de Novafact ?",
     options: [
-      "8 caractères, avec au moins une majuscule, un chiffre et un symbole",
-      "12 caractères, renouvelés au moins tous les 90 jours",
-      "15 caractères, sans règle de composition",
-      "8 caractères, à condition qu'un second facteur soit exigé",
+      "Sur le domaine public, derrière un second mot de passe et une liste d'IP autorisées",
+      "Sur un sous-domaine séparé, non référencé et protégé par une authentification HTTP",
+      "Hors d'Internet : SSO d'entreprise, réseau ou proxy dédié, MFA forte, audit des actions",
+      "Dans l'application cliente, derrière un rôle « administrateur Novafact »",
     ],
     answer: 2,
-    explain: "La révision 4 fixe 15 caractères pour un mot de passe utilisé seul, et 8 seulement lorsqu'il est associé à un second facteur : c'est le piège, cette valeur est exacte mais hors du cas posé par la question. Les règles de composition et le renouvellement périodique sont, eux, explicitement écartés (SHALL NOT).",
+    explain: "Une interface d'administration n'a pas à être joignable depuis Internet. Le filtrage par IP plus un second mot de passe est la réponse la plus fréquente : il tient jusqu'à la première adresse ajoutée « temporairement », et ne protège pas d'un poste d'administrateur compromis. Un sous-domaine non référencé, lui, se retrouve dans les journaux de transparence des certificats — Transparent Design rappelle qu'un nom secret n'est pas une protection.",
   },
   {
-    q: "Comment stocker un jeton de réinitialisation de mot de passe ?",
+    q: "Qui devrait pouvoir lire les journaux applicatifs de production ?",
     options: [
-      "Un JWT signé contenant l'identifiant de l'utilisateur et une expiration courte",
-      "Une valeur aléatoire (CSPRNG), stockée hachée, à usage unique et de courte durée",
-      "Un UUID v4 stocké en clair, supprimé dès que le mot de passe est changé",
-      "Un HMAC de l'adresse e-mail et de l'horodatage, vérifiable sans rien stocker",
+      "Tous les développeurs, pour que l'astreinte puisse diagnostiquer sans délai",
+      "Personne en direct : seuls des tableaux de bord agrégés restent accessibles",
+      "Un nombre restreint de personnes, avec des accès eux-mêmes audités",
+      "Les développeurs du service concerné, après expurgation automatique des données",
     ],
-    answer: 1,
-    explain: "Un jeton de réinitialisation est un secret équivalent au mot de passe : imprévisible, haché en base (une fuite de la table ne permet alors aucune réinitialisation), à usage unique, éphémère, et on révoque les sessions après usage. Le JWT signé est la proposition la plus fréquente et la plus tentante : il est bien imprévisible, mais sans état côté serveur rien n'empêche de le rejouer jusqu'à son expiration.",
+    answer: 2,
+    explain: "Une interface de journaux est une interface de données : elle expose des informations personnelles et techniques sensibles. L'expurgation automatique est le bon réflexe et ne suffit pas — elle ne connaît que les champs qu'on lui a déclarés, et un message d'erreur inattendu emporte le reste. On restreint l'accès, on l'audite, et on expurge en plus. Couper tout accès direct, à l'inverse, rend l'exploitation impossible.",
   },
   {
-    q: "Avec express-session, que faut-il faire de la session au moment où la connexion réussit ?",
+    q: "Le prestataire de paiement rejoue un webhook « paiement reçu » après un délai d'attente. Quelle conception évite d'enregistrer le paiement deux fois ?",
     options: [
-      "Ajouter l'utilisateur à la session existante et prolonger sa durée de vie",
-      "Poser les attributs HttpOnly, Secure et SameSite=Lax sur le cookie de session",
-      "Supprimer le cookie et en réémettre un avec le même identifiant de session",
-      "La régénérer, c'est-à-dire changer d'identifiant avant d'y écrire l'utilisateur",
+      "Enregistrer l'identifiant de l'événement sous contrainte d'unicité, dans la transaction",
+      "Vérifier en base que ce paiement n'a pas déjà été enregistré avant de procéder à l'insertion",
+      "Ignorer tout événement dont l'horodatage a plus de cinq minutes",
+      "Répondre 200 immédiatement et traiter l'événement en tâche de fond",
+    ],
+    answer: 0,
+    explain: "L'idempotence se garantit côté récepteur, et par la base : la contrainte d'unicité sur l'identifiant d'événement, posée dans la même transaction que l'effet métier, rend le second traitement impossible même si les deux livraisons arrivent en parallèle. Le « vérifier avant d'insérer » est exactement la race condition de M9 : les deux requêtes lisent avant que l'une écrive. Répondre vite réduit les rejeux sans les supprimer.",
+  },
+  {
+    q: "L'équipe data veut brancher un outil de BI sur la base des factures. Quelle conception suit Least Information ?",
+    options: [
+      "Un rôle en lecture seule sur toute la base, dont le mot de passe est confié à l'outil",
+      "Un export nocturne anonymisé, déposé dans un bucket réservé à l'équipe data",
+      "Le rôle de l'application, déjà configuré et déjà limité au tenant courant",
+      "Un rôle dédié, en lecture seule sur des vues qui n'exposent que les colonnes utiles",
     ],
     answer: 3,
-    explain: "Si l'identifiant d'avant connexion survit, l'attaquant qui l'a imposé à la victime hérite de sa session authentifiée. Les attributs du cookie sont indispensables mais ne règlent pas la fixation : ils empêchent de lire ou d'envoyer le cookie, pas d'en imposer la valeur au départ. Réémettre le même identifiant ne change rien non plus, c'est la valeur qui doit changer. On régénère à la connexion et à chaque élévation de privilège.",
-  },
-  {
-    q: "Pourquoi une passkey résiste-t-elle au phishing, contrairement à un code TOTP ?",
-    options: [
-      "Parce que la clé privée ne quitte jamais l'authentificateur, au contraire du secret TOTP",
-      "Parce que le défi signé est lié au RP ID : le navigateur refuse un domaine qui imite",
-      "Parce que la signature est vérifiée par le serveur, alors que le code TOTP est saisi",
-      "Parce qu'une passkey exige une biométrie, que l'attaquant ne peut pas reproduire",
-    ],
-    answer: 1,
-    explain: "C'est la liaison au domaine qui fait tout : le navigateur ne présente la clé que pour le RP ID enregistré, donc sur un site qui imite Novafact il n'y a rien à signer ni à relayer. Le fait que la clé privée ne sorte pas de l'authentificateur est vrai et utile contre le vol du secret, mais un secret TOTP enfermé dans une puce sécurisée resterait phishable : l'utilisateur recopierait quand même le code sur le faux site.",
+    explain: "La vue définit l'interface et le rôle dédié n'a de droits que sur elle : l'outil ne voit jamais l'IBAN, même sur une requête maladroite ou après compromission. Le rôle en lecture seule sur toute la base est le raccourci habituel — il protège l'intégrité, pas la confidentialité, et c'est celle-ci qui est en jeu. L'export anonymisé est une vraie option, mais il crée une copie de plus à protéger et suppose que l'anonymisation tienne.",
   },
 ];
 
 <YouKnow>
-Tu as contourné des réinitialisations de mot de passe, énuméré des comptes et joué avec des sessions mal invalidées. Cette leçon regroupe les choix qui ferment ces portes dans une application Express.
+En pentest, les interfaces d'administration, les consoles de logs et les API internes oubliées sont souvent les meilleures trouvailles. Côté conception, elles méritent autant d'attention que l'API publique.
 </YouKnow>
 
-## Sessions ou jetons ?
+## Chaque interface est une frontière
 
-| Approche | Forces | Points d'attention |
-| --- | --- | --- |
-| **Session côté serveur** (cookie opaque) | Révocation immédiate, rien de sensible côté client | Stockage partagé entre instances (Redis), protection CSRF |
-| **Jeton autoportant** (JWT) | Pas de stockage, adapté aux API entre services | Révocation difficile avant expiration, vérification exigeante (M9) |
+Kohnfelder (K3, K6) consacre une partie de son livre aux **interfaces** : chaque interface porte des hypothèses sur qui l'appelle et avec quelles données, et c'est un point de passage obligé, donc l'endroit idéal pour placer une mitigation. Il distingue leur solidité : une frontière réseau ou entre processus isole fortement, parce qu'on ne peut pas la contourner ; une frontière **à l'intérieur** d'un processus ne tient que si tout le code joue le jeu. Les frontières de confiance importantes gagnent donc à coïncider avec une frontière de processus ou de service.
 
-Pour le navigateur, Novafact utilise une **session** via un BFF (M9) ; pour les appels entre services, des jetons courts. Une session bien gérée repose sur quatre règles : un cookie durci, un identifiant **régénéré** à la connexion et à chaque élévation de privilège (contre la fixation de session), une expiration d'inactivité **et** une expiration absolue, et une révocation côté serveur. NIST SP 800-63B-4 donne des ordres de grandeur pour le niveau AAL2 : réauthentification au plus toutes les 24 heures, et après au plus une heure d'inactivité.
+Une revue de conception examine chaque interface avec la même grille :
 
-<Code file="apps/bff/src/auth/session.ts" hl="5,11,15">
+| Question | Exemple pour l'API d'import de relevés bancaires |
+| --- | --- |
+| Qui peut l'appeler ? | Un utilisateur connecté d'un tenant, rôle comptable ou administrateur |
+| Avec quelle authentification ? | Session BFF (navigateur) ou clé d'API d'intégration |
+| Quelle autorisation, sur quel objet ? | Import dans le tenant de la session uniquement |
+| Quelles entrées, validées où ? | Fichier CAMT.053 de 5 Mo maximum, analysé dans un worker isolé (leçon 5) |
+| Quelles sorties ? | Un identifiant d'import et un statut, jamais le contenu brut |
+| Quel audit ? | Qui, quand, quel fichier (empreinte), combien de lignes |
+| Comment échoue-t-elle ? | Rejet complet du fichier, sans import partiel silencieux |
 
-```ts
-import session from 'express-session';
-import { promisify } from 'node:util';
+La dernière ligne est souvent oubliée : une interface qui échoue à moitié (100 lignes importées sur 300) crée un état que ni l'utilisateur ni le code suivant n'avaient prévu.
 
-export const sessionMiddleware = session({
-  name: '__Host-sid',               // préfixe __Host- : Secure, Path=/, pas d'attribut Domain
-  secret: config.sessionSecrets,    // tableau : la première signe, les suivantes vérifient (rotation)
-  store: redisSessionStore,
-  resave: false,
-  saveUninitialized: false,         // pas de session pour les visiteurs anonymes
-  rolling: true,                    // l'expiration d'inactivité repart à chaque requête
-  cookie: { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 1000 },
-});
+## Les interfaces d'administration
 
-export async function establishSession(req: Request, user: { id: string; tenantId: string }) {
-  await promisify(req.session.regenerate.bind(req.session))(); // nouvel identifiant : anti-fixation
-  req.session.userId = user.id;
-  req.session.tenantId = user.tenantId;
-  req.session.absoluteExpiry = Date.now() + 12 * 60 * 60 * 1000; // vérifiée par un middleware
-}
-```
+| Règle | Pourquoi |
+| --- | --- |
+| Pas d'exposition sur Internet | Réduire la surface ; une URL secrète n'est pas une protection (Transparent Design) |
+| SSO de l'entreprise et MFA résistante au phishing | Les comptes d'administration sont les plus ciblés |
+| Autorisation fine et **Separation of Privilege** | Une action destructive (suppression d'un tenant) exige une seconde validation |
+| Audit de chaque action, dans un stockage non modifiable | Non-répudiation, investigation (M3) |
+| Accès « juste à temps » plutôt que permanent | Les droits élevés n'existent que pendant l'intervention |
 
-</Code>
-
-La révocation n'a de sens que si l'utilisateur peut l'exercer : Novafact affiche la liste des sessions actives (appareil, dernière activité) avec un bouton « déconnecter », et révoque tout automatiquement après un changement de mot de passe ou de facteur.
-
-## Les mots de passe
-
-<Steps items={[
-  { title: "Le hachage", text: "argon2id (paquet argon2), avec au minimum les paramètres recommandés par OWASP (19 Mio de mémoire, 2 itérations, parallélisme 1) ; scrypt de node:crypto en alternative. Attention à bcrypt : il ignore tout au-delà de 72 octets." },
-  { title: "La politique", text: "NIST SP 800-63B-4 (2025) : 15 caractères minimum pour un mot de passe utilisé seul, au moins 64 acceptés, pas de règles de composition, pas de renouvellement périodique forcé, mais une vérification contre les mots de passe courants ou compromis." },
-  { title: "Les tentatives", text: "Limitation par compte et par origine, sans verrouiller le compte au point de permettre un déni de service (M10). NIST fixe un plafond : au plus 100 échecs consécutifs sur un compte." },
-]} />
-
-Le format PHC (`$argon2id$v=19$m=19456,t=2,p=1$…`) stocke les paramètres avec le hash. C'est ce qui permet de les **relever** plus tard sans casser les comptes existants : à la connexion réussie, si le hash a été produit avec des paramètres plus faibles que la politique actuelle, on le recalcule. C'est l'agilité cryptographique (leçon 8) appliquée aux mots de passe.
-
-<Code file="apps/api/src/auth/passwords.ts" hl="3,9,10">
-
-```ts
-import argon2 from 'argon2';
-
-const POLICY = { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 } as const; // memoryCost en Kio
-
-export const hashPassword = (password: string) => argon2.hash(password, POLICY);
-
-export async function verifyAndUpgrade(user: { id: string; passwordHash: string }, password: string) {
-  const ok = await argon2.verify(user.passwordHash, password);
-  if (ok && argon2.needsRehash(user.passwordHash, POLICY)) {
-    await users.updatePasswordHash(user.id, await hashPassword(password)); // migration transparente
-  }
-  return ok;
-}
-```
-
-</Code>
-
-Pour la liste de mots de passe compromis, l'API **Pwned Passwords** fonctionne par k-anonymat : le client calcule le SHA-1 du mot de passe, n'envoie que les **5 premiers caractères** hexadécimaux, et reçoit tous les suffixes correspondants, qu'il compare localement. Le service ne voit jamais le mot de passe ni son hash complet. L'en-tête `Add-Padding: true` ajoute des réponses factices pour que la taille de la réponse ne trahisse rien.
-
-<Code file="apps/api/src/auth/breached.ts">
-
-```ts
-import { createHash } from 'node:crypto';
-
-export async function isBreached(password: string): Promise<boolean> {
-  const sha1 = createHash('sha1').update(password).digest('hex').toUpperCase();
-  const prefix = sha1.slice(0, 5), suffix = sha1.slice(5);
-  const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
-    headers: { 'Add-Padding': 'true' },
-    signal: AbortSignal.timeout(2000),
-  });
-  if (!res.ok) return false; // service indisponible : on n'empêche pas l'inscription, on journalise
-  const body = await res.text();
-  return body.split('\n').some((line) => {
-    const [s, count] = line.trim().split(':');
-    return s === suffix && Number(count) > 0; // les entrées de remplissage ont un compteur à 0
-  });
-}
-```
-
-</Code>
-
-Ici, l'échec ouvert est un choix assumé : la vérification est une défense d'appoint, et bloquer toutes les inscriptions pendant une panne d'un service tiers serait disproportionné. Ce genre d'exception à *Fail Securely* se décide et s'écrit, il ne se découvre pas.
-
-## Les passkeys
-
-Les **passkeys** (WebAuthn) remplacent le mot de passe par une paire de clés liée au domaine : elles résistent au phishing et à la réutilisation. Le mécanisme est précis : la clé privée est associée à l'identifiant du site (RP ID, par exemple `novafact.example`), et c'est le **navigateur** qui refuse de l'utiliser pour un autre domaine. Un faux site n'obtient rien à relayer, contrairement à un code TOTP que l'utilisateur recopie de bonne foi.
-
-En Node, la bibliothèque **SimpleWebAuthn** gère l'enregistrement (`generateRegistrationOptions`, `verifyRegistrationResponse`) et la connexion (`generateAuthenticationOptions`, `verifyAuthenticationResponse`). Le serveur conserve pour chaque passkey sa clé publique, son identifiant et son compteur ; il vérifie à chaque connexion le défi (à usage unique, stocké en session), l'origine et le RP ID attendus.
-
-<Code file="apps/bff/src/auth/passkeys.ts" hl="3,4,5">
-
-```ts
-const { verified, authenticationInfo } = await verifyAuthenticationResponse({
-  response: req.body,
-  expectedChallenge: req.session.webauthnChallenge!, // émis par generateAuthenticationOptions, effacé après usage
-  expectedOrigin: 'https://app.novafact.example',
-  expectedRPID: 'novafact.example',
-  credential: { id: stored.id, publicKey: stored.publicKey, counter: stored.counter, transports: stored.transports },
-  requireUserVerification: true, // PIN ou biométrie sur l'appareil
-});
-delete req.session.webauthnChallenge;
-if (verified) await passkeys.updateCounter(stored.id, authenticationInfo.newCounter);
-```
-
-</Code>
-
-Deux points de conception. Les passkeys **synchronisées** (via le trousseau d'Apple, de Google ou d'un gestionnaire de mots de passe) sont pratiques et résistent au phishing, mais leur sécurité dépend du compte de synchronisation ; NIST les exclut du niveau AAL3. Et la **récupération de compte** devient le maillon faible : si un simple lien par e-mail permet d'ajouter une nouvelle passkey, l'attaquant vise ce flux. Pour Novafact : passkeys proposées à tous, **exigées** pour les administrateurs de tenant, et la récupération d'un compte administrateur passe par un autre administrateur du tenant.
+Pour « hors d'Internet », pas besoin de VPN : un proxy d'accès comme **AWS Verified Access** vérifie l'identité SSO (et, si on le configure, l'état du poste) à **chaque** requête avant de la transmettre au back-office.
 
 <Callout kind="case">
-**Uber (septembre 2022)**. Un attaquant possédant le mot de passe d'un prestataire l'a inondé de notifications MFA push. Le prestataire les refusait, jusqu'à ce que l'attaquant le contacte sur WhatsApp en se faisant passer pour le support informatique ; il a fini par accepter. De là, l'attaquant a obtenu des accès étendus à des outils internes. Une MFA qu'on « approuve » peut être extorquée ; une passkey, elle, ne fonctionne que sur le vrai domaine, et le correctif minimal d'une MFA push est d'exiger la saisie d'un nombre affiché à l'écran (*number matching*) et de limiter les sollicitations.
+**Twitter (juillet 2020)**. Des attaquants ont appelé des employés en se faisant passer pour le support informatique, obtenu leurs identifiants, puis rebondi jusqu'à des comptes ayant accès à un outil interne de gestion des comptes. Ils ont pris le contrôle de 130 comptes, dont des personnalités, publié depuis 45 d'entre eux une arnaque aux bitcoins, et consulté les messages privés de jusqu'à 36 comptes. Le rapport du régulateur financier de l'État de New York pointe notamment l'absence de responsable de la sécurité à l'époque et la vulnérabilité de l'entreprise à l'ingénierie sociale. Une interface d'administration est l'actif le plus précieux du système, parce qu'elle donne accès à tous les autres.
 </Callout>
 
-## La réinitialisation
+Une fonctionnalité d'administration mérite une conception à part : l'**usurpation d'identité par le support** (« voir l'application comme le client »). Chez Novafact, elle n'existe qu'en lecture seule par défaut, exige un numéro de ticket, dure 15 minutes, et chaque action journalisée porte **deux** identités : l'agent et le client.
 
-| Étape | Règle |
-| --- | --- |
-| Demande | Même réponse et même délai, que le compte existe ou non (pas d'énumération) |
-| Jeton | Aléatoire (CSPRNG), **stocké haché**, usage unique, expiration courte (15 à 60 min) |
-| Lien | Construit à partir d'APP_URL, jamais de l'en-tête Host (M3) |
-| Après | **Toutes les sessions sont révoquées**, l'utilisateur est prévenu par e-mail |
-
-Un jeton de 32 octets aléatoires n'a pas besoin d'un hachage lent : un SHA-256 suffit, car il n'y a rien à deviner par dictionnaire. Ce qui compte, c'est qu'une fuite de la table ne donne pas de jetons utilisables.
-
-<Code file="apps/api/src/auth/reset.ts">
+<Code file="apps/backoffice/src/support/impersonation.ts">
 
 ```ts
-import { randomBytes, createHash } from 'node:crypto';
+type ImpersonationGrant = {
+  actor: `support:${string}`;   // l'agent, toujours visible dans les logs
+  subject: `user:${string}`;    // le client dont on emprunte la vue
+  tenantId: string;
+  mode: 'read-only' | 'read-write'; // read-write exige l'accord explicite du client
+  reason: string;               // numéro de ticket, obligatoire
+  expiresAt: Date;              // 15 minutes, non renouvelable sans nouvelle demande
+};
+```
 
-const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
+</Code>
 
-export async function createResetToken(userId: string) {
-  const token = randomBytes(32).toString('base64url');         // envoyé par e-mail, jamais stocké
-  await resetTokens.insert({ userId, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 30 * 60_000) });
-  return token;
-}
+Les accès **hors bande** (console du fournisseur cloud, accès d'urgence) suivent les mêmes règles, avec une procédure de *break-glass* documentée et surveillée (M19) : un compte d'urgence dont l'utilisation déclenche une alerte immédiate.
 
-export async function consumeResetToken(token: string) {
-  const row = await resetTokens.findOneAndDelete({ tokenHash: sha256(token) }); // usage unique, atomique
-  if (!row || row.expiresAt < new Date()) return null;
-  return row.userId;
+## Les interfaces de journaux
+
+Les logs contiennent souvent des adresses e-mail, des adresses IP, des identifiants de factures, parfois des fragments de requêtes. Leur interface (Kibana, console CloudWatch) est une **interface de données** : accès restreint, audité, et durée de conservation définie. Et on n'y écrit jamais de secrets (M23).
+
+L'écriture est aussi une interface. Kohnfelder cite la journalisation comme exemple de *confused deputy* par effet de bord : si une entrée utilisateur contenant un retour à la ligne est écrite telle quelle dans un journal texte, elle peut y **fabriquer** une fausse ligne. La journalisation structurée (JSON) échappe les caractères de contrôle, et le filtrage des champs sensibles se fait à la source :
+
+<Code file="apps/api/src/logging.ts">
+
+```ts
+import pino from 'pino';
+
+export const logger = pino({
+  redact: {
+    paths: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.iban', '*.token'],
+    censor: '[filtré]',
+  },
+});
+```
+
+</Code>
+
+## Les dépendances amont et aval
+
+Quand deux services échangent des clés ou des données, la conception précise **qui détient quoi** : une clé partagée entre Novafact et son prestataire de paiement pour signer les webhooks, les données envoyées au fournisseur d'e-mails, celles transmises à un fournisseur d'IA. Chaque échange a un propriétaire, une procédure de rotation et une limite de ce qui est transmis (Least Information). Le fournisseur d'e-mails n'a pas besoin du montant de la facture pour envoyer un lien ; le fournisseur d'IA n'a pas besoin de l'IBAN pour résumer un litige.
+
+Une clé partagée se fait tourner **sans interruption** si l'interface l'a prévu dès le départ :
+
+<Steps items={[
+  { title: "Ajouter", text: "Générer le nouveau secret et le déclarer chez le récepteur, qui accepte désormais l'ancien et le nouveau." },
+  { title: "Basculer", text: "L'émetteur signe avec le nouveau secret. Les messages en vol, signés avec l'ancien, restent acceptés." },
+  { title: "Retirer", text: "Après un délai supérieur à la durée de vie d'un message (rejeux compris), l'ancien secret est supprimé des deux côtés." },
+]} />
+
+Une interface qui n'accepte qu'un seul secret à la fois condamne à une coupure à chaque rotation, donc à des rotations rares. C'est une décision de conception, pas d'exploitation.
+
+## Concevoir un protocole
+
+- **État** : un protocole sans état est plus simple à sécuriser ; l'état nécessaire vit côté serveur (M7, leçon 4 et M9, leçon 1).
+- **Idempotence** : une requête rejouée ne doit pas produire deux effets (paiements, envois). Les API de paiement ont popularisé l'en-tête `Idempotency-Key`, décrit dans un draft IETF.
+- **Versionnage** : les anciennes versions d'une API restent une surface tant qu'elles sont en ligne (API9, M7).
+- **Limites** : taille des requêtes, taille des pages, profondeur des objets, délais d'expiration. Une interface sans limite est une interface de déni de service.
+- **Erreurs** : un message utile à l'appelant, sans détails internes (pile d'appels, requêtes SQL).
+
+Côté récepteur, l'idempotence se garantit par une **contrainte d'unicité** dans la même transaction que l'effet métier, pas par une vérification préalable qui laisserait passer deux requêtes concurrentes (M9) :
+
+<Code file="apps/api/src/payments/onPaymentReceived.ts" hl="6">
+
+```ts
+import { Prisma } from '@prisma/client';
+
+export async function onPaymentReceived(event: PaymentEvent) {
+  try {
+    await prisma.$transaction([
+      prisma.processedEvent.create({ data: { provider: 'psp', eventId: event.id } }), // @@unique([provider, eventId])
+      prisma.invoice.update({ where: { id: event.invoiceId }, data: { status: 'PAID', paidAt: event.paidAt } }),
+    ]);
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return; // déjà traité
+    throw err;
+  }
 }
 ```
 
 </Code>
 
-## L'énumération de comptes
+## Les bases de données
 
-Inscription, connexion et réinitialisation doivent répondre de la même façon, dans le même délai, que le compte existe ou non. Pour l'inscription, la réponse neutre (« si l'adresse est disponible, un e-mail de confirmation a été envoyé ») évite de révéler les comptes existants.
+Un utilisateur de base **par service**, avec les droits minimaux (pas de propriétaire des tables pour l'application, leçon 2 de M14), des connexions chiffrées (sur RDS, le paramètre `rds.force_ssl` refuse les connexions en clair), et des **vues** pour exposer à un outil d'analyse seulement les colonnes utiles. Une vue est une interface au même titre qu'une API : elle a un contrat, un consommateur, et ne doit rien exposer de plus.
 
-Le délai est le piège le plus fréquent : si la connexion d'un compte inexistant répond sans calculer d'argon2id, elle répond en quelques millisecondes au lieu de plusieurs dizaines. On vérifie donc le mot de passe contre un **hash factice** quand l'utilisateur n'existe pas, et l'envoi d'e-mail de réinitialisation se fait en tâche de fond, pour que la réponse HTTP parte au même moment dans les deux cas.
+<Code file="db/migrations/051_bi_access.sql">
 
-## L'acceptabilité psychologique
+```sql
+CREATE ROLE novafact_bi LOGIN;
 
-Un mécanisme trop pénible est contourné. C'est un principe classique (Saltzer et Schroeder, repris par le CSSLP) : la sécurité doit rester utilisable. Les passkeys en sont un bon exemple, plus sûres **et** plus simples qu'un mot de passe complexe. À l'inverse, des règles de composition et des renouvellements forcés produisent des `Novafact2026!` prévisibles : c'est précisément pour ça que NIST les interdit désormais.
+CREATE VIEW bi_invoice_stats WITH (security_barrier) AS
+  SELECT tenant_id, date_trunc('month', issued_at) AS month, status, count(*) AS n, sum(total_cents) AS total_cents
+  FROM invoice
+  GROUP BY tenant_id, date_trunc('month', issued_at), status;
+
+REVOKE ALL ON invoice FROM novafact_bi;
+GRANT SELECT ON bi_invoice_stats TO novafact_bi;
+```
+
+</Code>
+
+L'outil de BI ne voit ni les clients, ni les IBAN, ni les lignes individuelles ; s'il est compromis, la fuite se limite à des agrégats. Un piège : sauf avec l'option `security_invoker`, une vue s'exécute avec les droits de son **propriétaire**. Avec la RLS de la leçon 2 de M14, décide explicitement quelle politique s'applique à ce chemin, sinon la vue contourne ou casse l'isolation que tu croyais universelle.
 
 <Recap items={[
-  "Sessions côté serveur pour le navigateur : cookie __Host-, identifiant régénéré à la connexion, expirations d'inactivité et absolue, révocation visible.",
-  "argon2id en format PHC avec migration transparente des paramètres ; 15 caractères minimum, pas de composition, vérification k-anonyme contre les mots de passe compromis.",
-  "Passkeys liées au domaine, vérifiées avec défi, origine et RP ID ; la récupération de compte ne doit pas devenir le maillon faible.",
-  "Réinitialisation : jeton aléatoire haché, unique, court ; toutes les sessions révoquées ensuite.",
-  "Réponses identiques et délais identiques pour éviter l'énumération ; une sécurité utilisable est une sécurité appliquée.",
+  "Chaque interface se revoit avec la même grille : qui, authentification, autorisation, entrées, sorties, audit, comportement en cas d'échec.",
+  "Administration : hors Internet, SSO et MFA forte, séparation des privilèges, audit, accès juste à temps ; l'usurpation par le support porte deux identités.",
+  "Les interfaces de logs sont des interfaces de données, en lecture comme en écriture : JSON structuré et filtrage à la source.",
+  "Les échanges de clés et de données entre services ont un propriétaire, une limite et une rotation sans interruption.",
+  "Protocoles sans état, idempotents par contrainte d'unicité, versionnés et bornés ; bases avec un rôle minimal par service et des vues comme interfaces.",
 ]} />
 
-<Lab id="ps-authentication" />
-
 <Sources items={[
-  { title: "NIST SP 800-63B-4", url: "https://pages.nist.gov/800-63-4/sp800-63b.html" },
-  { title: "OWASP Cheat Sheet : Password Storage", url: "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html" },
-  { title: "OWASP Cheat Sheet : Forgot Password", url: "https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html" },
-  { title: "OWASP Cheat Sheet : Session Management", url: "https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html" },
-  { title: "SimpleWebAuthn", url: "https://simplewebauthn.dev/" },
-  { title: "Have I Been Pwned : API Pwned Passwords", url: "https://haveibeenpwned.com/API/v3#PwnedPasswords" },
-  { title: "BleepingComputer : Uber links breach to Lapsus$ group (septembre 2022)", url: "https://www.bleepingcomputer.com/news/security/uber-links-breach-to-lapsus-group-blames-contractor-for-hack/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 3 et 6, Interfaces" },
+  { title: "ISC2 CSSLP Exam Outline, domaine 4 (secure interface design)", url: "https://www.isc2.org/certifications/csslp/csslp-certification-exam-outline" },
+  { title: "NYDFS : Twitter Investigation Report (2020)", url: "https://www.dfs.ny.gov/reports-and-publications/other-reports/Twitter_Report" },
+  { title: "AWS Verified Access", url: "https://docs.aws.amazon.com/verified-access/latest/ug/what-is-verified-access.html" },
+  { title: "pino : redaction", url: "https://getpino.io/#/docs/redaction" },
+  { title: "IETF draft : The Idempotency-Key HTTP Header Field", url: "https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/" },
+  { title: "PostgreSQL : CREATE VIEW (security_barrier)", url: "https://www.postgresql.org/docs/current/sql-createview.html" },
 ]} />

@@ -59,7 +59,7 @@ Le préfixe te le dit au premier coup d'œil : `AKIA` pour une clé longue duré
 | --- | --- | --- |
 | Développeurs, ops, support | **IAM Identity Center**, fédéré avec l'IdP de l'entreprise | Permission sets, sessions courtes, MFA à l'IdP |
 | Workloads dans AWS (Lambda, ECS, EKS, EC2) | **Rôle** de la ressource | Identifiants livrés et renouvelés par la plateforme (leçon 3) |
-| CI/CD (GitHub Actions) | **Fédération OIDC** vers un rôle | Pas de secret stocké dans GitHub (M14, leçon 2) |
+| CI/CD (GitHub Actions) | **Fédération OIDC** vers un rôle | Pas de secret stocké dans GitHub (M18, leçon 2) |
 | Serveurs hors AWS | **IAM Roles Anywhere** | Certificat X.509 échangé contre une session |
 | Éditeur tiers qui agit dans ton compte | **Rôle cross-account** avec `ExternalId` | Voir la leçon 4 |
 | Accès d'urgence | Comptes *break-glass* dédiés, surveillés | La seule exception assumée (leçon 6) |
@@ -70,7 +70,7 @@ L'inventaire de Novafact a trouvé onze utilisateurs IAM. Neuf étaient des huma
 
 ## Les humains : IAM Identity Center
 
-Identity Center branche l'annuaire de l'entreprise (Entra ID, Okta, Google Workspace…) sur l'organisation AWS : authentification par SAML ou OIDC, provisionnement des utilisateurs et groupes par **SCIM**, MFA appliquée par l'IdP. Un départ désactivé dans l'annuaire coupe tous les accès AWS (M7).
+Identity Center branche l'annuaire de l'entreprise (Entra ID, Okta, Google Workspace…) sur l'organisation AWS : authentification par SAML ou OIDC, provisionnement des utilisateurs et groupes par **SCIM**, MFA appliquée par l'IdP. Un départ désactivé dans l'annuaire coupe tous les accès AWS (M12).
 
 Les droits se décrivent en **permission sets**, qu'Identity Center matérialise dans chaque compte cible sous forme de rôles nommés `AWSReservedSSO_<permission set>_<suffixe>`. Un humain ne « possède » donc jamais de permission : il endosse un rôle pour une session limitée dans le temps.
 
@@ -124,7 +124,7 @@ export const s3 = new S3Client({ region: 'eu-west-3' });
 La chaîne par défaut s'arrête au **premier** fournisseur qui répond, et les variables d'environnement passent en premier. Une `AWS_ACCESS_KEY_ID` oubliée dans un shell, un fichier `.env` ou une définition de conteneur masque le profil SSO ou le rôle de la tâche, sans erreur. La leçon 3 montre comment vérifier l'identité effective au démarrage.
 </Callout>
 
-**Révoquer une session** ne passe pas par la suppression d'un secret. Dans la console IAM, « Revoke active sessions » attache au rôle une politique inline qui refuse tout aux sessions émises avant l'instant présent, via la clé `aws:TokenIssueTime`. C'est le geste de confinement quand une session de rôle a fuité (M18).
+**Révoquer une session** ne passe pas par la suppression d'un secret. Dans la console IAM, « Revoke active sessions » attache au rôle une politique inline qui refuse tout aux sessions émises avant l'instant présent, via la clé `aws:TokenIssueTime`. C'est le geste de confinement quand une session de rôle a fuité (M24).
 
 ## Le compte racine
 
@@ -149,7 +149,7 @@ aws iam enable-organizations-root-sessions
 
 Ensuite, les comptes membres peuvent perdre tout identifiant root (mot de passe, clés, MFA), et les nouveaux comptes naissent sans. Les rares tâches qui exigent le root (supprimer une politique de bucket ou de file SQS qui refuse tout le monde, auditer ou supprimer des identifiants root) se font par une **session root à tâche limitée** : `sts:AssumeRoot` avec une politique de tâche gérée par AWS (`S3UnlockBucketPolicy`, `SQSUnlockQueuePolicy`, `IAMAuditRootUserCredentials`, `IAMDeleteRootUserCredentials`…). Plus de coffre-fort de mots de passe root par compte.
 
-Toute utilisation du root, même légitime, déclenche une alerte : dans CloudTrail, `userIdentity.type` vaut `Root`, et une règle Elastic (M18) le signale en temps réel.
+Toute utilisation du root, même légitime, déclenche une alerte : dans CloudTrail, `userIdentity.type` vaut `Root`, et une règle Elastic (M24) le signale en temps réel.
 
 <Callout kind="case">
 En 2016, des attaquants ont trouvé une clé d'accès AWS dans un dépôt GitHub privé utilisé par des ingénieurs d'Uber, puis s'en sont servis pour télécharger depuis S3 des données concernant environ 57 millions d'utilisateurs et de chauffeurs. Le dépôt était privé, la clé était longue durée, et rien ne signalait son usage anormal. Chaque élément de la chaîne disparaît avec des identifiants temporaires issus d'un rôle.

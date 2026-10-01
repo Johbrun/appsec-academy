@@ -1,80 +1,67 @@
 export const questions = [];
 
 <YouKnow>
-La page de paiement est la plus exposée de Novafact : elle est publique, elle touche à l’argent, et elle est dans le périmètre PCI. Cette étape en fait la revue côté client, avec les modules 4 et 7.
+La fonctionnalité de paiement augmente la surface d’abus : plus de comptes, plus de connexions, plus de factures envoyées. Cette étape durcit les contrôles anti-abus de Novafact, avec le module 15.
 </YouKnow>
 
-## Étape 5 : sécuriser la page de paiement
+## Étape 5 : contrôles anti-abus
 
-Une page qui manipule un paiement attire les scripts d’écrémage (skimming, formjacking). Ton livrable : un **inventaire des scripts tiers**, une **CSP stricte** adaptée, et le rattachement aux exigences **PCI DSS** applicables.
+Trois points d’entrée concentrent l’abus sur Novafact : l’**inscription**, la **connexion** et l’**envoi de factures**. Ton livrable : pour chacun, la menace, le contrôle retenu et le compromis assumé entre bloquer l’abus et gêner les clients.
 
-## Inventorier les scripts
-
-On ne protège que ce qu’on connaît (M4). Dresse la liste de tout ce qui s’exécute sur la page de paiement :
+## Inscription
 
 <Steps items={[
-  { title: "Lister", text: "Scripts de Novafact, SDK du prestataire de paiement, analytics, tags marketing, polices, widgets. Note l’origine et le rôle de chacun." },
-  { title: "Éliminer", text: "Une page de paiement n’a pas besoin d’analytics marketing ni de widget de chat. Retire tout ce qui n’est pas indispensable à l’encaissement." },
-  { title: "Isoler le paiement", text: "Le champ de carte vit dans un composant du prestataire (iframe ou éléments hébergés), pour que les données de carte ne touchent jamais le DOM de Novafact (SAQ A)." },
-  { title: "Verrouiller ce qui reste", text: "Pour chaque script tiers conservé, décide s’il peut être auto-hébergé, épinglé par intégrité (SRI) ou au moins encadré par la CSP." },
+  { title: "Menace", text: "Création de comptes en série pour envoyer de fausses factures depuis l’infrastructure de Novafact (usurpation de marque, atteinte à la réputation d’envoi)." },
+  { title: "Contrôles", text: "Turnstile invisible, vérification de l’adresse e-mail avant le premier envoi, quota d’envoi réduit les premiers jours, détection des domaines jetables." },
+  { title: "Compromis", text: "Chaque friction coûte des inscriptions légitimes. Le quota d’ouverture gêne peu une vraie PME (rarement plus de 30 factures le premier jour) mais casse l’économie du fraudeur." },
 ]} />
 
-## Une CSP stricte pour cette page
+## Connexion
 
-La page de paiement mérite une CSP plus stricte que le reste du site (M4) : peu d’origines, pas de `unsafe-inline`, nonces sur les scripts, et une directive de report.
+<Steps items={[
+  { title: "Menace", text: "Credential stuffing (rejeu d’identifiants volés, beaucoup de comptes, une tentative chacun) et attaque ciblée sur les comptes administrateurs." },
+  { title: "Contrôles", text: "Ralentissement progressif par compte, vérification des mots de passe contre une base de fuites, signaux d’AWS WAF ATP, MFA pour les administrateurs de tenant." },
+  { title: "Compromis", text: "Une limite par IP seule punit les réseaux partagés (le cabinet comptable derrière un NAT) sans arrêter un botnet réparti. Les signaux qualitatifs valent mieux que les seuls volumes." },
+]} />
 
-<Code file="apps/web/src/payment/csp.ts" hl="3,6">
+## Envoi de factures
 
-```ts
-// CSP dédiée à la page de paiement, plus stricte que la politique globale.
-export const paymentCsp = [
-  "default-src 'none'",
-  "script-src 'nonce-{NONCE}' 'strict-dynamic' https://js.stripe.com",
-  "frame-src https://js.stripe.com https://hooks.stripe.com",
-  "connect-src 'self' https://api.stripe.com",
-  "img-src 'self' data:",
-  "style-src 'self'",
-  "base-uri 'none'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  "report-uri /csp-report",
-].join('; ');
-```
+<Steps items={[
+  { title: "Menace", text: "Un compte compromis ou frauduleux envoie massivement des factures, ce qui dégrade la réputation du domaine d’envoi et peut viser les clients (fraude au virement)." },
+  { title: "Contrôles", text: "Quotas par tenant et par âge de compte, alerte sur les pics anormaux, journalisation vers Elastic (étape 11), séparation des domaines d’envoi." },
+  { title: "Compromis", text: "Un quota trop bas bloque une grosse PME en fin de mois ; un quota par tenant, ajusté à l’historique, est plus juste qu’un plafond global." },
+]} />
 
-</Code>
+## Le tableau de synthèse
 
-Vérifie cette politique avec le raisonnement du jeu CSP Builder : `default-src 'none'` ferme tout par défaut, chaque directive rouvre le strict nécessaire, `base-uri` et `frame-ancestors` bloquent l’injection de balise `<base>` et le clickjacking.
+| Point d’entrée | Menace principale | Contrôle retenu | Coût pour les clients |
+| --- | --- | --- | --- |
+| Inscription | Comptes de fraude en série | Turnstile + e-mail vérifié + quota d’ouverture | Faible, sauf inscriptions en masse légitimes (rare) |
+| Connexion | Credential stuffing, ATO admin | Ralentissement par compte + mots de passe fuités + MFA admin | Quasi nul si progressif |
+| Envoi | Spam de factures, fraude | Quotas par tenant + alertes + logs | Faible si calibré sur l’historique |
 
-## Rattacher aux exigences PCI
-
-Le PCI DSS 4.0.1 a renforcé, depuis le 31 mars 2025, deux exigences directement liées à cette page :
-
-| Exigence | Ce qu’elle impose | Comment Novafact y répond |
-| --- | --- | --- |
-| **6.4.3** | Gérer et autoriser tous les scripts de la page de paiement, garantir leur intégrité | Inventaire, suppression du superflu, SRI ou auto-hébergement |
-| **11.6.1** | Détecter les modifications non autorisées des en-têtes et du contenu de la page de paiement | Surveillance des en-têtes et du DOM, alerte sur changement |
-
-Comme Novafact n’expose que des composants hébergés par le prestataire et ne touche jamais les données de carte, il vise le questionnaire **SAQ A**, le plus léger, mais 6.4.3 et 11.6.1 s’y appliquent quand même.
-
-<Callout kind="case">
-Les attaques Magecart et l’affaire polyfill.io (M14) ont montré qu’un seul script tiers compromis suffit à écrémer des milliers de pages de paiement. C’est précisément ce que 6.4.3 et 11.6.1 visent à rendre détectable : la page de paiement ne doit charger que du connu, et toute dérive doit lever une alerte.
+<Callout kind="tip">
+C’est exactement l’arbitrage que le jeu **Abuse Desk** fait manipuler : maximiser l’abus bloqué tout en minimisant les clients gênés. La bonne réponse combine des signaux qualitatifs (identifiants fuités, réputation) plutôt que des seuils de volume brutaux.
 </Callout>
+
+## Relier au reste du dossier
+
+Chaque contrôle de cette étape se rattache à une exigence (étape 3) et alimente une détection (étape 11) : un pic d’échecs de connexion, une explosion d’envois par un compte neuf. L’anti-abus n’est pas qu’un filtre en entrée, c’est aussi un signal pour la détection.
 
 ## Livrable de l’étape
 
-- L’**inventaire des scripts** de la page de paiement, avec ce qui est retiré et pourquoi.
-- La **CSP dédiée** à la page, justifiée directive par directive.
-- Le **rattachement PCI** (6.4.3, 11.6.1, SAQ A) documenté.
+- Pour l’**inscription**, la **connexion** et l’**envoi**, le tableau menace / contrôle / compromis.
+- Les **seuils** retenus pour Novafact, justifiés par l’usage légitime.
+- Les **signaux** que ces contrôles enverront à la détection.
 
 <Recap items={[
-  "Une page de paiement est la cible privilégiée des skimmers : on n’y garde que l’indispensable.",
-  "Isoler le champ de carte dans un composant du prestataire pour rester en SAQ A.",
-  "Une CSP dédiée, plus stricte : default-src 'none', nonces, origines minimales, report-uri.",
-  "PCI DSS 6.4.3 (gérer les scripts) et 11.6.1 (détecter les modifications) s’appliquent même en SAQ A.",
+  "Trois points d’entrée à durcir : inscription, connexion, envoi de factures.",
+  "Préférer les signaux qualitatifs (identifiants fuités, réputation) aux seuils de volume aveugles.",
+  "Chaque contrôle a un coût pour les clients légitimes : l’assumer et le calibrer sur l’usage réel.",
+  "Les contrôles anti-abus alimentent aussi la détection (étape 11).",
 ]} />
 
 <Sources items={[
-  { title: "PCI DSS 4.0.1", url: "https://www.pcisecuritystandards.org/document_library/" },
-  { title: "MDN : Content-Security-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy" },
-  { title: "Stripe : sécurité de l’intégration", url: "https://docs.stripe.com/security/guide" },
+  { title: "OWASP Automated Threats to Web Applications", url: "https://owasp.org/www-project-automated-threats-to-web-applications/" },
+  { title: "OWASP Credential Stuffing Prevention Cheat Sheet", url: "https://cheatsheetseries.owasp.org/cheatsheets/Credential_Stuffing_Prevention_Cheat_Sheet.html" },
 ]} />

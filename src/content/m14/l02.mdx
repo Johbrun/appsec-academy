@@ -93,7 +93,7 @@ Les expressions `${{ }}` sont remplacées **textuellement** dans le script avant
 
 </Diff>
 
-La même règle vaut pour `actions/github-script` (n'interpole pas d'expression dans `script:`, passe par `process.env`) et pour les écritures dans `$GITHUB_ENV` ou `$GITHUB_OUTPUT` à partir de données externes, qui permettent d'injecter des variables dans les étapes suivantes. La compromission de Nx en août 2025 (leçon 7) est partie exactement de là : un titre de PR interpolé dans un workflow `pull_request_target`.
+La même règle vaut pour `actions/github-script` (n'interpole pas d'expression dans `script:`, passe par `process.env`) et pour les écritures dans `$GITHUB_ENV` ou `$GITHUB_OUTPUT` à partir de données externes, qui permettent d'injecter des variables dans les étapes suivantes. La compromission de Nx en août 2025 (leçon 8) est partie exactement de là : un titre de PR interpolé dans un workflow `pull_request_target`.
 
 ## Cache poisoning
 
@@ -166,7 +166,7 @@ jobs:
 
 </Code>
 
-Les erreurs de *trust policy* (`sub` en joker, absence de condition `aud`, rôle partagé entre dépôts) sont traitées côté attaque en M15.
+Les erreurs de *trust policy* (`sub` en joker, absence de condition `aud`, rôle partagé entre dépôts) sont traitées côté attaque en M19.
 
 ## Rulesets et CODEOWNERS
 

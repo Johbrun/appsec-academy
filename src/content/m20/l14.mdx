@@ -1,0 +1,62 @@
+export const questions = [];
+
+<YouKnow>
+Les treize premières étapes ont produit des livrables techniques. Les deux dernières prennent de la hauteur : d’abord la roadmap du programme AppSec sur douze mois, avec les modules 5 (SAMM) et 31 (programme).
+</YouKnow>
+
+## Étape 14 : roadmap SAMM à 12 mois
+
+Un dossier de revue liste des trous ; un **programme** dit dans quel ordre les combler, avec quels moyens. Ton livrable : une feuille de route sur douze mois, structurée par les fonctions de l’**OWASP SAMM**, réaliste au regard des moyens de Novafact.
+
+## Évaluer la maturité actuelle
+
+Repars de l’auto-évaluation SAMM (M5) : les cinq fonctions métier (Governance, Design, Implementation, Verification, Operations), chacune avec ses pratiques. Note le niveau actuel de Novafact, honnêtement, à partir de ce que les étapes précédentes ont révélé.
+
+| Fonction | Pratique | Niveau actuel (exemple) | Cible 12 mois |
+| --- | --- | --- | --- |
+| Governance | Éducation et conseil | 1 | 2 |
+| Design | Threat assessment | 1 | 2 |
+| Implementation | Secure build | 1 | 2 |
+| Verification | Security testing | 1 | 2 |
+| Operations | Incident management | 1 | 2 |
+
+<Callout kind="tip">
+Ne vise pas le niveau 3 partout : une cible réaliste vaut mieux qu’un plan ambitieux jamais tenu. Faire passer les pratiques clés de 1 à 2 en un an est déjà un vrai progrès pour une équipe produit.
+</Callout>
+
+## Séquencer sur quatre trimestres
+
+Ordonne les chantiers par **effet de levier** : ce qui protège le plus, le plus tôt, pour le moins d’effort. Les contrôles de classe (M7, M17) et le paved road (M30) viennent tôt, parce qu’ils rendent le reste plus facile.
+
+<Steps items={[
+  { title: "T1 — Fondations", text: "Contrôles de classe (defineRoute, DAL par tenant), SAST différentiel bloquant en PR, secrets scanning, matrice d’exigences adoptée. Effet immédiat sur des classes entières." },
+  { title: "T2 — Chaîne et cloud", text: "Durcissement des workflows (épinglage, OIDC), SBOM et SCA, moindre privilège IAM et garde-fous de compte. Réduit le rayon d’explosion." },
+  { title: "T3 — Détection et conception", text: "Détections Elastic en detection-as-code, revues de conception systématiques sur les fonctionnalités sensibles, threat model vivant." },
+  { title: "T4 — Adoption et mesure", text: "Réseau de champions, formation, métriques (délai de correction, classes éliminées), premier pentest externe ou bug bounty." },
+]} />
+
+## Chiffrer et affecter
+
+Une roadmap sans moyens est un vœu. Pour chaque chantier, note : qui le porte (AppSec, champions, plateforme), l’effort approximatif, et l’indicateur qui prouvera qu’il a avancé. Rattache chaque chantier à la pratique SAMM qu’il fait progresser et, quand c’est utile, à une obligation réglementaire (CRA, NIS2) qui lui donne du poids auprès de la direction.
+
+<Callout kind="novafact">
+Fil conducteur de la roadmap de Novafact : « éliminer des classes plutôt que corriger des instances ». Le T1 installe les contrôles de classe et le paved road ; les trimestres suivants s’appuient dessus. La métrique-phare n’est pas le nombre de findings corrigés mais le nombre de classes de vulnérabilités devenues impossibles.
+</Callout>
+
+## Livrable de l’étape
+
+- L’**auto-évaluation SAMM** actuelle de Novafact, par pratique.
+- La **cible à 12 mois**, réaliste, et le **séquencement** en quatre trimestres.
+- Pour chaque chantier : **porteur**, effort, **indicateur** de progrès, pratique SAMM et éventuelle obligation réglementaire.
+
+<Recap items={[
+  "Un programme dit dans quel ordre combler les trous, avec quels moyens.",
+  "Évaluer honnêtement la maturité SAMM actuelle et viser une cible réaliste (souvent 1 → 2).",
+  "Séquencer par effet de levier : contrôles de classe et paved road d’abord.",
+  "Chiffrer, affecter un porteur et un indicateur à chaque chantier ; mesurer les classes éliminées.",
+]} />
+
+<Sources items={[
+  { title: "OWASP SAMM", url: "https://owaspsamm.org/" },
+  { title: "OWASP SAMM : toolbox et roadmap", url: "https://owaspsamm.org/guidance/roadmap/" },
+]} />

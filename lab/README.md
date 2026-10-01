@@ -47,7 +47,7 @@ Une suite de tests de régression qui, pour chaque exercice, exige **deux** chos
 
 Sur le code livré, les 17 suites échouent — c'est leur rôle. Un correctif qui casse la fonctionnalité fait
 échouer le test aussi sûrement qu'un correctif absent. C'est l'exercice K12 de Kohnfelder et le cœur du module
-M13 : un test qui vérifie qu'un contrôle refuse, pas seulement qu'il accepte.
+M17 : un test qui vérifie qu'un contrôle refuse, pas seulement qu'il accepte.
 
 Deux exercices vivent dans le navigateur (XSS stockée, script tiers) : aucune requête ne peut les constater
 depuis les tests, ils sont donc vérifiés sur le code source, comme le ferait une règle Semgrep.
@@ -66,12 +66,11 @@ Les 238 jouables, par nature :
 | **fix** ⚙ | 57 | Tu corriges un fichier du dépôt fixture `novafact/` ; une vérification le relit |
 | **artifact** ✎ | 59 | Tu écris un livrable dans `workspace/` ; le harnais le juge |
 
-Seize des vingt modules du parcours ont des challenges jouables. M7 et M20 ont leurs vérifications
+La plupart des modules rédigés ont des challenges jouables. M12 et M32 ont leurs vérifications
 écrites mais pas encore leur registre : ils restent dans la feuille de route.
 
-La feuille de route couvre les 20 modules du parcours : **158 des 162 leçons** y sont rattachées à au moins un
-challenge. Les quatre restantes ne le sont pas et ne le seront pas — la raison est écrite pour chacune dans
-CHALLENGES.md.
+La feuille de route rattache les leçons du parcours à au moins un challenge ; le décompte à jour et la raison
+de chaque leçon non rattachée sont dans CHALLENGES.md, qui est généré.
 
 Trois familles : **exploit** (une requête, le serveur constate), **fix** ⚙ (le défaut est dans un workflow, un
 Terraform, un Dockerfile ou une politique IAM) et **artifact** ✎ (on produit une règle, un test, un document VEX
@@ -103,7 +102,7 @@ verify/                 Les tests de régression.
 CHALLENGES.md           Les challenges jouables, générés, reliés aux leçons du site.
 ROADMAP.md              Les challenges spécifiés, générés eux aussi.
 novafact/               Le dépôt fixture : workflows, .npmrc, lockfile, CODEOWNERS — tous
-                        volontairement défectueux. Support des challenges « fix » de M14.
+                        volontairement défectueux. Support des challenges « fix » de M18.
 server/audit/           Les vérifications de ces challenges. Une vérification porte sur la
                         PROPRIÉTÉ, jamais sur la forme du correctif : plusieurs façons de
                         corriger doivent passer, une reformulation qui ne corrige rien non.
@@ -133,7 +132,7 @@ parcours précis : **la correction dans du code Express/React qu'on possède**, 
 prouve que la classe de bugs a disparu.
 
 Hors périmètre, faute de pouvoir les reproduire fidèlement en local : request smuggling (il faut une vraie
-chaîne de proxys), IAM AWS, IaC et détection Elastic — les modules M14 à M18 continuent de s'appuyer sur
+chaîne de proxys), IAM AWS, IaC et détection Elastic — les modules M18 à M24 continuent de s'appuyer sur
 CloudGoat, TerraGoat et Stratus Red Team.
 
 ---

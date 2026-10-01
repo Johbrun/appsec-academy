@@ -1,4 +1,4 @@
-// Scénarios du jeu « Log Detective AppSec » (M18) : lire des événements et nommer l'attaque + la technique ATT&CK.
+// Scénarios du jeu « Log Detective AppSec » (M23) : lire des événements et nommer l'attaque + la technique ATT&CK.
 //
 // Règle d'écriture : **les noms d'attaques sont de longueur comparable**. Tant
 // que « Injection SQL » voisinait avec « SSRF vers les métadonnées d'instance »,
@@ -147,7 +147,7 @@ export const logCases: LogCase[] = [
     technique: 'T1580',
     techniqueName: 'Cloud Infrastructure Discovery',
     techniqueOptions: [{ id: 'T1530', name: 'Data from Cloud Storage' }, { id: 'T1190', name: 'Exploit Public-Facing Application' }, { id: 'T1110', name: 'Brute Force' }],
-    why: 'Une URL fournie par l’utilisateur vise 169.254.169.254, la tâche y accède, puis les identifiants du rôle servent depuis une adresse externe. L’escalade IAM est la suite possible, pas ce que montrent ces lignes. IMDSv2 (M16) aurait bloqué la première étape.',
+    why: 'Une URL fournie par l’utilisateur vise 169.254.169.254, la tâche y accède, puis les identifiants du rôle servent depuis une adresse externe. L’escalade IAM est la suite possible, pas ce que montrent ces lignes. IMDSv2 (M20) aurait bloqué la première étape.',
   },
   {
     id: 'bola',
@@ -164,7 +164,7 @@ export const logCases: LogCase[] = [
     technique: 'T1526',
     techniqueName: 'Cloud Service Discovery',
     techniqueOptions: [{ id: 'T1530', name: 'Data from Cloud Storage' }, { id: 'T1110', name: 'Brute Force' }, { id: 'T1078', name: 'Valid Accounts' }],
-    why: 'Un seul compte parcourt des identifiants séquentiels avec une écrasante majorité de 404 : c’est de la découverte, à la recherche d’objets accessibles. Le contrôle par tenant tient — ce sont les 404 — et le comportement mérite quand même une alerte. Des identifiants non devinables (M8) fermeraient la question.',
+    why: 'Un seul compte parcourt des identifiants séquentiels avec une écrasante majorité de 404 : c’est de la découverte, à la recherche d’objets accessibles. Le contrôle par tenant tient — ce sont les 404 — et le comportement mérite quand même une alerte. Des identifiants non devinables (M13) fermeraient la question.',
   },
   {
     id: 'privesc',
@@ -181,7 +181,7 @@ export const logCases: LogCase[] = [
     technique: 'T1548',
     techniqueName: 'Abuse Elevation Control Mechanism',
     techniqueOptions: [{ id: 'T1078', name: 'Valid Accounts' }, { id: 'T1580', name: 'Cloud Infrastructure Discovery' }, { id: 'T1190', name: 'Exploit Public-Facing Application' }],
-    why: 'Un rôle publie une version de sa propre politique, s’attache AdministratorAccess, puis crée une clé pour un compte d’urgence : c’est la séquence d’élévation du Pathfinder (M15). Toute gestion d’IAM hors du pipeline d’infrastructure devrait alerter immédiatement.',
+    why: 'Un rôle publie une version de sa propre politique, s’attache AdministratorAccess, puis crée une clé pour un compte d’urgence : c’est la séquence d’élévation du Pathfinder (M19). Toute gestion d’IAM hors du pipeline d’infrastructure devrait alerter immédiatement.',
     avoid: ['privesc-slow', 'iam-user-persist'],
   },
   {
@@ -304,7 +304,7 @@ export const logCases: LogCase[] = [
     technique: 'T1195.002',
     techniqueName: 'Compromise Software Supply Chain',
     techniqueOptions: [{ id: 'T1552', name: 'Unsecured Credentials' }, { id: 'T1567', name: 'Exfiltration Over Web Service' }, { id: 'T1078', name: 'Valid Accounts' }],
-    why: 'Un tag mutable a été déplacé vers un commit malveillant, et tout ce qui référençait ce tag l’a exécuté : la fuite de secrets est la conséquence, la compromission de la dépendance est la cause. C’est exactement l’attaque tj-actions/changed-files de 2025. L’épinglage par SHA complet (M14) l’aurait empêchée sur les 41 dépôts.',
+    why: 'Un tag mutable a été déplacé vers un commit malveillant, et tout ce qui référençait ce tag l’a exécuté : la fuite de secrets est la conséquence, la compromission de la dépendance est la cause. C’est exactement l’attaque tj-actions/changed-files de 2025. L’épinglage par SHA complet (M18) l’aurait empêchée sur les 41 dépôts.',
   },
   {
     id: 'webhook-exfil',

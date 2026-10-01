@@ -1,190 +1,205 @@
 export const questions = [
   {
-    q: "Dans le modèle FAIR, le risque se décompose en…",
+    q: "Quel format de formation au code sécurisé a le plus d'effet sur les développeurs de Novafact ?",
     options: [
-      "Menace × vulnérabilité × valeur de l'actif, sur des échelles qualitatives de 1 à 5",
-      "Probabilité × impact, positionnés dans une matrice à cinq niveaux",
-      "Nombre de vulnérabilités ouvertes × score CVSS moyen du périmètre",
-      "Fréquence des événements de perte × ampleur, exprimées en fourchettes",
+      "Un e-learning par rôle, suivi d'un quiz noté, une fois tous les douze mois",
+      "Une demi-journée annuelle de CTF interne sur une copie d'un vrai service",
+      "Une présentation trimestrielle sur les nouveautés de l'OWASP Top 10",
+      "Des sessions courtes à partir de vrais bugs de Novafact, avec exercice",
     ],
     answer: 3,
-    explain: "FAIR estime une fréquence d'événements de perte et une ampleur de perte, l'une et l'autre en fourchettes, pour exprimer le risque en euros par an avec son incertitude. C'est exactement ce qui le sépare de la matrice probabilité × impact : celle-ci mélange des ordres de grandeur dans une même case colorée et masque l'incertitude au lieu de l'afficher. Et rien dans FAIR ne se déduit d'un décompte de vulnérabilités.",
+    explain: "Trois raisons font échouer le générique : l'écart de contexte, le mauvais moment et l'absence de pratique. Une session courte bâtie sur un bug réel de l'entreprise les traite toutes les trois — le développeur reconnaît ses frameworks, la cause racine est la sienne, et il corrige lui-même un extrait. Le CTF interne engage fort mais coûte cher à préparer : une ou deux fois par an, en complément. L'e-learning annuel satisfait l'exigence PCI 6.2.2 sur le papier, sans rien changer aux findings du trimestre suivant.",
   },
   {
-    q: "Quel indicateur a sa place dans un tableau de bord pour la direction ?",
+    q: "Comment savoir si une formation a servi ?",
     options: [
-      "La part des dépôts couverts par le scan SAST, en progression mensuelle",
-      "La tendance du temps de correction des critiques, avec une phrase d'explication",
-      "Le nombre d'attaques bloquées par le pare-feu applicatif sur le trimestre",
-      "La liste des CVE critiques ouvertes, avec leur score et leur propriétaire",
-    ],
-    answer: 1,
-    explain: "Une direction a besoin de tendances sur des résultats, expliquées, et des décisions qu'on attend d'elle. Le taux de couverture d'un scan est l'indicateur de vanité le plus trompeur : il monte dès qu'on branche un outil, même si personne n'en lit les résultats. Le nombre d'attaques bloquées mesure le bruit d'Internet. Quant à la liste de CVE, elle appartient au tableau de bord opérationnel — la direction ne peut rien en faire.",
-  },
-  {
-    q: "Ton analyse FAIR donne une perte annuelle médiane de 42 317 €. Comment la présenter ?",
-    options: [
-      "Ainsi : un chiffre précis se compare directement aux autres lignes budgétaires",
-      "En ne retenant que le pire cas, seul scénario qui justifie un investissement",
-      "En fourchette, avec les hypothèses et ce qui ferait bouger le résultat",
-      "En la convertissant en note de 1 à 5, plus lisible pour un comité",
-    ],
-    answer: 2,
-    explain: "Les entrées sont des fourchettes estimées : un résultat au centime laisse croire à une certitude qui n'existe pas, et c'est cette fausse précision qui fait s'effondrer l'exercice dès que quelqu'un demande d'où sort le chiffre. On présente donc une probabilité (« 9 chances sur 10 de rester sous… »), les hypothèses écrites et les facteurs sensibles. Ne montrer que le pire cas, c'est reprendre la peur comme monnaie : efficace une fois, ignoré la deuxième. Et repasser en note de 1 à 5 annule tout l'apport de la quantification.",
-  },
-  {
-    q: "Le lendemain d'une fuite médiatisée chez un concurrent, le directeur général demande « est-ce que ça peut nous arriver ? ». Quelle réponse est la plus utile ?",
-    options: [
-      "Une réponse courte le jour même : cause, applicabilité, ce qui reste à vérifier",
-      "Une analyse FAIR du scénario, pour chiffrer l'exposition avant de répondre",
-      "Un rappel des certifications obtenues, qui couvrent précisément ce scénario",
-      "Un audit externe commandé dans la foulée, dont les conclusions trancheront",
+      "À la baisse de la classe de bugs visée dans les findings suivants",
+      "Au score des participants à l'exercice de fin de session",
+      "À la satisfaction déclarée et au taux de participation",
+      "Au nombre de règles SAST écrites ensuite par les participants",
     ],
     answer: 0,
-    explain: "La question porte sur l'exposition, maintenant : une réponse rapide, honnête sur ce qui reste incertain et assortie d'une échéance de vérification construit plus de confiance qu'une réassurance ou qu'un document tardif. Un inventaire et des SBOM à jour la rendent possible en heures. Chiffrer d'abord inverse l'ordre — FAIR sert à arbitrer un investissement, pas à dire si un composant est présent chez nous. La certification et l'audit externe, eux, déplacent la question : l'un derrière un référentiel, l'autre de plusieurs semaines.",
+    explain: "Une session sur la BOLA qui ne fait pas baisser le nombre de BOLA trouvées ensuite n'a pas atteint son objectif : c'est l'effet dans le code qui compte. Le résultat de l'exercice de fin de session est un vrai signal, mais il mesure ce qui a été compris sur le moment, pas ce qu'il en reste trois mois plus tard. La satisfaction sert à ajuster le format ; ce n'est pas l'objectif.",
+  },
+  {
+    q: "Trois mois après une session sur la BOLA, le nombre de BOLA trouvées en revue a chuté. Dans le même temps, une règle Semgrep sur les lectures sans tenant a été activée. Que peux-tu conclure ?",
+    options: [
+      "Que la formation a produit l'essentiel de l'effet, la règle n'étant qu'un filet",
+      "Que la formation n'a rien apporté, puisque la règle bloque déjà le motif",
+      "Que l'effet est combiné : il faut d'autres signaux pour départager",
+      "Qu'il faut désactiver la règle un trimestre pour isoler l'effet de la formation",
+    ],
+    answer: 2,
+    explain: "Plusieurs contrôles visent la même classe au même trimestre : la baisse est l'effet de l'ensemble, et l'objectif reste que la classe disparaisse, pas de s'en attribuer le mérite. Pour y voir plus clair, on regarde des signaux plus spécifiques — questions posées en conception, qualité des corrections après une alerte, comparaison entre équipes formées et non encore formées. Désactiver la règle pour mesurer proprement reviendrait à rouvrir volontairement une classe de bugs : le coût de l'expérience dépasse de loin la valeur de sa conclusion.",
+  },
+  {
+    q: "Pourquoi le commentaire de revue qui explique le pourquoi, avec un lien, est-il un format de formation si efficace ?",
+    options: [
+      "Parce qu'il est tracé dans la PR et vaut preuve pour un audit PCI",
+      "Parce qu'il arrive au moment où le développeur a son code sous les yeux",
+      "Parce qu'il est plus court qu'une session et coûte moins cher à l'AppSec",
+      "Parce qu'il est relu par toute l'équipe, pas seulement par l'auteur de la PR",
+    ],
+    answer: 1,
+    explain: "L'apprentissage arrive au bon moment, sur son propre code, avec une action immédiate à faire : c'est ce qui le fait tenir, bien mieux qu'une session décontextualisée des semaines plus tôt. Qu'il soit lu par les autres relecteurs est un bonus réel, mais ce n'est pas ce qui le rend efficace ; et son faible coût est une commodité pour toi, pas un mécanisme d'apprentissage. Le même raisonnement justifie de soigner le champ message d'une règle SAST : lu dans la PR, il forme à l'instant exact où il sert.",
   },
 ];
 
 <YouKnow>
-Tu as présenté des restitutions de pentest à des directions. Tu sais qu'un graphique de criticités CVSS ne dit rien à un directeur financier. Cette leçon donne une autre grammaire.
+Tu as sans doute déjà donné des formations « OWASP Top 10 » à des développeurs. Tu as vu les regards vides au bout de vingt minutes, et les mêmes bugs revenir le trimestre suivant.
 </YouKnow>
 
-## Ce qu'une direction veut savoir
+## Pourquoi la formation générique échoue
 
-Une direction ne gère pas des vulnérabilités, elle gère des **risques pour l'entreprise**. Trois questions reviennent toujours :
+Trois raisons expliquent l'échec des formations génériques, et chacune suggère son remède :
 
-- **Sommes-nous exposés** à ce qui arrive aux autres (l'incident dont parle la presse) ?
-- **Est-ce que ça s'améliore**, et le budget sert-il à quelque chose ?
-- **Que faut-il décider** de mon côté ?
+- **l'écart de contexte** : une injection SQL en PHP sur une page de login ne ressemble à rien de ce que fait un développeur Express et Prisma. Il faut qu'il reconnaisse *son* code ;
+- **le mauvais moment** : une session en janvier sur un sujet qu'il rencontrera en juin est oubliée d'ici là. Le meilleur moment est celui où il écrit le code concerné ;
+- **l'absence de pratique** : écouter une explication ne crée pas le réflexe. Corriger soi-même un extrait vulnérable, si.
 
-Elle a aussi des contraintes que tu dois connaître. Son temps d'attention est court (une réunion de comité traite dix sujets), elle compare ta demande à d'autres investissements exprimés en euros et en délais, et elle a une responsabilité personnelle croissante. Dans les entités concernées par NIS2, la directive (article 20) demande aux organes de direction d'**approuver** les mesures de gestion des risques cyber, d'en **superviser** la mise en œuvre et de **suivre une formation**, et prévoit qu'ils puissent être tenus responsables des manquements. Ce n'est pas un argument de peur : c'est la raison pour laquelle une direction a besoin de pouvoir comprendre ce qu'elle approuve.
+La formation au code sécurisé n'est donc pas un événement, c'est un **système** : un peu de contenu, beaucoup de pratique, et des rappels au moment où ils servent.
 
-## Traduire en risque métier
+## Partir des vrais bugs
 
-| Formulation technique | Formulation métier |
-| --- | --- |
-| « BOLA sur l'API de facturation » | « Un client peut consulter les factures des autres clients ; si cela arrive, notification à la CNIL et risque de perte des clients grands comptes » |
-| « 43 vulnérabilités critiques dans les dépendances » | « Deux sont exploitées activement ailleurs et exposées chez nous ; elles seront corrigées cette semaine, les autres ne sont pas atteignables » |
-| « Pas de MFA sur la console AWS » | « Un mot de passe volé suffirait à supprimer toute la production et les sauvegardes » |
-| « Webhook de paiement non signé » | « N'importe qui pourrait faire passer des factures comme payées, ce qui arrêterait les relances de nos clients et fausserait leur trésorerie » |
+Le contenu le plus efficace est celui qui vient **de l'entreprise elle-même** : une vulnérabilité trouvée dans le code de l'équipe, anonymisée si besoin, présentée avec son histoire, sa cause racine, son correctif et le contrôle de classe qui l'empêche désormais. Les développeurs reconnaissent leur contexte, leurs frameworks, leurs conventions.
 
-La traduction a trois ingrédients : **l'actif** touché (les factures, la trésorerie des clients, la production), **la conséquence** dans le vocabulaire de l'entreprise (perte de clients, amende, arrêt de service, obligation de notification) et **ce qu'on fait** (déjà corrigé, en cours avec une date, en attente d'une décision). Sans le troisième, la direction reçoit une inquiétude sans prise.
+Les findings de l'année sont ta matière première. Dans DefectDojo ou ton gestionnaire de tickets (M26), regroupe-les par classe de bugs (CWE, ou tes propres catégories) : les deux ou trois classes les plus fréquentes, ou les plus graves, sont tes premiers sujets.
 
-<Callout kind="warn">
-La peur est une mauvaise monnaie. Un « nous pourrions tout perdre » obtient peut-être un budget une fois ; la deuxième fois, il est ignoré, et la troisième, il te décrédibilise. Préfère des scénarios plausibles, datés, avec leur probabilité estimée, même grossièrement.
-</Callout>
+<Steps items={[
+  { title: "Choisir la classe", text: "À partir des données : fréquence dans les findings, gravité, équipes concernées." },
+  { title: "Raconter sans accuser", text: "L'histoire du bug, sans nom ni équipe pointée du doigt. Le sujet est le mécanisme, pas la personne ; la personne concernée est souvent la meilleure pour raconter, si elle le veut." },
+  { title: "Expliquer la cause racine", text: "Pourquoi le code paraissait correct, et quelle hypothèse était fausse." },
+  { title: "Montrer le correctif et le contrôle de classe", text: "Le correctif ponctuel, puis ce qui empêche désormais toute la classe (DAL, règle, test)." },
+  { title: "Faire pratiquer", text: "Un exercice de 15 minutes sur un extrait réaliste." },
+  { title: "Suivre", text: "Noter la classe et la date, pour mesurer l'effet dans les mois suivants." },
+]} />
 
-## Quantifier avec FAIR
+## Un exercice type
 
-**FAIR** (Factor Analysis of Information Risk), standardisé par The Open Group sous le nom *Open FAIR*, décompose le risque en **fréquence des événements de perte** et **ampleur des pertes**, estimées sous forme de **fourchettes** plutôt que de valeurs uniques. On obtient une estimation en euros par an, avec son incertitude.
+L'exercice le plus utile ressemble à une revue de PR : un extrait réaliste, une consigne courte (« cette PR ajoute la page de détail d'un utilisateur dans le back-office ; trouve le problème et propose le correctif »), puis la correction commentée.
 
-La taxonomie descend d'un cran de plus, et c'est là qu'elle devient utile pour un AppSec :
+<Diff file="apps/backoffice/app/users/[id]/page.tsx" hlBefore="4" hlAfter="4,5,6,7" stack>
 
-| Facteur | Question | Ce qui le fait bouger chez Novafact |
-| --- | --- | --- |
-| **Fréquence des événements de menace** | Combien de tentatives par an ? | L'exposition sur Internet, l'intérêt des fraudeurs pour la facturation |
-| **Vulnérabilité** (au sens FAIR) | Quelle part de ces tentatives réussit ? | Tes contrôles : autorisation par tenant, WAF, limitation de débit |
-| **Pertes primaires** | Que coûte directement l'événement ? | Temps de réponse, correction, remboursements |
-| **Pertes secondaires** | Que coûtent les réactions des tiers ? | Clients qui partent, sanction de la CNIL, notification, avocats |
-
-Cette décomposition montre à la direction **où agit chaque investissement** : un programme anti-BOLA réduit la vulnérabilité, une meilleure détection réduit l'ampleur (on découvre plus tôt, on notifie moins de clients), une cyberassurance transfère une partie des pertes secondaires.
-
-Tu n'as pas besoin de modéliser tout le programme : réserve la quantification à **deux ou trois décisions importantes** (financer la migration IAM, investir dans la détection), là où comparer des euros à des euros change la discussion.
-
-## Une simulation, pas un calcul
-
-Comme les entrées sont des fourchettes, on ne les multiplie pas : on tire des milliers de scénarios au hasard (simulation de Monte Carlo) et on regarde la distribution des pertes. Des outils existent, mais le principe tient en quelques lignes et aide à comprendre ce qu'ils font :
-
-<Code file="tools/risk/fair-sketch.ts" hl="17,18,19,20">
-
-```ts
-// Esquisse pédagogique : Math.random convient ici (simulation, pas de sécurité).
-type Range = { min: number; mode: number; max: number };
-
-const triangular = ({ min, mode, max }: Range) => {
-  const u = Math.random(), c = (mode - min) / (max - min);
-  return u < c ? min + Math.sqrt(u * (max - min) * (mode - min))
-               : max - Math.sqrt((1 - u) * (max - min) * (max - mode));
-};
-const poisson = (lambda: number) => {
-  let k = 0, p = 1; const l = Math.exp(-lambda);
-  do { k++; p *= Math.random(); } while (p > l);
-  return k - 1;
-};
-
-export function simulate(freq: Range, loss: Range, runs = 50_000) {
-  const years = Array.from({ length: runs }, () => {
-    const events = poisson(triangular(freq));          // nombre d'événements de perte dans l'année
-    let total = 0;
-    for (let i = 0; i < events; i++) total += triangular(loss); // ampleur de chacun
-    return total;
-  }).sort((a, b) => a - b);
-  const pct = (p: number) => years[Math.floor(p * (runs - 1))];
-  return { p50: pct(0.5), p90: pct(0.9), p99: pct(0.99), probAnyLoss: years.filter((y) => y > 0).length / runs };
+```tsx
+export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) notFound();
+  return <UserDetails user={user} />;
 }
+```
+
+```tsx
+export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await requireSession();
+  // La lecture est bornée au tenant de la session : un id d'un autre tenant donne 404.
+  const user = await prisma.user.findFirst({
+    where: { id, tenantId: session.tenantId },
+  });
+  if (!user) notFound();
+  return <UserDetails user={user} />;
+}
+```
+
+</Diff>
+
+La correction commentée compte autant que l'exercice : pourquoi `requireSession()` ne suffit pas (il authentifie, il n'autorise pas l'accès à *cet* objet), pourquoi on répond 404 plutôt que 403, et pourquoi le vrai correctif de classe est de passer par la DAL multi-tenant plutôt que de se souvenir d'ajouter `tenantId` à chaque requête (M7, leçon 9).
+
+## Des formats courts
+
+| Format | Durée | Usage |
+| --- | --- | --- |
+| Session « un bug, un correctif » | 30 min | Une classe de bugs, un exemple réel, un exercice |
+| Revue de code en groupe | 45 min | Une vraie PR relue ensemble, avec la grille de M16 |
+| Threat model en direct | 1 h | Une fonctionnalité en cours de conception, animée par un champion |
+| CTF interne | Une demi-journée | Juice Shop ou une version volontairement vulnérable d'un service interne |
+| Rappel au bon moment | Quelques minutes | Un lien vers la leçon ou la règle, directement dans le commentaire de PR |
+
+Le dernier format est le plus sous-estimé : un commentaire de revue qui explique **pourquoi**, avec un lien, forme au moment exact où le développeur en a besoin.
+
+## Former au moment où ça sert
+
+Les outils de la CI peuvent porter ce rappel automatiquement. Une règle Semgrep interne a un champ `message` : c'est le texte que le développeur lira dans sa PR. Écris-le comme une micro-leçon, avec le lien vers la session correspondante :
+
+<Code file=".semgrep/novafact-bola.yml" hl="6,7,8,9">
+
+```yaml
+rules:
+  - id: novafact-prisma-read-by-id-outside-dal
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      Lecture Prisma par identifiant seul : rien ne garantit que l'objet
+      appartient au tenant de la session (BOLA). Passe par la DAL, par exemple
+      dal.users.get(session.tenantId, id). Explication et exemple réel :
+      https://wiki.novafact.example/secu/bola
+    pattern: prisma.$MODEL.findUnique({ where: { id: $ID } })
+    paths:
+      exclude:
+        - "apps/*/src/dal/**"
+    metadata:
+      cwe: "CWE-639"
 ```
 
 </Code>
 
-<Callout kind="novafact">
-Chiffres fictifs, pour l'exemple. Scénario « fuite de factures entre tenants via l'API ». Sans le programme anti-BOLA, l'équipe estime entre 0,05 et 0,5 événement par an (le plus probable : 0,15), et une ampleur entre 80 000 et 2 millions d'euros par événement (le plus probable : 300 000). Avec la DAL multi-tenant, les tests d'autorisation et la règle Semgrep, la fréquence estimée descend à 0,01 à 0,1 (le plus probable : 0,03). La simulation ne donne pas « le » coût du risque ; elle montre que la probabilité d'avoir au moins une perte dans l'année passe d'environ une chance sur cinq à environ une chance sur vingt, pour un investissement de quelques semaines-ingénieur. C'est cette comparaison qui a convaincu le comité.
-</Callout>
+Un message qui dit seulement « Insecure direct object reference detected » produit un `// nosemgrep`. Un message qui explique le risque dans le vocabulaire de l'équipe et donne la ligne à écrire produit un correctif, et un développeur qui a appris quelque chose.
 
-Les pièges de la quantification :
+## Pratiquer
 
-- **la fausse précision** : un résultat au centime près laisse croire à une certitude qui n'existe pas. Présente des fourchettes et des probabilités (« 9 chances sur 10 de rester sous… ») ;
-- **des entrées sorties du chapeau** : chaque fourchette doit avoir une justification écrite (historique d'incidents, données sectorielles, avis de l'équipe) ;
-- **l'estimateur non calibré** : la plupart des gens donnent des fourchettes trop étroites. Hubbard et Seiersen (*How to Measure Anything in Cybersecurity Risk*) proposent des exercices de calibration simples pour corriger ce biais ;
-- **le modèle qui remplace la discussion** : la valeur de FAIR tient autant à la conversation qu'il structure qu'au chiffre final.
+La théorie seule ne tient pas. Chaque session contient une partie pratique : corriger un extrait vulnérable, écrire le test de régression, relire une PR. Les labs reconnus sont une bonne base, complétés par des exemples tirés du code de l'entreprise :
+
+- **Juice Shop** propose, depuis sa version 12.9.0, des *coding challenges* en deux temps pour une partie de ses défis : « Find It » (désigner les lignes vulnérables dans le vrai code de l'application) puis « Fix It » (choisir le meilleur correctif parmi plusieurs propositions). C'est un excellent support pour des développeurs, parce que l'exercice porte sur la lecture et la correction plutôt que sur l'exploitation ;
+- **Snyk Learn** propose de courtes leçons par langage, dont JavaScript ;
+- un **CTF interne** construit sur une copie volontairement vulnérable d'un service de l'entreprise crée un engagement que les labs génériques n'obtiennent pas, mais demande du temps de préparation : réserve-le à une ou deux fois par an.
 
 <Callout kind="debate">
-Quantifier ou pas ? Les partisans de FAIR font valoir que les matrices « probabilité × impact » en couleurs mélangent des ordres de grandeur et cachent l'incertitude derrière une case rouge. Les sceptiques répondent que les données manquent pour estimer des fréquences crédibles, et qu'un chiffre en euros donne une autorité injustifiée à des suppositions. Les deux ont raison selon le contexte : quantifie les quelques décisions où l'argent est en jeu et où tu peux documenter tes hypothèses ; garde une échelle qualitative pour le reste.
+PCI DSS 4.0.1 (exigence 6.2.2) impose que le personnel de développement de logiciels sur mesure soit formé au moins une fois tous les douze mois à la sécurité logicielle adaptée à son rôle et à ses langages, conception sécurisée et techniques de codage sécurisé comprises, et à l'usage des outils de détection s'il y en a. Faut-il en déduire une formation annuelle ? Le risque est de réduire l'exigence à un e-learning coché une fois par an. L'exigence n'impose pas de format : un programme de sessions courtes, d'exercices et de revues, avec une trace de qui a suivi quoi et quand, la satisfait et produit un effet réel. Garde la trace, pas le format.
 </Callout>
 
-## Un tableau de bord utile
+## Mesurer l'effet
 
-<Steps items={[
-  { title: "Trois indicateurs de résultat", text: "Temps de correction des critiques, taux d'échappement, couverture des contrôles clés (M1, leçon 6), en tendance sur six mois." },
-  { title: "Une phrase par indicateur", text: "Ce qui explique la tendance, et ce qu'on fait ensuite." },
-  { title: "Les décisions attendues", text: "Ce que la direction doit trancher : un budget, une acceptation de risque, un arbitrage." },
-  { title: "Rien d'autre", text: "Les indicateurs d'activité (nombre de scans, de règles, de formations) restent dans les tableaux de bord opérationnels." },
-]} />
+Une formation se juge à ce qu'elle change : la **classe de bugs** qu'elle couvre apparaît-elle moins souvent dans les findings des mois suivants ? Les corrections sont-elles plus rapides ? Les développeurs sollicitent-ils l'AppSec plus tôt, en conception ? La satisfaction est un signal utile, pas un objectif.
 
-| Indicateur de vanité | Pourquoi il trompe | Indicateur de résultat à la place |
-| --- | --- | --- |
-| Nombre de vulnérabilités trouvées | Augmente quand on ajoute un scanner, même si le risque baisse | Âge des vulnérabilités critiques ouvertes |
-| Nombre de développeurs formés | Mesure la présence, pas l'effet | Évolution de la classe de bugs ciblée dans les findings |
-| Pourcentage de dépôts scannés | Un scan dont personne ne lit les résultats ne protège rien | Part des findings critiques corrigés dans le SLA |
-| Nombre d'attaques bloquées par le WAF | Mesure le bruit d'Internet | Temps de détection sur les exercices et incidents réels |
+Reste honnête sur l'attribution. Si une règle Semgrep, une DAL et une session de formation visent la même classe au même trimestre, la baisse est l'effet de l'ensemble. Ce n'est pas un problème (l'objectif est que la classe disparaisse), mais ne présente pas la formation comme seule cause. Quelques signaux plus spécifiques aident à voir ce qu'elle apporte :
 
-## Répondre à « est-ce que ça peut nous arriver ? »
-
-C'est la question la plus fréquente, et elle arrive au pire moment : le lendemain d'un incident médiatisé chez quelqu'un d'autre. Une réponse structurée, **dans la journée**, vaut mieux qu'un rapport parfait dans un mois :
-
-<Steps items={[
-  { title: "Ce qu'on sait", text: "La cause connue de l'incident, en une phrase, avec la source." },
-  { title: "Si ça s'applique", text: "Le composant, la pratique ou le fournisseur concernés existent-ils chez Novafact ? Un SBOM et un inventaire à jour (M5, M14) rendent cette étape rapide." },
-  { title: "Ce qu'on a vérifié", text: "Les contrôles en place et les recherches faites (logs, configuration)." },
-  { title: "Ce qui reste", text: "Les vérifications en cours, leur échéance, et quand tu reviens vers eux." },
-]} />
+| Signal | Ce qu'il indique |
+| --- | --- |
+| Résultat de l'exercice en début puis en fin de session | Ce qui a été compris sur le moment |
+| Qualité des corrections après une alerte (correctif de classe ou contournement) | Si le raisonnement a été retenu |
+| Questions posées en conception sur le sujet | Si le réflexe s'installe avant le code |
+| Même classe de bugs dans les équipes formées et non encore formées | Un effet propre de la formation, si le reste est comparable |
 
 <Callout kind="novafact">
-Première restitution trimestrielle au comité de direction de Novafact : une page. Trois courbes, trois phrases, deux décisions (financer Dependency-Track, accepter formellement un risque résiduel sur l'ancien back-office jusqu'à sa fin de vie en mars). Les questions du comité portent sur les décisions, pas sur les courbes : c'est le signe que la page fait son travail.
+La première session chez Novafact porte sur la BOLA : trois exemples réels de l'API de facturation, la DAL multi-tenant comme correctif de classe, et un exercice de 15 minutes pour trouver une BOLA dans une PR. Trois mois plus tard, aucune nouvelle BOLA dans les PR revues. L'AppSec note aussi que la règle Semgrep, activée le même mois, a produit deux alertes, toutes deux corrigées via la DAL et non par un `nosemgrep` : le signe que le message a été compris.
 </Callout>
 
+## En pratique chez toi
+
+- Extrais les findings des douze derniers mois et classe-les : ta première session sort de la classe la plus fréquente.
+- Réécris le `message` de tes trois règles SAST les plus déclenchées pour qu'il explique le risque et donne le correctif.
+- Ajoute un module « sécurité » au parcours d'arrivée des nouveaux développeurs : la DAL, les règles de la CI, qui contacter.
+- Garde une trace simple (qui, quoi, quand) : elle sert aux audits et à la mesure.
+
 <Recap items={[
-  "La direction gère des risques pour l'entreprise : exposition, progrès, décisions ; NIS2 renforce sa responsabilité.",
-  "Traduire chaque constat en actif, conséquence métier et action en cours.",
-  "FAIR décompose fréquence (tentatives × part qui réussit) et ampleur (pertes primaires et secondaires).",
-  "Des fourchettes simulées, pas une fausse précision ; des hypothèses écrites et des estimateurs calibrés.",
-  "Tableau de bord : trois indicateurs de résultat, une phrase chacun, les décisions attendues.",
-  "« Est-ce que ça peut nous arriver ? » appelle une réponse structurée dans la journée.",
+  "La formation générique échoue par écart de contexte, mauvais moment et absence de pratique.",
+  "Le meilleur contenu vient des vrais bugs de l'entreprise, racontés sans accuser, avec cause racine, correctif et contrôle.",
+  "Des formats courts et pratiques ; un exercice ressemble à une revue de PR.",
+  "Le message d'une règle SAST est une micro-leçon au moment où elle sert.",
+  "PCI DSS 6.2.2 impose une formation annuelle tracée, pas un format.",
+  "On mesure l'effet sur la classe de bugs, en restant honnête sur l'attribution.",
 ]} />
 
+<Lab id="juice-shop" note="Les coding challenges de Juice Shop (Find It, puis Fix It) sont un excellent support de session." />
+<Lab id="snyk-learn" />
+<Lab id="semgrep-academy" note="Pour apprendre à écrire des règles dont le message forme." />
+
 <Sources items={[
-  { title: "FAIR Institute", url: "https://www.fairinstitute.org/" },
-  { title: "The Open Group : Open FAIR", url: "https://www.opengroup.org/certifications/openfair" },
-  { title: "The Open Group Risk Taxonomy (O-RT)", url: "https://pubs.opengroup.org/security/o-rt/" },
-  { title: "Hubbard et Seiersen, How to Measure Anything in Cybersecurity Risk, 2e éd. (Wiley, 2023)", url: "https://www.wiley.com/en-us/How+to+Measure+Anything+in+Cybersecurity+Risk,+2nd+Edition-p-9781119892304" },
-  { title: "ANSSI : la directive NIS 2", url: "https://cyber.gouv.fr/la-directive-nis-2" },
+  { title: "OWASP SAMM : Education & Guidance", url: "https://owaspsamm.org/model/governance/education-and-guidance/" },
+  { title: "OWASP Juice Shop", url: "https://owasp.org/www-project-juice-shop/" },
+  { title: "Pwning OWASP Juice Shop : Coding challenges", url: "https://pwning.owasp-juice.shop/companion-guide/latest/part5/code-snippets.html" },
+  { title: "Semgrep : syntaxe des règles", url: "https://semgrep.dev/docs/writing-rules/rule-syntax" },
+  { title: "PCI Security Standards Council : document library", url: "https://www.pcisecuritystandards.org/document_library/" },
 ]} />

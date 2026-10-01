@@ -40,7 +40,7 @@ En pentest, tu as souvent trouvé la faille dans un composant que personne n'ava
 
 ## Une dépendance est une décision de confiance
 
-Ajouter une dépendance, c'est accorder l'exécution de code, avec les droits de ton application et de ton pipeline, à ses mainteneurs, à leurs comptes, à leur CI et à toutes leurs propres dépendances. L'API de Novafact déclare une quarantaine de dépendances directes ; son lockfile en contient plus de 900. Chacune est un point d'entrée possible pour les scénarios de la leçon 7.
+Ajouter une dépendance, c'est accorder l'exécution de code, avec les droits de ton application et de ton pipeline, à ses mainteneurs, à leurs comptes, à leur CI et à toutes leurs propres dépendances. L'API de Novafact déclare une quarantaine de dépendances directes ; son lockfile en contient plus de 900. Chacune est un point d'entrée possible pour les scénarios de la leçon 8.
 
 Ce n'est pas une raison pour tout écrire soi-même, mais c'est une raison pour **décider** : une dépendance entre après une revue proportionnée au risque, avec une trace écrite.
 
@@ -80,7 +80,7 @@ scorecard --repo=github.com/Hopding/pdf-lib --checks=Maintained,Dangerous-Workfl
 
 </Code>
 
-**deps.dev** (Google) rassemble sur une page le graphe de dépendances, les avis de sécurité, la licence et les résultats Scorecard d'un paquet. Le **Concise Guide for Evaluating Open Source Software** de l'OpenSSF sert de checklist courte pour les cas non triviaux. Les outils d'analyse comportementale (Socket, M13) complètent en signalant ce que fait le code publié : scripts, réseau, obfuscation.
+**deps.dev** (Google) rassemble sur une page le graphe de dépendances, les avis de sécurité, la licence et les résultats Scorecard d'un paquet. Le **Concise Guide for Evaluating Open Source Software** de l'OpenSSF sert de checklist courte pour les cas non triviaux. Les outils d'analyse comportementale (Socket, M17) complètent en signalant ce que fait le code publié : scripts, réseau, obfuscation.
 
 <Callout kind="novafact">
 Fiche de décision (fictive) pour la génération des PDF de factures. Candidat A : bibliothèque en JavaScript pur, peu de dépendances, maintenance ralentie mais sans avis de sécurité ouvert. Candidat B : navigateur sans interface piloté par Node, très maintenu mais volumineux, avec téléchargement d'un binaire. Choix : A, parce que les factures sont générées à partir de données structurées et non de HTML arbitraire, ce qui supprime la surface d'un moteur de rendu. Mitigations : génération dans un worker isolé sans accès réseau, version épinglée, suivi Scorecard trimestriel, sortie prévue si le projet est abandonné. Décideurs : lead API et AppSec. Réexamen : dans un an.
@@ -92,7 +92,7 @@ Kohnfelder est net : pour les fonctions de sécurité de base, utilise une bibli
 
 Deux compléments à ce conseil :
 
-- **Une couche commune** : si aucune bibliothèque ne convient, écris-en une seule pour tout le code, testée à fond. Elle devient le goulot d'étranglement où une correction s'applique partout (la *paved road* de M1).
+- **Une couche commune** : si aucune bibliothèque ne convient, écris-en une seule pour tout le code, testée à fond. Elle devient le goulot d'étranglement où une correction s'applique partout (la *paved road* de M3).
 - **Documenter ce qui est couvert** : une bibliothèque ou un wrapper de sécurité dit explicitement ce qu'il protège et ce qu'il ne protège pas. « Utilise ce module et tout ira bien » n'aide personne.
 
 À l'inverse, une dépendance pour trois lignes de code utilitaire ajoute un mainteneur, un compte et une CI à ta surface pour un bénéfice nul. La règle pratique : bibliothèque éprouvée pour la sécurité et la cryptographie, code maison pour les utilitaires triviaux.
@@ -102,10 +102,10 @@ Deux compléments à ce conseil :
 Presque tout a une date de péremption. Un composant qui était un bon choix il y a cinq ans peut être aujourd'hui abandonné (`request`, déprécié en 2020), en maintenance minimale (Moment.js), ou dépassé par l'état de l'art. Kohnfelder note que la sécurité héritée persiste par inertie : personne ne remet en cause ce qui fonctionne, et changer un composant central oblige à tout adapter.
 
 <Steps items={[
-  { title: "Repérer", text: "Le SBOM (M13) croisé avec les dépréciations npm et les dates de fin de vie donne la liste des composants en fin de course." },
+  { title: "Repérer", text: "Le SBOM (M17) croisé avec les dépréciations npm et les dates de fin de vie donne la liste des composants en fin de course." },
   { title: "Évaluer", text: "Le composant est-il exposé (entrée non fiable, réseau) ? Reçoit-il encore des correctifs de sécurité ? Un fork maintenu existe-t-il ?" },
   { title: "Isoler", text: "En attendant la migration, l'encapsuler derrière une interface interne unique, pour limiter les appels directs et préparer le remplacement." },
-  { title: "Planifier la sortie", text: "Une migration datée dans la roadmap, pas une intention. Un composant impossible à mettre à jour est un anti-pattern de conception (M8)." },
+  { title: "Planifier la sortie", text: "Une migration datée dans la roadmap, pas une intention. Un composant impossible à mettre à jour est un anti-pattern de conception (M13)." },
 ]} />
 
 ## Les licences, suivies par le SBOM
@@ -118,9 +118,9 @@ Presque tout a une date de péremption. Un composant qui était un bon choix il 
 | Copyleft réseau | AGPL-3.0 | Déclenché par l'usage via le réseau : sensible pour tout le back-end SaaS |
 | Source disponible, non OSI | BSL, SSPL | Restrictions d'usage commercial ; lire au cas par cas |
 
-Le risque ne se limite pas à la licence du jour : un projet peut **changer de licence** pour ses versions futures. Terraform est passé en août 2023 d'une licence open source à la BSL, ce qui a donné naissance au fork OpenTofu (M16). Un composant central sous licence d'un seul éditeur mérite un plan de repli.
+Le risque ne se limite pas à la licence du jour : un projet peut **changer de licence** pour ses versions futures. Terraform est passé en août 2023 d'une licence open source à la BSL, ce qui a donné naissance au fork OpenTofu (M20). Un composant central sous licence d'un seul éditeur mérite un plan de repli.
 
-Le SBOM CycloneDX (M13) porte la licence de chaque composant ; une politique simple se vérifie en CI.
+Le SBOM CycloneDX (M17) porte la licence de chaque composant ; une politique simple se vérifie en CI.
 
 <Code file="scripts/check-licenses.ts">
 

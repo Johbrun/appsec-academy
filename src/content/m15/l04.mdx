@@ -146,7 +146,7 @@ Une trust policy est une politique de ressource : elle dit **qui peut devenir** 
 - `"Principal": { "AWS": "*" }` avec une condition : acceptable seulement si la condition est solide (`aws:PrincipalOrgID` au minimum) ;
 - un principal de **service** sans condition de source.
 
-Le **confused deputy** est l'anti-pattern de Kohnfelder (M8, leçon 3) transposé à AWS : un adjoint légitime (un service AWS, un éditeur SaaS) agit pour plusieurs clients, et un client malveillant l'amène à agir sur **ta** ressource. Deux parades selon l'adjoint :
+Le **confused deputy** est l'anti-pattern de Kohnfelder (M13, leçon 4) transposé à AWS : un adjoint légitime (un service AWS, un éditeur SaaS) agit pour plusieurs clients, et un client malveillant l'amène à agir sur **ta** ressource. Deux parades selon l'adjoint :
 
 - **service AWS** : conditions `aws:SourceArn` et `aws:SourceAccount` dans la politique de ressource ou la trust policy ;
 - **éditeur tiers** : un `ExternalId` **généré par l'éditeur, unique par client**, vérifié dans la trust policy.
@@ -173,7 +173,7 @@ Le **confused deputy** est l'anti-pattern de Kohnfelder (M8, leçon 3) transpos�
 
 ## La trust policy OIDC de GitHub
 
-La fédération OIDC entre GitHub Actions et AWS (M14, leçon 2) repose entièrement sur la trust policy : le fournisseur `token.actions.githubusercontent.com` est **partagé par tous les dépôts de GitHub**. Sans condition sur le sujet (`sub`), n'importe quel workflow public pourrait endosser ton rôle. IAM refuse aujourd'hui d'enregistrer une telle trust policy si `sub` est absent ou réduit à un joker, mais `repo:novafact/*` passe la vérification, et il ouvre le rôle à tout dépôt, toute branche et tout workflow de l'organisation.
+La fédération OIDC entre GitHub Actions et AWS (M18, leçon 2) repose entièrement sur la trust policy : le fournisseur `token.actions.githubusercontent.com` est **partagé par tous les dépôts de GitHub**. Sans condition sur le sujet (`sub`), n'importe quel workflow public pourrait endosser ton rôle. IAM refuse aujourd'hui d'enregistrer une telle trust policy si `sub` est absent ou réduit à un joker, mais `repo:novafact/*` passe la vérification, et il ouvre le rôle à tout dépôt, toute branche et tout workflow de l'organisation.
 
 <Diff file="infra/iam/gha-deploy-prod-trust.json" hlBefore="7,8" hlAfter="8,9,10" stack>
 

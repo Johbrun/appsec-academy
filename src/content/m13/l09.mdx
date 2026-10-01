@@ -8,7 +8,7 @@ export const questions = [
       "Parce que la porte dérobée était dans une dépendance et non dans xz lui-même",
     ],
     answer: 1,
-    explain: "La manœuvre sociale autour du mainteneur est bien réelle dans cette affaire, mais elle n'explique pas l'invisibilité du code : ce qui était relu dans Git ne contenait pas la pièce déclenchante. Elle n'existait que dans les archives de release, et la charge se cachait dans des fichiers de test binaires présentés comme corrompus. Ce qui était construit n'était pas ce qui était relu — c'est l'argument des builds reproductibles et de la provenance (M14).",
+    explain: "La manœuvre sociale autour du mainteneur est bien réelle dans cette affaire, mais elle n'explique pas l'invisibilité du code : ce qui était relu dans Git ne contenait pas la pièce déclenchante. Elle n'existait que dans les archives de release, et la charge se cachait dans des fichiers de test binaires présentés comme corrompus. Ce qui était construit n'était pas ce qui était relu — c'est l'argument des builds reproductibles et de la provenance (M18).",
   },
   {
     q: "Quel signal, dans un paquet npm, justifie une analyse approfondie ?",
@@ -45,9 +45,9 @@ Le code malveillant arrive par deux chemins :
 | Origine | Exemples | Où regarder |
 | --- | --- | --- |
 | **Une dépendance** | Paquet typosquatté, compte de mainteneur compromis, mainteneur malveillant | Scripts d'installation, fichiers ajoutés à la publication, code minifié |
-| **L'intérieur** | Développeur malveillant, compte compromis, agent de code manipulé (M12) | Revue de PR, conditions inhabituelles, changements hors périmètre |
+| **L'intérieur** | Développeur malveillant, compte compromis, agent de code manipulé (M16) | Revue de PR, conditions inhabituelles, changements hors périmètre |
 
-La première est de loin la plus fréquente dans l'écosystème JS (M14, leçon 7). La seconde est rare, mais les contrôles qui la préviennent (revue obligatoire, protection de branche, séparation des rôles) protègent aussi contre la compromission d'un compte.
+La première est de loin la plus fréquente dans l'écosystème JS (M18, leçon 8). La seconde est rare, mais les contrôles qui la préviennent (revue obligatoire, protection de branche, séparation des rôles) protègent aussi contre la compromission d'un compte.
 
 ## Le cas xz utils
 
@@ -64,9 +64,9 @@ Ce qui rend le cas exemplaire :
 
 Les leçons pour une équipe produit :
 
-- ce qui est **construit** doit être ce qui est **relu** : builds reproductibles, provenance SLSA, comparaison de l'archive publiée avec le dépôt (M14, leçon 9) ;
+- ce qui est **construit** doit être ce qui est **relu** : builds reproductibles, provenance SLSA, comparaison de l'archive publiée avec le dépôt (M18, leçon 10) ;
 - les fichiers de test et les fichiers binaires ne sont pas « hors sujet » en revue ;
-- la santé d'un projet (un seul mainteneur, épuisé) est un **risque de sécurité** que l'on évalue en choisissant un composant (M14, leçon 6).
+- la santé d'un projet (un seul mainteneur, épuisé) est un **risque de sécurité** que l'on évalue en choisissant un composant (M18, leçon 6).
 
 ## Les signaux d'un code malveillant
 
@@ -114,7 +114,7 @@ N'analyse jamais un paquet suspect sur ton poste ou dans la CI : les scripts d'i
 
 ## Prévenir plutôt que chercher
 
-La recherche de code malveillant est difficile et coûteuse. L'essentiel de la défense est ailleurs, dans des contrôles de classe détaillés en M14 :
+La recherche de code malveillant est difficile et coûteuse. L'essentiel de la défense est ailleurs, dans des contrôles de classe détaillés en M18 :
 
 - désactiver les scripts d'installation par défaut (pnpm 10 le fait ; `ignore-scripts` pour npm) et autoriser au cas par cas ;
 - attendre quelques jours avant d'adopter une nouvelle version (la plupart des paquets malveillants sont retirés en quelques heures ou jours) ;

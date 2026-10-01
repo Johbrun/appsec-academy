@@ -73,7 +73,7 @@ Le 15 septembre 2025, des versions piégées de `@ctrl/tinycolor` et de dizaines
 <Steps items={[
   { title: "L'atteignabilité", text: "Le paquet vulnérable est-il importé, et la fonction vulnérable appelée depuis ton code ? C'est la première réduction de bruit." },
   { title: "Le contexte", text: "Dépendance de développement ou de production ? Exposée à Internet ou dans un script interne ?" },
-  { title: "La priorisation de M5", text: "EPSS, KEV et impact, comme pour tout finding." },
+  { title: "La priorisation de M26", text: "EPSS, KEV et impact, comme pour tout finding." },
   { title: "Les mises à jour groupées", text: "Renovate regroupe les mises à jour, les fusionne automatiquement quand les tests passent, et attend avant d'adopter une nouvelle version (minimumReleaseAge)." },
 ]} />
 
@@ -98,7 +98,7 @@ Beaucoup de versions piégées sont repérées et retirées en quelques heures. 
 </Code>
 
 <Callout kind="debate">
-**Quarantaine, même pour les correctifs de sécurité ?** La documentation de npm est explicite : si la fenêtre empêche `npm audit fix` d'installer une version corrigée publiée trop récemment, npm garde la version vulnérable, prévient et échoue. Pour : la plupart des jours, le risque d'une version piégée est plus grand que celui d'une CVE. Contre : le jour d'une CVE critique exploitée (React2Shell, M12), trois jours d'attente sont inacceptables. La réponse de Novafact : quarantaine par défaut, et procédure d'urgence documentée qui ajoute le paquet à la liste d'exclusion (`min-release-age-exclude`), avec revue du diff de la nouvelle version.
+**Quarantaine, même pour les correctifs de sécurité ?** La documentation de npm est explicite : si la fenêtre empêche `npm audit fix` d'installer une version corrigée publiée trop récemment, npm garde la version vulnérable, prévient et échoue. Pour : la plupart des jours, le risque d'une version piégée est plus grand que celui d'une CVE. Contre : le jour d'une CVE critique exploitée (React2Shell, M16), trois jours d'attente sont inacceptables. La réponse de Novafact : quarantaine par défaut, et procédure d'urgence documentée qui ajoute le paquet à la liste d'exclusion (`min-release-age-exclude`), avec revue du diff de la nouvelle version.
 </Callout>
 
 Deuxième levier : les **scripts d'installation**. pnpm 10 n'exécute plus par défaut les scripts `postinstall` des dépendances, et demande de lister explicitement celles qui en ont besoin. Avec npm, `ignore-scripts=true` dans `.npmrc` produit un effet comparable, au prix de quelques paquets à construire à la main. C'est exactement le vecteur de Shai-Hulud.
@@ -116,7 +116,7 @@ syft dir:. -o cyclonedx-json                                   # aussi pour les 
 
 Un SBOM utile se génère **au build**, à partir du lockfile et de l'artefact réellement livré, pas à la main sur le poste d'un développeur. Pour Novafact, il en faut au moins deux par version : celui de l'application (dépendances npm) et celui de l'image de conteneur (paquets du système en plus), qui ne disent pas la même chose.
 
-En juillet 2026, la CISA et ses partenaires ont publié les **2026 Minimum Elements** d'un SBOM, qui remplacent la version NTIA de 2021. Parmi les ajouts : l'empreinte cryptographique de chaque composant, sa licence, l'outil qui a généré le SBOM et le contexte de génération (à quelle étape du cycle de vie il a été produit). Le CRA européen (M1) exige, pour les produits qu'il couvre, un SBOM dans un format courant et lisible par machine, couvrant **au minimum les dépendances de premier niveau** ; ses obligations de signalement s'appliquent depuis le 11 septembre 2026, et l'essentiel de ses autres obligations à partir du 11 décembre 2027.
+En juillet 2026, la CISA et ses partenaires ont publié les **2026 Minimum Elements** d'un SBOM, qui remplacent la version NTIA de 2021. Parmi les ajouts : l'empreinte cryptographique de chaque composant, sa licence, l'outil qui a généré le SBOM et le contexte de génération (à quelle étape du cycle de vie il a été produit). Le CRA européen (M31) exige, pour les produits qu'il couvre, un SBOM dans un format courant et lisible par machine, couvrant **au minimum les dépendances de premier niveau** ; ses obligations de signalement s'appliquent depuis le 11 septembre 2026, et l'essentiel de ses autres obligations à partir du 11 décembre 2027.
 
 ## Dependency-Track et VEX
 
@@ -153,11 +153,11 @@ Un VEX est un **engagement** : « not affected » publié à un client doit repo
 
 ## Les licences
 
-Le SBOM porte aussi les **licences**. Une dépendance AGPL dans le back-end d'un SaaS peut imposer de publier le code ; une licence incompatible bloque une acquisition. La politique de licences se vérifie en CI comme les vulnérabilités (M14, leçon 6).
+Le SBOM porte aussi les **licences**. Une dépendance AGPL dans le back-end d'un SaaS peut imposer de publier le code ; une licence incompatible bloque une acquisition. La politique de licences se vérifie en CI comme les vulnérabilités (M18, leçon 6).
 
 <Recap items={[
   "Vulnérabilités connues et paquets malveillants demandent deux outillages distincts ; les entrées MAL- d'OSV n'aident qu'après coup.",
-  "L'atteignabilité (en sachant à quel niveau elle est calculée), le contexte et la priorisation de M5 réduisent le bruit.",
+  "L'atteignabilité (en sachant à quel niveau elle est calculée), le contexte et la priorisation de M26 réduisent le bruit.",
   "Délais d'adoption et scripts d'installation désactivés coupent le vecteur des vers npm, avec une procédure d'urgence pour les correctifs.",
   "SBOM CycloneDX ou SPDX générés au build, conformes aux 2026 Minimum Elements de la CISA et au CRA.",
   "Dependency-Track surveille en continu ; le VEX documente ce qui n'est pas exploitable, et c'est un engagement à maintenir.",

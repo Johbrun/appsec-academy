@@ -1,4 +1,4 @@
-// Jeu « Right Tool, Right Stage » (M13) : chaque outil à sa place dans le pipeline de Novafact.
+// Jeu « Right Tool, Right Stage » (M17) : chaque outil à sa place dans le pipeline de Novafact.
 //
 // Une carte décrit un outil réel et l'usage précis qu'on en fait. Le joueur
 // choisit l'étape où cet usage apporte le plus ; une étape défendable mais moins

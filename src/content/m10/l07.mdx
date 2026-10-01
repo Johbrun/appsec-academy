@@ -19,7 +19,7 @@ export const questions = [
       "Connexion depuis un nouvel appareil, changement d'IBAN, puis export dans la foulée",
     ],
     answer: 3,
-    explain: "L'ordre compte autant que les événements : l'accès arrive d'abord, le changement qui détourne l'argent ensuite, l'exfiltration tout de suite après, parce que l'attaquant sait sa fenêtre courte. C'est ce que les règles de séquence EQL d'Elastic détectent bien (M18). Les rafales d'échecs décrivent la tentative d'entrée, pas la monétisation ; l'envoi massif de factures est un autre scénario, celui de l'abus de plateforme par un compte créé pour ça.",
+    explain: "L'ordre compte autant que les événements : l'accès arrive d'abord, le changement qui détourne l'argent ensuite, l'exfiltration tout de suite après, parce que l'attaquant sait sa fenêtre courte. C'est ce que les règles de séquence EQL d'Elastic détectent bien (M24). Les rafales d'échecs décrivent la tentative d'entrée, pas la monétisation ; l'envoi massif de factures est un autre scénario, celui de l'abus de plateforme par un compte créé pour ça.",
   },
   {
     q: "Après un appel à AdminUserGlobalSignOut sur un compte compromis, l'API Express de Novafact accepte encore son jeton d'accès pendant quelques minutes. Pourquoi, et que faire ?",
@@ -114,7 +114,7 @@ Si l'authentification passe par Cognito, sa *threat protection* (plan Plus) four
 
 ## Détecter dans Elastic
 
-Les journaux applicatifs structurés (M18) permettent d'écrire ces détections. Chaque signal correspond à un type de règle d'Elastic Security :
+Les journaux applicatifs structurés (M24) permettent d'écrire ces détections. Chaque signal correspond à un type de règle d'Elastic Security :
 
 | Signal | Type de règle |
 | --- | --- |
@@ -130,7 +130,7 @@ sequence by user.id with maxspan=15m
   [any where event.action == "invoices_exported"]
 ```
 
-Cette règle EQL repère la séquence typique d'une prise de contrôle suivie de monétisation. La règle *new terms* sur le couple `user.id` et `source.geo.country_iso_code`, avec un historique de 30 jours, complète : elle alerte à la première connexion d'un compte depuis un pays nouveau pour lui, sans liste de pays à maintenir. Le module 18 en construit d'autres.
+Cette règle EQL repère la séquence typique d'une prise de contrôle suivie de monétisation. La règle *new terms* sur le couple `user.id` et `source.geo.country_iso_code`, avec un historique de 30 jours, complète : elle alerte à la première connexion d'un compte depuis un pays nouveau pour lui, sans liste de pays à maintenir. Le module 24 en construit d'autres.
 
 ## Contenir un compte
 
@@ -164,7 +164,7 @@ Les jetons d'accès courts (quelques minutes) bornent ce qui reste ; les clés d
 ## La réponse
 
 - **Le support** est en première ligne : c'est lui qui reçoit les appels des victimes et des clients bloqués. Donne-lui des procédures, des outils (voir les sessions actives et les raisons du score, révoquer, suspendre) et un circuit d'escalade.
-- **Les preuves** : les journaux d'audit (M7) permettent de reconstituer ce qui s'est passé, de rembourser ou de porter plainte. Une suspension doit aussi pouvoir se **justifier** auprès du client : quels événements, quand, depuis où. Préserve-les avant qu'une purge automatique ne les efface.
+- **Les preuves** : les journaux d'audit (M3) permettent de reconstituer ce qui s'est passé, de rembourser ou de porter plainte. Une suspension doit aussi pouvoir se **justifier** auprès du client : quels événements, quand, depuis où. Préserve-les avant qu'une purge automatique ne les efface.
 - **La récupération** : le client légitime retrouve son compte par un canal vérifié, réinitialise ses facteurs, et revoit les changements faits pendant la compromission (IBAN, e-mails, utilisateurs ajoutés).
 - **La boucle d'apprentissage** : chaque fraude alimente les règles, les quotas et les signaux, et chaque faux positif ajuste les poids.
 

@@ -1,4 +1,4 @@
-// M15 · IAM AWS — entièrement implémenté.
+// m15 · IAM AWS — entièrement implémenté.
 //
 // Les quinze challenges de ce module sont jouables : ils vivent dans
 // shared/live/m15.ts, et leurs vérifications dans server/audit/m15.ts. Le

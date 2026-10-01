@@ -8,7 +8,7 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const labsSrc = fs.readFileSync(path.join(root, 'src/data/labs.ts'), 'utf8');
 const labIds = new Set([...labsSrc.matchAll(/(?:id: '|ps\(')([a-z0-9-]+)'/g)].map((m) => (m[0].startsWith('ps(') ? `ps-${m[1]}` : m[1])));
-const known = new Set(['YouKnow', 'Callout', 'Diff', 'Code', 'Lab', 'Recap', 'Sources', 'Steps']);
+const known = new Set(['YouKnow', 'Callout', 'Diff', 'Code', 'Lab', 'Recap', 'Sources', 'Steps', 'CarteDuParcours']);
 const kinds = new Set(['tip', 'warn', 'debate', 'case', 'novafact', 'info']);
 
 const args = process.argv.slice(2);

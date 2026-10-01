@@ -123,7 +123,7 @@ Le taux d'échappement se calcule par classe : parmi les vulnérabilités d'une 
 Au premier semestre, Novafact a trouvé 14 injections (SQL et NoSQL) : 11 en PR grâce aux règles Semgrep, 3 par le pentest. Taux d'échappement : 3 sur 14, environ 21 % (chiffres fictifs). L'analyse des 3 montre qu'elles passaient par un helper de requête que la règle ne suivait pas. Correction de la règle, et le taux tombe à 1 sur 9 au semestre suivant.
 </Callout>
 
-Toutes les métriques utiles ne portent pas sur les vulnérabilités. Côté détection, l'indicateur qui compte est le **temps de résidence** — combien de temps un attaquant est resté inaperçu (M18) — et non le nombre d'alertes traitées, qui monte quand on ajoute des règles bruyantes. Il partage la propriété essentielle des bons indicateurs : il se dégrade honnêtement quand la couverture est mauvaise, au lieu de récompenser l'activité.
+Toutes les métriques utiles ne portent pas sur les vulnérabilités. Côté détection, l'indicateur qui compte est le **temps de résidence** — combien de temps un attaquant est resté inaperçu (M24) — et non le nombre d'alertes traitées, qui monte quand on ajoute des règles bruyantes. Il partage la propriété essentielle des bons indicateurs : il se dégrade honnêtement quand la couverture est mauvaise, au lieu de récompenser l'activité.
 
 ## L'expérience développeur
 

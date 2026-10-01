@@ -1,4 +1,4 @@
-// M5 · Gestion des vulnérabilités — challenges spécifiés.
+// m05 · Gestion des vulnérabilités — challenges spécifiés.
 //
 // Le domaine se prête bien mieux au lab qu'il n'y paraît, parce que les données
 // de référence sont publiques et embarquables : catalogue KEV, scores EPSS,

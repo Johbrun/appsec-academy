@@ -1,4 +1,4 @@
-// M13 · Tests & analyse de code — challenges jouables.
+// m13 · Tests & analyse de code — challenges jouables.
 //
 // Challenges « artifact » : l'apprenant PRODUIT un fichier dans `workspace/`,
 // au chemin donné par `file`, et c'est ce fichier qui est jugé. On relance
@@ -25,7 +25,7 @@ export const m13: ExerciseDef[] = [
     goal:
       'Produire `workspace/program/test-strategy.yaml` : pour chaque technique, l’étape, le caractère bloquant, le budget de temps et le déclencheur, en cohérence avec les workflows réels de `novafact/.github/workflows/`.',
     file: 'program/test-strategy.yaml',
-    lessons: ['m13/l01', 'm01/l05'],
+    lessons: ['m13/l01', 'm32/l03'],
     hints: [
       'Une technique coûte du temps là où on la met. Sur le chemin critique, ce temps se paie à chaque commit — et finit par se contourner.',
       'Quatre questions par technique : de quoi a-t-elle besoin pour tourner (un diff ? un build ? un environnement déployé ?), quand son retour est-il encore utile, est-ce qu’elle bloque, et combien de temps elle prend. Puis regarde quels déclencheurs le dépôt a DÉJÀ : ce qui manque est à créer, et il faut le dire.',
@@ -76,7 +76,7 @@ export const m13: ExerciseDef[] = [
     goal:
       'Écrire `workspace/scripts/seed.mjs`, qui exporte `generate({ graine, nombre })` — des données représentatives et déterministes — et `suspect(enregistrement)` — la règle qui interdit d’y remettre du réel.',
     file: 'scripts/seed.mjs',
-    lessons: ['m13/l08', 'm07/l05'],
+    lessons: ['m13/l08', 'm07/l03'],
     hints: [
       'Ne produis pas des valeurs « qui ont l’air fausses » : produis des valeurs dont on peut DÉMONTRER qu’elles ne peuvent pas être vraies.',
       'Les formats réservés sont listés en tête du fichier de fixtures. Trois d’entre eux se prouvent par une clé de contrôle : un IBAN qui échoue la clé ISO 7064 mod 97 n’est l’IBAN de personne, un numéro qui échoue Luhn n’est la carte de personne. Et c’est exactement ce que `suspect()` doit détecter dans l’autre sens.',

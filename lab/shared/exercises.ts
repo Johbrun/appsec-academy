@@ -68,7 +68,7 @@ export interface ExerciseDef {
 }
 
 const baseExercises: ExerciseDef[] = [
-  // ─── M2 · Vulnérabilités web, écosystème JS ────────────────────────────────
+  // ─── m02 · Vulnérabilités web, écosystème JS ────────────────────────────────
   {
     id: 'nosql-auth',
     module: 'm02',
@@ -83,7 +83,7 @@ const baseExercises: ExerciseDef[] = [
       'Le formulaire de connexion passe `req.body` tel quel au moteur de requêtes des comptes. Le moteur du lab reproduit les opérateurs de Mongo ($ne, $gt, $regex, $in).',
     goal: 'Te connecter en tant que admin@novafact.example sans connaître son mot de passe.',
     file: 'server/routes/auth.ts',
-    lessons: ['m02/l02', 'm02/l08'],
+    lessons: ['m02/l01', 'm02/l09'],
     hints: [
       'Le champ mot de passe n’est pas forcément une chaîne : JSON accepte un objet.',
       'Quel opérateur Mongo est vrai pour à peu près n’importe quelle valeur stockée ?',
@@ -104,7 +104,7 @@ const baseExercises: ExerciseDef[] = [
       'La mise à jour du profil fusionne le corps de la requête dans l’objet utilisateur, pour « ne pas avoir à lister les champs ».',
     goal: 'Faire passer ton compte dev@acme.example au rôle admin.',
     file: 'server/routes/profile.ts',
-    lessons: ['m02/l02', 'm12/l03'],
+    lessons: ['m02/l01', 'm12/l03'],
     hints: [
       'Regarde ce que la route fait exactement du corps de la requête.',
       'Quels champs de l’utilisateur ne sont pas censés venir du client ?',
@@ -125,7 +125,7 @@ const baseExercises: ExerciseDef[] = [
       'GET /api/invoices/:id vérifie que tu es authentifié, puis charge la facture par son identifiant. L’autorisation est laissée « à la charge de chaque route ».',
     goal: 'Lire une facture du tenant globex depuis ton compte acme.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m02/l02', 'm08/l07', 'm12/l05'],
+    lessons: ['m02/l01', 'm09/l02', 'm12/l05'],
     hints: [
       'Authentifié ne veut pas dire autorisé.',
       'Les identifiants de facture sont séquentiels : INV-1001, INV-1002…',
@@ -148,7 +148,7 @@ const baseExercises: ExerciseDef[] = [
     goal:
       'Polluer Object.prototype pour que le contrôle d’accès de l’export comptable te croie autorisé, puis déclencher GET /api/export.',
     file: 'server/routes/settings.ts',
-    lessons: ['m02/l04', 'm03/l09'],
+    lessons: ['m02/l03', 'm03/l09'],
     hints: [
       'Le deepMerge recopie toutes les clés, y compris celles qui ont un sens particulier.',
       'L’export vérifie une propriété qui n’existe pas sur les objets ordinaires.',
@@ -170,7 +170,7 @@ const baseExercises: ExerciseDef[] = [
       'Les lignes de facture sont calculées en flottants et les quantités ne sont pas bornées côté serveur.',
     goal: 'Créer une facture dont le total est strictement négatif.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m02/l03', 'm10/l06'],
+    lessons: ['m02/l02', 'm10/l06'],
     hints: [
       'Qui valide la quantité et le prix unitaire ?',
       'Une remise, une quantité, un prix : lequel accepte un signe moins ?',
@@ -191,7 +191,7 @@ const baseExercises: ExerciseDef[] = [
       'La recherche de factures valide la référence fournie avec une expression régulière à quantificateurs imbriqués, sur la boucle d’événements.',
     goal: 'Faire dépasser 1 seconde de calcul à la route de recherche avec une seule requête.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m02/l04', 'm13/l05'],
+    lessons: ['m02/l03', 'm13/l05'],
     hints: [
       'Regarde la forme de la regex : un groupe répété, lui-même répété.',
       'Le pire cas se déclenche sur une chaîne longue qui presque correspond.',
@@ -212,7 +212,7 @@ const baseExercises: ExerciseDef[] = [
       'Le téléchargement d’une pièce jointe concatène le nom demandé au dossier des pièces jointes du lab.',
     goal: 'Lire le fichier server/secrets/aws-credentials.txt via la route de téléchargement.',
     file: 'server/routes/attachments.ts',
-    lessons: ['m02/l04', 'm08/l01'],
+    lessons: ['m02/l03', 'm08/l02'],
     hints: [
       'path.join ne quitte pas le dossier ; il l’accepte pourtant si on le lui demande.',
       'Les segments ../ sont interprétés avant que le chemin final soit ouvert.',
@@ -234,7 +234,7 @@ const baseExercises: ExerciseDef[] = [
     goal:
       'Récupérer le rôle de la tâche ECS de Novafact depuis le faux IMDS, via la route de test de webhook.',
     file: 'server/routes/webhooks.ts',
-    lessons: ['m02/l04', 'm03/l11', 'm15/l03'],
+    lessons: ['m02/l03', 'm03/l11', 'm15/l03'],
     hints: [
       'Le test accepte n’importe quelle URL, y compris une adresse locale.',
       'Le faux IMDS du lab écoute sur 127.0.0.1:4318, chemin /latest/meta-data/iam/security-credentials/.',
@@ -243,7 +243,7 @@ const baseExercises: ExerciseDef[] = [
     fix: 'Proxy de sortie avec liste blanche de destinations, résolution DNS puis vérification de l’IP obtenue (et re-vérification après redirection), IMDSv2 exigé au niveau de l’instance, pas de réponse renvoyée au client.',
   },
 
-  // ─── M3 · Web avancé ───────────────────────────────────────────────────────
+  // ─── m03 · Web avancé ───────────────────────────────────────────────────────
   {
     id: 'race-credit',
     module: 'm03',
@@ -257,7 +257,7 @@ const baseExercises: ExerciseDef[] = [
       'L’application d’un avoir lit le solde, vérifie qu’il est suffisant, puis débite. Il y a un await entre la vérification et l’écriture.',
     goal: 'Consommer plus que le solde de ton avoir en le dépensant plusieurs fois en parallèle.',
     file: 'server/routes/credits.ts',
-    lessons: ['m03/l01', 'm02/l05'],
+    lessons: ['m03/l01', 'm02/l04'],
     hints: [
       'Le contrôle et l’écriture ne sont pas atomiques : la fenêtre est le temps du await.',
       'Envoie plusieurs requêtes en parallèle plutôt qu’à la suite (Promise.all, ou l’onglet Course du lab).',
@@ -279,7 +279,7 @@ const baseExercises: ExerciseDef[] = [
     goal:
       'Provoquer un mail de réinitialisation pour admin@novafact.example dont le lien pointe vers un domaine que tu contrôles.',
     file: 'server/routes/auth.ts',
-    lessons: ['m03/l02', 'm08/l06'],
+    lessons: ['m03/l02', 'm09/l01'],
     hints: [
       'Regarde d’où vient l’origine du lien dans le mail.',
       'Express fait confiance à X-Forwarded-Host quand trust proxy est actif.',
@@ -300,7 +300,7 @@ const baseExercises: ExerciseDef[] = [
       'Le middleware d’API lit les revendications du jeton avec un décodage sans vérification, et accepte l’algorithme annoncé par le jeton.',
     goal: 'Obtenir une réponse de GET /api/admin/audit avec un jeton que tu as forgé toi-même.',
     file: 'server/lib/jwt.ts',
-    lessons: ['m09/l03', 'm03/l10'],
+    lessons: ['m09/l05', 'm03/l10'],
     hints: [
       'Le jeton porte son propre algorithme. Qui décide : le jeton ou le serveur ?',
       'Un jeton est trois parties base64url séparées par des points ; la troisième peut être vide.',
@@ -331,7 +331,7 @@ const baseExercises: ExerciseDef[] = [
     fix: 'Ne jamais refléter une entrée hors clé dans une réponse mise en cache. Clé de cache conçue explicitement (Vary maîtrisé, politique CloudFront), Cache-Control: private sur tout ce qui dépend de l’utilisateur.',
   },
 
-  // ─── M4 · Client & scripts tiers ───────────────────────────────────────────
+  // ─── m04 · Client & scripts tiers ───────────────────────────────────────────
   {
     id: 'dom-xss',
     module: 'm04',
@@ -347,7 +347,7 @@ const baseExercises: ExerciseDef[] = [
     goal:
       'Faire exécuter du script dans le navigateur d’un autre utilisateur qui consulte la facture — le lab détecte l’exécution.',
     file: 'src/pages/InvoiceDetail.tsx',
-    lessons: ['m02/l06', 'm04/l05', 'm04/l04'],
+    lessons: ['m04/l02', 'm04/l06', 'm04/l05'],
     hints: [
       'Le convertisseur Markdown ne neutralise pas le HTML brut qu’on lui donne.',
       'Il n’y a pas que <script> : un attribut d’événement suffit.',
@@ -370,7 +370,7 @@ const baseExercises: ExerciseDef[] = [
     goal:
       'Faire charger par la page de paiement un script d’une origine que tu choisis, et qu’il s’exécute.',
     file: 'src/pages/Checkout.tsx',
-    lessons: ['m04/l02', 'm04/l03', 'm04/l07', 'm08/l03'],
+    lessons: ['m04/l03', 'm04/l04', 'm04/l08', 'm08/l04'],
     hints: [
       'Qui peut écrire le champ analyticsUrl des réglages ?',
       'La page de paiement insère ce script sans contrainte d’origine.',
@@ -379,7 +379,7 @@ const baseExercises: ExerciseDef[] = [
     fix: 'Inventaire et propriétaire par script, origines en liste blanche dans la CSP (pas de configuration qui pilote une origine), SRI, auto-hébergement, et isolation du paiement dans l’iframe du prestataire (PCI DSS 6.4.3).',
   },
 
-  // ─── M9 / M10 · Identité et anti-abus ──────────────────────────────────────
+  // ─── M14 / M15 · Identité et anti-abus ──────────────────────────────────────
   {
     id: 'no-rate-limit',
     module: 'm10',
@@ -423,7 +423,7 @@ const baseExercises: ExerciseDef[] = [
     fix: 'Machine à états côté serveur : transitions autorisées déclarées, champs immuables après paid, opérations d’annulation par avoir plutôt que par édition, journal d’audit et rapprochement.',
   },
 
-  // ─── M19 · Sécurité de l’IA ────────────────────────────────────────────────
+  // ─── m19 · Sécurité de l’IA ────────────────────────────────────────────────
   {
     id: 'prompt-injection',
     module: 'm19',
@@ -438,7 +438,7 @@ const baseExercises: ExerciseDef[] = [
     goal:
       'Par une note de facture seule — sans jamais le demander toi-même dans le chat — faire envoyer par l’assistant un mail à attacker@evil.example.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l02', 'm19/l03', 'm08/l03'],
+    lessons: ['m19/l02', 'm19/l03', 'm08/l04'],
     hints: [
       'L’assistant ne distingue pas ta question des données qu’il récupère.',
       'La note de facture entre telle quelle dans son contexte.',
@@ -500,26 +500,38 @@ export const exerciseById = (id: string) => exercises.find((e) => e.id === id);
 export const exercisesForModule = (m: string) => exercises.filter((e) => e.module === m);
 
 export const moduleTitles: Record<string, string> = {
-  m01: 'M1 · Programme AppSec & DevSecOps',
-  m02: 'M2 · Vulnérabilités web, écosystème JS',
-  m03: 'M3 · Web avancé',
-  m04: 'M4 · Côté client & scripts tiers',
-  m05: 'M5 · Gestion des vulnérabilités',
-  m06: 'M6 · Faire adopter la sécurité',
-  m07: 'M7 · Fondations, exigences & vie privée',
-  m08: 'M8 · Conception sécurisée & architecture',
-  m09: 'M9 · OAuth 2.x / OIDC / SAML',
-  m10: 'M10 · Anti-abus, ATO & fraude',
+  m01: 'M3 · Présentation de l’AppSec',
+  m02: 'M7 · Vulnérabilités côté serveur',
+  m03: 'M9 · Web avancé',
+  m04: 'M8 · Vulnérabilités côté client & scripts tiers',
+  m05: 'M26 · Gestion des vulnérabilités',
+  m06: 'M30 · Faire adopter la sécurité',
+  m07: 'M12 · Exigences, vie privée & conformité',
+  m08: 'M13 · Spécifier et concevoir',
+  m09: 'M14 · Identité : authentification, autorisation, OAuth & SAML',
+  m10: 'M15 · Anti-abus, ATO & fraude',
   m11: 'M11 · Threat modeling & MITRE',
-  m12: 'M12 · Revue de code sécurité',
-  m13: 'M13 · Tests & analyse de code',
-  m14: 'M14 · Pipeline, supply chain & fournisseurs',
-  m15: 'M15 · IAM AWS',
-  m16: 'M16 · Infrastructure as Code',
-  m17: 'M17 · Déploiement, exploitation & résilience',
-  m18: 'M18 · Surveillance, logging & SIEM',
-  m19: 'M19 · Sécurité de l’IA',
-  m20: 'M20 · Capstone : revue de sécurité de Novafact',
+  m12: 'M16 · Revue de code sécurité',
+  m13: 'M17 · Tests & analyse de code',
+  m14: 'M18 · Pipeline, supply chain & fournisseurs',
+  m15: 'M19 · IAM AWS',
+  m16: 'M20 · Infrastructure as Code',
+  m17: 'M21 · Déploiement, exploitation & résilience',
+  m18: 'M23 · Journalisation & SIEM (Elastic)',
+  m19: 'M27 · Sécurité des applications LLM',
+  m20: 'M32 · Capstone : revue de sécurité de Novafact',
+  m21: 'M1 · Cybersécurité et panorama de la menace',
+  m22: 'M2 · MITRE ATT&CK et la menace SaaS',
+  m23: 'M4 · Les métiers de l’AppSec',
+  m24: 'M5 · Maturité et posture de sécurité',
+  m25: 'M6 · Le web et ses protections',
+  m26: 'M10 · Analyse de risques',
+  m27: 'M22 · SOC et renseignement sur la menace',
+  m28: 'M24 · Detection engineering',
+  m29: 'M25 · Réponse à incident',
+  m30: 'M28 · Agents & MCP',
+  m31: 'M29 · MCP & OAuth',
+  m32: 'M31 · Le programme AppSec',
 };
 
 // ── Lien avec le site ───────────────────────────────────────────────────────
@@ -530,20 +542,20 @@ export const moduleTitles: Record<string, string> = {
 
 export const lessonTitles: Record<string, string> = {
   'm01/l01': 'Du pentest à l’AppSec',
-  'm01/l02': 'Principes DevSecOps',
-  'm01/l03': 'OWASP SAMM v2',
-  'm01/l04': 'BSIMM16 : se comparer',
-  'm01/l05': 'Jalons, portes et exceptions',
-  'm01/l06': 'Mesurer un programme',
-  'm01/l07': 'Risque et acceptation',
-  'm01/l08': 'Cyber Resilience Act et roadmap',
-  'm02/l01': 'Top 10 2025, API Top 10 et CWE Top 25',
-  'm02/l02': 'Entrées non fiables dans Express',
-  'm02/l03': 'Footguns JavaScript et argent',
-  'm02/l04': 'Spécificités Node.js',
-  'm02/l05': 'Erreurs, exceptions et atomicité',
-  'm02/l06': 'React et le navigateur',
-  'm02/l08': 'Éliminer une classe entière',
+  'm01/l05': 'Principes DevSecOps',
+  'm24/l02': 'OWASP SAMM v2',
+  'm24/l03': 'BSIMM16 : se comparer',
+  'm32/l03': 'Jalons, portes et exceptions',
+  'm32/l04': 'Mesurer un programme',
+  'm26/l06': 'Risque et acceptation',
+  'm32/l05': 'Cyber Resilience Act et roadmap',
+  'm25/l08': 'Top 10 2025, API Top 10 et CWE Top 25',
+  'm02/l01': 'Entrées non fiables dans Express',
+  'm02/l02': 'Footguns JavaScript et argent',
+  'm02/l03': 'Spécificités Node.js',
+  'm02/l04': 'Erreurs, exceptions et atomicité',
+  'm04/l02': 'React et le navigateur',
+  'm02/l09': 'Éliminer une classe entière',
   'm03/l01': 'Race conditions',
   'm03/l02': 'En-tête Host',
   'm03/l03': 'API avancée et GraphQL',
@@ -557,13 +569,13 @@ export const lessonTitles: Record<string, string> = {
   'm03/l12': 'Client avancé : DOM, CSP et XS-Leaks',
   'm03/l13': 'Web LLM attacks et recherche assistée par IA',
   'm04/l01': 'Le client n’est pas sous ton contrôle',
-  'm04/l02': 'Scripts tiers',
-  'm04/l03': 'Réduire la confiance',
-  'm04/l04': 'CSP stricte en pratique',
-  'm04/l05': 'Trusted Types et Sanitizer API',
-  'm04/l06': 'Isolation d’origine',
-  'm04/l07': 'PCI DSS 4.0.1 : 6.4.3 et 11.6.1',
-  'm04/l08': 'Surveiller le client',
+  'm04/l03': 'Scripts tiers',
+  'm04/l04': 'Réduire la confiance',
+  'm04/l05': 'CSP stricte en pratique',
+  'm04/l06': 'Trusted Types et Sanitizer API',
+  'm04/l07': 'Isolation d’origine',
+  'm04/l08': 'PCI DSS 4.0.1 : 6.4.3 et 11.6.1',
+  'm04/l09': 'Surveiller le client',
   'm05/l01': 'Cycle de vie d’une vulnérabilité',
   'm05/l02': 'CVSS 4.0',
   'm05/l03': 'Prioriser par le risque',
@@ -571,36 +583,36 @@ export const lessonTitles: Record<string, string> = {
   'm05/l05': 'Outillage, SLA et dépendances npm',
   'm05/l06': 'Divulgation, bug bounty et CRA',
   'm05/l07': 'Gérer une critique à J+0',
-  'm06/l01': 'Le rôle : une équipe qui rend capable',
-  'm06/l02': 'Écrire un finding qui sera corrigé',
-  'm06/l05': 'Security Champions',
-  'm06/l06': 'Former au code sécurisé',
-  'm06/l07': 'Le paved road comme produit',
-  'm06/l08': 'Piloter la sécurité offensive',
-  'm07/l01': 'La confiance',
-  'm07/l02': 'C-I-A et Gold Standard',
-  'm07/l03': 'Exigences et abuse cases',
-  'm07/l04': 'Matrice de traçabilité',
-  'm07/l05': 'Classification des données',
-  'm07/l06': 'Vie privée et RGPD',
-  'm07/l07': 'Conformité : NIS2, CRA, PCI DSS',
-  'm07/l08': 'Provisionnement des accès',
-  'm08/l01': 'Mitigations structurelles',
-  'm08/l02': 'Les 14 patterns',
-  'm08/l03': 'Les 4 anti-patterns',
-  'm08/l04': 'Écrire un design doc sécurisé',
-  'm08/l05': 'Mener une Security Design Review',
-  'm08/l06': 'Authentification applicative',
-  'm08/l07': 'Autorisation et multi-tenant',
-  'm08/l08': 'Crypto pour développeurs',
-  'm08/l09': 'Conception d’interfaces',
-  'm08/l10': 'Patterns d’architecture',
-  'm09/l01': 'OAuth 2.1 et Authorization Code + PKCE',
-  'm09/l02': 'SPA : RFC 10017 et BFF',
-  'm09/l03': 'Valider un JWT dans Express',
-  'm09/l04': 'Attaques OAuth et OIDC',
-  'm09/l05': 'RFC 9700, DPoP, PAR et FAPI',
-  'm09/l06': 'SAML en entreprise',
+  'm23/l01': 'Le rôle : une équipe qui rend capable',
+  'm06/l01': 'Écrire un finding qui sera corrigé',
+  'm23/l04': 'Security Champions',
+  'm06/l04': 'Former au code sécurisé',
+  'm06/l05': 'Le paved road comme produit',
+  'm06/l06': 'Piloter la sécurité offensive',
+  'm01/l02': 'La confiance',
+  'm01/l03': 'C-I-A et Gold Standard',
+  'm07/l01': 'Exigences et abuse cases',
+  'm07/l02': 'Matrice de traçabilité',
+  'm07/l03': 'Classification des données',
+  'm07/l04': 'Vie privée et RGPD',
+  'm07/l05': 'Conformité : NIS2, CRA, PCI DSS',
+  'm07/l06': 'Provisionnement des accès',
+  'm08/l02': 'Mitigations structurelles',
+  'm08/l03': 'Les 14 patterns',
+  'm08/l04': 'Les 4 anti-patterns',
+  'm08/l09': 'La spécification technique : le design doc',
+  'm08/l10': 'Mener une Security Design Review',
+  'm09/l01': 'Authentification applicative',
+  'm09/l02': 'Autorisation et multi-tenant',
+  'm08/l07': 'Crypto pour développeurs',
+  'm08/l06': 'Conception d’interfaces',
+  'm08/l05': 'Patterns d’architecture',
+  'm09/l03': 'OAuth 2.1 et Authorization Code + PKCE',
+  'm09/l04': 'SPA : RFC 10017 et BFF',
+  'm09/l05': 'Valider un JWT dans Express',
+  'm09/l06': 'Attaques OAuth et OIDC',
+  'm09/l07': 'RFC 9700, DPoP, PAR et FAPI',
+  'm09/l08': 'SAML en entreprise',
   'm10/l01': 'Taxonomie des menaces automatisées',
   'm10/l02': 'Credential stuffing et prise de contrôle',
   'm10/l03': 'Limitation de débit bien conçue',
@@ -638,10 +650,10 @@ export const lessonTitles: Record<string, string> = {
   'm14/l04': 'Outils du pipeline',
   'm14/l05': 'npm : installer et publier',
   'm14/l06': 'Choisir un composant',
-  'm14/l07': 'Cas réels de supply chain',
-  'm14/l08': 'Fournisseurs et tiers',
-  'm14/l09': 'SLSA, Sigstore et provenance',
-  'm14/l10': 'Répondre à un incident supply chain',
+  'm14/l08': 'Cas réels de supply chain',
+  'm14/l09': 'Fournisseurs et tiers',
+  'm14/l10': 'SLSA, Sigstore et provenance',
+  'm14/l11': 'Répondre à un incident supply chain',
   'm15/l01': 'Le modèle IAM et la logique d’évaluation',
   'm15/l02': 'Zéro utilisateur IAM',
   'm15/l03': 'Workloads Node.js',
@@ -662,31 +674,31 @@ export const lessonTitles: Record<string, string> = {
   'm17/l07': 'Fin de vie',
   'm17/l08': 'Protection à l’exécution',
   'm18/l01': 'Journaliser pour la sécurité',
-  'm18/l02': 'Ingestion dans Elastic',
-  'm18/l03': 'KQL, EQL et ES|QL',
-  'm18/l04': 'Detection engineering',
-  'm18/l05': 'Détections applicatives',
-  'm18/l06': 'Maturité et réponse à incident',
+  'm18/l03': 'Ingestion dans Elastic',
+  'm18/l04': 'KQL, EQL et ES|QL',
+  'm28/l03': 'Règles, Sigma et detection-as-code',
+  'm28/l05': 'Détections applicatives',
+  'm28/l06': 'Maturité et réponse à incident',
   'm19/l01': 'OWASP LLM Top 10 2026',
   'm19/l02': 'Prompt injection et règle de deux',
   'm19/l03': 'Patterns de conception pour agents',
   'm19/l04': 'Applications JS avec LLM',
-  'm19/l05': 'Agents et MCP',
-  'm19/l06': 'MITRE ATLAS et OWASP AI Exchange',
-  'm19/l07': 'Red teaming des LLM',
-  'm19/l08': 'L’IA dans le SDLC',
-  'm20/l01': 'Exigences et traçabilité',
-  'm20/l02': 'Design doc et revue de conception',
-  'm20/l03': 'Threat model',
-  'm20/l04': 'Revue de PR, règles et tests',
-  'm20/l05': 'Page de paiement',
-  'm20/l06': 'Contrôles anti-abus',
-  'm20/l07': 'Pipeline et supply chain',
-  'm20/l08': 'IAM au moindre privilège',
-  'm20/l09': 'Vulnérabilités avancées',
-  'm20/l10': 'Cinq détections Elastic',
-  'm20/l11': 'Roadmap SAMM à 12 mois',
-  'm20/l12': 'Plan d’adoption et restitution',
+  'm30/l01': 'Agents et MCP : vue d’ensemble',
+  'm19/l05': 'MITRE ATLAS et OWASP AI Exchange',
+  'm19/l06': 'Red teaming des LLM',
+  'm19/l07': 'L’IA dans le SDLC',
+  'm20/l03': 'Exigences et traçabilité',
+  'm20/l04': 'Design doc et revue de conception',
+  'm20/l02': 'Threat model',
+  'm20/l06': 'Revue de PR, règles et tests',
+  'm20/l08': 'Page de paiement',
+  'm20/l05': 'Contrôles anti-abus',
+  'm20/l09': 'Pipeline et supply chain',
+  'm20/l10': 'IAM au moindre privilège',
+  'm20/l07': 'Vulnérabilités avancées',
+  'm20/l11': 'Cinq détections Elastic',
+  'm20/l14': 'Roadmap SAMM à 12 mois',
+  'm20/l15': 'Plan d’adoption et restitution',
 };
 
 /**
@@ -695,7 +707,7 @@ export const lessonTitles: Record<string, string> = {
  */
 export const DEFAULT_SITE_URL = 'http://127.0.0.1:5173';
 
-/** L'URL d'une leçon du site, à partir d'une référence « m02/l02 ». */
+/** L'URL d'une leçon du site, à partir d'une référence « m02/l01 ». */
 export const lessonUrl = (ref: string, siteUrl: string = DEFAULT_SITE_URL) =>
   `${siteUrl}/#/modules/${ref}`;
 

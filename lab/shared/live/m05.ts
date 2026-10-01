@@ -1,4 +1,4 @@
-// M5 · Gestion des vulnérabilités — challenges jouables.
+// m05 · Gestion des vulnérabilités — challenges jouables.
 //
 // Challenges « artifact » : il n'y a rien à attaquer et rien à corriger dans le
 // dépôt. L'apprenant PRODUIT un fichier dans `workspace/`, au chemin donné par
@@ -128,7 +128,7 @@ export const m05: ExerciseDef[] = [
     goal:
       'Écrire `workspace/vulns/sla-policy.yaml` (la politique, lisible par une machine) et `workspace/scripts/sla-report.mjs` (ce qui la mesure).',
     file: 'vulns/sla-policy.yaml',
-    lessons: ['m05/l05', 'm01/l06'],
+    lessons: ['m05/l05', 'm32/l04'],
     hints: [
       'Depuis juin 2026, la directive de référence adosse les délais à la décision SSVC plutôt qu’à une échéance unique : trois, quatorze ou soixante jours. Et « différer », c’est ne pas poser d’échéance.',
       'Une vulnérabilité activement exploitée n’attend pas le délai d’une critique ordinaire : le plafond du catalogue s’applique en plus, et il ne peut pas dépasser l’échéance officielle (regarde l’écart entre `dateAdded` et `dueDate` dans `fixtures/m05/kev.json`).',
@@ -162,7 +162,7 @@ export const m05: ExerciseDef[] = [
     goal:
       'Produire `workspace/public/.well-known/security.txt`, conforme à la RFC 9116.',
     file: 'public/.well-known/security.txt',
-    lessons: ['m05/l06', 'm06/l08'],
+    lessons: ['m05/l06', 'm06/l06'],
     hints: [
       'La RFC 9116 n’impose que deux champs, mais elle impose leur forme : des URI, et une date.',
       '`Contact` peut apparaître plusieurs fois (mailto:, https:// ou tel:) ; `Expires` une seule, en ISO 8601. Une échéance passée est pire qu’un fichier absent : elle dit que personne ne s’en occupe. Une échéance à cinq ans dit la même chose.',

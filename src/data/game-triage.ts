@@ -1,5 +1,5 @@
 // Données du jeu « Triage Room » : des files de findings à trier avec la grille
-// de Novafact (leçon M05-3), et, pour les files les plus dures, un budget de
+// de Novafact (leçon M26-3), et, pour les files les plus dures, un budget de
 // sprint à répartir.
 //
 // La grille (`decide`) est celle de la leçon, mot pour mot : le jeu ne l'invente
@@ -78,7 +78,7 @@ export const decisions: { id: Decision; label: string; sla: string }[] = [
   { id: 'vex', label: 'Clore (VEX)', sla: 'not_affected' },
 ];
 
-// La grille de Novafact, identique à celle de la leçon M05-3.
+// La grille de Novafact, identique à celle de la leçon M26-3.
 export function decide(f: Finding): { d: Decision; rule: string } {
   const signal = f.poc || f.epss >= 10;
   if (f.reach === 'non') return { d: 'vex', rule: 'Code vulnérable non atteignable : on clôt avec un VEX not_affected justifié.' };

@@ -1,18 +1,93 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, Flag, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Flag, Gamepad2, Lock, RotateCcw } from 'lucide-react';
 import { Block, CsslpTags, Difficulty, Feedback } from '../components/ui';
 import LessonRail from '../components/LessonRail';
 import { mdxComponents, SourcesList, SourcesProvider, type SourceItem } from '../components/mdx';
-import { lessonXp, useProgress } from '../store/progress';
-import { lessonKey, lessonMinutes, moduleById, pad2, type LessonMeta, type ModuleMeta } from '../data/catalog';
+import { lessonXp, pendingSeries, SERIES_PASS, useProgress } from '../store/progress';
+import { lessonKey, lessonMinutes, lessonSeries, moduleById, pad2, type LessonMeta, type ModuleMeta } from '../data/catalog';
+import { games } from '../data/games';
+import { seriesLoaders } from '../data/series-index';
 import { isWritten, lessonLoader, writtenLessons, type LessonModule, type Question } from '../lib/content';
+import { lessonsUnlocked } from '../lib/diagnostic';
 import { shuffle } from '../lib/exams';
+import { seriesKey, type SeriesInfo } from '../lib/series';
 import NotFound from './NotFound';
+
+/** Les séries de jeu que la leçon exige, avec le record de chacune. */
+function LessonGames({ m, lesson }: { m: ModuleMeta; lesson: LessonMeta }) {
+  const { progress } = useProgress();
+  const required = lessonSeries(m.id, lesson.id);
+  // Les titres viennent des fichiers de données des jeux, chargés à la demande :
+  // en attendant, la série s'affiche sous son identifiant.
+  const [infos, setInfos] = useState<Record<string, SeriesInfo>>({});
+
+  useEffect(() => {
+    let alive = true;
+    const ids = [...new Set(lessonSeries(m.id, lesson.id).map((r) => r.game))];
+    Promise.all(ids.map(async (g) => {
+      const set = await seriesLoaders[g]?.();
+      return (set?.list ?? []).map((s) => [seriesKey(g, s.id), s] as const);
+    }))
+      .then((all) => { if (alive) setInfos(Object.fromEntries(all.flat())); })
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, [m.id, lesson.id]);
+
+  if (!required.length) return null;
+  const done = !!progress.lessons[lessonKey(m.id, lesson.id)];
+
+  return (
+    <section className="block tight">
+      <div className="quiz">
+        <div className="label">{done ? 'Pratique faite' : 'Pratique exigée'}</div>
+        <h2 style={{ margin: '6px 0 0' }}>Les séries à réussir</h2>
+        <p className="q-hint">
+          La leçon se valide quand chaque série atteint {SERIES_PASS} %, puis le quiz. Ton record compte : une série déjà réussie l’est pour de bon.
+        </p>
+        <div className="grid g2" style={{ gap: 10 }}>
+          {required.map(({ game, series }) => {
+            const key = seriesKey(game, series);
+            const info = infos[key];
+            const best = progress.scores[key];
+            const ok = (best ?? 0) >= SERIES_PASS;
+            return (
+              <Link key={key} to={`/jeux/${game}?serie=${encodeURIComponent(series)}`} className={`option sink-series ${ok ? 'correct' : ''}`}>
+                <span>
+                  <span className="label">{games.find((g) => g.id === game)?.title ?? game}</span>
+                  <b style={{ fontWeight: 500, display: 'block', marginTop: 4 }}>
+                    {info?.title ?? series} {info && <Difficulty level={info.level} label={false} />}
+                  </b>
+                  {info && <span className="desc">{info.text}</span>}
+                  <span className="label" style={{ marginTop: 6, display: 'block' }}>
+                    {ok
+                      ? <><CheckCircle2 size={12} style={{ display: 'inline', verticalAlign: '-1px' }} /> Réussie · record {best} %</>
+                      : best !== undefined ? `Record ${best} % · il faut ${SERIES_PASS} %` : 'Pas encore jouée'}
+                  </span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Ce qui manque avant de pouvoir valider : `null` si rien. */
+function GameBlocker({ m, lesson }: { m: ModuleMeta; lesson: LessonMeta }) {
+  const { progress } = useProgress();
+  const pending = pendingSeries(progress, m.id, lesson.id).length;
+  if (!pending || progress.lessons[lessonKey(m.id, lesson.id)]) return null;
+  return (
+    <span className="label"><Gamepad2 size={12} style={{ display: 'inline', verticalAlign: '-1px' }} /> {pending > 1 ? `${pending} séries de jeu à réussir` : '1 série de jeu à réussir'} avant de valider</span>
+  );
+}
 
 function Quiz({ m, lesson, questions }: { m: ModuleMeta; lesson: LessonMeta; questions: Question[] }) {
   const { progress, completeLesson } = useProgress();
   const done = !!progress.lessons[lessonKey(m.id, lesson.id)];
+  const blocked = pendingSeries(progress, m.id, lesson.id).length > 0;
   const [picked, setPicked] = useState<(number | null)[]>(() => questions.map(() => null));
 
   // L'ordre d'affichage des options est tiré à chaque arrivée sur la leçon.
@@ -72,12 +147,13 @@ function Quiz({ m, lesson, questions }: { m: ModuleMeta; lesson: LessonMeta; que
             )}
           </div>
         ))}
-        <div className="actions">
+        <div className="actions" style={{ alignItems: 'center' }}>
+          <GameBlocker m={m} lesson={lesson} />
           {done
             ? <span className="tag ok"><CheckCircle2 size={14} /> Validée le {new Date(progress.lessons[lessonKey(m.id, lesson.id)]).toLocaleDateString('fr-FR')}</span>
             : checked && !allRight
               ? <button className="btn" onClick={retry}><RotateCcw size={16} /> Corriger mes réponses</button>
-              : <button className="btn primary" disabled={!allAnswered || checked} onClick={check}><Flag size={16} /> Valider</button>}
+              : <button className="btn primary" disabled={!allAnswered || checked || blocked} onClick={check}><Flag size={16} /> Valider</button>}
         </div>
       </div>
     </section>
@@ -87,14 +163,16 @@ function Quiz({ m, lesson, questions }: { m: ModuleMeta; lesson: LessonMeta; que
 function ManualComplete({ m, lesson }: { m: ModuleMeta; lesson: LessonMeta }) {
   const { progress, completeLesson } = useProgress();
   const done = !!progress.lessons[lessonKey(m.id, lesson.id)];
+  const blocked = pendingSeries(progress, m.id, lesson.id).length > 0;
   return (
     <section className="block tight">
       <div className="complete">
         <div>
           <div className="label">{done ? 'Leçon validée' : 'Fin de la leçon'}</div>
           <div style={{ fontWeight: 500, marginTop: 4 }}>{done ? 'Ta progression est enregistrée.' : `Marque la leçon comme terminée pour gagner ${lessonXp(lesson.level)} XP.`}</div>
+          <GameBlocker m={m} lesson={lesson} />
         </div>
-        <button className="btn primary" disabled={done} onClick={() => completeLesson(m.id, lesson.id, lessonXp(lesson.level), writtenLessons(m.id))}>
+        <button className="btn primary" disabled={done || blocked} onClick={() => completeLesson(m.id, lesson.id, lessonXp(lesson.level), writtenLessons(m.id))}>
           {done ? <><CheckCircle2 size={16} /> Terminée</> : 'Marquer comme terminée'}
         </button>
       </div>
@@ -104,6 +182,7 @@ function ManualComplete({ m, lesson }: { m: ModuleMeta; lesson: LessonMeta }) {
 
 export default function LessonPage() {
   const { moduleId = '', lessonId = '' } = useParams();
+  const { progress } = useProgress();
   const m = moduleById(moduleId);
   const idx = m?.lessons.findIndex((l) => l.id === lessonId) ?? -1;
   const lesson = m && idx >= 0 ? m.lessons[idx] : undefined;
@@ -132,6 +211,15 @@ export default function LessonPage() {
       </Block>
     );
   }
+  // Le lien direct (marque-page, examen) ne doit pas contourner le diagnostic d'entrée.
+  if (!lessonsUnlocked(progress, m)) {
+    return (
+      <Block eyebrow={`Module ${pad2(m.num)} · ${m.short}`} title={lesson.title}
+        lead="Cette leçon s’ouvre une fois le diagnostic d’entrée du module passé : cinq questions, sans XP, pour mesurer ton point de départ.">
+        <Link to={`/modules/${m.id}`} className="btn primary"><Lock size={16} /> Passer le diagnostic</Link>
+      </Block>
+    );
+  }
 
   const prev = m.lessons.slice(0, idx).reverse().find((l) => isWritten(m.id, l.id));
   const next = m.lessons.slice(idx + 1).find((l) => isWritten(m.id, l.id));
@@ -144,9 +232,9 @@ export default function LessonPage() {
         <h1>{lesson.title}</h1>
         <div className="lesson-tags" style={{ marginTop: 22 }}>
           <Difficulty level={lesson.level} prefix />
-          <span className="label">{lessonMinutes(lesson)} min</span>
+          <span className="duration"><Clock size={14} /> {lessonMinutes(lesson)} min</span>
           <CsslpTags domains={lesson.csslp} />
-          {lesson.k && <span className="tag mono">Kohnfelder {lesson.k.map((c) => `K${c}`).join(', ')}</span>}
+          {lesson.k && <span className="ref" title="Chapitres de Designing Secure Software">Kohnfelder {lesson.k.map((c) => `K${c}`).join(', ')}</span>}
         </div>
       </section>
 
@@ -162,6 +250,8 @@ export default function LessonPage() {
         </article>
         <LessonRail m={m} lessonId={lesson.id} article={article} ready={!!Content} />
       </section>
+
+      {mod && <LessonGames m={m} lesson={lesson} />}
 
       {mod && (mod.questions?.length ? <Quiz m={m} lesson={lesson} questions={mod.questions} /> : <ManualComplete m={m} lesson={lesson} />)}
 

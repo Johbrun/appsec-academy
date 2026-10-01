@@ -1,165 +1,231 @@
 export const questions = [
   {
-    q: "Depuis quand les exigences PCI DSS 6.4.3 et 11.6.1 sont-elles obligatoires ?",
+    q: "Une requête arrive sur /api/invoices avec Sec-Fetch-Site: cross-site et Sec-Fetch-Mode: no-cors. Que fait une resource isolation policy ?",
     options: [
-      "Depuis mars 2022, date de publication de PCI DSS 4.0",
-      "Depuis juin 2024, avec la révision 4.0.1 qui les a précisées",
-      "Depuis janvier 2025, quand le SAQ A a été remanié",
-      "Depuis le 31 mars 2025, fin de la période de bonnes pratiques",
-    ],
-    answer: 3,
-    explain: "PCI DSS 4.0 a bien été publiée en mars 2022, mais ces deux exigences y figuraient comme bonnes pratiques jusqu'au 31 mars 2025 : c'est cette fin de transition qui les rend opposables. La révision 4.0.1 de juin 2024 les a clarifiées sans toucher à l'échéance, et le remaniement du SAQ A de janvier 2025 a introduit un critère d'éligibilité, pas une date d'entrée en vigueur.",
-  },
-  {
-    q: "Novafact intègre l'iframe de paiement d'un prestataire. Est-elle dispensée de toute question sur les scripts de sa page ?",
-    options: [
-      "Oui : les scripts de la page sortent du périmètre dès que la saisie est isolée",
-      "Oui, si le prestataire fournit une attestation de conformité pour sa solution",
-      "Non : le SAQ A exige désormais de confirmer que la page intégrante est protégée",
-      "Non : dès qu'une page de paiement existe, c'est le SAQ A-EP qui s'applique",
-    ],
-    answer: 2,
-    explain: "6.4.3 et 11.6.1 ont été retirées du SAQ A en janvier 2025, mais remplacées par un critère d'éligibilité : la page qui intègre l'iframe doit être protégée contre les attaques par script, puisqu'un script présent sur cette page peut remplacer l'iframe par un faux formulaire. L'attestation du prestataire ne suffit pas telle quelle — elle ne vaut que si elle porte explicitement sur la protection de la page intégrante ; sinon Novafact applique elle-même des mesures équivalentes.",
-  },
-  {
-    q: "Novafact s'appuie uniquement sur les rapports CSP pour 11.6.1. Un attaquant qui contrôle le déploiement retire l'en-tête CSP de la page de paiement. Que voit Novafact ?",
-    options: [
-      "Rien : sans en-tête, plus de politique appliquée, donc plus de rapports",
-      "Une baisse du volume de rapports, visible sur le tableau de bord Elastic",
-      "Des erreurs dans la console des visiteurs, remontées par le suivi d'erreurs",
-      "Une alerte du prestataire, qui vérifie les en-têtes à chaque appel de l'iframe",
-    ],
-    answer: 0,
-    explain: "Sans en-tête, le navigateur n'applique plus rien et n'envoie plus rien : le silence ressemble à une journée calme. Guetter une baisse du volume ne sauve pas, car une page saine ne produit déjà presque aucun rapport — on ne distingue pas zéro de zéro. C'est pourquoi 11.6.1 vise les en-têtes tels que reçus par le navigateur : un contrôle externe doit constater que la politique est encore là, au lieu d'écouter ce qu'elle rapporte.",
-  },
-  {
-    q: "À quelle fréquence le mécanisme de 11.6.1 doit-il s'exécuter ?",
-    options: [
-      "À chaque déploiement, puisque c'est le moment où les scripts de la page changent",
-      "Au moins chaque semaine, ou selon une analyse de risque ciblée documentée",
-      "Au moins une fois par trimestre, comme les scans de vulnérabilités ASV",
-      "En continu : la norme impose une détection en temps réel sur cette page",
+      "Elle l'accepte : sans en-tête Origin, ce n'est pas une requête inter-site",
+      "Elle la refuse : une ressource privée n'a pas à être chargée par un autre site",
+      "Elle l'accepte parce que la méthode est GET : seules les écritures sont refusées",
+      "Elle la laisse passer et s'en remet au cookie SameSite=Lax pour la bloquer",
     ],
     answer: 1,
-    explain: "La norme fixe un plancher hebdomadaire, qu'une analyse de risque ciblée (exigence 12.3.1) permet d'ajuster à condition de la documenter. La confusion la plus fréquente est avec le rythme trimestriel des scans ASV, qui relève d'une autre exigence. Rien n'interdit d'aller plus vite, et un contrôle à chaque déploiement est un bon complément — mais il ne voit rien de ce qui change entre deux déploiements, c'est-à-dire précisément le cas du script tiers compromis.",
+    explain: "Les en-têtes Sec-Fetch-* sont posés par le navigateur, et un site tiers ne peut pas les falsifier : cross-site en mode no-cors décrit exactement la forme d'un CSRF ou d'un XS-Leak. La politique refuse cette forme quelle que soit la méthode — seule une navigation (mode navigate en GET) reste tolérée, pour ne pas casser les liens entrants. Compter sur SameSite=Lax ne suffit pas : Lax laisse justement passer ces navigations.",
+  },
+  {
+    q: "Que garantit un cookie nommé avec le préfixe __Host- ?",
+    options: [
+      "Qu'il est Secure, sans Domain et en Path=/ : aucun sous-domaine ne l'écrase",
+      "Qu'il est Secure et HttpOnly : aucun script de la page ne peut jamais le lire",
+      "Qu'il est Secure et SameSite=Strict, donc absent des requêtes inter-sites",
+      "Qu'il est lié à l'hôte exact, port compris, sur lequel il a été posé",
+    ],
+    answer: 0,
+    explain: "Le navigateur n'accepte un cookie __Host- que s'il est Secure, sans attribut Domain et avec Path=/ : il reste lié à l'hôte exact, donc un sous-domaine compromis ne peut ni le poser ni l'écraser. Le préfixe ne dit rien de HttpOnly ni de SameSite, qu'il faut écrire soi-même, et l'isolation ne va pas jusqu'au port, que les cookies ignorent. C'est __Secure- qui se contente d'exiger Secure, en laissant passer Domain.",
+  },
+  {
+    q: "Le prestataire de paiement appelle le webhook POST /webhooks/psp de Novafact depuis ses serveurs. Que fait le middleware Fetch Metadata de la leçon ?",
+    options: [
+      "Il bloque : la requête ne vient pas d'une origine de novafact.example",
+      "Il bloque, sauf si le chemin figure dans la liste d'exceptions CORS publiques",
+      "Il laisse passer : un client hors navigateur n'envoie pas de Sec-Fetch-*",
+      "Il laisse passer si l'appel porte un Origin correspondant au prestataire",
+    ],
+    answer: 2,
+    explain: "Fetch Metadata protège contre les requêtes émises par un navigateur détourné ; un appel serveur à serveur ne porte aucun de ces en-têtes, et le middleware le laisse donc passer sans rien savoir de lui. C'est tout l'enjeu : ce n'est pas une authentification. Le webhook se valide par sa signature HMAC horodatée, ni par une exception de chemin, ni par un en-tête Origin qu'un appelant serveur choisit librement.",
+  },
+  {
+    q: "Une XSS a permis d'enregistrer un service worker malveillant sur l'origine du back-office. La XSS est corrigée. Que faut-il encore faire ?",
+    options: [
+      "Rien : le service worker sera remplacé au prochain chargement de la page",
+      "Purger le cache de CloudFront pour ne plus servir le script compromis",
+      "Révoquer les sessions : le service worker perd alors tout accès aux données",
+      "Le désenregistrer chez les visiteurs : Clear-Site-Data ou script de remplacement",
+    ],
+    answer: 3,
+    explain: "Un service worker vit dans le navigateur de chaque visiteur, indépendamment du serveur : purger le CDN ou révoquer les sessions ne l'atteint pas, et il ne sera remplacé que si quelque chose est servi à son URL. Le nettoyage se fait côté client — Clear-Site-Data: storage sur une réponse de ton origine, ou un service worker publié à la même URL qui se désinscrit à l'activation — et cette étape appartient au runbook d'incident.",
   },
 ];
 
 <YouKnow>
-Tu as peut-être déjà audité des pages de paiement ou croisé des skimmers. Cette leçon traduit les exigences PCI DSS sur les scripts en contrôles concrets pour une SPA React.
+Tu connais le CSRF, le clickjacking et les XS-Leaks côté attaque (M9, leçon 12). Cette leçon rassemble les mécanismes du navigateur qui isolent ton origine des autres, et que tu peux activer depuis Express.
 </YouKnow>
 
-## Deux exigences pour les pages de paiement
+## Fetch Metadata
 
-PCI DSS 4.0 (révision 4.0.1, juin 2024) a introduit deux exigences contre les attaques de type Magecart. Elles sont **obligatoires depuis le 31 mars 2025**.
+Les navigateurs ajoutent à chaque requête des en-têtes `Sec-Fetch-*` qui décrivent son contexte : **d'où** elle vient (`Sec-Fetch-Site` : same-origin, same-site, cross-site, none), **comment** (`Sec-Fetch-Mode` : navigate, cors, no-cors…) et **pour quoi** (`Sec-Fetch-Dest` : document, image, script…). Un site tiers ne peut pas les falsifier.
 
-| Exigence | Ce qu'elle demande |
-| --- | --- |
-| **6.4.3** | Un **inventaire** de tous les scripts exécutés sur la page de paiement, avec pour chacun une **justification** et une **autorisation**, et un mécanisme qui garantit leur **intégrité** |
-| **11.6.1** | Un mécanisme de **détection de modification** qui alerte en cas de changement non autorisé des scripts et des **en-têtes HTTP de sécurité** tels que reçus par le navigateur, vérifié au moins chaque semaine |
+Une **resource isolation policy** utilise ces en-têtes pour refuser les requêtes inter-sites vers les ressources privées. Elle bloque d'un coup le CSRF, de nombreux XS-Leaks et l'inclusion de ressources privées.
 
-Lues de près, les deux exigences se partagent le travail. 6.4.3 est **préventive** : décider de ce qui a le droit de s'exécuter, et empêcher le reste. 11.6.1 est **détective** : constater que ce que le navigateur reçoit réellement correspond encore à ce qui a été décidé. La nuance « tels que reçus par le navigateur » est importante : l'état du dépôt Git ou du bucket S3 ne suffit pas, puisqu'une modification peut intervenir plus loin (CDN, tiers, en-têtes réécrits).
+Pourquoi est-ce si efficace ? La plupart des attaques inter-sites ont la même forme : un site contrôlé par l'attaquant fait émettre au navigateur de la victime une requête vers ton application, avec les cookies de la victime. CSRF, inclusion d'un JSON privé par une balise `<script>`, sondage d'une ressource pour en déduire un état (XS-Leak) : dans tous ces cas, la requête arrive avec `Sec-Fetch-Site: cross-site`. Au lieu de défendre chaque endpoint contre chaque technique, on refuse la **forme** de la requête. Les en-têtes font partie du socle commun des navigateurs depuis mars 2023, date à laquelle Safari les a rejoints.
 
-Quelques précisions du texte :
+<Code file="apps/api/src/middleware/fetchMetadata.ts">
 
-- l'intégrité n'impose **aucun mécanisme précis** : CSP, SRI ou un autre moyen, tant qu'il est justifié ;
-- 11.6.1 doit alerter sur les indicateurs de compromission, les modifications, les ajouts et les suppressions ;
-- la fréquence est d'**au moins une fois par semaine**, ou celle définie par une **analyse de risque ciblée** (exigence 12.3.1) si l'entité en choisit une autre et la documente.
-
-## Le cas des iframes de paiement
-
-Beaucoup de marchands intègrent le paiement via l'iframe d'un prestataire et relèvent du **SAQ A**, le questionnaire le plus léger. En janvier 2025, le PCI SSC a **retiré 6.4.3 et 11.6.1 du SAQ A**, mais les a remplacées par un **critère d'éligibilité** : le marchand doit confirmer que ses pages, **y compris celle qui intègre l'iframe**, ne sont pas exposées aux attaques par script. En effet, un script malveillant sur ta page peut remplacer l'iframe du prestataire par un faux formulaire.
-
-Deux façons de satisfaire ce critère : appliquer toi-même des protections équivalentes à 6.4.3 et 11.6.1 sur la page, ou obtenir du prestataire une confirmation écrite que sa solution intégrée protège contre ces attaques.
-
-La révision 4.0.1 a aussi clarifié le partage des responsabilités hors SAQ A. Les scripts de **ta** page qui intègre l'iframe sont dans le périmètre de 6.4.3. Les scripts **à l'intérieur** de l'iframe du prestataire relèvent du prestataire, dont tu peux attendre des preuves de conformité. Chacun répond de l'origine qu'il sert.
-
-## Ce que ça impose à Novafact
-
-<Steps items={[
-  { title: "Inventaire versionné", text: "Un fichier dans le dépôt liste chaque script de la page de paiement : source, usage, propriétaire, date d'autorisation. Toute modification passe en revue de code." },
-  { title: "Intégrité", text: "Bundle auto-hébergé et construit par le pipeline, SRI pour les rares fichiers externes figés, CSP stricte à nonces (leçon 4) qui refuse tout script non prévu." },
-  { title: "Détection de modification", text: "Rapports CSP collectés dans Elastic, et un contrôle automatisé qui charge la page et compare scripts et en-têtes à la référence, au moins chaque semaine." },
-  { title: "Preuves", text: "Inventaire, politique CSP, rapports et historique des alertes : ce qu'un évaluateur QSA demandera." },
-]} />
-
-L'inventaire le plus utile est celui qui est **vérifié par la machine**. Chez Novafact, il vit à côté du code de la page, et la CI échoue si la page observée dans un navigateur charge un script absent de la liste.
-
-<Code file="apps/web/security/payment-scripts.yml">
-
-```yaml
-# Inventaire PCI DSS 6.4.3 : page /pay. Toute modification exige l'approbation de @novafact/appsec (CODEOWNERS).
-page: https://app.novafact.example/pay
-scripts:
-  - match: https://app.novafact.example/assets/pay-*.js
-    kind: first-party
-    justification: Application de paiement (bundle Vite construit par le pipeline)
-    owner: equipe-paiement
-    authorized: 2026-06-12
-    integrity: CSP nonce + build signé
-  - match: https://js.psp.example/v3/embed.js
-    kind: third-party
-    justification: Chargeur de l'iframe du prestataire de paiement
-    owner: equipe-paiement
-    authorized: 2026-06-12
-    integrity: SRI sha384 (version figée v3.14.2)
-headers:
-  content-security-policy: required
-  permissions-policy: required
+```ts
+// Resource isolation policy : refuse les requêtes inter-sites, sauf navigations simples.
+export const isolateResources = (req, res, next) => {
+  const site = req.get('sec-fetch-site');
+  if (!site) return next();                                   // ancien navigateur ou client non navigateur
+  if (['same-origin', 'same-site', 'none'].includes(site)) return next();
+  const isNav = req.get('sec-fetch-mode') === 'navigate' && req.method === 'GET'
+    && !['object', 'embed'].includes(req.get('sec-fetch-dest') ?? '');
+  if (isNav) return next();                                   // liens entrants vers les pages
+  res.status(403).json({ error: 'Requête inter-site refusée' });
+};
 ```
 
 </Code>
 
-Trois mécanismes se renforcent : le fichier est protégé par `CODEOWNERS` (l'**autorisation** est l'approbation de la PR, horodatée), la CI compare la page réelle au fichier (un script ajouté sans mise à jour de l'inventaire casse le build), et la surveillance de la leçon 8 fait la même comparaison en production.
+## Déployer la politique sans casser
 
-| Exigence | Contrôle chez Novafact | Preuve pour l'évaluateur |
+Trois catégories de requêtes légitimes méritent une attention particulière :
+
+- **les clients non navigateurs** (webhooks du prestataire de paiement, SDK `@novafact/sdk` côté serveur, scripts des clients) n'envoient pas ces en-têtes : ils passent la politique, et doivent être authentifiés autrement. Fetch Metadata est une défense contre le navigateur détourné, pas une authentification ;
+- **les endpoints volontairement publics en CORS** (un widget de statut intégré par les clients, par exemple) reçoivent des requêtes `cross-site` en mode `cors` : ils vont dans une liste d'exceptions explicite, revue ;
+- **`same-site`** couvre tous les sous-domaines de `novafact.example`. Si l'un d'eux sert du contenu moins fiable, restreins la politique de l'API à `same-origin`.
+
+Comme pour la CSP, commence par un mode qui journalise sans bloquer, regarde ce qui serait refusé pendant une à deux semaines, puis bascule.
+
+<Code file="apps/api/src/middleware/fetchMetadata.ts" hl="1,2,8,11">
+
+```ts
+const PUBLIC_CORS = new Set(['/public/status', '/.well-known/security.txt']);
+const ENFORCE = process.env.FETCH_METADATA_MODE === 'enforce';
+
+export const isolateResources: RequestHandler = (req, res, next) => {
+  const site = req.get('sec-fetch-site');
+  if (!site || site === 'same-origin' || site === 'same-site' || site === 'none') return next();
+  const isNav = req.get('sec-fetch-mode') === 'navigate' && req.method === 'GET';
+  if (isNav || PUBLIC_CORS.has(req.path)) return next();
+  req.log.warn({ event: 'fetch_metadata.cross_site', path: req.path, site,
+    mode: req.get('sec-fetch-mode'), dest: req.get('sec-fetch-dest'), enforced: ENFORCE });
+  if (!ENFORCE) return next();
+  res.status(403).json({ error: 'Requête inter-site refusée' });
+};
+```
+
+</Code>
+
+Et un test qui garde la politique en place quand quelqu'un réorganise les middlewares :
+
+<Code file="apps/api/test/fetchMetadata.test.ts">
+
+```ts
+import request from 'supertest';
+import { app } from '../src/app';
+
+test('refuse une requête inter-site non navigante vers une API privée', async () => {
+  await request(app).get('/api/invoices')
+    .set('Sec-Fetch-Site', 'cross-site').set('Sec-Fetch-Mode', 'no-cors').expect(403);
+});
+
+test('laisse un client non navigateur atteindre l’authentification', async () => {
+  await request(app).get('/api/invoices').expect(401); // refusé plus loin, faute de jeton
+});
+```
+
+</Code>
+
+## Isoler les fenêtres et les ressources
+
+| En-tête | Effet | Valeur conseillée |
 | --- | --- | --- |
-| 6.4.3 inventaire et justification | `payment-scripts.yml` | Fichier et historique Git |
-| 6.4.3 autorisation | Approbation obligatoire de la PR par l'AppSec | PR approuvées, règles de protection de branche |
-| 6.4.3 intégrité | CSP à nonces, SRI sur le chargeur du prestataire, bundle construit par la CI | En-têtes de réponse, configuration du pipeline |
-| 11.6.1 détection | Contrôle synthétique toutes les heures, rapports CSP dans Elastic | Historique d'exécution, règles d'alerte |
-| 11.6.1 alerte et traitement | Alerte vers l'astreinte, ticket d'investigation | Tickets, comptes rendus |
+| `Cross-Origin-Opener-Policy` | Coupe la référence entre ta fenêtre et celles ouvertes par ou vers d'autres sites (XS-Leaks, attaques via `window.opener`) | `same-origin` (ou `same-origin-allow-popups` si un fournisseur d'identité ouvre une fenêtre) |
+| `Cross-Origin-Resource-Policy` | Empêche d'autres sites de charger tes ressources (images, scripts, JSON) | `same-origin` sur l'API |
+| `Cross-Origin-Embedder-Policy` | N'autorise que les ressources qui acceptent explicitement d'être chargées | `require-corp`, surtout pour activer l'isolation complète si besoin |
+| `frame-ancestors` (CSP) | Qui peut intégrer la page dans une iframe | `'none'`, ou la liste exacte des domaines partenaires |
 
-<Callout kind="debate">
-**La CSP suffit-elle pour 11.6.1 ?** Certains la présentent comme la réponse complète : chaque script non autorisé génère un rapport. Deux angles morts s'y opposent. Un script **autorisé** dont le contenu change (le chargeur du prestataire compromis, sans SRI) ne déclenche aucune violation. Et si l'en-tête CSP lui-même disparaît, les rapports s'arrêtent : le silence ressemble alors à une journée calme. La CSP est un excellent capteur, pas un mécanisme de détection de modification à elle seule. Le contrôle externe des empreintes et des en-têtes comble ces angles morts.
+`helmet`, dans Express, positionne la plupart de ces en-têtes avec des valeurs par défaut raisonnables, à ajuster selon l'application.
+
+Deux nuances évitent des surprises. D'abord, `COOP: same-origin` coupe aussi la relation avec les fenêtres que **ta** page ouvre vers d'autres origines : un login par popup ou une fenêtre d'authentification 3-D Secure qui communique avec l'opener cesse de fonctionner. `same-origin-allow-popups` garde ce cas tout en protégeant contre les sites qui t'ouvrent. Ensuite, COEP ne sert que si tu as besoin de l'**isolation cross-origin** complète (condition d'accès à `SharedArrayBuffer` et aux minuteurs de haute précision). Une application de facturation n'en a généralement pas besoin, et `helmet` ne pose pas COEP par défaut.
+
+<Code file="apps/api/src/app.ts">
+
+```ts
+import helmet from 'helmet';
+
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // popup d'authentification entreprise
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  // COEP non activé : aucune fonctionnalité ne demande l'isolation cross-origin
+}));
+```
+
+</Code>
+
+## Les cookies
+
+```text
+Set-Cookie: __Host-session=…; Secure; HttpOnly; SameSite=Lax; Path=/
+```
+
+- **`__Host-`** : le navigateur n'accepte ce cookie que s'il est `Secure`, sans `Domain` et avec `Path=/`. Un sous-domaine compromis ne peut ni le poser ni l'écraser.
+- **`SameSite=Lax`** (ou `Strict`) explicite, comme vu en M8.
+- **Cookies partitionnés** (attribut `Partitioned`, dit CHIPS) : pour un widget tiers qui a besoin d'un cookie, celui-ci est isolé par site intégrant.
+
+Le préfixe `__Secure-` n'exige que l'attribut `Secure` : il laisse passer `Domain`, donc le partage avec les sous-domaines. `__Host-` est le bon choix pour une session. Pourquoi « explicite » pour `SameSite` ? Parce que le comportement par défaut d'un cookie sans l'attribut n'est pas le même dans tous les navigateurs : Chrome le traite comme `Lax`, d'autres non. Écrire l'attribut rend le comportement identique partout.
+
+<Diff file="apps/bff/src/session.ts" hlBefore="3,4" hlAfter="1,4-7">
+
+```ts
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  name: 'sid',
+  cookie: { domain: '.novafact.example', secure: true },
+}));
+```
+
+```ts
+app.set('trust proxy', 1); // derrière l'ALB : sinon Express croit la requête en HTTP et refuse de poser un cookie Secure
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  name: '__Host-sid',
+  cookie: { secure: true, httpOnly: true, sameSite: 'lax', path: '/' }, // pas de domain
+  resave: false, saveUninitialized: false,
+}));
+```
+
+</Diff>
+
+## Les service workers
+
+Un service worker intercepte les requêtes de son périmètre et survit au rechargement de la page. Si un attaquant parvient à en enregistrer un (via une XSS et un fichier JavaScript sur ton origine), il **persiste** même après correction de la XSS. Garde le périmètre (`scope`) minimal, ne sers jamais de JavaScript contrôlé par les utilisateurs depuis ton origine, et prévois une procédure de désenregistrement (en-tête `Clear-Site-Data`) en cas d'incident.
+
+Quelques règles du navigateur fixent les limites du risque. Le script d'un service worker doit venir de la même origine que la page, et son périmètre maximal est le répertoire du script, sauf si le serveur l'élargit avec l'en-tête `Service-Worker-Allowed`. Un fichier déposé par un utilisateur et servi sous `/uploads/` ne pourrait donc contrôler que `/uploads/`, à condition d'être servi comme du JavaScript : raison de plus pour servir les fichiers des clients depuis un autre domaine, avec `Content-Disposition: attachment` et `X-Content-Type-Options: nosniff`.
+
+Pour le nettoyage, deux outils se complètent :
+
+- `Clear-Site-Data: "storage"` sur une réponse de ton origine désenregistre les service workers et vide le stockage local (ajouter `"cache"` et `"cookies"` pour une remise à zéro complète, au prix d'une déconnexion) ;
+- un **service worker de remplacement**, publié à la même URL que le légitime, qui se désinscrit à l'activation : le navigateur vérifie les mises à jour du script à chaque navigation, et au moins toutes les 24 heures.
+
+## XS-Leaks : la défense en couches
+
+Les XS-Leaks n'ont pas de correctif unique : chaque technique exploite un canal différent (nombre de cadres, temps de chargement, erreurs, cache). La défense consiste à fermer les canaux par familles, avec les mécanismes de cette leçon : `SameSite` retire les cookies des requêtes inter-sites, Fetch Metadata les refuse, COOP coupe l'accès aux fenêtres, `frame-ancestors` empêche l'intégration, CORP bloque le chargement des ressources. Le wiki xsleaks.dev associe chaque technique aux défenses qui la neutralisent : c'est la grille à utiliser en revue.
+
+## En pratique chez toi
+
+- Relève les en-têtes `Sec-Fetch-*` reçus par ton API pendant une journée (un simple log suffit) : la répartition entre `same-origin`, `same-site` et `cross-site` te dit tout de suite si une politique est réaliste.
+- Liste les cookies posés par l'application : lesquels pourraient porter le préfixe `__Host-`, lesquels ont un attribut `Domain` qui n'a pas de raison d'être ?
+- Cherche les fenêtres ouvertes par l'application (login, paiement, export) avant de poser COOP : chacune est un test de non-régression.
+- Vérifie qu'aucun service worker n'est enregistré sur une origine qui n'en a pas besoin, et que le runbook d'incident sait comment les retirer.
+
+<Callout kind="novafact">
+Configuration retenue pour l'API et le BFF de Novafact : politique Fetch Metadata en mode journalisation pendant deux semaines (trois exceptions découvertes : le widget de statut, le webhook du prestataire, un ancien export ouvert dans un nouvel onglet), puis bascule en blocage. Cookie de session `__Host-sid` en `SameSite=Lax`, COOP `same-origin-allow-popups` pour le SSO entreprise, CORP `same-origin` sur l'API, pas de COEP, et `Clear-Site-Data` ajouté au runbook d'incident du back-office.
 </Callout>
-
-<Callout kind="info">
-Novafact doit aussi se demander dans quel rôle elle se trouve vis-à-vis de PCI DSS : marchand pour ses propres abonnements, et prestataire pour ses clients qui encaissent via sa plateforme. La réponse change le questionnaire applicable : fais-la valider par un évaluateur qualifié.
-</Callout>
-
-## Les pièges d'une première évaluation
-
-- **Oublier les scripts indirects** : l'inventaire doit couvrir ce que le navigateur exécute, y compris ce que charge un autre script.
-- **Justifier par l'usage, pas par le besoin** : « le marketing l'utilise » n'est pas une justification technique ou métier pour la page de saisie de carte.
-- **Une page de paiement qui n'est pas celle qu'on croit** : dans une SPA, le « paiement » est une route du même bundle que le reste de l'application. Tout le code chargé sur cette route compte, y compris les modules partagés et les scripts chargés dès l'accueil.
-- **Des alertes que personne ne lit** : 11.6.1 demande d'alerter le personnel ; l'évaluateur vérifiera qu'une alerte a déjà été traitée, pas seulement qu'elle existe.
-
-Le troisième piège pousse vers une décision d'architecture : servir la page de paiement comme une **application séparée**, minimale, avec son propre bundle. L'inventaire tient alors en quelques lignes et la surface de modification est réduite.
-
-## Quand le prestataire met à jour son script
-
-Le chargeur du prestataire pose une question pratique. Si le prestataire publie des versions figées, SRI s'applique et chaque mise à jour devient une PR : nouvelle empreinte, nouvelle date d'autorisation, approbation. Certains prestataires imposent au contraire de charger leur script depuis leur domaine, sans version figée, pour pouvoir le corriger à tout moment : SRI devient impossible. L'intégrité repose alors sur trois éléments documentés ensemble : la CSP qui limite l'origine autorisée, l'engagement écrit du prestataire sur la sécurité de son script, et la détection par empreinte, qui alertera à chaque mise à jour du prestataire. Ces alertes-là sont attendues : prévois un circuit court (vérifier l'annonce du prestataire, comparer le comportement réseau, valider) pour qu'elles ne deviennent pas du bruit que l'on finit par ignorer.
-
-## Au-delà de la conformité
-
-Ces exigences formalisent ce que les leçons précédentes recommandaient déjà : inventorier, justifier, figer, isoler, surveiller. La conformité fournit surtout **un argument et un calendrier** pour obtenir les moyens de le faire.
-
-Le PCI SSC a publié en 2025 un supplément d'information consacré à ces deux exigences (*Payment Page Security and Preventing E-Skimming*) : il détaille les approches acceptables et reste la meilleure lecture avant de discuter avec un évaluateur.
 
 <Recap items={[
-  "6.4.3 (préventive) : inventaire, justification, autorisation et intégrité des scripts de la page de paiement.",
-  "11.6.1 (détective) : détection des modifications de scripts et d'en-têtes tels que reçus par le navigateur, au moins hebdomadaire ou selon une analyse de risque ciblée.",
-  "Obligatoires depuis le 31/03/2025 ; aucun mécanisme imposé, mais une justification attendue.",
-  "SAQ A : critère d'éligibilité depuis janvier 2025, la page qui intègre l'iframe doit être protégée ; les scripts dans l'iframe relèvent du prestataire.",
-  "Inventaire versionné et vérifié par la CI, autorisation par CODEOWNERS, CSP stricte, contrôle synthétique et rapports dans Elastic.",
-  "La CSP seule ne voit ni le contenu modifié d'un script autorisé, ni la disparition de son propre en-tête.",
+  "Fetch Metadata dit d'où vient une requête ; une resource isolation policy refuse l'inter-site sur les ressources privées.",
+  "Les clients non navigateurs passent la politique : ils s'authentifient autrement ; les endpoints CORS publics sont des exceptions explicites.",
+  "Journaliser d'abord, bloquer ensuite, et un test qui garde la politique en place.",
+  "COOP, CORP, COEP et frame-ancestors isolent fenêtres, ressources et intégrations ; COEP seulement si l'isolation complète est nécessaire.",
+  "Cookies : __Host-, SameSite explicite, trust proxy derrière l'ALB, Partitioned pour les tiers.",
+  "Un service worker malveillant persiste : périmètre minimal, fichiers utilisateurs ailleurs, Clear-Site-Data ou service worker de remplacement.",
 ]} />
 
 <Sources items={[
-  { title: "PCI Security Standards Council", url: "https://www.pcisecuritystandards.org/" },
-  { title: "PCI SSC : supplément Payment Page Security and Preventing E-Skimming", url: "https://blog.pcisecuritystandards.org/new-information-supplement-payment-page-security-and-preventing-e-skimming" },
-  { title: "Jscrambler : PCI DSS 4.0.1, changements sur 6.4.3 et 11.6.1", url: "https://jscrambler.com/blog/pci-dss-4-0-1/" },
-  { title: "Feroot : SAQ A et SAQ A-EP sous PCI DSS 4", url: "https://www.feroot.com/blog/pci-4-saq-a-saq-a-ep-everything-merchants-need-to-know-to-master-pci-dss-4-compliance/" },
-  { title: "GitHub : fichier CODEOWNERS", url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners" },
+  { title: "web.dev : Fetch Metadata", url: "https://web.dev/articles/fetch-metadata" },
+  { title: "MDN : Sec-Fetch-Site", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Sec-Fetch-Site" },
+  { title: "MDN : Cross-Origin-Opener-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy" },
+  { title: "MDN : cookies et préfixes", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies" },
+  { title: "MDN : Clear-Site-Data", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Clear-Site-Data" },
+  { title: "helmet", url: "https://helmetjs.github.io/" },
+  { title: "XS-Leaks Wiki : défenses", url: "https://xsleaks.dev/" },
 ]} />

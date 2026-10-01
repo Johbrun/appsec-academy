@@ -1,199 +1,211 @@
 export const questions = [
   {
-    q: "Un poste de développeur a installé une version piégée. Dans quel ordre agir ?",
+    q: "Une version malveillante d'un paquet porte une attestation de provenance valide, signée par le workflow de release officiel. Comment est-ce possible ?",
     options: [
-      "Faire tourner les secrets depuis le poste, puis l'isoler et l'analyser à froid",
-      "Analyser le poste pour établir ce qui a fui, puis faire tourner ce qui l'a été",
-      "Isoler le poste, faire tourner les secrets depuis une machine saine, nettoyer",
-      "Réinstaller le poste immédiatement, puis lui redistribuer de nouveaux identifiants",
+      "Le journal de transparence Sigstore a accepté un certificat sans vérification d'identité",
+      "La clé de signature du mainteneur a été volée et réutilisée hors du workflow",
+      "La provenance atteste où et comment, pas quoi : le workflow officiel était piégé",
+      "L'attestation a été générée après coup et rattachée à l'artefact publié",
     ],
     answer: 2,
-    explain: "Faire tourner les secrets depuis le poste est le réflexe le plus naturel et le pire : si le code malveillant tourne encore, il vole les nouveaux au passage. Attendre le résultat de l'analyse laisse des identifiants valides pendant des heures, et réinstaller tout de suite détruit ce qui aurait dit ce qui a fui. On coupe d'abord, on fait tourner depuis un environnement sain, on nettoie ensuite — et on ne rend les accès qu'après.",
+    explain: "Chercher une clé volée est le réflexe hérité de la signature classique, et il ne s'applique pas : en signature sans clé, il n'y a pas de clé longue durée à voler. Sigstore n'a rien laissé passer, et l'attestation n'a pas été forgée — elle est parfaitement authentique, et c'est tout le problème. La provenance dit où et comment l'artefact a été construit, pas si son contenu est sain. C'est le cas d'Ultralytics (2024) et de TanStack (2026) : la question se déplace vers la sécurité du builder, que SLSA Build L3 traite.",
   },
   {
-    q: "Le lockfile de la branche principale n'a jamais contenu la version compromise. Novafact est-elle hors de cause ?",
+    q: "Qu'est-ce qui distingue principalement SLSA Build L3 de Build L2 ?",
     options: [
-      "Oui, si npm ci est utilisé partout dans la CI et sur les postes de développement",
-      "Oui, le lockfile fait foi pour l'ensemble des installations du projet",
-      "Non, mais seules les dépendances directes sont à vérifier dans ce cas",
-      "Pas forcément : une PR, un poste ou un job sans lockfile ont pu l'installer",
-    ],
-    answer: 3,
-    explain: "« npm ci partout » est la plus solide des trois réponses fausses, et elle oublie deux choses : la branche d'une PR Dependabot porte son propre lockfile, et un développeur a pu lancer `npm install` pour essayer une version. Restreindre aux dépendances directes divise le périmètre sans raison. L'exposition se mesure en installations réelles pendant la fenêtre, pas dans l'état actuel du dépôt : journaux de CI, télémétrie des postes et lockfiles de toutes les branches sont à croiser.",
-  },
-  {
-    q: "Pourquoi purger les caches GitHub Actions pendant l'incident ?",
-    options: [
-      "Parce que les caches peuvent contenir les secrets manipulés par les jobs pendant la fenêtre",
-      "Parce qu'un cache alimenté pendant la fenêtre peut réinjecter le paquet piégé",
-      "Parce que les runners hébergés conservent le cache entre deux exécutions",
-      "Parce que le cache empêche npm ci de retélécharger les versions corrigées",
-    ],
-    answer: 1,
-    explain: "Les runners hébergés sont éphémères — c'est le cache, stocké côté GitHub, qui survit, et la confusion entre les deux fait souvent négliger la purge. Le cache n'empêche pas non plus `npm ci` de retélécharger : sa clé change avec le lockfile. Le risque est qu'un `node_modules` ou un store pnpm enregistré pendant la fenêtre soit restauré plus tard, y compris dans un job privilégié, et ramène la version compromise après la correction du lockfile.",
-  },
-  {
-    q: "Quelle requête de chasse apporte le plus pour savoir si des identifiants AWS volés ont été testés ?",
-    options: [
-      "Les appels des identités exposées depuis des réseaux inhabituels",
-      "Les appels en échec pour droits insuffisants (AccessDenied) sur l'ensemble du compte",
-      "Les connexions à la console AWS des comptes administrateurs pendant la fenêtre",
-      "Les créations de nouvelles clés d'accès IAM survenues après la fenêtre d'exposition",
+      "L3 exige un build durci : runs isolés, matériel de signature hors de portée",
+      "L3 exige une revue de code à deux personnes avant toute publication",
+      "L3 exige un build reproductible, vérifiable à l'identique par un tiers indépendant",
+      "L3 exige un SBOM signé et joint à chaque artefact publié",
     ],
     answer: 0,
-    explain: "Chasser les AccessDenied est une technique valable, mais elle rate le cas central : un outil de collecte teste d'abord la validité d'une clé par un appel anodin qui réussit, typiquement `GetCallerIdentity`. Les connexions console visent le mauvais objet, puisqu'une clé volée s'utilise par API. Et les créations de clés attrapent la persistance, donc plus tard. Le signal le plus précoce reste ce premier usage réussi, depuis une infrastructure inconnue.",
+    explain: "Les trois autres exigences sont réelles, mais ailleurs : la revue à deux personnes relève du Source track, et ni le build reproductible ni le SBOM ne figurent dans les niveaux Build. La marche entre L2 et L3 porte sur le builder lui-même — L2 demande une provenance signée par une plateforme de build hébergée, L3 y ajoute l'isolation entre exécutions et un matériel de signature inaccessible aux étapes définies par l'utilisateur.",
+  },
+  {
+    q: "Avec la signature « sans clé » de Sigstore, que vérifie-t-on au moment du déploiement ?",
+    options: [
+      "La clé publique du mainteneur, publiée dans le dépôt du projet",
+      "L'empreinte SHA-256 de l'artefact, comparée à celle du registre",
+      "La validité du certificat éphémère au moment du déploiement, et sa non-expiration",
+      "L'identité inscrite dans le certificat éphémère, et l'émetteur OIDC",
+    ],
+    answer: 3,
+    explain: "Exiger un certificat non expiré au moment du déploiement est le piège : les certificats Sigstore vivent quelques minutes, et c'est le journal de transparence qui atteste qu'ils étaient valides à la signature. L'empreinte prouve l'intégrité, pas l'origine, et il n'existe aucune clé publique longue durée à publier. La confiance porte sur une identité — le workflow GitHub et sa référence, plus l'émetteur OIDC. Une vérification qui n'impose pas l'identité attendue n'apporte presque rien.",
+  },
+  {
+    q: "Pourquoi une politique doit-elle aussi détecter l'**absence** de provenance sur une nouvelle version ?",
+    options: [
+      "Parce qu'une publication hors du workflow officiel n'a pas de provenance",
+      "Parce qu'une version sans provenance ne peut pas être installée par pnpm",
+      "Parce que l'absence de provenance indique que le paquet a été retiré du registre",
+      "Parce que npm exige la provenance sur tous les paquets publics depuis 2025",
+    ],
+    answer: 0,
+    explain: "Les trois autres réponses supposent que l'absence de provenance est déjà bloquée, ou déjà signalée par le registre. Elle ne l'est pas : par défaut, une version sans attestation s'installe comme les autres — et c'est ce qui la rend exploitable. Chez Ultralytics, les dernières versions malveillantes ont été publiées avec un jeton d'API, hors du workflow officiel, donc sans attestation. Une baisse du niveau de confiance est un signal, et `trustPolicy: no-downgrade` de pnpm applique cette règle.",
   },
 ];
 
 <YouKnow>
-En pentest, un secret trouvé suffit à démontrer l'impact. En réponse à incident supply chain, c'est l'inverse : tu dois prouver, pour chaque secret qui a pu être exposé, qu'il a été révoqué et qu'il n'a pas servi. Cette leçon est le playbook de Novafact face à une vague de type Shai-Hulud, à dérouler sous pression.
+Tu as déjà vérifié une signature GPG ou une empreinte SHA-256 à la main. La provenance pousse l'idée plus loin : pas seulement « ce fichier n'a pas été modifié », mais « ce fichier a été construit à partir de ce commit, par ce workflow, sur cette plateforme », avec une preuve vérifiable automatiquement avant chaque déploiement.
 </YouKnow>
 
-## Le scénario
+## La chaîne de conservation
 
-Jour J, 9 h 12 : un éditeur de sécurité publie une alerte. Une nouvelle vague de ver npm a republié en quelques heures plusieurs centaines de paquets, dont `cachette-kv` (paquet fictif), dépendance transitive de l'API et du back-office de Novafact. La charge s'exécute en `preinstall`, vole les identifiants du poste ou du runner, se republie avec les jetons npm trouvés et persiste dans les dépôts GitHub accessibles.
+Entre le commit relu et le conteneur qui tourne en production, l'artefact de Novafact passe par la plateforme Git, le runner, les dépendances téléchargées, le registre d'images et le déploiement. À chaque étape, quelqu'un pourrait substituer autre chose. Le modèle de menaces de SLSA (M11) les nomme : source modifiée hors revue, build compromis, dépendance compromise, artefact substitué entre le build et le déploiement.
 
-La question n'est pas « sommes-nous vulnérables ? » mais : **qu'est-ce qui a exécuté ce code, avec quels identifiants à portée, et qu'en a-t-on fait depuis ?**
+La réponse est une **chaîne de conservation** : à chaque étape, une attestation signée dit ce qui s'est passé, et le consommateur vérifie ces attestations contre une politique avant d'accepter l'artefact.
 
-## Le déroulé
+## SLSA v1.2 : deux tracks
 
-<Steps items={[
-  { title: "Déclarer et geler", text: "Ouvrir l'incident, nommer un responsable et un canal. Geler les fusions sur les dépôts Node et les publications (SDK, images) le temps de l'inventaire." },
-  { title: "Délimiter l'exposition", text: "Versions touchées, fenêtre de publication, et partout où elles ont pu être installées pendant cette fenêtre : CI, postes, branches, environnements de preview." },
-  { title: "Contenir", text: "Bloquer les versions, purger les caches, suspendre les runners self-hosted, isoler les postes concernés." },
-  { title: "Révoquer et remplacer", text: "Tous les secrets à portée des exécutions touchées, depuis une machine saine, en commençant par ceux qui permettent la propagation." },
-  { title: "Nettoyer", text: "Runners reconstruits, postes nettoyés ou réinstallés, persistance retirée des dépôts." },
-  { title: "Chasser", text: "Dans Elastic : exécution, réseau, journal d'audit GitHub, CloudTrail. Chercher l'usage des secrets avant leur révocation." },
-  { title: "Communiquer et rétablir", text: "Clients, autorités si nécessaire, puis levée progressive du gel." },
-  { title: "Retour d'expérience", text: "Chronologie, délais, contrôle qui aurait évité l'exposition, mise à jour du playbook." },
-]} />
+SLSA (*Supply-chain Levels for Software Artifacts*, projet OpenSSF) découpe les garanties en **tracks** indépendants. La version 1.2 ajoute le **Source track** au **Build track** existant.
 
-## Délimiter l'exposition
+| Build track | Exigence | Ce que ça protège |
+| --- | --- | --- |
+| **L0** | Aucune | Rien : builds locaux, tests |
+| **L1** : provenance existante | Provenance générée automatiquement (builder, processus, entrées principales) | Les erreurs ; falsifiable trivialement |
+| **L2** : plateforme hébergée | Provenance **signée** par une plateforme de build hébergée, vérifiée par le consommateur | La modification après le build ; la falsifier demande une attaque explicite |
+| **L3** : build durci | Runs isolés entre eux, matériel de signature inaccessible aux étapes du projet | La falsification pendant le build, hors vulnérabilité de la plateforme |
 
-L'exposition est une intersection : **version compromise** × **installation pendant la fenêtre** × **identifiants présents**. L'état actuel du lockfile ne suffit pas. Il faut croiser :
+| Source track | Exigence |
+| --- | --- |
+| **L1** : versionné | Code dans un système de gestion de versions moderne |
+| **L2** : historique et provenance | Historique de branche continu et immuable, attestations de provenance de source émises au fil de l'eau |
+| **L3** : contrôles techniques continus | Les politiques de l'organisation (revue, checks) sont appliquées techniquement sur les branches protégées, et vérifiables |
+| **L4** : revue à deux personnes | Deux personnes de confiance approuvent chaque changement avant fusion |
 
-- les lockfiles de **toutes les branches** ouvertes, pas seulement de `main` ;
-- les **PR de mise à jour automatique** (Dependabot, Renovate) créées pendant la fenêtre : leur CI installe la nouvelle version ;
-- les **journaux de CI** : quels jobs ont lancé une installation, avec quels secrets et quel rôle AWS ;
-- la **télémétrie des postes** (Elastic Defend) : quelles machines ont exécuté la charge ;
-- le **SBOM** dans Dependency-Track, pour retrouver en une requête les projets qui déclarent le composant.
+Deux limites à garder en tête : un niveau SLSA qualifie **un artefact et sa construction**, pas la qualité du code ; et il ne se transmet pas aux dépendances, qui ont leur propre niveau (ou aucun).
 
-<Code file="scripts/ir/find-compromised.ts" hl="11,12,13">
+## Les attestations in-toto
 
-```ts
-import { readFileSync } from 'node:fs';
+Une attestation suit le format **in-toto** : un *statement* qui désigne des **sujets** (artefacts identifiés par leur empreinte), un **type de prédicat** et le **prédicat** lui-même. La provenance SLSA est un prédicat parmi d'autres (SBOM, résultats de tests, VSA).
 
-// { "cachette-kv": ["4.2.1", "4.2.2"], … } : liste tirée de l'avis de sécurité
-const iocs: Record<string, string[]> = JSON.parse(readFileSync('ir/iocs.json', 'utf8'));
-type Lock = { packages?: Record<string, { version?: string }> };
+<Code file="provenance.json (extrait simplifié)" hl="3,4,5,9,13">
 
-// usage : git ls-files '*package-lock.json' | xargs npx tsx scripts/ir/find-compromised.ts
-for (const file of process.argv.slice(2)) {
-  const lock = JSON.parse(readFileSync(file, 'utf8')) as Lock;
-  for (const [path, meta] of Object.entries(lock.packages ?? {})) {
-    const i = path.lastIndexOf('node_modules/');
-    if (i === -1 || !meta.version) continue;
-    const name = path.slice(i + 'node_modules/'.length); // gère @scope/nom et les imbrications
-    if (iocs[name]?.includes(meta.version)) console.log(`${file}\t${name}@${meta.version}\t${path}`);
+```json
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [{ "name": "novafact-sdk-3.4.0.tgz", "digest": { "sha256": "9f2c…" } }],
+  "predicateType": "https://slsa.dev/provenance/v1",
+  "predicate": {
+    "buildDefinition": {
+      "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+      "externalParameters": {
+        "workflow": { "repository": "https://github.com/novafact/sdk", "path": ".github/workflows/release-sdk.yml", "ref": "refs/tags/v3.4.0" }
+      }
+    },
+    "runDetails": {
+      "builder": { "id": "https://github.com/actions/runner/github-hosted" }
+    }
   }
 }
 ```
 
 </Code>
 
-Le script tourne sur chaque branche de chaque dépôt ; le résultat, croisé avec les journaux de CI et la télémétrie, donne la liste des **environnements d'exécution touchés**. C'est elle qui pilote la suite.
+## Sigstore : signer sans clé longue durée
 
-## Contenir
+Gérer des clés de signature est difficile : il faut les protéger, les distribuer, les faire tourner. **Sigstore** remplace la clé par une **identité** :
 
-- **Bloquer les versions** : `overrides` dans `package.json` vers une version saine, blocage dans le proxy de registre s'il existe, et `min-release-age` renforcé le temps de la vague.
-- **Purger les caches** GitHub Actions des dépôts concernés (`gh cache delete --all -R novafact/api`) : un store pnpm ou un `node_modules` en cache ramènerait la version piégée.
-- **Suspendre les runners self-hosted** qui ont exécuté une installation pendant la fenêtre ; ils seront détruits, pas nettoyés.
-- **Isoler les postes** identifiés, via l'EDR, avant toute rotation.
-- **Bloquer la publication** : aucune release du SDK tant que l'on ne sait pas si un jeton de publication a été exposé.
+- **Fulcio**, une autorité de certification, délivre un certificat valable une dizaine de minutes à une identité prouvée par OIDC (un compte, ou un workflow GitHub Actions et sa référence) ;
+- l'artefact est signé avec une clé éphémère liée à ce certificat, puis la clé est oubliée ;
+- **Rekor**, un journal de transparence public en ajout seul, enregistre la signature : toute signature émise pour ton identité y est visible, y compris celles que tu n'as pas faites ;
+- **cosign** signe et vérifie images et fichiers.
 
-## Révoquer et remplacer
+La vérification porte donc sur **qui** a signé : l'identité du certificat et l'émetteur OIDC doivent correspondre à ce qui est attendu. Par exemple, pour l'image d'un petit outil open source que Novafact publie depuis un dépôt public et signe avec cosign en mode sans clé :
 
-Un secret est exposé s'il était **lisible** par une exécution touchée, pas seulement s'il a été utilisé : variables d'environnement du job, secrets du dépôt et de l'environnement accessibles au workflow, fichiers de configuration du poste. On commence par ce qui permet la **propagation**, puis par le plus puissant.
+<Code file="terminal">
 
-| Priorité | Secret | Action | Vérification |
-| --- | --- | --- | --- |
-| 1 | Jetons npm (poste, CI) | Révoquer tous les jetons des comptes concernés ; vérifier qu'aucune version n'a été publiée | Historique des versions de `@novafact/*` |
-| 1 | Jetons GitHub (PAT, jetons de `gh`, clés de GitHub Apps) | Révoquer, régénérer les clés privées des Apps, revoir les clés de déploiement | Journal d'audit : dépôts créés, workflows, runners |
-| 2 | Identifiants AWS | Révoquer les sessions actives des rôles et utilisateurs exposés (IAM Identity Center, « Revoke active sessions » sur les rôles), supprimer toute clé longue durée | CloudTrail pendant et après la fenêtre |
-| 2 | Secrets applicatifs du workflow | Rotation dans Secrets Manager, redéploiement | Journaux d'accès du fournisseur |
-| 3 | Clés d'API d'IA, Kubernetes, Vault, SSH | Révoquer et réémettre | Journaux d'usage |
-
-L'OIDC paie ici : un job qui n'avait qu'un rôle assumé pour la durée du run n'a laissé fuir qu'une session courte, déjà expirée ou révocable, et aucune clé à faire tourner.
-
-## Nettoyer
-
-- **Runners** : les runners hébergés sont éphémères, les self-hosted sont reconstruits depuis leur image. Lister les runners enregistrés dans l'organisation (`gh api /orgs/novafact/actions/runners`) : un runner inconnu est une persistance.
-- **Dépôts** : chercher les workflows ajoutés, les dépôts créés ou rendus publics, les commits de configuration d'éditeur ou d'agent (`.vscode/tasks.json`, `.claude/settings.json`), les hooks Git, les GitHub Apps et applications OAuth autorisées récemment.
-- **Postes** : la réinstallation est la voie sûre ; à défaut, retirer les tâches planifiées, les fichiers déposés, et vérifier les configurations d'outils.
-
-## Chasser dans Elastic
-
-<Code file="hunts/supply-chain.esql">
-
-```sql
-// 1. Exécutions suspectes lancées par un gestionnaire de paquets
-FROM logs-endpoint.events.process-*
-| WHERE @timestamp >= NOW() - 7 days
-  AND process.parent.name IN ("node", "npm", "bun")
-  AND process.name IN ("bun", "curl", "wget", "trufflehog")
-| STATS runs = COUNT(*), first_seen = MIN(@timestamp) BY host.name, process.parent.name, process.name
-| SORT first_seen
-
-// 2. Identifiants AWS testés depuis un réseau inhabituel
-FROM logs-aws.cloudtrail-*
-| WHERE @timestamp >= NOW() - 7 days
-  AND event.action == "GetCallerIdentity"
-  AND aws.cloudtrail.user_identity.arn LIKE "*DeveloperAccess*"
-| STATS calls = COUNT(*) BY aws.cloudtrail.user_identity.arn, source.ip, source.as.organization.name
-
-// 3. Persistance et exfiltration côté GitHub
-FROM logs-github.audit-*
-| WHERE @timestamp >= NOW() - 7 days
-  AND event.action IN ("repo.create", "repo.access", "org.register_self_hosted_runner", "repo.register_self_hosted_runner")
-| KEEP @timestamp, event.action, user.name, github.repo
+```bash
+cosign verify ghcr.io/novafact/webhook-relay@sha256:4b1e… \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/novafact/webhook-relay/\.github/workflows/release\.yml@refs/tags/v'
 ```
 
 </Code>
 
-Les règles préconstruites d'Elastic couvrent déjà une partie de ces comportements (exécution de scripts d'installation, requêtes DNS inhabituelles d'un processus Node ou Bun). La chasse sert à remonter **avant** la première alerte : quand le premier poste a-t-il exécuté la charge, et qu'a-t-on fait des identifiants depuis ?
+## GitHub artifact attestations
 
-## Si `@novafact/sdk` est touché
+GitHub intègre Sigstore : l'action `actions/attest` (v4) génère et signe une provenance SLSA pour un artefact, stockée par GitHub. Pour les dépôts publics, la signature passe par l'instance publique de Sigstore ; pour les dépôts privés, par l'instance de GitHub, qui n'a pas de journal de transparence. Seule, elle apporte **SLSA Build L2** ; en construisant dans un **workflow réutilisable** dédié, dont l'identité est celle qui signe, on atteint **Build L3** : le dépôt appelant ne peut ni modifier les étapes de build ni toucher à la signature.
 
-Si un jeton de publication a fuité et qu'une version malveillante du SDK a été publiée, Novafact devient à son tour une source de l'incident :
+<Code file=".github/workflows/build-image.yml (workflow réutilisable, extrait)" hl="2,3,4,5,11">
 
-- **déprécier** la version (`npm deprecate`) et demander son retrait à npm, publier immédiatement une version saine ;
-- publier un **avis de sécurité** (GitHub Security Advisory) qui liste versions, fenêtre et actions recommandées aux clients ;
-- évaluer le **signalement CRA** : depuis le 11 septembre 2026, une vulnérabilité activement exploitée ou un incident grave touchant la sécurité d'un produit doit faire l'objet d'une alerte précoce sous 24 heures (M1) ; et le RGPD si des données personnelles sont en jeu.
+```yaml
+    permissions:
+      id-token: write          # certificat Sigstore
+      attestations: write      # stockage de l'attestation
+      contents: read
+      artifact-metadata: write # enregistrement de l'artefact
+    steps:
+      # … checkout, build et push de l'image, sortie `digest` …
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: 111122223333.dkr.ecr.eu-west-3.amazonaws.com/novafact-api
+          subject-digest: ${{ steps.push.outputs.digest }}
+```
 
-Le staged publishing (leçon 5) rend ce scénario beaucoup moins probable : un jeton volé ne permet plus que de déposer une version en attente, qu'aucun mainteneur n'approuvera.
+</Code>
+
+Les dépôts de l'API étant privés, c'est `gh attestation verify` qui fait foi. Avant le déploiement sur ECS, le pipeline de Novafact vérifie l'attestation en imposant l'identité du workflow de build, la branche source et l'usage d'un runner hébergé :
+
+<Code file="scripts/verify-image.sh">
+
+```bash
+gh attestation verify "oci://${IMAGE}@${DIGEST}" \
+  --owner novafact \
+  --signer-workflow novafact/build-workflows/.github/workflows/build-image.yml \
+  --source-ref refs/heads/main \
+  --deny-self-hosted-runners
+```
+
+</Code>
+
+## npm : provenance et signatures du registre
+
+Pour `@novafact/sdk`, le trusted publishing génère la provenance automatiquement (leçon 5), visible sur la page du paquet. Côté consommateur, **`npm audit signatures`** vérifie deux choses pour les paquets installés : les **signatures du registre** (npm signe chaque version publiée) et les **attestations de provenance** quand elles existent. Il détecte une archive altérée dans un miroir ou un cache, et une attestation invalide ; il ne dit rien d'un paquet sans attestation. D'où l'intérêt de `trustPolicy: no-downgrade` (pnpm), qui échoue si une version perd le niveau de confiance des précédentes : exactement le signal qu'aurait donné une publication par jeton volé.
+
+## Ce que la provenance prouve, et ce qu'elle ne prouve pas
+
+| Elle prouve | Elle ne prouve pas |
+| --- | --- |
+| L'artefact vient de ce dépôt, de ce commit, de ce workflow | Que le code du commit est sain |
+| Il a été construit sur telle plateforme, par tel builder | Que le workflow n'a pas exécuté de code malveillant (cache, dépendance) |
+| Il n'a pas été modifié depuis | Que les dépendances étaient saines |
+
+Chez Ultralytics comme chez TanStack, les premières versions malveillantes portaient une provenance authentique. La provenance sert alors à **l'enquête** et à la **politique** : exiger une référence de tag de release, un workflow précis, un runner hébergé, et refuser tout ce qui s'en écarte.
+
+## Builds reproductibles et S2C2F
+
+Un **build reproductible** produit un résultat identique bit à bit à partir des mêmes sources. Deux builders indépendants qui obtiennent la même empreinte rendent une compromission de l'un d'eux détectable : c'est la réponse de fond au cas xz utils (M17, leçon 9), où l'archive publiée différait du dépôt. Il faut pour cela neutraliser horodatages, chemins et ordre des fichiers.
+
+Côté consommation, le **S2C2F** (*Secure Supply Chain Consumption Framework*, OpenSSF) organise huit pratiques en quatre niveaux de maturité :
+
+| Pratique | Chez Novafact |
+| --- | --- |
+| Ingest It | Proxy de registre interne qui garde une copie de tout ce qui est utilisé |
+| Scan It, Inventory It | SCA et SBOM (M17), inventaire par service |
+| Update It, Audit It | Mises à jour automatisées avec délai, vérification que tout passe par les canaux approuvés |
+| Enforce It | Les builds échouent s'ils tirent d'une source non approuvée |
+| Rebuild It, Fix It + Upstream | Niveau 4, aspirationnel : reconstruire soi-même les composants les plus critiques, corriger en privé et remonter le correctif |
 
 <Callout kind="novafact">
-Chronologie de l'exercice (fictive) : alerte à 9 h 12 ; gel à 9 h 30 ; à 11 h, le script et la télémétrie identifient deux postes et une PR Dependabot dont la CI a installé la version piégée ; 12 h 40, jetons GitHub et npm des deux développeurs révoqués, sessions AWS du rôle de dev révoquées ; 14 h, caches purgés et secrets de preview remplacés ; 16 h, la chasse trouve un appel `GetCallerIdentity` depuis un hébergeur inconnu avec la session d'un des postes, sans autre action. Aucun jeton de publication n'était exposé (trusted publishing). Retour d'expérience : les PR de mise à jour automatiques échappaient au délai d'adoption ; l'option `cooldown` de Dependabot est ajoutée.
-</Callout>
-
-<Callout kind="tip">
-Le jeu **Crise J+0** te met dans ce type de situation, sous horloge : chaque décision (inventaire, rotation, communication) a des conséquences sur la suite.
+Cible de Novafact à douze mois (fictive) : `@novafact/sdk`, dont le dépôt est public, en SLSA Build L3 (trusted publishing depuis un workflow réutilisable, provenance publique, staged publishing) ; images de l'API attestées et vérifiées avant chaque déploiement ECS, déploiement refusé sinon ; Source L3 sur `api`, `sdk` et `infra` via rulesets (revue obligatoire, checks requis, historique protégé) et L4 sur `infra` (deux approbations). S2C2F niveau 2 atteint, niveau 3 visé sur les dix dépendances les plus critiques.
 </Callout>
 
 <Recap items={[
-  "L'exposition est une intersection : version compromise, installation pendant la fenêtre, identifiants présents ; toutes les branches et les PR automatiques comptent.",
-  "Contenir avant de faire tourner : bloquer les versions, purger les caches, suspendre les runners, isoler les postes.",
-  "Révoquer tout secret lisible par une exécution touchée, en commençant par ceux qui permettent la propagation (npm, GitHub).",
-  "Nettoyer la persistance : runners enregistrés, workflows, dépôts créés, configurations d'éditeur et d'agent.",
-  "Chasser dans Elastic (processus, CloudTrail, audit GitHub) pour dater la première exécution et l'usage des secrets.",
-  "Si le SDK est touché : dépréciation, avis de sécurité, évaluation CRA et RGPD.",
+  "SLSA v1.2 : Build track L0 à L3 (provenance, plateforme hébergée, build durci) et nouveau Source track L1 à L4.",
+  "Une attestation in-toto lie des sujets (empreintes) à un prédicat, dont la provenance SLSA.",
+  "Sigstore signe avec une identité OIDC (Fulcio, Rekor, cosign) : la vérification doit imposer l'identité attendue.",
+  "GitHub artifact attestations : Build L2 seules, L3 avec un workflow réutilisable ; `gh attestation verify` avant déploiement.",
+  "`npm audit signatures` vérifie signatures et attestations ; `no-downgrade` détecte une provenance qui disparaît.",
+  "La provenance prouve l'origine, pas l'innocuité ; builds reproductibles et S2C2F complètent la chaîne.",
 ]} />
 
 <Sources items={[
-  { title: "Elastic Security Labs : CHAINDROP, détection et chasse", url: "https://www.elastic.co/security-labs/shai-hulud-chaindrop-npm-supply-chain" },
-  { title: "CISA : Shai-Hulud, recommandations", url: "https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem" },
-  { title: "TanStack : postmortem et mesures de durcissement", url: "https://tanstack.com/blog/npm-supply-chain-compromise-postmortem" },
-  { title: "GitHub Docs : journal d'audit de l'organisation", url: "https://docs.github.com/en/organizations/keeping-your-organization-secure/managing-security-settings-for-your-organization/reviewing-the-audit-log-for-your-organization" },
-  { title: "GitHub Blog : plan pour une supply chain npm plus sûre", url: "https://github.blog/security/supply-chain-security/our-plan-for-a-more-secure-npm-supply-chain/" },
-  { title: "Elastic : intégration GitHub (journal d'audit)", url: "https://www.elastic.co/docs/reference/integrations/github" },
+  { title: "SLSA v1.2 : spécification", url: "https://slsa.dev/spec/v1.2/" },
+  { title: "Sigstore : documentation", url: "https://docs.sigstore.dev/" },
+  { title: "GitHub Docs : artifact attestations", url: "https://docs.github.com/en/actions/concepts/security/artifact-attestations" },
+  { title: "npm Docs : generating provenance statements", url: "https://docs.npmjs.com/generating-provenance-statements" },
+  { title: "in-toto", url: "https://in-toto.io/" },
+  { title: "OpenSSF : S2C2F", url: "https://github.com/ossf/s2c2f" },
+  { title: "Reproducible Builds", url: "https://reproducible-builds.org/" },
 ]} />

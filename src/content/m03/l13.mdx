@@ -46,7 +46,7 @@ export const questions = [
 ];
 
 <YouKnow>
-Tu as peut-être fait les labs Web LLM attacks de l'Academy : faire utiliser à un assistant des API qu'il ne devrait pas, injecter des consignes via des avis produits, exploiter la sortie du modèle. Cette leçon fait le pont avec le module 19, et regarde aussi l'autre face du sujet : l'IA comme outil de recherche offensive.
+Tu as peut-être fait les labs Web LLM attacks de l'Academy : faire utiliser à un assistant des API qu'il ne devrait pas, injecter des consignes via des avis produits, exploiter la sortie du modèle. Cette leçon fait le pont avec le module 27, et regarde aussi l'autre face du sujet : l'IA comme outil de recherche offensive.
 </YouKnow>
 
 ## Le sujet « Web LLM attacks » de l'Academy
@@ -79,7 +79,7 @@ Deux grilles de lecture récentes aident à raisonner sur ce scénario. Simon Wi
 
 Dès qu'une session a lu une facture importée, les deux dernières lignes réunissent les trois propriétés. D'où la décision de conception : dans ce cas, toute action passe par une **validation humaine** explicite, avec un aperçu de ce qui sera envoyé ou créé.
 
-Les défenses structurelles, développées au module 19 :
+Les défenses structurelles, développées au module 27 :
 
 <Steps items={[
   { title: "Moindre privilège des outils", text: "L'assistant de résumé n'a pas besoin d'envoyer d'e-mails. Un outil par usage, avec la portée minimale (tenant, montant)." },
@@ -138,10 +138,10 @@ La CSP de la SPA (`img-src 'self'`, `connect-src` limité) sert de seconde barri
 
 ## L'IA qui fait de la recherche offensive
 
-En août 2026, James Kettle a présenté à Black Hat USA *Meet the HTTP Terminator*, un système autonome qui **invente de nouvelles variantes de désynchronisation HTTP** (leçon 5) et les teste à grande échelle. Le système formalise un processus de recherche jusque-là intuitif en quatre étapes (idéation, évaluation, exploitation, puis « cascade », quand une découverte devient le point de départ de l'hypothèse suivante), et ses meilleurs résultats sont venus quand le chercheur reprenait la main à cette dernière étape. PortSwigger en a publié le code en preuve de concept open source. Avec les agents de pentest comme Strix ou XBOW (module 13), c'est une tendance de fond : le rythme d'apparition des variantes s'accélère.
+En août 2026, James Kettle a présenté à Black Hat USA *Meet the HTTP Terminator*, un système autonome qui **invente de nouvelles variantes de désynchronisation HTTP** (leçon 5) et les teste à grande échelle. Le système formalise un processus de recherche jusque-là intuitif en quatre étapes (idéation, évaluation, exploitation, puis « cascade », quand une découverte devient le point de départ de l'hypothèse suivante), et ses meilleurs résultats sont venus quand le chercheur reprenait la main à cette dernière étape. PortSwigger en a publié le code en preuve de concept open source. Avec les agents de pentest comme Strix ou XBOW (module 17), c'est une tendance de fond : le rythme d'apparition des variantes s'accélère.
 
 <Callout kind="tip">
-Pour un défenseur, la conséquence est nette : les contrôles qui **énumèrent** les variantes (règles WAF par signature, filtres de chaînes) perdent du terrain ; ceux qui **suppriment la classe** (HTTP/2 de bout en bout, parsers stricts, isolation, moindre privilège) gardent leur valeur. C'est tout l'argument du module 3, et une bonne façon de le présenter à une direction.
+Pour un défenseur, la conséquence est nette : les contrôles qui **énumèrent** les variantes (règles WAF par signature, filtres de chaînes) perdent du terrain ; ceux qui **suppriment la classe** (HTTP/2 de bout en bout, parsers stricts, isolation, moindre privilège) gardent leur valeur. C'est tout l'argument du module 9, et une bonne façon de le présenter à une direction.
 </Callout>
 
 <Callout kind="warn">

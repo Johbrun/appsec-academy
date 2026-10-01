@@ -132,14 +132,14 @@ Sur le benchmark AgentDojo, CaMeL résout **77 % des tâches avec une sécurité
 
 ## Relecture avec les anti-patterns de Kohnfelder
 
-Les anti-patterns de M8 (leçon 3) décrivent exactement ce que ces patterns corrigent.
+Les anti-patterns de M13 (leçon 4) décrivent exactement ce que ces patterns corrigent.
 
 | Anti-pattern (K4) | Forme agentique | Correction |
 | --- | --- | --- |
-| **Confused deputy** | L'agent appelle l'API avec son propre compte de service, pour le compte de l'utilisateur ou d'un texte injecté | Les outils s'exécutent avec l'identité de l'utilisateur (token exchange, M9) ; politique de provenance avant l'appel |
-| **Third-party hooks** | Un serveur MCP d'éditeur branché sur l'assistant : ses descriptions d'outils et ses réponses entrent dans ton contexte, son code tourne avec tes jetons | Traiter le serveur comme une dépendance critique : revue, versions figées, sortie considérée non fiable (leçon 5) |
+| **Confused deputy** | L'agent appelle l'API avec son propre compte de service, pour le compte de l'utilisateur ou d'un texte injecté | Les outils s'exécutent avec l'identité de l'utilisateur (token exchange, M14) ; politique de provenance avant l'appel |
+| **Third-party hooks** | Un serveur MCP d'éditeur branché sur l'assistant : ses descriptions d'outils et ses réponses entrent dans ton contexte, son code tourne avec tes jetons | Traiter le serveur comme une dépendance critique : revue, versions figées, sortie considérée non fiable (leçon 1 de M28) |
 | **Backflow of trust** | Un agent qui lit du contenu non fiable pilote des outils de haute confiance | Séparation des privilèges : dual LLM, plan-then-execute |
-| **Unpatchable components** | Un modèle ou un SDK figé dont on ne peut plus changer la version | Abstraction du fournisseur, versions tracées dans l'AI SBOM (leçon 8) |
+| **Unpatchable components** | Un modèle ou un SDK figé dont on ne peut plus changer la version | Abstraction du fournisseur, versions tracées dans l'AI SBOM (leçon 7) |
 
 Kohnfelder illustre d'ailleurs les third-party hooks avec un composant d'IA propriétaire, maintenu par son éditeur via un tunnel à travers le pare-feu : un tiers qui dispose d'un accès direct au cœur du système, hors du regard des administrateurs. Un serveur MCP distant auquel on confie des jetons en est la version 2026.
 

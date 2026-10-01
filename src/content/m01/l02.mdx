@@ -1,204 +1,174 @@
 export const questions = [
   {
-    q: "Qu'est-ce qu'un « paved road » ?",
+    q: "Selon Kohnfelder, comment réduire le risque lié aux composants implicitement fiables (OS, runtime, bibliothèques, cloud) ?",
     options: [
-      "Un socle de configurations durcies imposé à toutes les équipes, sans dérogation possible",
-      "Une liste de bibliothèques et de versions approuvées, tenue par l'équipe sécurité",
-      "Un chemin outillé et sûr par défaut, plus rapide à suivre que l'alternative",
-      "Un ensemble de portes bloquantes qui empêchent de livrer un service non conforme",
+      "Vérifier soi-même le code de chaque composant avant de l'adopter",
+      "Savoir explicitement à qui l'on fait confiance, et réduire leur nombre",
+      "Remplacer les composants tiers par des implémentations internes",
+      "Exiger de chaque fournisseur une attestation de conformité annuelle",
     ],
-    answer: 2,
-    explain: "Les trois autres décrivent des contraintes ; un paved road est une offre. Ce qui le définit n'est pas d'être sûr mais d'être le chemin le plus court : on peut en sortir, à condition d'en assumer le coût (revue, justification). Le socle imposé et les portes bloquantes produisent du contournement silencieux ; la liste de bibliothèques approuvées ne donne rien de prêt à l'emploi, donc ne fait gagner aucun temps.",
+    answer: 1,
+    explain: "On ne peut pas tout vérifier : ni lire le code de 1 400 paquets transitifs, ni auditer AWS. Ce qui reste possible, c'est de tenir la liste consciente de ce qu'on considère comme fiable et de limiter le nombre de fournisseurs, puisque chacun est une occasion de plus d'être déçu. Réécrire en interne ne supprime pas le problème, il le déplace vers ce qu'il faudra construire et sécuriser ; et une attestation annuelle documente la confiance sans la réduire.",
   },
   {
-    q: "Pourquoi « shift left » ne suffit-il pas ?",
+    q: "Que signifie « faire confiance, mais vérifier » en logiciel ?",
     options: [
-      "Parce que certains risques n'existent qu'une fois l'application exposée",
-      "Parce que les équipes n'ont pas le temps de trier les alertes remontées dans la PR",
-      "Parce que l'analyse statique produit trop de faux positifs pour être fiable seule",
-      "Parce que les contrôles en amont ne voient pas les dépendances tierces",
+      "Refuser toute action qui n'a pas été validée à l'avance par un tiers",
+      "Faire confiance au fournisseur, en s'appuyant sur ses certifications",
+      "Autoriser l'action, et garder un audit fiable qui permet de la vérifier",
+      "Exiger une double approbation humaine sur chaque action sensible",
+    ],
+    answer: 2,
+    explain: "La confiance est un spectre : entre l'accès permanent et le refus pur et simple, l'autorisation bornée couplée à un audit fiable permet de vérifier après coup, automatiquement sur le volume et par échantillonnage à la main. La double approbation est un contrôle préventif — utile, mais coûteux, et il bloque le support au lieu de l'outiller. Quant à s'appuyer sur des certifications, c'est faire confiance sans rien vérifier chez soi.",
+  },
+  {
+    q: "Novafact ajoute un petit paquet npm de formatage de dates. À qui fait-elle confiance, en réalité ?",
+    options: [
+      "Au paquet, à ses dépendances, à leurs mainteneurs présents et futurs",
+      "Au code de ce paquet, tel qu'on l'a lu et figé dans le lockfile",
+      "Au registre npm, qui vérifie les paquets publiés par signature",
+      "À l'écosystème open source, dont la relecture publique fait la sécurité",
     ],
     answer: 0,
-    explain: "La surcharge d'alertes et le bruit du SAST sont de vraies plaies, mais ce sont des défauts de mise en œuvre : on peut les corriger sans sortir de l'amont. Quant aux dépendances, le SCA dans la PR les voit très bien. Ce que l'amont ne peut pas voir, c'est la configuration réellement déployée, l'usage abusif et l'attaquant en cours : c'est le domaine du shift right, qui renvoie ensuite ses leçons vers l'amont.",
+    explain: "La confiance est transitive : elle s'étend à tout ce que le paquet importe, à toute personne capable d'en publier la prochaine version et à la sécurité de leurs comptes. Le lockfile fige bien ce qu'on a lu — c'est ce qui rend l'objection tentante —, mais il sera mis à jour, et c'est à ce moment-là que la décision de confiance se rejoue sans que personne la prenne. C'est exactement l'affaire event-stream, en 2018 : un changement de mainteneur que personne n'avait approuvé, et que la relecture publique n'a pas vu pendant plus de deux mois.",
   },
   {
-    q: "Novafact veut interdire le SQL brut. Quelle mise en œuvre relève vraiment du safe coding ?",
+    q: "Que signifie « zero trust » dans le sens de NIST SP 800-207 ?",
     options: [
-      "Une revue AppSec obligatoire sur tout fichier qui construit une requête SQL",
-      "Une règle Semgrep qui remonte chaque concaténation SQL dans le tableau de bord sécurité",
-      "Un WAF devant l'API, avec le jeu de règles SQLi d'OWASP CRS en mode blocage",
-      "Une règle de lint bloquante sur $queryRawUnsafe, sauf dans un module revu",
+      "Ne faire confiance à aucun composant, y compris le système d'exploitation",
+      "Chiffrer et authentifier tous les flux, y compris entre services internes",
+      "Supprimer les dépendances externes et internaliser les composants critiques",
+      "Ne pas accorder de confiance implicite selon l'emplacement réseau",
     ],
     answer: 3,
-    explain: "La revue AppSec obligatoire est le distracteur sérieux : elle existe vraiment, et c'est même elle qui protège le module d'échappatoire. Mais étendue à tout le code, elle remet un humain dans la boucle à chaque commit, ne passe pas à l'échelle et finit par être contournée. Le tableau de bord Semgrep détecte sans empêcher. Le safe coding fait l'inverse : il rend la construction dangereuse impossible par défaut et la concentre là où la revue reste tenable.",
-  },
-  {
-    q: "Le paved road de Novafact existe depuis six mois, mais deux équipes sur six l'utilisent. Quelle est la première hypothèse à vérifier ?",
-    options: [
-      "Le kit a été mal annoncé : il faut une démo et une communication par équipe",
-      "Un tiers des équipes à six mois est un rythme normal : il faut laisser du temps",
-      "Le kit ne leur fait pas gagner de temps par rapport à leur façon de faire",
-      "Il faut rendre le kit obligatoire pour tout nouveau service, par décision de la direction",
-    ],
-    answer: 2,
-    explain: "La communication et la patience sont recevables, et tu les vérifieras aussi — mais elles supposent déjà que le produit est bon et que seul le message manque. L'obligation par décision de la direction est le vrai piège : elle fait monter le chiffre d'adoption sans toucher à la cause, et déplace le contournement là où tu ne le vois plus. Un paved road s'emprunte parce qu'il est plus rapide ; commence par demander aux quatre équipes ce qu'il leur coûte.",
+    explain: "Le modèle du NIST retire la confiance accordée parce qu'une requête « vient de l'intérieur » : chaque accès est authentifié et autorisé pour lui-même. Il ne supprime pas les décisions de confiance — un système zero trust fait toujours confiance à son fournisseur d'identité, à son moteur de politiques et à ses clés. Chiffrer et authentifier les flux internes en est une conséquence fréquente, pas la définition : on peut avoir du mTLS partout et continuer d'autoriser sur la seule foi du sous-réseau d'origine.",
   },
 ];
 
 <YouKnow>
-Tu as déjà croisé des pipelines avec un scanner qui bloque tout, des équipes qui contournent les contrôles, et des rapports de pentest qui dorment dans un drive. Tu sais aussi que les mêmes bugs reviennent d'une mission à l'autre.
+En pentest, tu cherches les endroits où un système fait confiance à ce qu'il ne devrait pas. Kohnfelder place la confiance au fondement même de la sécurité logicielle : c'est le point de départ du bloc Concevoir.
 </YouKnow>
 
-## DevSecOps en une phrase
+## Tout repose sur la confiance
 
-DevSecOps, c'est intégrer la sécurité dans le flux de livraison **sans créer de file d'attente**. Si chaque mise en production attend une validation manuelle de l'équipe sécurité, l'équipe sécurité devient le goulot, et le produit apprend à l'éviter. L'objectif est l'inverse : que la sécurité voyage avec le code, automatiquement, avec un retour rapide aux personnes qui peuvent agir.
+Aucun système ne se construit seul, du silicium à l'application. Novafact fait confiance à AWS, au système d'exploitation, au runtime Node, à des centaines de paquets npm, à GitHub, au prestataire de paiement. Kohnfelder (K1) en tire trois idées qui structurent la suite du parcours.
 
-Le mécanisme d'évitement est prévisible. Une validation manuelle qui prend trois jours pousse les équipes à regrouper leurs changements pour n'y passer qu'une fois, donc à livrer de plus gros lots, plus risqués et plus difficiles à relire. Ou à reclasser leurs changements pour qu'ils « n'aient pas besoin » de revue. Dans les deux cas, le contrôle dégrade la sécurité qu'il devait protéger.
+Vu du côté offensif, presque toutes les vulnérabilités que tu as exploitées sont des **erreurs de confiance** : une entrée utilisateur traitée comme du code (injection), un identifiant fourni par le client traité comme une preuve de propriété (BOLA), un en-tête `Host` traité comme la vérité sur l'URL de l'application, un jeton dont on ne vérifie pas la signature. Concevoir, c'est d'abord décider consciemment à qui et à quoi on fait confiance, et pour quoi.
 
-## Shift left et shift right
+## La confiance est un spectre
 
-**Shift left** : trouver plus tôt, là où corriger coûte moins cher. Exigences, conception, revue de code, analyse statique, tests en CI.
+On n'accorde jamais une confiance totale ou nulle : on l'accorde **dans une certaine mesure**. Une carte bancaire a un plafond, une clé de voiturier n'ouvre pas le coffre. En logiciel, l'outil qui comble l'écart entre confiance totale et défiance totale est le couple **autorisation + audit** : on permet une action, et on garde une trace fiable pour la vérifier après coup, automatiquement sur le volume et manuellement par échantillonnage.
 
-**Shift right** : apprendre de la production. Journalisation, détection, retours d'incidents, bug bounty, analyse des abus. Beaucoup de risques n'existent qu'une fois l'application exposée : une configuration réelle, un comportement d'utilisateur, un attaquant patient.
+Un exemple concret chez Novafact : l'équipe support doit parfois voir les factures d'un client pour l'aider. Refuser tout accès bloque le support ; donner un accès permanent à toutes les données fait de chaque agent une cible de choix. La solution se place au milieu du spectre : un accès **accordé par ticket**, limité à un tenant, **borné dans le temps**, et **journalisé**, avec une revue par échantillonnage chaque semaine.
 
-| Ce que tu cherches | Plutôt à gauche | Plutôt à droite |
-| --- | --- | --- |
-| Injection, SQL brut, désérialisation | SAST, lint, revue de code | Détection d'erreurs anormales dans les logs |
-| Dépendance vulnérable | SCA dans la PR | Inventaire des versions déployées, alertes sur un nouvel advisory |
-| Faille d'autorisation (BOLA) | Tests d'autorisation, middleware central | Alerte sur des accès inter-tenants |
-| Abus métier (export massif, fraude) | Exigences, threat modeling | Détection comportementale, limites de débit |
-| Mauvaise configuration cloud | Scan de l'IaC | Contrôle de la configuration réelle (drift) |
-
-Les deux se nourrissent. Un incident en production (shift right) devient une règle SAST et un test de régression (shift left). Un contrôle en amont réduit le bruit en aval.
-
-<Callout kind="novafact">
-Exemple de boucle chez Novafact. Une alerte Elastic signale un utilisateur qui télécharge des PDF de factures d'un autre tenant : la route d'export ne vérifiait que l'authentification. Le correctif passe par le middleware d'autorisation central ; le post-mortem produit une règle Semgrep « route sans appel à `authorize()` » et un test d'intégration qui tente l'accès croisé. La même classe ne pourra plus passer en PR sans bruit.
-</Callout>
-
-## Secure by default et paved road
-
-Un contrôle **sûr par défaut** protège sans que personne n'ait à y penser : un framework qui échappe la sortie HTML, un client HTTP qui refuse les adresses internes, un template de service qui naît avec ses en-têtes de sécurité.
-
-Le **paved road** (popularisé par Netflix) généralise l'idée : l'équipe sécurité, souvent avec l'équipe plateforme, fournit un chemin outillé pour créer un service, une API ou un pipeline, où les bonnes pratiques sont déjà intégrées. Les équipes restent libres d'en sortir, mais elles en assument le coût : revue manuelle, justification, exceptions.
-
-<Callout kind="case">
-En 2021, Netflix a décrit Wall-E, une passerelle (un déploiement de son proxy Zuul) placée devant les applications de ses studios. Elle prend en charge l'authentification, le WAF, la protection DDoS, les en-têtes de sécurité et la journalisation. Pour une application sans particularité, une équipe passait de `git init` à une application en production, authentifiée et exposée à Internet en un peu moins de dix minutes. La longue checklist de sécurité se réduisait à une question : « Vas-tu utiliser Wall-E ? ». Au moment de l'article, la passerelle protégeait plus de 350 applications.
-</Callout>
-
-Chez Novafact, la version la plus simple du paved road est un paquet interne qui crée une application Express déjà durcie. L'équipe qui l'utilise n'a rien à configurer pour avoir les bons défauts ; celle qui veut en sortir doit l'écrire explicitement, ce qui se voit en revue.
-
-<Code file="packages/service-kit/src/create-service.ts" hl="8,9,10,11,15,16">
+<Code file="apps/backoffice/src/support/grant.ts" hl="11,12,13,14,15">
 
 ```ts
-import express from 'express';
-import helmet from 'helmet';
-import pinoHttp from 'pino-http';
-import { authenticate } from './auth.js';
-import { errorHandler } from './errors.js';
+import { z } from 'zod';
 
-export function createService() {
-  const app = express();
-  app.disable('x-powered-by');
-  app.use(helmet());
-  app.use(express.json({ limit: '100kb' }));
-  app.use(pinoHttp({
-    redact: ['req.headers.authorization', 'req.headers.cookie'],
-  }));
-  app.use(authenticate());   // toute route est authentifiée sauf déclaration publique explicite
-  app.use(errorHandler());   // pas de pile d'appels ni de message interne vers le client
-  return app;
+const SupportGrant = z.object({
+  agentId: z.string(),
+  tenantId: z.string(),
+  ticketId: z.string().regex(/^SUP-\d+$/),
+  expiresAt: z.coerce.date(),
+});
+
+export async function requireSupportGrant(agentId: string, tenantId: string) {
+  const raw = await grants.findActive(agentId, tenantId);
+  if (!raw) throw new ForbiddenError('aucun accès support pour ce tenant');
+  const grant = SupportGrant.parse(raw);
+  if (grant.expiresAt.getTime() <= Date.now()) throw new ForbiddenError('accès support expiré');
+  await audit.write({ action: 'support.access', actor: agentId, tenantId, ticketId: grant.ticketId });
+  return grant;
 }
 ```
 
 </Code>
 
-Trois conditions font qu'un paved road est réellement emprunté :
+Le client, lui, voit dans son propre journal d'audit que le support a consulté son compte, pour quel ticket et quand. Cette visibilité fait partie de la confiance qu'on lui demande.
 
-- il est **plus rapide** que l'alternative, pas seulement plus sûr : c'est la seule motivation qui fonctionne à grande échelle ;
-- il est **maintenu** comme un produit, avec des versions, un changelog et des mises à jour de dépendances faites pour les équipes ;
-- sa **sortie est possible et visible** : une option explicite, revue, plutôt qu'une interdiction qui pousse au contournement silencieux.
+## Les composants implicitement fiables
 
-Mesure son adoption (part des services créés avec le kit, part des routes derrière le middleware d'autorisation) : c'est un indicateur de résultat bien plus parlant que le nombre de formations.
+Une partie de la pile est **implicitement** fiable : on ne peut pas tout vérifier, donc on s'appuie sur la réputation du fournisseur. Kohnfelder recommande de :
+
+- **savoir** explicitement ce qui est considéré comme fiable, plutôt que de le découvrir lors d'un incident ;
+- **réduire le nombre de parties** à qui l'on fait confiance : chaque fournisseur supplémentaire est une occasion de plus d'être déçu ;
+- réfléchir avant d'**élargir** fortement ce périmètre (une nouvelle dépendance, un nouveau SaaS, un nouvel agent IA).
 
 <Callout kind="novafact">
-La route pavée n'est pas qu'une affaire de code applicatif. Le template de service de Novafact pose l'authentification IAM entre deux services en deux lignes de Terraform, sans secret à gérer (M15, M16) : la question « faut-il authentifier cette API interne ? » ne se pose plus, parce que la réponse coûte moins cher que l'absence de réponse. À l'inverse, tant que la solution sûre demandait une clé partagée à faire tourner, l'argument « c'est interne » gagnait à chaque fois.
+Exercice : lister les composants implicitement fiables de Novafact. Le résultat surprend l'équipe : 1 400 paquets npm transitifs, 11 scripts tiers sur le front, 6 SaaS avec un accès aux données de production, 3 GitHub Apps avec des droits en écriture. Chaque ligne devient un sujet des modules 8, 18 et 19.
 </Callout>
 
-## Safe coding : éliminer plutôt que vérifier
+L'exercice devient utile quand chaque ligne dit **pour quoi** on fait confiance et **ce qui arriverait** si cette confiance était trahie :
 
-Google a publié plusieurs articles sur son approche *Secure by Design* et *Safe Coding* (Christoph Kern). L'idée centrale : plutôt que de compter sur chaque développeur pour éviter chaque piège, on conçoit des API où l'erreur est impossible ou très visible. Par exemple, un type `SafeHtml` qu'on ne peut construire qu'à partir de sources sûres, ou un constructeur de requêtes SQL qui n'accepte pas de chaîne brute.
+| Composant | On lui fait confiance pour… | Si la confiance est trahie | Ce qui réduit la dépendance |
+| --- | --- | --- | --- |
+| AWS | Isoler nos comptes, garder nos clés KMS | Tout | Rien de réaliste : confiance assumée, documentée |
+| Paquets npm | Faire ce qu'annonce leur code, à chaque version | Exécution de code en CI et en production | Lockfile, revue des nouvelles dépendances, scripts d'installation bloqués (M18) |
+| Scripts tiers du front | Ne pas lire le DOM de la page de paiement | Vol de données saisies | Inventaire, CSP, iframe du prestataire (M8) |
+| GitHub Apps en écriture | Ne modifier que ce qu'on attend | Code malveillant poussé sur `main` | Droits minimaux, protection de branche, revue des installations |
+| Fournisseur d'IA | Ne pas conserver ni réutiliser les données envoyées | Fuite de factures | Contrat, minimisation des données envoyées (M27) |
 
-La raison est statistique. Les constructions dangereuses (concaténer du SQL, écrire du HTML brut) sont nombreuses dans un code typique, et savoir si chacune est sûre demande de suivre la donnée à travers plusieurs services. Personne ne fait ce raisonnement correctement des milliers de fois. En revanche, on peut rendre la construction dangereuse rare, isolée et revue.
+## La confiance est transitive
 
-En JavaScript, la même logique donne :
+Faire confiance à un paquet npm, ce n'est pas faire confiance au code que tu as lu : c'est faire confiance à **toute personne capable de publier la prochaine version**, à la sécurité de son compte, et à tout ce que ce paquet importe à son tour.
 
-- des schémas de validation (zod, ajv) obligatoires à l'entrée de chaque route ;
-- un ORM ou un query builder sans échappatoire vers le SQL brut, sauf fonction explicitement nommée et surveillée ;
-- Trusted Types côté navigateur, qui rend `innerHTML` inutilisable avec une chaîne ;
-- des règles de lint qui interdisent les fonctions dangereuses hors d'un module revu.
+<Callout kind="case">
+En 2018, le mainteneur du paquet npm `event-stream`, très utilisé, en a confié la maintenance à un contributeur qui s'était montré utile. Celui-ci a ajouté une dépendance, `flatmap-stream`, dont une version ultérieure contenait du code malveillant chiffré, ciblant les utilisateurs d'un portefeuille de cryptomonnaie (Copay). Le code est resté en circulation plus de deux mois avant d'être signalé. Aucune des applications touchées n'avait décidé de faire confiance à ce nouveau mainteneur : elles l'avaient fait implicitement, en acceptant les mises à jour.
+</Callout>
 
-Avec Prisma, par exemple, `$queryRaw` utilisé comme gabarit étiqueté paramètre automatiquement les valeurs, alors que `$queryRawUnsafe` accepte une chaîne construite à la main. La règle ESLint suivante bloque la seconde partout, sauf dans un dossier dont chaque modification passe par une revue sécurité.
+Une manière concrète de réduire cette confiance : ne pas laisser les dépendances exécuter du code **au moment de l'installation**. Depuis pnpm 10, les scripts de cycle de vie (`preinstall`, `install`, `postinstall`) des dépendances ne s'exécutent plus par défaut ; seuls les paquets explicitement autorisés le peuvent. Le réglage `allowBuilds` (depuis pnpm 10.26, il remplace `onlyBuiltDependencies`) tient cette liste, et `strictDepBuilds` fait échouer l'installation quand une nouvelle dépendance demande à exécuter un script non encore examiné :
 
-<Diff file="eslint.config.js" hlAfter="4-9,11-14">
+<Code file="pnpm-workspace.yaml (extrait)">
 
-```js
-export default [
-  ...baseConfig,
-];
+```yaml
+strictDepBuilds: true
+allowBuilds:
+  esbuild: true
+  "@prisma/engines": true
+  core-js: false   # script de promotion, inutile : refusé explicitement
 ```
 
-```js
-export default [
-  ...baseConfig,
-  {
-    rules: {
-      'no-restricted-properties': ['error', {
-        property: '$queryRawUnsafe',
-        message: 'Utilise $queryRaw avec un gabarit étiqueté, ou passe par src/db/raw/ (revu par l’AppSec).',
-      }],
-    },
-  },
-  {
-    files: ['src/db/raw/**'],
-    rules: { 'no-restricted-properties': 'off' },
-  },
-];
-```
+</Code>
 
-</Diff>
+Avec npm, l'équivalent grossier est `ignore-scripts=true` dans le `.npmrc`, avec l'inconvénient de devoir lancer à la main les scripts réellement nécessaires. Dans les deux cas, la liste des exceptions devient une **décision de confiance explicite**, relue en PR.
 
-Le dossier `src/db/raw/` est ensuite protégé par un fichier `CODEOWNERS` qui exige l'approbation de l'équipe AppSec. La construction dangereuse n'a pas disparu, mais elle est concentrée à un seul endroit, visible et revu.
+## Décider de faire confiance
 
-## Garde-fous plutôt que barrières
+Kohnfelder décrit les décisions de confiance comme un **arbre** : si aucun fournisseur de stockage n'est jugé fiable, il faut héberger soi-même, ce qui oblige à de nouvelles décisions (quel hébergement, quelle base de données). Refuser toute confiance ne supprime pas le problème, il le déplace vers ce qu'on devra construire et sécuriser soi-même.
 
-Un bon contrôle DevSecOps a trois propriétés :
+Pour les **entrées explicitement non fiables** (tout ce qui vient d'Internet ou d'un client), la règle est simple : suspicion et soin maximaux. C'est le pattern *Reluctance to Trust* (M13).
 
-<Steps items={[
-  { title: "Rapide", text: "Il répond en minutes, dans la PR, pas en jours dans un ticket." },
-  { title: "Précis", text: "Peu de faux positifs, sinon les équipes apprennent à l'ignorer." },
-  { title: "Actionnable", text: "Il dit quoi changer, et idéalement le propose." },
-]} />
-
-Commence par **informer** (commentaire dans la PR), passe à **bloquer** seulement quand la règle est fiable et que le correctif est simple. Un contrôle bloquant et bruyant est le moyen le plus rapide de perdre la confiance des équipes. On y revient en détail dans la leçon sur les jalons et les exceptions.
+Kohnfelder ajoute une nuance utile : même pour les entrées **jugées fiables**, ajouter un contrôle quand il ne coûte presque rien réduit la fragilité du système. Un message que l'API place dans une file pour un worker interne vient d'un composant de confiance ; le valider tout de même avec un schéma empêche un bug innocent (ou une compromission de l'API) de se propager en silence.
 
 <Callout kind="debate">
-« Shift left » a mauvaise presse chez une partie des praticiens, parce qu'il a souvent servi à déplacer la charge plutôt qu'à la réduire : on installe cinq scanners dans la CI, et chaque développeur doit trier seul des centaines d'alertes. Le reproche est juste quand l'équipe sécurité ne fournit que des outils. Il ne l'est plus quand elle fournit aussi des défauts sûrs, des règles triées et des correctifs proposés : là, le travail du développeur diminue réellement.
+« Zero trust » veut-il dire ne faire confiance à rien ? Non. Le modèle décrit par le NIST (SP 800-207) supprime la **confiance implicite accordée en fonction de l'emplacement réseau** : une requête venue du réseau interne n'est pas fiable pour autant, chaque accès est authentifié et autorisé. Mais un système zero trust fait toujours confiance à son fournisseur d'identité, à son moteur de politiques et à ses clés. Le slogan est utile contre le réflexe « c'est interne, donc c'est sûr » ; pris au pied de la lettre, il empêche de construire quoi que ce soit.
 </Callout>
 
+## Être digne de confiance
+
+L'autre face : Novafact est elle-même un composant implicitement fiable pour ses clients. Être digne de confiance, c'est être **transparent** (politique de sécurité publique, divulgation des incidents, sous-traitants listés) et **tenir ses engagements** : c'est aussi ce que demandent le CRA et les questionnaires de sécurité des clients.
+
+Kohnfelder insiste sur la différence entre **affirmer** et **montrer** : les déclarations vides érodent la confiance des clients avertis, les preuves la construisent. Concrètement pour Novafact :
+
+- un **journal d'audit visible par l'administrateur du tenant** (qui a exporté quoi, qui du support a consulté le compte) ;
+- des **audits indépendants** (pentest par un prestataire qualifié, M30, leçon 6) dont une synthèse est communicable aux clients ;
+- une **liste publique des sous-traitants** qui traitent des données, tenue à jour ;
+- après un incident, une **communication franche** : ce qui s'est passé, ce qui a été fait, ce qui empêchera la récidive.
+
 <Recap items={[
-  "DevSecOps intègre la sécurité au flux de livraison sans créer de file d'attente ; une validation lente pousse aux gros lots et au contournement.",
-  "Shift left trouve plus tôt, shift right apprend de la production ; chaque incident doit produire un contrôle en amont.",
-  "Secure by default et paved road rendent le chemin sûr plus rapide que l'autre ; on mesure leur adoption.",
-  "Le safe coding élimine des classes de bugs par la conception des API, et concentre les échappatoires dans un module revu.",
-  "Un bon contrôle est rapide, précis et actionnable ; on informe avant de bloquer.",
+  "Presque toutes les vulnérabilités sont des erreurs de confiance : concevoir, c'est décider consciemment à qui l'on fait confiance, et pour quoi.",
+  "La confiance est un spectre ; autorisation bornée et audit permettent de faire confiance en vérifiant.",
+  "Connaître explicitement les composants implicitement fiables, ce qu'on leur confie et ce qui arriverait s'ils trahissaient.",
+  "La confiance est transitive : un paquet, c'est aussi ses futurs mainteneurs ; bloquer les scripts d'installation rend la confiance explicite.",
+  "Refuser la confiance déplace le problème ; même les entrées fiables méritent un contrôle peu coûteux.",
+  "Zero trust supprime la confiance implicite liée au réseau, pas les décisions de confiance.",
+  "Novafact doit montrer, pas affirmer, qu'elle est digne de confiance.",
 ]} />
 
 <Sources items={[
-  { title: "Google, Secure by Design at Google", url: "https://research.google/pubs/secure-by-design-at-google/" },
-  { title: "Christoph Kern, Developer Ecosystems for Software Safety (ACM Queue)", url: "https://research.google/pubs/developer-ecosystems-for-software-safety/" },
-  { title: "Netflix, The Show Must Go On: Securing Netflix Studios At Scale (2021)", url: "https://netflixtechblog.com/the-show-must-go-on-securing-netflix-studios-at-scale-19b801c86479", note: "Wall-E" },
-  { title: "Prisma, requêtes SQL brutes", url: "https://www.prisma.io/docs/orm/prisma-client/using-raw-sql/raw-queries" },
-  { title: "ESLint, règle no-restricted-properties", url: "https://eslint.org/docs/latest/rules/no-restricted-properties" },
-  { title: "OWASP DevSecOps Guideline", url: "https://owasp.org/www-project-devsecops-guideline/" },
-  { title: "OWASP DSOMM", url: "https://dsomm.owasp.org/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 1, Trust" },
+  { title: "Snyk : post-mortem de la backdoor event-stream", url: "https://snyk.io/blog/a-post-mortem-of-the-malicious-event-stream-backdoor/" },
+  { title: "pnpm : réglages de build (strictDepBuilds, allowBuilds)", url: "https://pnpm.io/settings" },
+  { title: "NIST SP 800-207 : Zero Trust Architecture", url: "https://csrc.nist.gov/pubs/sp/800/207/final" },
 ]} />

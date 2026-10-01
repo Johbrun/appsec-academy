@@ -1,4 +1,4 @@
-// M12 · Revue de code sécurité — challenges spécifiés.
+// m12 · Revue de code sécurité — challenges spécifiés.
 //
 // Limite assumée : l'audit ciblé et limité dans le temps (m12/l07) se note sur
 // son résultat, jamais sur la stratégie. Et la qualité d'un commentaire de

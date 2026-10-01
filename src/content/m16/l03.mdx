@@ -19,7 +19,7 @@ export const questions = [
       "Elle est accordée pour la durée du sprint, le temps de corriger au sprint suivant",
     ],
     answer: 0,
-    explain: "Une exception est une acceptation de risque (M1) : sans cible précise, sans propriétaire ni date, elle devient permanente et invisible. La validation par l'AppSec et l'inscription au registre sont nécessaires, mais ne suffisent pas — ce qui manque, c'est que l'exception vive dans le dépôt, à côté du code qu'elle couvre, donc sous les yeux de chaque relecteur. Un `skip` posé dans la configuration du scanner, lui, couvre tout le dépôt et survit à la correction qui l'avait justifié.",
+    explain: "Une exception est une acceptation de risque (M10) : sans cible précise, sans propriétaire ni date, elle devient permanente et invisible. La validation par l'AppSec et l'inscription au registre sont nécessaires, mais ne suffisent pas — ce qui manque, c'est que l'exception vive dans le dépôt, à côté du code qu'elle couvre, donc sous les yeux de chaque relecteur. Un `skip` posé dans la configuration du scanner, lui, couvre tout le dépôt et survit à la correction qui l'avait justifié.",
   },
   {
     q: "Dans Conftest, quelle est la différence entre une règle `warn` et une règle `deny` ?",
@@ -53,9 +53,9 @@ Les scanners de la leçon 2 appliquent les règles de quelqu'un d'autre. Tôt ou
 
 Une règle de politique maison répond à trois besoins que les catalogues des scanners ne couvrent pas :
 
-- **tes conventions** : tags de classification (M7, leçon 5), régions autorisées, nommage qui porte l'environnement ;
-- **tes décisions de sécurité** : aucune politique IAM avec `iam:PassRole` sur `*` (M15, leçon 4), aucune file SQS sans chiffrement KMS géré par Novafact ;
-- **tes leçons apprises** : chaque incident ou finding de pentest sur l'infrastructure devient une règle, comme un template Nuclei côté application (M13).
+- **tes conventions** : tags de classification (M12, leçon 3), régions autorisées, nommage qui porte l'environnement ;
+- **tes décisions de sécurité** : aucune politique IAM avec `iam:PassRole` sur `*` (M19, leçon 4), aucune file SQS sans chiffrement KMS géré par Novafact ;
+- **tes leçons apprises** : chaque incident ou finding de pentest sur l'infrastructure devient une règle, comme un template Nuclei côté application (M17).
 
 Trois familles d'outils coexistent. Le bon choix dépend de ce que tu scannes et de qui écrira les règles.
 
@@ -88,7 +88,7 @@ statements(doc) := [doc.Statement] if is_object(doc.Statement)
 as_array(x) := x if is_array(x)
 as_array(x) := [x] if is_string(x)
 
-# Règle NVF-IAM-01 : jamais de iam:PassRole sur * (M15, leçon 4)
+# Règle NVF-IAM-01 : jamais de iam:PassRole sur * (M19, leçon 4)
 deny contains msg if {
 	some rc in input.resource_changes
 	rc.type in {"aws_iam_policy", "aws_iam_role_policy"}
@@ -101,7 +101,7 @@ deny contains msg if {
 	msg := sprintf("NVF-IAM-01 %s : iam:PassRole sur * interdit", [rc.address])
 }
 
-# Règle NVF-TAG-01 : tout bucket porte une classification connue (M7, leçon 5)
+# Règle NVF-TAG-01 : tout bucket porte une classification connue (M12, leçon 3)
 classifications := {"public", "internal", "confidential", "restricted"}
 
 valid_classification(rc) if rc.change.after.tags_all.classification in classifications
@@ -152,7 +152,7 @@ conftest test tfplan.json --policy policy/terraform --data policy/exceptions.yam
 
 </Code>
 
-Deux limites à connaître. Une valeur **calculée** pendant l'apply (un ARN créé dans le même plan, injecté dans un document de politique) est inconnue au moment du plan : elle apparaît dans `after_unknown`, pas dans `after`, et la règle ne la voit pas. Et une règle Rego ne comprend pas la sémantique IAM comme le fait Access Analyzer (leçon 5 de M15) : pour les politiques IAM, combine les deux.
+Deux limites à connaître. Une valeur **calculée** pendant l'apply (un ARN créé dans le même plan, injecté dans un document de politique) est inconnue au moment du plan : elle apparaît dans `after_unknown`, pas dans `after`, et la règle ne la voit pas. Et une règle Rego ne comprend pas la sémantique IAM comme le fait Access Analyzer (leçon 5 de M19) : pour les politiques IAM, combine les deux.
 
 ### Tester les règles
 
@@ -260,7 +260,7 @@ Rego ou un langage plus simple ? Rego est puissant et transverse (Terraform, Kub
 Une nouvelle règle passe **toujours** par l'avertissement : deux à quatre semaines de mesure, correction de l'existant par les équipes concernées, puis bascule en bloquant annoncée à l'avance.
 
 <Callout kind="novafact">
-Les exceptions de Novafact vivent dans `policy/exceptions.yaml`, protégé par CODEOWNERS (équipe AppSec). Chaque entrée porte un identifiant, la règle, l'adresse exacte de la ressource, un propriétaire, une justification et une date d'expiration (90 jours au plus). À l'échéance, la règle Rego ignore l'entrée et la PR suivante échoue : l'exception doit être renouvelée (et justifiée à nouveau) ou la ressource corrigée. Le fichier est aussi la liste des risques acceptés côté infrastructure, relue chaque trimestre (M1, leçon 7).
+Les exceptions de Novafact vivent dans `policy/exceptions.yaml`, protégé par CODEOWNERS (équipe AppSec). Chaque entrée porte un identifiant, la règle, l'adresse exacte de la ressource, un propriétaire, une justification et une date d'expiration (90 jours au plus). À l'échéance, la règle Rego ignore l'entrée et la PR suivante échoue : l'exception doit être renouvelée (et justifiée à nouveau) ou la ressource corrigée. Le fichier est aussi la liste des risques acceptés côté infrastructure, relue chaque trimestre (M10, leçon 6).
 </Callout>
 
 <Code file="policy/exceptions.yaml">

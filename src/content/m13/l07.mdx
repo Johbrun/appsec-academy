@@ -60,7 +60,7 @@ Le DAST attaque l'application en fonctionnement, sans lire son code. Il a les fo
 | Pages d'erreur bavardes, fichiers exposés, versions visibles | Les chaînes qui demandent plusieurs étapes et du contexte |
 | Régressions de configuration entre deux déploiements | Ce qui n'est pas atteignable sans session ou sans l'état adéquat |
 
-Il ne remplace donc ni la revue (M12) ni le pentest ; il sert de **filet de régression** permanent sur la configuration et les classes de vulnérabilités simples.
+Il ne remplace donc ni la revue (M16) ni le pentest ; il sert de **filet de régression** permanent sur la configuration et les classes de vulnérabilités simples.
 
 ## ZAP, piloté par un plan
 
@@ -115,7 +115,7 @@ Un scan actif **modifie des données** : il crée des factures, remplit des form
 
 ## Le DAST sur environnement éphémère
 
-Chez Novafact, chaque PR déploie un environnement de preview (M14). Le pipeline nocturne, lui, déploie la branche principale dans un environnement jetable, avec une base de données générée (leçon 8), lance ZAP avec deux comptes (un comptable d'Acme, un lecteur de Globex) et publie le SARIF dans GitHub code scanning. Les findings arrivent au même endroit que ceux du SAST, dédoublonnés (leçon 11).
+Chez Novafact, chaque PR déploie un environnement de preview (M18). Le pipeline nocturne, lui, déploie la branche principale dans un environnement jetable, avec une base de données générée (leçon 8), lance ZAP avec deux comptes (un comptable d'Acme, un lecteur de Globex) et publie le SARIF dans GitHub code scanning. Les findings arrivent au même endroit que ceux du SAST, dédoublonnés (leçon 11).
 
 L'astuce des **deux tenants** : même sans comprendre les règles métier, un scanner peut rejouer les requêtes du premier compte avec la session du second. Les extensions d'autorisation de Burp (Autorize) ou de ZAP (Access Control Testing) exploitent ce principe. C'est grossier mais efficace pour détecter des BOLA évidentes.
 
@@ -172,10 +172,10 @@ TruffleHog a une particularité utile : il **vérifie** si un secret trouvé est
 Un secret poussé, même une seconde, même dans un dépôt privé, est **compromis** : il existe dans les clones, les forks, les caches CI, les sauvegardes, et peut-être dans les données d'un outil tiers. Supprimer le commit ne sert à rien.
 
 <Steps items={[
-  { title: "Révoquer", text: "Désactiver le secret chez le fournisseur et en émettre un nouveau, stocké dans le gestionnaire de secrets (M17)." },
+  { title: "Révoquer", text: "Désactiver le secret chez le fournisseur et en émettre un nouveau, stocké dans le gestionnaire de secrets (M21)." },
   { title: "Enquêter", text: "Qu'a fait ce secret depuis son exposition ? CloudTrail pour une clé AWS, journaux d'audit du fournisseur pour une clé d'API." },
   { title: "Nettoyer", text: "Réécrire l'historique si le dépôt est public ou partagé, surtout pour éviter les fausses alertes futures ; c'est secondaire." },
-  { title: "Prévenir", text: "Pourquoi un secret long terme existait-il ? L'OIDC (M14) ou les rôles IAM (M15) le rendent souvent inutile." },
+  { title: "Prévenir", text: "Pourquoi un secret long terme existait-il ? L'OIDC (M18) ou les rôles IAM (M19) le rendent souvent inutile." },
 ]} />
 
 <Lab id="wrongsecrets" />

@@ -52,7 +52,7 @@ export const library: SourceGroup[] = [
     ],
   },
   {
-    id: 'recherche', title: 'PortSwigger et recherche web', lead: 'Pour les sujets avancés du module 3.',
+    id: 'recherche', title: 'PortSwigger et recherche web', lead: 'Pour les sujets avancés du module 9.',
     items: [
       { title: 'Web Security Academy, tous les sujets', url: 'https://portswigger.net/web-security/all-topics', modules: ['m03'] },
       { title: 'PortSwigger Research', url: 'https://portswigger.net/research', modules: ['m03'] },

@@ -50,37 +50,167 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       explain: 'Chaque référentiel répond à une question différente. SSDF sert à répondre au client, SAMM à piloter le programme, le Top 10 à sensibiliser — seul ASVS donne des exigences qu’on peut citer dans un ticket.',
     },
     {
-      q: 'Quelle métrique reflète le mieux l’effet d’un programme AppSec ?',
+      q: 'Le Gold Standard demande trois choses de chaque opération sensible. Laquelle oublie-t-on le plus ?',
       options: [
-        'Le nombre de vulnérabilités découvertes par trimestre',
-        'Le taux de couverture du SAST sur les dépôts de l’organisation',
-        'Le délai de correction des critiques réellement exposées',
-        'Le nombre de développeurs formés à la sécurité applicative',
+        'L’authentification, qui vérifie qui appelle',
+        'L’autorisation, qui vérifie ce qu’il a le droit de faire',
+        'L’audit, qui garde la trace de ce qui a été fait',
+        'Le chiffrement, qui protège la donnée en transit',
       ],
       answer: 2,
-      explain: 'Les trois autres mesurent l’activité, pas le résultat — et elles montent quand on outille davantage, même si rien ne s’améliore. Un délai de correction se dégrade honnêtement quand ça va mal.',
+      explain: 'C’est celle dont l’absence ne se voit jamais en test : tout fonctionne. Elle ne manque qu’au moment où l’on cherche à répondre à « qui a fait ça », et il est alors trop tard. Le chiffrement ne fait pas partie du Gold Standard.',
     },
     {
-      q: 'Une équipe veut livrer avec une BOLA connue. Qui décide ?',
+      q: 'Novafact intègre un widget de chat tiers chargé dans toutes les pages. Quelle question pose le principe de confiance ?',
       options: [
-        'La sécurité, qui est responsable du niveau de risque du produit',
-        'Le propriétaire du risque métier, sur des options chiffrées',
-        'Le comité d’architecture, qui arbitre les écarts techniques',
-        'L’équipe elle-même, qui connaît le mieux son périmètre',
+        'Ce que ce composant peut faire s’il se comporte mal, et comment réduire ce qu’il atteint',
+        'Si l’éditeur du widget a obtenu une certification de sécurité reconnue sur son produit',
+        'Si le widget a été analysé par le SAST de Novafact avant sa mise en production',
+        'Si le contrat engage l’éditeur à notifier toute faille dans un délai court et défini',
       ],
-      answer: 1,
-      explain: 'La sécurité éclaire la décision et ne la prend pas : elle ne porte pas les conséquences commerciales. Décider à la place du métier fait de l’AppSec une porte que le produit apprendra à contourner.',
+      answer: 0,
+      explain: 'Faire confiance, c’est accepter qu’un composant puisse te nuire. La certification et le contrat déplacent la responsabilité sans réduire ce que le script peut faire dans la page, et le SAST ne voit pas un code chargé depuis un autre domaine. La bonne question porte sur le pouvoir réel du composant et sur la façon de le réduire.',
     },
     {
-      q: 'Le Cyber Resilience Act impose une alerte précoce. Quel est le déclencheur ?',
+      q: 'Une équipe fait un pentest complet une semaine avant chaque mise en production. Que lui manque-t-il pour parler de cycle de développement sécurisé ?',
       options: [
-        'La découverte d’une vulnérabilité critique dans le produit',
-        'La publication d’un correctif pour une vulnérabilité connue',
-        'Un incident ayant entraîné une fuite de données personnelles',
-        'Une vulnérabilité activement exploitée dans une version publiée',
+        'Des activités de sécurité aux phases amont : risques, conception, exigences et revue du code',
+        'Un second pentest, mené par un autre prestataire, pour croiser les résultats obtenus',
+        'Un scanner DAST qui rejoue les tests du pentest à chaque déploiement en préproduction',
+        'Une politique qui bloque la mise en production tant qu’un finding critique reste ouvert',
       ],
-      answer: 3,
-      explain: 'Ce n’est ni la gravité ni la découverte qui déclenche : c’est l’exploitation active d’une version mise sur le marché. La fuite de données relève du RGPD, avec ses propres délais.',
+      answer: 0,
+      explain: 'Un SSDLC répartit la sécurité sur tout le cycle : ce qu’on décide en conception coûte moins cher à corriger que ce qu’on découvre la semaine de la livraison. Doubler le pentest, l’automatiser ou en faire une porte améliore la vérification finale sans rien changer aux phases où les défauts naissent.',
+    },
+  ],
+
+  m23: [
+    {
+      q: 'Quel est le meilleur format pour lancer un programme de Security Champions ?',
+      options: [
+        'Un pilote d’un trimestre sur une équipe, avec un objectif mesurable',
+        'Cinq pour cent du temps sur toutes les équipes, dès le mois prochain',
+        'Une formation obligatoire suivie d’une certification interne',
+        'Un référent désigné par équipe, sans temps dédié au départ',
+      ],
+      answer: 0,
+      explain: 'Petit, mesurable, réversible : trois raisons de dire oui, et le chiffre vend le trimestre suivant. Étalé sur quatre équipes, l’effort ne produit d’effet nulle part et l’échec sert d’argument contre le programme.',
+    },
+    {
+      q: 'Une équipe AppSec de trois personnes accompagne 400 développeurs. Quel mode de travail tient à cette échelle ?',
+      options: [
+        'Outiller et former les équipes pour qu’elles traitent seules la majorité des cas',
+        'Relire elle-même chaque pull request qui touche à l’authentification ou aux droits',
+        'Réaliser un pentest interne de chaque application avant chaque mise en production',
+        'Centraliser la correction des vulnérabilités dans un sprint de sécurité par trimestre',
+      ],
+      answer: 0,
+      explain: 'À cette échelle, l’équipe AppSec ne peut pas être sur le chemin de chaque changement : elle rend les équipes capables, avec des outils, une paved road et des champions. Relire chaque PR sensible ou pentester chaque livraison crée une file d’attente ; un sprint trimestriel laisse les défauts vivre des mois.',
+    },
+    {
+      q: 'Un chercheur externe signale une faille dans le SDK publié de Novafact. Quelle fonction prend le signalement en charge ?',
+      options: [
+        'La réponse aux vulnérabilités produit (PSIRT), qui coordonne correctif et divulgation',
+        'Le SOC, qui surveille les alertes de sécurité et déclenche la réponse à incident',
+        'L’équipe juridique, qui évalue d’abord le risque de publication par le chercheur',
+        'Les security champions de l’équipe SDK, qui connaissent le mieux le code concerné',
+      ],
+      answer: 0,
+      explain: 'Un signalement de vulnérabilité dans un produit relève du PSIRT : accuser réception, qualifier, coordonner le correctif et la divulgation et, depuis le 11 septembre 2026, notifier une vulnérabilité activement exploitée (CRA). Le SOC répond aux attaques en cours ; le juridique et les champions interviennent, sans piloter.',
+    },
+  ],
+
+  m24: [
+    {
+      q: 'Une auto-évaluation SAMM donne Novafact au niveau 2 en Security Testing. Qu’est-ce que ce score ne dit pas ?',
+      options: [
+        'Combien de vulnérabilités exploitables sont aujourd’hui en production',
+        'Quelles activités de test sont en place et avec quelle régularité',
+        'Ce qu’il faudrait mettre en place pour atteindre le niveau suivant',
+        'Comment la pratique se compare aux autres pratiques du même modèle',
+      ],
+      answer: 0,
+      explain: 'SAMM mesure des activités et leur régularité : c’est une maturité, pas une posture. Un niveau élevé peut cohabiter avec des failles ouvertes, et l’inverse. Les activités en place, la marche suivante et la comparaison entre pratiques, c’est précisément ce que le modèle décrit.',
+    },
+    {
+      q: 'Ta direction lit dans BSIMM16 une moyenne de 5,6 personnes de l’équipe sécurité logicielle pour 100 développeurs et veut s’aligner. Que réponds-tu ?',
+      options: [
+        'Que cette moyenne est tirée par des cas extrêmes et que la médiane est bien plus basse',
+        'Que BSIMM ne publie que des chiffres déclaratifs et qu’on ne peut pas s’en servir',
+        'Que ce ratio est un plancher recommandé par BSIMM pour atteindre la maturité',
+        'Que le ratio n’a de sens qu’en comptant aussi les security champions des équipes',
+      ],
+      answer: 0,
+      explain: 'BSIMM16 donne 5,63 pour 100 en moyenne, mais une médiane de 1,8, et de 1,13 pour les organisations de 650 développeurs ou plus : quelques valeurs extrêmes tirent la moyenne. BSIMM est descriptif et ne fixe aucun plancher, ses données viennent d’évaluations menées dans les organisations, et il compte les champions à part.',
+    },
+    {
+      q: 'Deux équipes ont le même nombre de vulnérabilités ouvertes. Laquelle est la mieux placée pour la suite ?',
+      options: [
+        'Celle dont les vulnérabilités sont trouvées tôt et corrigées vite, de façon régulière',
+        'Celle dont les vulnérabilités ouvertes ont le score CVSS moyen le plus faible ce mois-ci',
+        'Celle qui a réalisé le plus grand nombre de pentests externes depuis le début de l’année',
+        'Celle qui utilise le plus d’outils d’analyse différents dans son pipeline d’intégration',
+      ],
+      answer: 0,
+      explain: 'Un instantané (la posture) peut être identique ; la capacité à trouver tôt et à corriger vite (la maturité) dit comment l’écart évoluera. Le CVSS moyen du mois, le nombre de pentests ou d’outils mesurent un état ou un effort, pas un processus qui tient dans la durée.',
+    },
+    {
+      q: 'Un tableau de bord de posture agrège les findings de six outils. Quel défaut fausse d’abord ses chiffres ?',
+      options: [
+        'Le même défaut vu par plusieurs outils, compté plusieurs fois faute de dédoublonnage',
+        'Des findings affichés dans un format différent de celui de l’outil qui les a produits',
+        'L’absence d’historique des findings déjà corrigés au cours des trimestres passés',
+        'Le besoin d’un accès en lecture aux dépôts pour relier chaque finding à son équipe',
+      ],
+      answer: 0,
+      explain: 'Un même défaut remonté par le SAST, le SCA et le DAST devient trois lignes : sans dédoublonnage, le tableau mesure le nombre d’outils plus que le risque. L’historique et le lien vers l’équipe sont utiles et le format d’affichage secondaire ; aucun ne fausse le compte.',
+    },
+  ],
+
+  m25: [
+    {
+      q: 'Un utilisateur tape novafact.example pour la première fois. Qu’est-ce qui empêche une interception avant même la première requête HTTPS ?',
+      options: [
+        'La présence du domaine dans la liste HSTS preload intégrée au navigateur',
+        'L’en-tête Strict-Transport-Security renvoyé par la réponse du serveur',
+        'La redirection 301 de HTTP vers HTTPS configurée sur l’équilibreur',
+        'Le certificat TLS, que le navigateur vérifie dès la résolution DNS du nom',
+      ],
+      answer: 0,
+      explain: 'À la première visite, le navigateur ne connaît pas encore l’en-tête HSTS : la première requête part en HTTP et la redirection arrive trop tard, sur un canal déjà interceptable. Seule la liste de préchargement, livrée avec le navigateur, impose HTTPS dès le départ. Le certificat se vérifie pendant la poignée de main TLS, pas à la résolution DNS.',
+    },
+    {
+      q: 'Une page piégée soumet un formulaire POST vers l’API de Novafact. Que bloque la same-origin policy, à elle seule ?',
+      options: [
+        'La lecture de la réponse par la page piégée, pas l’envoi de la requête',
+        'L’envoi de la requête, puisque son origine diffère de celle de l’API',
+        'L’envoi comme la lecture, sauf si l’API répond avec un en-tête CORS permissif',
+        'Rien, car la same-origin policy ne concerne que les iframes et les fenêtres',
+      ],
+      answer: 0,
+      explain: 'La same-origin policy protège la lecture : la requête de formulaire part, avec ses effets côté serveur, mais la page piégée ne voit pas la réponse. C’est pourquoi le CSRF existe malgré elle. CORS assouplit la lecture, il ne bloque pas un envoi que la politique n’empêchait pas ; l’envoi des cookies dépend, lui, de SameSite.',
+    },
+    {
+      q: 'Un client HTTP Node désactive la vérification des certificats pour joindre un service interne. Que perd-on exactement ?',
+      options: [
+        'La preuve que le serveur joint est celui qu’on voulait, donc la protection contre l’interception',
+        'Le chiffrement du trafic, qui passe alors en clair entre le client et le service interne',
+        'La confidentialité persistante, puisque les clés de session deviennent prévisibles',
+        'La compatibilité avec TLS 1.3, qui exige une chaîne de certificats vérifiée',
+      ],
+      answer: 0,
+      explain: 'Le trafic reste chiffré, mais avec n’importe qui : sans vérification de la chaîne et du nom, un intermédiaire présente son propre certificat et lit tout. La confidentialité persistante et la version du protocole ne dépendent pas de cette vérification.',
+    },
+    {
+      q: 'Tu dois prioriser les règles SAST d’une équipe Express. Quelle liste sert le mieux de point de départ ?',
+      options: [
+        'Le CWE Top 25, parce qu’il nomme des faiblesses précises qu’un outil sait chercher',
+        'L’OWASP Top 10, parce que chacune de ses catégories correspond à une règle d’outil',
+        'L’API Security Top 10, parce que l’équipe ne développe qu’une API REST',
+        'Le catalogue KEV de la CISA, parce qu’il recense ce qui est réellement exploité',
+      ],
+      answer: 0,
+      explain: 'Le Top 10 OWASP sert à sensibiliser : ses catégories larges regroupent des dizaines de CWE. Le CWE Top 25 nomme des faiblesses de code, au grain d’une règle. L’API Top 10 guide les tests d’une API plus que le SAST, et KEV liste des vulnérabilités de produits, pas des faiblesses de ton code.',
     },
   ],
 
@@ -142,64 +272,6 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
     },
   ],
 
-  m03: [
-    {
-      q: 'Deux composants délimitent une même requête HTTP différemment. Quel est l’impact ?',
-      options: [
-        'La requête est rejetée par le composant le plus strict',
-        'Des octets sont lus comme le début de la requête d’un autre',
-        'La connexion se bloque jusqu’à expiration du délai d’attente',
-        'Le proxy met en cache une réponse destinée à un autre chemin',
-      ],
-      answer: 1,
-      explain: 'C’est la désynchronisation : le reliquat d’une requête préfixe la suivante, sur une connexion partagée. Le blocage et le rejet sont des symptômes possibles, pas ce qu’on exploite.',
-    },
-    {
-      q: 'Une règle de bordure bloque `/admin`. Une requête arrive sur `/Admin/users` et passe. Pourquoi ?',
-      options: [
-        'Le CDN ne normalise pas le chemin comme le routeur applicatif',
-        'Le routeur applicatif décode le chemin une seconde fois',
-        'Le CDN ne transmet pas l’en-tête qui porte le chemin d’origine',
-        'La règle s’applique après la décision de mise en cache',
-      ],
-      answer: 0,
-      explain: 'Express ignore la casse des routes par défaut, la règle du CDN compare deux chaînes : le même chemin appartient à la route protégée pour l’un et pas pour l’autre. Le double décodage est une autre divergence, sur un autre vecteur.',
-    },
-    {
-      q: 'Une page authentifiée est servie à d’autres utilisateurs depuis le cache. Quelle correction tient ?',
-      options: [
-        'Ramener la durée de conservation en cache à dix secondes',
-        'Ajouter le cookie de session à la clé de cache de la page',
-        'Bloquer à la bordure toute URL de compte suivie d’une extension statique',
-        'Déclarer `private, no-store` sur les réponses authentifiées',
-      ],
-      answer: 3,
-      explain: 'Le cache cesse de deviner ce qui est public à partir d’une extension, et l’origine dit elle-même ce qui ne se stocke pas. Le TTL court laisse une fenêtre, la clé par cookie détruit le taux de succès, la règle de bordure ferme une forme parmi beaucoup.',
-    },
-    {
-      q: 'Cinq requêtes concurrentes passent une vérification « une fois par compte ». Combien de fois au pire ?',
-      options: [
-        'Deux, le temps que la première écriture arrive',
-        'Cinq, autant que de requêtes envoyées ensemble',
-        'Une, la vérification en base fait office de verrou',
-        'Trois, selon l’ordonnancement des instances applicatives',
-      ],
-      answer: 1,
-      explain: 'La vérification lit sans réserver : il n’y a pas de limite structurelle, seulement le nombre de requêtes qu’on place dans la fenêtre. C’est ce que vise l’attaque en paquet unique.',
-    },
-    {
-      q: 'Un filtre anti-SSRF valide l’hôte, et la requête part quand même vers un service interne. Pourquoi ?',
-      options: [
-        'Le filtre n’a pas résolu le nom de domaine avant de comparer',
-        'Le client HTTP suit une redirection après la validation',
-        'Le filtre et le client n’analysent pas l’URL avec le même parser',
-        'La liste blanche contient un domaine que l’attaquant contrôle',
-      ],
-      answer: 2,
-      explain: 'Deux analyseurs d’URL traitent différemment l’arobase et les barres obliques inversées : ce qui est un hôte pour l’un est une information d’identification pour l’autre. La redirection et la course DNS sont d’autres contournements du même filtre.',
-    },
-  ],
-
   m04: [
     {
       q: 'Une CSP est en `Report-Only` depuis dix-huit mois. Quel est le principal problème ?',
@@ -258,134 +330,159 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
     },
   ],
 
-  m05: [
+  m03: [
     {
-      q: 'Deux vulnérabilités ont un score CVSS de 9,8. Qu’est-ce qui doit départager leur priorité ?',
+      q: 'Deux composants délimitent une même requête HTTP différemment. Quel est l’impact ?',
       options: [
-        'La date de publication : la plus ancienne se corrige en premier',
-        'Le nombre de dépôts de l’organisation qui embarquent le composant',
-        'L’exploitation observée et l’atteignabilité du code vulnérable',
-        'La facilité de la mise à jour et le risque de régression associé',
-      ],
-      answer: 2,
-      explain: 'CVSS mesure la gravité intrinsèque, pas le risque : EPSS dit la probabilité d’exploitation, l’analyse d’atteignabilité dit si le chemin existe chez vous. Le coût de correction arbitre ensuite, il ne priorise pas.',
-    },
-    {
-      q: 'À quoi sert un document VEX ?',
-      options: [
-        'À déclarer qu’une vulnérabilité connue n’est pas exploitable chez soi',
-        'À inventorier les composants livrés dans une version du produit',
-        'À publier le correctif et les versions affectées d’un produit',
-        'À prouver la provenance d’un artefact produit par le pipeline',
-      ],
-      answer: 0,
-      explain: 'Le VEX porte une affirmation d’exploitabilité, et c’est ce qui le rend dangereux : il propage une erreur avec autorité si on l’émet sans avoir vérifié. Les trois autres descriptions sont celles du SBOM, de l’avis de sécurité et de l’attestation.',
-    },
-    {
-      q: 'Un SLA de correction est régulièrement dépassé. Quelle réaction est la plus saine ?',
-      options: [
-        'Remonter le dépassement au comité de direction chaque mois',
-        'Allonger le SLA pour qu’il corresponde à la capacité réelle',
-        'Comprendre où le délai se consume avant de toucher au chiffre',
-        'Automatiser les mises à jour pour retirer l’humain de la boucle',
-      ],
-      answer: 2,
-      explain: 'Un SLA dépassé est un symptôme : l’attente est peut-être dans la qualification, la recette ou la fenêtre de déploiement. Allonger ou escalader avant de savoir ne change que le ressenti.',
-    },
-    {
-      q: 'Pourquoi conserver le SBOM de chaque version publiée plutôt que de le générer à la demande ?',
-      options: [
-        'Parce que la génération est trop coûteuse pour être refaite souvent',
-        'Parce que le format évolue et qu’un ancien SBOM reste lisible',
-        'Parce que le règlement impose de le publier avec le produit',
-        'Parce qu’on doit pouvoir dire ce qu’on avait livré à une date passée',
-      ],
-      answer: 3,
-      explain: 'Quand une CVE tombe, la question est « quelle version avions-nous livrée le 3 mars ». Un SBOM régénéré aujourd’hui décrit l’arbre d’aujourd’hui, et cette réponse-là est perdue.',
-    },
-    {
-      q: 'Une CVE critique touche une bibliothèque XML que l’équipe dit ne jamais utiliser. Que fais-tu ?',
-      options: [
-        'Tu enregistres la qualification en VEX et tu la revalides plus tard',
-        'Tu vérifies avec eux les points d’entrée qui reçoivent du XML',
-        'Tu mets à jour quand même, le correctif coûtant peu de temps',
-        'Tu classes la CVE en attente jusqu’à la prochaine revue mensuelle',
+        'La requête est rejetée par le composant le plus strict',
+        'Des octets sont lus comme le début de la requête d’un autre',
+        'La connexion se bloque jusqu’à expiration du délai d’attente',
+        'Le proxy met en cache une réponse destinée à un autre chemin',
       ],
       answer: 1,
-      explain: 'Leur conclusion est une hypothèse testable, et un contre-exemple concret vaut mieux qu’un arbitrage. Patcher systématiquement apprend à l’équipe à ne plus qualifier — ce qu’on veut précisément leur faire faire.',
+      explain: 'C’est la désynchronisation : le reliquat d’une requête préfixe la suivante, sur une connexion partagée. Le blocage et le rejet sont des symptômes possibles, pas ce qu’on exploite.',
+    },
+    {
+      q: 'Une règle de bordure bloque `/admin`. Une requête arrive sur `/Admin/users` et passe. Pourquoi ?',
+      options: [
+        'Le CDN ne normalise pas le chemin comme le routeur applicatif',
+        'Le routeur applicatif décode le chemin une seconde fois',
+        'Le CDN ne transmet pas l’en-tête qui porte le chemin d’origine',
+        'La règle s’applique après la décision de mise en cache',
+      ],
+      answer: 0,
+      explain: 'Express ignore la casse des routes par défaut, la règle du CDN compare deux chaînes : le même chemin appartient à la route protégée pour l’un et pas pour l’autre. Le double décodage est une autre divergence, sur un autre vecteur.',
+    },
+    {
+      q: 'Une page authentifiée est servie à d’autres utilisateurs depuis le cache. Quelle correction tient ?',
+      options: [
+        'Ramener la durée de conservation en cache à dix secondes',
+        'Ajouter le cookie de session à la clé de cache de la page',
+        'Bloquer à la bordure toute URL de compte suivie d’une extension statique',
+        'Déclarer `private, no-store` sur les réponses authentifiées',
+      ],
+      answer: 3,
+      explain: 'Le cache cesse de deviner ce qui est public à partir d’une extension, et l’origine dit elle-même ce qui ne se stocke pas. Le TTL court laisse une fenêtre, la clé par cookie détruit le taux de succès, la règle de bordure ferme une forme parmi beaucoup.',
+    },
+    {
+      q: 'Cinq requêtes concurrentes passent une vérification « une fois par compte ». Combien de fois au pire ?',
+      options: [
+        'Deux, le temps que la première écriture arrive',
+        'Cinq, autant que de requêtes envoyées ensemble',
+        'Une, la vérification en base fait office de verrou',
+        'Trois, selon l’ordonnancement des instances applicatives',
+      ],
+      answer: 1,
+      explain: 'La vérification lit sans réserver : il n’y a pas de limite structurelle, seulement le nombre de requêtes qu’on place dans la fenêtre. C’est ce que vise l’attaque en paquet unique.',
+    },
+    {
+      q: 'Un filtre anti-SSRF valide l’hôte, et la requête part quand même vers un service interne. Pourquoi ?',
+      options: [
+        'Le filtre n’a pas résolu le nom de domaine avant de comparer',
+        'Le client HTTP suit une redirection après la validation',
+        'Le filtre et le client n’analysent pas l’URL avec le même parser',
+        'La liste blanche contient un domaine que l’attaquant contrôle',
+      ],
+      answer: 2,
+      explain: 'Deux analyseurs d’URL traitent différemment l’arobase et les barres obliques inversées : ce qui est un hôte pour l’un est une information d’identification pour l’autre. La redirection et la course DNS sont d’autres contournements du même filtre.',
     },
   ],
 
-  m06: [
+  m26: [
     {
-      q: 'Un lead dev demande de désactiver une règle SAST pour un faux positif, une heure avant une démo. Que fais-tu ?',
+      q: 'Une équipe veut livrer avec une BOLA connue. Qui décide ?',
       options: [
-        'Tu poses l’annotation d’exception avec une échéance à 90 jours',
-        'Tu regardes le code avec lui, puis vous annotez ou vous corrigez',
-        'Tu désactives la règle sur son dépôt et tu la remets après la démo',
-        'Tu maintiens le blocage : les règles existent pour une raison',
+        'La sécurité, qui est responsable du niveau de risque du produit',
+        'Le propriétaire du risque métier, sur des options chiffrées',
+        'Le comité d’architecture, qui arbitre les écarts techniques',
+        'L’équipe elle-même, qui connaît le mieux son périmètre',
       ],
       answer: 1,
-      explain: 'Trente secondes de lecture décident, et débloquent aussi vite dans les deux cas. Signer un faux positif sans l’avoir vu engage ta signature ; désactiver la règle retire le contrôle pour des lignes que tu n’as pas regardées.',
+      explain: 'La sécurité éclaire la décision et ne la prend pas : elle ne porte pas les conséquences commerciales. Décider à la place du métier fait de l’AppSec une porte que le produit apprendra à contourner.',
     },
     {
-      q: 'Quel est le meilleur format pour lancer un programme de Security Champions ?',
+      q: 'Un finding a un score CVSS de base de 9,8. Qu’en déduis-tu sur le risque pour Novafact ?',
       options: [
-        'Un pilote d’un trimestre sur une équipe, avec un objectif mesurable',
-        'Cinq pour cent du temps sur toutes les équipes, dès le mois prochain',
-        'Une formation obligatoire suivie d’une certification interne',
-        'Un référent désigné par équipe, sans temps dédié au départ',
+        'Rien encore : il faut l’exposition, la valeur de l’actif et la menace réelle',
+        'Que le risque est critique et doit passer avant toute autre vulnérabilité',
+        'Que la probabilité d’exploitation est forte, puisque le score dépasse neuf',
+        'Que l’impact métier est maximal, car le score intègre la confidentialité',
       ],
       answer: 0,
-      explain: 'Petit, mesurable, réversible : trois raisons de dire oui, et le chiffre vend le trimestre suivant. Étalé sur quatre équipes, l’effort ne produit d’effet nulle part et l’échec sert d’argument contre le programme.',
+      explain: 'Le guide de CVSS de FIRST le dit : le score de base mesure une sévérité, pas un risque. La probabilité d’exploitation (EPSS, KEV) et l’impact métier (valeur de l’actif, exposition) n’y sont pas ; un 9,8 sur un composant non exposé peut peser moins qu’un 6 sur la page de paiement.',
     },
     {
-      q: 'Qu’est-ce qu’une « paved road » en sécurité applicative ?',
+      q: 'Une matrice 5 × 5 classe deux risques dans la même case « élevé ». Quel est le défaut connu de cet outil ?',
       options: [
-        'Un ensemble de règles obligatoires appliquées par la CI',
-        'Un catalogue de solutions validées, documentées pour les équipes',
-        'Le chemin le plus simple, qui se trouve être le plus sûr',
-        'Une architecture de référence imposée aux nouveaux services',
+        'Elle agrège des risques d’ampleur très différente et peut même inverser leur ordre',
+        'Elle impose de connaître la fréquence exacte de chaque événement avant de classer',
+        'Elle ne sait pas représenter un risque dont l’impact touche plusieurs métiers',
+        'Elle oblige à recalculer tous les risques dès que l’échelle d’impact change',
       ],
-      answer: 2,
-      explain: 'La route pavée ne se décrète pas, elle s’emprunte : si le template sûr demande plus d’effort que le raccourci, personne ne le prend. C’est un problème d’ergonomie avant d’être un problème de politique.',
+      answer: 0,
+      explain: 'Cox (2008) a montré qu’une matrice de risque départage mal les risques et peut noter plus haut un risque quantitativement plus faible. Elle ne demande justement pas de fréquence exacte, c’est ce qui la rend populaire ; un impact multiple se ramène au plus fort, et changer l’échelle impose de reclasser, pas de tout recalculer.',
     },
+  ],
+
+  m11: [
     {
-      q: 'La direction demande « combien de vulnérabilités avons-nous ». Quelle réponse sert le mieux le programme ?',
+      q: 'À quel moment un modèle de menaces perd-il sa valeur ?',
       options: [
-        'Le décompte exact, ventilé par sévérité et par équipe',
-        'Un objectif de zéro critique à six mois, avec un plan associé',
-        'Le délai de correction des critiques exposées, et sa tendance',
-        'La couverture des outils d’analyse sur le parc applicatif',
-      ],
-      answer: 2,
-      explain: 'Un décompte mélange une dépendance de test et une BOLA exposée, et se fait baisser en reclassant des tickets. S’engager sur zéro critique revient à promettre ce qu’une CVE de demain peut démentir.',
-    },
-    {
-      q: 'Une développeuse affirme qu’une XSS est du self-XSS et refuse de corriger. Quelle réponse fait avancer ?',
-      options: [
-        'Rappeler que toute XSS est traitée comme une vulnérabilité réelle',
-        'Montrer que l’absence de protection CSRF en fait une XSS stockée',
-        'Fermer le ticket et le rouvrir si un cas d’exploitation apparaît',
-        'Le classer en faible et le revoir lors du prochain audit annuel',
+        'Quand il n’a pas été relu depuis plus de six mois',
+        'Quand il décrit une architecture qui a changé depuis',
+        'Quand il ne couvre pas toutes les catégories STRIDE',
+        'Quand il n’est pas validé par l’équipe d’architecture',
       ],
       answer: 1,
-      explain: 'Elle a raison sur son finding et tort sur le périmètre : on n’oppose pas une règle, on ajoute le maillon qui manquait — vérifiable en une minute. Traiter toutes les XSS pareil coûte la crédibilité sur les priorités.',
+      explain: 'Un modèle suit l’architecture livrée : corriger un composant rend le modèle faux, et c’est normal. Le vrai risque est la dérive silencieuse, d’où l’intérêt de la détecter automatiquement.',
+    },
+    {
+      q: 'Dans STRIDE, à quel besoin de sécurité le « R » (répudiation) s’oppose-t-il ?',
+      options: [
+        'À la confidentialité des échanges',
+        'À l’intégrité des données stockées et transmises',
+        'À la traçabilité des actions',
+        'À la disponibilité du service',
+      ],
+      answer: 2,
+      explain: 'Chaque lettre de STRIDE est la violation d’une propriété : usurpation contre authentification, altération contre intégrité, répudiation contre traçabilité. C’est ce qui rend la méthode systématique.',
+    },
+    {
+      q: 'Que représente une frontière de confiance sur un diagramme de flux de données ?',
+      options: [
+        'Un endroit où la donnée change de propriétaire',
+        'Un endroit où le niveau de privilège change',
+        'La limite du périmètre couvert par le modèle',
+        'Un point de passage obligé pour tous les flux',
+      ],
+      answer: 1,
+      explain: 'C’est là que les menaces se concentrent, parce que c’est là qu’une donnée cesse d’être contrôlée par celui qui la reçoit. Le périmètre du modèle est autre chose : il se dessine en dehors du diagramme.',
+    },
+    {
+      q: 'À quoi sert MITRE ATT&CK dans un travail de modélisation ?',
+      options: [
+        'À nommer les techniques observées, pour relier modèle et détection',
+        'À classer les vulnérabilités selon leur gravité intrinsèque',
+        'À décrire les faiblesses de conception d’un composant logiciel',
+        'À prioriser les correctifs selon la probabilité d’exploitation',
+      ],
+      answer: 0,
+      explain: 'ATT&CK est un vocabulaire de comportements d’attaquants : il permet de dire « cette menace du modèle correspond à cette détection ». Les faiblesses relèvent de CWE, la priorisation d’EPSS et de SSVC.',
+    },
+    {
+      q: 'Qu’ajoute LINDDUN par rapport à STRIDE ?',
+      options: [
+        'Une couverture des menaces sur la chaîne d’approvisionnement',
+        'Une méthode de cotation quantitative du risque résiduel',
+        'Une analyse des menaces sur la vie privée des personnes',
+        'Un catalogue de contre-mesures associé à chaque menace',
+      ],
+      answer: 2,
+      explain: 'STRIDE regarde la sécurité du système ; LINDDUN regarde ce que le système fait subir aux personnes — liaison, identification, inférence, non-conformité. Deux questions différentes sur le même diagramme.',
     },
   ],
 
   m07: [
-    {
-      q: 'Le Gold Standard demande trois choses de chaque opération sensible. Laquelle oublie-t-on le plus ?',
-      options: [
-        'L’authentification, qui vérifie qui appelle',
-        'L’autorisation, qui vérifie ce qu’il a le droit de faire',
-        'L’audit, qui garde la trace de ce qui a été fait',
-        'Le chiffrement, qui protège la donnée en transit',
-      ],
-      answer: 2,
-      explain: 'C’est celle dont l’absence ne se voit jamais en test : tout fonctionne. Elle ne manque qu’au moment où l’on cherche à répondre à « qui a fait ça », et il est alors trop tard. Le chiffrement ne fait pas partie du Gold Standard.',
-    },
     {
       q: 'Pourquoi vaut-il mieux une énumération fermée qu’une chaîne libre pour classer la sensibilité d’une donnée ?',
       options: [
@@ -603,64 +700,6 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       ],
       answer: 1,
       explain: 'Les trois autres freinent un automate ; la fraude, elle, passe souvent par des actions parfaitement normales en volume et en rythme. Le seuil métier est ce qui distingue une opération légitime d’une opération coûteuse.',
-    },
-  ],
-
-  m11: [
-    {
-      q: 'À quel moment un modèle de menaces perd-il sa valeur ?',
-      options: [
-        'Quand il n’a pas été relu depuis plus de six mois',
-        'Quand il décrit une architecture qui a changé depuis',
-        'Quand il ne couvre pas toutes les catégories STRIDE',
-        'Quand il n’est pas validé par l’équipe d’architecture',
-      ],
-      answer: 1,
-      explain: 'Un modèle suit l’architecture livrée : corriger un composant rend le modèle faux, et c’est normal. Le vrai risque est la dérive silencieuse, d’où l’intérêt de la détecter automatiquement.',
-    },
-    {
-      q: 'Dans STRIDE, à quel besoin de sécurité le « R » (répudiation) s’oppose-t-il ?',
-      options: [
-        'À la confidentialité des échanges',
-        'À l’intégrité des données stockées et transmises',
-        'À la traçabilité des actions',
-        'À la disponibilité du service',
-      ],
-      answer: 2,
-      explain: 'Chaque lettre de STRIDE est la violation d’une propriété : usurpation contre authentification, altération contre intégrité, répudiation contre traçabilité. C’est ce qui rend la méthode systématique.',
-    },
-    {
-      q: 'Que représente une frontière de confiance sur un diagramme de flux de données ?',
-      options: [
-        'Un endroit où la donnée change de propriétaire',
-        'Un endroit où le niveau de privilège change',
-        'La limite du périmètre couvert par le modèle',
-        'Un point de passage obligé pour tous les flux',
-      ],
-      answer: 1,
-      explain: 'C’est là que les menaces se concentrent, parce que c’est là qu’une donnée cesse d’être contrôlée par celui qui la reçoit. Le périmètre du modèle est autre chose : il se dessine en dehors du diagramme.',
-    },
-    {
-      q: 'À quoi sert MITRE ATT&CK dans un travail de modélisation ?',
-      options: [
-        'À nommer les techniques observées, pour relier modèle et détection',
-        'À classer les vulnérabilités selon leur gravité intrinsèque',
-        'À décrire les faiblesses de conception d’un composant logiciel',
-        'À prioriser les correctifs selon la probabilité d’exploitation',
-      ],
-      answer: 0,
-      explain: 'ATT&CK est un vocabulaire de comportements d’attaquants : il permet de dire « cette menace du modèle correspond à cette détection ». Les faiblesses relèvent de CWE, la priorisation d’EPSS et de SSVC.',
-    },
-    {
-      q: 'Qu’ajoute LINDDUN par rapport à STRIDE ?',
-      options: [
-        'Une couverture des menaces sur la chaîne d’approvisionnement',
-        'Une méthode de cotation quantitative du risque résiduel',
-        'Une analyse des menaces sur la vie privée des personnes',
-        'Un catalogue de contre-mesures associé à chaque menace',
-      ],
-      answer: 2,
-      explain: 'STRIDE regarde la sécurité du système ; LINDDUN regarde ce que le système fait subir aux personnes — liaison, identification, inférence, non-conformité. Deux questions différentes sur le même diagramme.',
     },
   ],
 
@@ -1025,6 +1064,31 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       explain: 'Sans champs communs, une règle doit être réécrite pour chaque source, et une corrélation devient impossible. La normalisation est ce qui rend la détection transposable.',
     },
     {
+      q: 'Douze requêtes saturent trois instances. Qu’est-ce que cela indique ?',
+      options: [
+        'Un déni de service distribué de faible volume',
+        'Une fuite de mémoire déclenchée par une entrée particulière',
+        'Un coût unitaire de requête anormalement élevé',
+        'Une défaillance du répartiteur de charge en amont',
+      ],
+      answer: 2,
+      explain: 'Ce n’est pas le volume qui fait le déni de service, c’est le prix d’une requête — ici probablement un motif à retour arrière catastrophique. Une boucle d’événements bloquée avec un tas stable écarte la fuite mémoire.',
+    },
+    {
+      q: 'Un développeur journalise le corps complet des requêtes de connexion pour faciliter le débogage. Quel est le problème principal ?',
+      options: [
+        'Les mots de passe se retrouvent dans les journaux, lisibles par bien plus de monde',
+        'Le volume des journaux explose et le coût du SIEM devient difficile à justifier',
+        'Les journaux ne sont plus au format ECS et les règles de détection ne les lisent plus',
+        'Le temps de réponse de l’API augmente à cause de l’écriture synchrone des journaux',
+      ],
+      answer: 0,
+      explain: 'Un journal est copié, indexé, exporté et lu par des équipes qui n’ont aucun besoin des secrets : y écrire des mots de passe en fait une seconde base d’identifiants, moins protégée. Le volume, le format et la latence sont de vrais sujets, mais se corrigent ; une fuite d’identifiants, non.',
+    },
+  ],
+
+  m28: [
+    {
       q: 'Qu’est-ce qu’un honeytoken apporte qu’une règle de détection classique n’apporte pas ?',
       options: [
         'Une alerte sans faux positif, puisque rien de légitime n’y touche',
@@ -1057,16 +1121,63 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       answer: 1,
       explain: 'C’est la métrique qui dit si la détection sert à quelque chose : elle se compte en semaines dans la plupart des incidents, et l’absence de signalement client n’en est pas une preuve.',
     },
+  ],
+
+  m05: [
     {
-      q: 'Douze requêtes saturent trois instances. Qu’est-ce que cela indique ?',
+      q: 'Deux vulnérabilités ont un score CVSS de 9,8. Qu’est-ce qui doit départager leur priorité ?',
       options: [
-        'Un déni de service distribué de faible volume',
-        'Une fuite de mémoire déclenchée par une entrée particulière',
-        'Un coût unitaire de requête anormalement élevé',
-        'Une défaillance du répartiteur de charge en amont',
+        'La date de publication : la plus ancienne se corrige en premier',
+        'Le nombre de dépôts de l’organisation qui embarquent le composant',
+        'L’exploitation observée et l’atteignabilité du code vulnérable',
+        'La facilité de la mise à jour et le risque de régression associé',
       ],
       answer: 2,
-      explain: 'Ce n’est pas le volume qui fait le déni de service, c’est le prix d’une requête — ici probablement un motif à retour arrière catastrophique. Une boucle d’événements bloquée avec un tas stable écarte la fuite mémoire.',
+      explain: 'CVSS mesure la gravité intrinsèque, pas le risque : EPSS dit la probabilité d’exploitation, l’analyse d’atteignabilité dit si le chemin existe chez vous. Le coût de correction arbitre ensuite, il ne priorise pas.',
+    },
+    {
+      q: 'À quoi sert un document VEX ?',
+      options: [
+        'À déclarer qu’une vulnérabilité connue n’est pas exploitable chez soi',
+        'À inventorier les composants livrés dans une version du produit',
+        'À publier le correctif et les versions affectées d’un produit',
+        'À prouver la provenance d’un artefact produit par le pipeline',
+      ],
+      answer: 0,
+      explain: 'Le VEX porte une affirmation d’exploitabilité, et c’est ce qui le rend dangereux : il propage une erreur avec autorité si on l’émet sans avoir vérifié. Les trois autres descriptions sont celles du SBOM, de l’avis de sécurité et de l’attestation.',
+    },
+    {
+      q: 'Un SLA de correction est régulièrement dépassé. Quelle réaction est la plus saine ?',
+      options: [
+        'Remonter le dépassement au comité de direction chaque mois',
+        'Allonger le SLA pour qu’il corresponde à la capacité réelle',
+        'Comprendre où le délai se consume avant de toucher au chiffre',
+        'Automatiser les mises à jour pour retirer l’humain de la boucle',
+      ],
+      answer: 2,
+      explain: 'Un SLA dépassé est un symptôme : l’attente est peut-être dans la qualification, la recette ou la fenêtre de déploiement. Allonger ou escalader avant de savoir ne change que le ressenti.',
+    },
+    {
+      q: 'Pourquoi conserver le SBOM de chaque version publiée plutôt que de le générer à la demande ?',
+      options: [
+        'Parce que la génération est trop coûteuse pour être refaite souvent',
+        'Parce que le format évolue et qu’un ancien SBOM reste lisible',
+        'Parce que le règlement impose de le publier avec le produit',
+        'Parce qu’on doit pouvoir dire ce qu’on avait livré à une date passée',
+      ],
+      answer: 3,
+      explain: 'Quand une CVE tombe, la question est « quelle version avions-nous livrée le 3 mars ». Un SBOM régénéré aujourd’hui décrit l’arbre d’aujourd’hui, et cette réponse-là est perdue.',
+    },
+    {
+      q: 'Une CVE critique touche une bibliothèque XML que l’équipe dit ne jamais utiliser. Que fais-tu ?',
+      options: [
+        'Tu enregistres la qualification en VEX et tu la revalides plus tard',
+        'Tu vérifies avec eux les points d’entrée qui reçoivent du XML',
+        'Tu mets à jour quand même, le correctif coûtant peu de temps',
+        'Tu classes la CVE en attente jusqu’à la prochaine revue mensuelle',
+      ],
+      answer: 1,
+      explain: 'Leur conclusion est une hypothèse testable, et un contre-exemple concret vaut mieux qu’un arbitrage. Patcher systématiquement apprend à l’équipe à ne plus qualifier — ce qu’on veut précisément leur faire faire.',
     },
   ],
 
@@ -1094,17 +1205,6 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       explain: 'Les trois autres sont probabilistes : un délimiteur se referme, un filtre se contourne par encodage, un vérificateur se trompe. Seule la réduction du rayon d’action ne dépend pas de la réussite du modèle.',
     },
     {
-      q: 'Un agent dispose d’un outil de remboursement. Quel contrôle est proportionné ?',
-      options: [
-        'Interdire l’outil et traiter les remboursements manuellement',
-        'Exiger une confirmation humaine avant l’exécution de l’action',
-        'Limiter le nombre d’appels à l’outil par conversation',
-        'Journaliser chaque appel pour analyse a posteriori',
-      ],
-      answer: 1,
-      explain: 'Interdire rend l’outil inutile ; compter les appels et journaliser ne bloquent pas le premier remboursement frauduleux. La confirmation place un humain là où l’action devient irréversible.',
-    },
-    {
       q: 'Qu’est-ce que l’empoisonnement d’un index RAG ?',
       options: [
         'L’insertion de documents qui orientent les réponses du système',
@@ -1125,6 +1225,125 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       ],
       answer: 1,
       explain: 'Une sortie de modèle est une entrée utilisateur comme une autre : la traiter comme du contenu de confiance produit une XSS, et une image en Markdown suffit à exfiltrer vers un domaine externe.',
+    },
+  ],
+
+  m30: [
+    {
+      q: 'Un agent dispose d’un outil de remboursement. Quel contrôle est proportionné ?',
+      options: [
+        'Interdire l’outil et traiter les remboursements manuellement',
+        'Exiger une confirmation humaine avant l’exécution de l’action',
+        'Limiter le nombre d’appels à l’outil par conversation',
+        'Journaliser chaque appel pour analyse a posteriori',
+      ],
+      answer: 1,
+      explain: 'Interdire rend l’outil inutile ; compter les appels et journaliser ne bloquent pas le premier remboursement frauduleux. La confirmation place un humain là où l’action devient irréversible.',
+    },
+    {
+      q: 'Un serveur MCP tiers déjà approuvé modifie la description d’un de ses outils. Pourquoi est-ce un risque, même si le code de l’outil ne change pas ?',
+      options: [
+        'La description est lue par le modèle et peut lui donner des instructions cachées',
+        'La description modifiée invalide la signature du paquet installé par l’hôte',
+        'Le client MCP doit alors renégocier la session et perd l’historique de l’agent',
+        'L’utilisateur reçoit une nouvelle demande d’approbation qu’il risque de refuser',
+      ],
+      answer: 0,
+      explain: 'Le modèle lit les descriptions d’outils comme du contexte : une description changée après approbation (rug pull) peut lui ordonner de lire ou d’envoyer des données sans qu’aucune ligne de code ne bouge. Rien n’oblige un client à redemander l’approbation, et la révision 2026-07-28 de la spécification n’a plus de session au niveau du protocole.',
+    },
+    {
+      q: 'Un serveur MCP reçoit un jeton d’accès de l’utilisateur et doit appeler l’API GitHub. Que fait-il du jeton reçu ?',
+      options: [
+        'Il vérifie qu’il lui est destiné, puis obtient un jeton distinct pour appeler GitHub',
+        'Il le transmet tel quel à GitHub, qui vérifiera lui-même sa validité et ses droits',
+        'Il l’échange contre un jeton GitHub de même durée, signé avec sa propre clé',
+        'Il le stocke chiffré et le réutilise pour les appels suivants de cet utilisateur',
+      ],
+      answer: 0,
+      explain: 'La spécification MCP interdit le token passthrough : le serveur vérifie l’audience et n’accepte que les jetons émis pour lui ; pour l’API en aval, il agit comme un client OAuth distinct, avec son propre jeton. Relayer le jeton brouille les journaux et contourne les contrôles de l’aval, et un serveur MCP ne peut pas signer un jeton GitHub.',
+    },
+  ],
+
+  m06: [
+    {
+      q: 'Un lead dev demande de désactiver une règle SAST pour un faux positif, une heure avant une démo. Que fais-tu ?',
+      options: [
+        'Tu poses l’annotation d’exception avec une échéance à 90 jours',
+        'Tu regardes le code avec lui, puis vous annotez ou vous corrigez',
+        'Tu désactives la règle sur son dépôt et tu la remets après la démo',
+        'Tu maintiens le blocage : les règles existent pour une raison',
+      ],
+      answer: 1,
+      explain: 'Trente secondes de lecture décident, et débloquent aussi vite dans les deux cas. Signer un faux positif sans l’avoir vu engage ta signature ; désactiver la règle retire le contrôle pour des lignes que tu n’as pas regardées.',
+    },
+    {
+      q: 'Qu’est-ce qu’une « paved road » en sécurité applicative ?',
+      options: [
+        'Un ensemble de règles obligatoires appliquées par la CI',
+        'Un catalogue de solutions validées, documentées pour les équipes',
+        'Le chemin le plus simple, qui se trouve être le plus sûr',
+        'Une architecture de référence imposée aux nouveaux services',
+      ],
+      answer: 2,
+      explain: 'La route pavée ne se décrète pas, elle s’emprunte : si le template sûr demande plus d’effort que le raccourci, personne ne le prend. C’est un problème d’ergonomie avant d’être un problème de politique.',
+    },
+    {
+      q: 'La direction demande « combien de vulnérabilités avons-nous ». Quelle réponse sert le mieux le programme ?',
+      options: [
+        'Le décompte exact, ventilé par sévérité et par équipe',
+        'Un objectif de zéro critique à six mois, avec un plan associé',
+        'Le délai de correction des critiques exposées, et sa tendance',
+        'La couverture des outils d’analyse sur le parc applicatif',
+      ],
+      answer: 2,
+      explain: 'Un décompte mélange une dépendance de test et une BOLA exposée, et se fait baisser en reclassant des tickets. S’engager sur zéro critique revient à promettre ce qu’une CVE de demain peut démentir.',
+    },
+    {
+      q: 'Une développeuse affirme qu’une XSS est du self-XSS et refuse de corriger. Quelle réponse fait avancer ?',
+      options: [
+        'Rappeler que toute XSS est traitée comme une vulnérabilité réelle',
+        'Montrer que l’absence de protection CSRF en fait une XSS stockée',
+        'Fermer le ticket et le rouvrir si un cas d’exploitation apparaît',
+        'Le classer en faible et le revoir lors du prochain audit annuel',
+      ],
+      answer: 1,
+      explain: 'Elle a raison sur son finding et tort sur le périmètre : on n’oppose pas une règle, on ajoute le maillon qui manquait — vérifiable en une minute. Traiter toutes les XSS pareil coûte la crédibilité sur les priorités.',
+    },
+  ],
+
+  m32: [
+    {
+      q: 'Quelle métrique reflète le mieux l’effet d’un programme AppSec ?',
+      options: [
+        'Le nombre de vulnérabilités découvertes par trimestre',
+        'Le taux de couverture du SAST sur les dépôts de l’organisation',
+        'Le délai de correction des critiques réellement exposées',
+        'Le nombre de développeurs formés à la sécurité applicative',
+      ],
+      answer: 2,
+      explain: 'Les trois autres mesurent l’activité, pas le résultat — et elles montent quand on outille davantage, même si rien ne s’améliore. Un délai de correction se dégrade honnêtement quand ça va mal.',
+    },
+    {
+      q: 'Le Cyber Resilience Act impose une alerte précoce. Quel est le déclencheur ?',
+      options: [
+        'La découverte d’une vulnérabilité critique dans le produit',
+        'La publication d’un correctif pour une vulnérabilité connue',
+        'Un incident ayant entraîné une fuite de données personnelles',
+        'Une vulnérabilité activement exploitée dans une version publiée',
+      ],
+      answer: 3,
+      explain: 'Ce n’est ni la gravité ni la découverte qui déclenche : c’est l’exploitation active d’une version mise sur le marché. La fuite de données relève du RGPD, avec ses propres délais.',
+    },
+    {
+      q: 'Une équipe demande une exception pour livrer malgré un finding élevé. Qu’est-ce qui rend l’exception acceptable ?',
+      options: [
+        'Un propriétaire du risque nommé, une date d’expiration et une mesure compensatoire',
+        'L’accord écrit du lead dev de l’équipe qui porte la fonctionnalité à livrer',
+        'Une note CVSS environnementale recalculée qui ramène le finding au niveau moyen',
+        'L’ajout du finding au backlog de l’équipe avec une priorité haute et un ticket',
+      ],
+      answer: 0,
+      explain: 'Une exception est une acceptation de risque temporaire : sans propriétaire au bon niveau, sans échéance et sans compensation, elle devient permanente. L’accord du lead dev n’est pas celui de qui porte le risque, un recalcul de score change l’étiquette et pas l’exposition, et un ticket sans date reste un ticket.',
     },
   ],
 

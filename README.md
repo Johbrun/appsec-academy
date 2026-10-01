@@ -1,6 +1,6 @@
 # AppSec Academy
 
-Parcours complet de sécurité applicative pour l'écosystème JavaScript et AWS : 20 modules, jeux pédagogiques, labs reconnus, progression et badges. Même design que l'ATT&CK SaaS Academy.
+Parcours complet de sécurité applicative pour l'écosystème JavaScript et AWS : des blocs qui suivent le cycle de développement sécurisé, jeux pédagogiques, labs reconnus, progression et badges. Même design que l'ATT&CK SaaS Academy.
 
 C'est un **monolithe** : un serveur Express sert le site, gère les comptes et enregistre la progression dans SQLite. Les étudiants ont un compte, les enseignants suivent leurs promos.
 
@@ -24,7 +24,7 @@ npx vite build && npm start      # http://127.0.0.1:4300
 ## Contenu
 
 - `PROGRAMME.md` : le programme complet (modules, leçons, jeux, sources, grille CSSLP, intégration Kohnfelder et PortSwigger).
-- `src/data/catalog.ts` : les 20 modules et leurs leçons (titre, niveau, domaines CSSLP). Source de vérité du parcours.
+- `src/data/catalog.ts` : les blocs, les modules et leurs leçons (titre, niveau, domaines CSSLP). Source de vérité du parcours.
 - `src/content/<module>/<leçon>.mdx` : le texte des leçons. Une leçon sans fichier s'affiche « en rédaction ».
 - `src/data/games.ts` et `src/data/game-*.ts` : la liste des jeux et leurs scénarios.
 
@@ -81,15 +81,15 @@ Les blocs de code passent toujours par des blocs Markdown (MDX supprime l'indent
 ## Le lab
 
 `lab/` contient Novafact rendue exécutable et volontairement vulnérable — même stack que le site. 17 exercices
-sur M2, M3, M4, M10 et M19.
+sur M7, M9, M8, M15 et M27.
 
 ```bash
 cd lab && npm install && npm run dev   # http://127.0.0.1:5199
 ```
 
-Les 74 challenges jouables sont dans [`lab/CHALLENGES.md`](lab/CHALLENGES.md) et les 221 spécifiés dans
-[`lab/ROADMAP.md`](lab/ROADMAP.md), chacun relié aux leçons qui le traitent — 158 des 162 leçons du parcours
-sont couvertes. Un exercice se valide quand le serveur constate lui-même la violation d'invariant. Vient ensuite le vrai
+Les challenges jouables sont dans [`lab/CHALLENGES.md`](lab/CHALLENGES.md) et ceux qui sont spécifiés dans
+[`lab/ROADMAP.md`](lab/ROADMAP.md), chacun relié aux leçons qui le traitent ; les décomptes à jour sont en tête de
+CHALLENGES.md, qui est généré. Un exercice se valide quand le serveur constate lui-même la violation d'invariant. Vient ensuite le vrai
 travail : corriger, puis `npm run verify`, qui exige que l'attaque échoue **et** que la fonctionnalité légitime
 marche encore. Le lab ne tourne que sur la boucle locale et refuse de démarrer en production.
 

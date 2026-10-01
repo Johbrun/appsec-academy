@@ -1,0 +1,157 @@
+export const questions = [
+  {
+    q: "Quel est le principe d'une attaque par signature wrapping (XSW) en SAML ?",
+    options: [
+      "Rejouer une assertion valide avant l'expiration de sa fenêtre NotOnOrAfter",
+      "Remplacer le certificat du KeyInfo par celui de l'attaquant dans la réponse",
+      "Exploiter une entité XML externe pour lire un fichier du serveur d'authentification",
+      "Faire vérifier la signature sur un élément, et lire l'identité dans un autre",
+    ],
+    answer: 3,
+    explain: "La signature reste mathématiquement valide : elle porte sur un élément que l'attaquant a conservé, pendant que le code d'extraction lit une assertion qu'il a ajoutée ailleurs dans l'arbre. C'est une divergence entre deux parcours du même document, pas un problème de cryptographie — d'où l'inutilité de toute vérification supplémentaire de la signature elle-même. Substituer le certificat du KeyInfo est une attaque réelle et distincte, qui ne marche que si l'application fait confiance au certificat inclus dans le message.",
+  },
+  {
+    q: "Quelle règle d'implémentation protège le mieux une application Node qui consomme du SAML ?",
+    options: [
+      "Réextraire les attributs du XML après validation, pour ne rien manquer",
+      "Utiliser une bibliothèque à jour et ne lire que le résultat qu'elle a vérifié",
+      "Vérifier la signature de la réponse, ce qui couvre l'assertion qu'elle contient",
+      "Valider le document contre le schéma XSD de SAML avant toute lecture",
+    ],
+    answer: 1,
+    explain: "Chaque réanalyse maison est un nouveau parser, donc une nouvelle occasion de diverger de celui qui a validé la signature : c'est exactement le terrain du signature wrapping. Croire que la signature de la réponse couvre l'assertion est l'autre piège classique — une assertion non signée peut être glissée dans une réponse signée si l'on ne vérifie pas laquelle des deux porte la signature. La validation XSD n'y change rien : le document forgé reste conforme au schéma.",
+  },
+  {
+    q: "Pourquoi régler validateInResponseTo sur always dans @node-saml/node-saml ?",
+    options: [
+      "Pour vérifier que l'assertion désigne bien Novafact comme destinataire",
+      "Pour refuser une réponse dont la fenêtre NotOnOrAfter est dépassée",
+      "Pour n'accepter qu'une réponse qui répond à une demande encore en attente",
+      "Pour s'assurer que l'IdP émetteur est bien celui configuré pour ce tenant",
+    ],
+    answer: 2,
+    explain: "La valeur par défaut est never, et la bibliothèque avertit qu'une réponse peut alors être rejouée ou livrée sans qu'aucune demande n'ait été émise. Avec always, l'InResponseTo doit correspondre à une requête émise par Novafact, et l'identifiant est consommé une seule fois. Les contrôles de destinataire, de validité et d'émetteur existent et sont indispensables, mais chacun répond à une autre question : aucun ne dit que cette réponse-ci a été sollicitée.",
+  },
+  {
+    q: "L'IdP d'un client annonce la rotation de son certificat de signature dans deux semaines. Comment l'absorber sans coupure ?",
+    options: [
+      "Faire confiance au certificat présent dans le KeyInfo de chaque réponse",
+      "Configurer les deux certificats pour ce tenant, puis retirer l'ancien après bascule",
+      "Recharger les métadonnées de l'IdP à chaque authentification entrante",
+      "Planifier une fenêtre de maintenance et basculer le certificat à l'heure dite",
+    ],
+    answer: 1,
+    explain: "idpCert accepte une liste : on ajoute le nouveau certificat avant la bascule, on retire l'ancien après, et personne ne voit rien. Faire confiance au KeyInfo du message revient à laisser l'attaquant choisir la clé qui valide sa propre signature. Recharger les métadonnées à chaque authentification paraît élégant, mais cela place la confiance dans une URL joignable à tout moment, sans contrôle humain sur ce qui change, et rend l'authentification dépendante de la disponibilité de l'IdP.",
+  },
+];
+
+<YouKnow>
+Tu as peut-être déjà exploité du signature wrapping ou des commentaires XML dans des assertions. SAML reste incontournable pour le SSO entreprise ; cette leçon dit comment l'intégrer sans y laisser de porte.
+</YouKnow>
+
+## Pourquoi SAML reste là
+
+Les grands comptes de Novafact exigent le **SSO** avec leur fournisseur d'identité, souvent en **SAML 2.0**. Le protocole repose sur des assertions XML signées avec **XML-DSig** : un terrain notoirement difficile, parce que vérifier une signature XML et lire le document sont deux opérations distinctes, souvent faites par des parsers différents.
+
+Le flux le plus sûr est celui **initié par le fournisseur de service** (SP-initiated) : Novafact émet une demande d'authentification (`AuthnRequest`) avec un identifiant, l'IdP du client authentifie l'utilisateur, puis le navigateur poste la réponse signée sur le point de consommation d'assertions (ACS) de Novafact, qui vérifie qu'elle répond bien à **sa** demande (`InResponseTo`). Le flux **initié par l'IdP** envoie une réponse que personne n'a demandée : rien ne la relie à une session du navigateur, ce qui facilite le rejeu et l'injection d'une réponse dans la session d'une victime.
+
+## Pourquoi XML-DSig est si fragile
+
+Une signature XML ne signe pas « le document » : elle référence un élément par son identifiant, applique des transformations (dont la **canonicalisation**, qui normalise le XML et supprime notamment les commentaires), calcule une empreinte, puis signe le bloc qui contient ces empreintes. L'application, elle, cherche l'élément qui l'intéresse (l'assertion, le `NameID`) avec sa propre logique. Chaque écart entre ces deux regards est une faille potentielle :
+
+- **Signature wrapping** : l'élément signé est déplacé ou dupliqué, et l'application lit une copie non signée ajoutée par l'attaquant.
+- **Commentaires et canonicalisation** : la signature est calculée sans les commentaires, mais le code qui extrait le texte d'un nœud s'arrête au premier commentaire. Un `NameID` signé pour un compte peut alors être lu comme un autre.
+- **Divergences de parsers** : deux parsers XML qui ne construisent pas le même arbre à partir des mêmes octets (entités, espaces de noms, `DOCTYPE`) font vérifier un document et lire un autre.
+
+## Une série qui ne s'arrête pas
+
+| Recherche | Ce qu'elle a montré |
+| --- | --- |
+| **Duo Labs** (2018) | Des commentaires dans le `NameID` tronquaient l'identité lue par plusieurs bibliothèques (python-saml, ruby-saml, saml2-js, OmniAuth-SAML, Shibboleth) sans invalider la signature |
+| **ruby-saml** (2024-2025) | Plusieurs contournements critiques ; en mars 2025, GitHub Security Lab publie CVE-2025-25291 et CVE-2025-25292, dus aux divergences entre REXML et Nokogiri (corrigés en 1.12.4 et 1.18.0) |
+| **SAMLStorm** (WorkOS, mars 2025, CVE-2025-29775) | `xml-crypto`, au cœur de la plupart des bibliothèques SAML de Node, acceptait un document modifié grâce à un commentaire dans `DigestValue`. Corrigée en 6.0.1 (et 3.2.1, 2.1.6) |
+| *SAML roulette* et *The Fragile Lock* (PortSwigger, 2025) | De nouvelles classes de signature wrapping ; les correctifs incrémentaux ne suffisent pas quand l'architecture repose sur deux parsers |
+
+La leçon d'architecture est celle de M9 : **une seule analyse**, et on lit ce qui a été vérifié. Et côté exploitation, une conséquence pratique : ces failles se corrigent par **mise à jour de dépendance**, souvent transitive (`xml-crypto` sous `@node-saml/node-saml`), d'où l'importance de la SCA (M17) et d'une capacité à déployer vite (M13, leçon 4).
+
+## Intégrer SAML dans Node
+
+<Code file="apps/bff/src/auth/saml.ts" hl="8,9,14">
+
+```ts
+import { SAML, ValidateInResponseTo } from '@node-saml/node-saml';
+
+export const samlFor = (tenant: TenantSsoConfig) => new SAML({
+  issuer: 'https://app.novafact.example/saml/metadata',        // l'entité Novafact
+  callbackUrl: `https://app.novafact.example/saml/acs/${tenant.id}`,
+  entryPoint: tenant.idpSsoUrl,
+  idpCert: tenant.idpCertificates,                             // un ou deux certificats, configurés par tenant
+  wantAssertionsSigned: true,                                  // l'assertion elle-même doit être signée
+  wantAuthnResponseSigned: true,
+  audience: 'https://app.novafact.example/saml/metadata',
+  acceptedClockSkewMs: 60_000,
+  maxAssertionAgeMs: 5 * 60_000,
+  validateInResponseTo: ValidateInResponseTo.always,            // défaut : never
+  cacheProvider: redisRequestIdCache,                          // identifiants de demande partagés entre instances
+});
+
+// const { profile } = await samlFor(tenant).validatePostResponseAsync(req.body);
+```
+
+</Code>
+
+`validateInResponseTo` vaut `never` par défaut, et la bibliothèque le signale au démarrage : une réponse peut alors être rejouée ou livrée sans demande. Avec `always`, l'identifiant de la demande est stocké à l'émission et **consommé** à la réception. Le cache par défaut est en mémoire : avec plusieurs instances du BFF, il faut un `cacheProvider` partagé (Redis), sinon une réponse arrivée sur une autre instance est refusée, et la tentation de désactiver le contrôle arrive vite.
+
+<Steps items={[
+  { title: "Une bibliothèque maintenue", text: "@node-saml/node-saml à jour, et une version corrigée de xml-crypto vérifiée dans le lockfile (et par la SCA, M17)." },
+  { title: "Signatures exigées", text: "Assertion signée, algorithmes faibles refusés, certificat de l'IdP épinglé par tenant." },
+  { title: "Contexte vérifié", text: "Audience, destinataire (ACS), InResponseTo, NotBefore et NotOnOrAfter, et un identifiant d'assertion à usage unique contre le rejeu." },
+  { title: "Rien de maison", text: "Jamais de réanalyse du XML pour extraire un attribut : on lit le profil retourné par la bibliothèque." },
+  { title: "Rattacher au bon tenant", text: "L'assertion d'un IdP ne peut connecter qu'aux comptes du tenant qui a configuré cet IdP." },
+]} />
+
+Si un client exige le flux initié par l'IdP, Novafact ne consomme pas directement la réponse non sollicitée : l'ACS la traite comme un simple signal et **redémarre** un flux initié par Novafact vers le même IdP, ce qui rétablit le lien avec une demande.
+
+## Les certificats X.509
+
+Chaque tenant configure le certificat de signature de **son** IdP, idéalement importé depuis ses métadonnées. Trois règles :
+
+- le certificat de référence est celui **configuré** pour le tenant ; celui qui figure dans le message (`KeyInfo`) ne sert jamais à décider, puisque c'est l'émetteur du message, donc potentiellement l'attaquant, qui le choisit ;
+- une rotation se prépare par un **chevauchement** : l'ancien et le nouveau certificat sont acceptés pendant la bascule, puis l'ancien est retiré ;
+- les dates d'expiration de tous les certificats configurés sont **surveillées**, avec une alerte au client plusieurs semaines avant : un certificat expiré coupe l'accès de toute une entreprise.
+
+## Les pièges des courtiers d'identité
+
+Cognito, Auth0 ou Keycloak sont souvent placés entre les IdP des clients et l'application. Ils simplifient l'intégration, mais déplacent les questions de confiance dans leur configuration :
+
+| Question | Pourquoi |
+| --- | --- |
+| Quel attribut identifie l'utilisateur ? | Un `NameID` persistant et opaque est stable ; un e-mail peut être réaffecté ou affirmé par n'importe quel IdP (leçon 6) |
+| Le courtier lie-t-il automatiquement des comptes ? | Keycloak peut, dans son flux *first broker login*, rattacher automatiquement une identité externe à un utilisateur existant (« Automatically Set Existing User ») ; Cognito le permet par l'API `AdminLinkProviderForUser`, dont la documentation rappelle qu'elle ne doit servir qu'avec des IdP et des attributs de confiance |
+| Quels domaines un IdP peut-il affirmer ? | L'IdP du client A ne doit pas pouvoir connecter `ceo@client-b.example` |
+| À quel tenant l'IdP est-il rattaché ? | Une assertion valide de l'IdP de A ne donne jamais accès au tenant B |
+
+L'IdP d'un client est administré par ce client, pas par Novafact. Tout ce qu'il affirme est vrai **pour son tenant**, et seulement pour lui.
+
+## Préférer OIDC quand c'est possible
+
+La plupart des fournisseurs d'identité d'entreprise proposent aussi **OpenID Connect**, qui évite toute la complexité de XML-DSig. Propose OIDC par défaut, et SAML quand le client l'exige. Et côté conception : l'intégration SSO d'un client est un **changement de confiance** majeur, qui mérite sa propre revue (M13).
+
+<Recap items={[
+  "SAML repose sur XML-DSig, où vérifier et lire sont deux opérations distinctes : wrapping, commentaires et divergences de parsers en découlent.",
+  "Duo (2018), ruby-saml, SAMLStorm (xml-crypto) et PortSwigger montrent une série continue : mettre à jour vite, y compris les dépendances transitives.",
+  "node-saml : assertions signées, audience, validateInResponseTo à always avec un cache partagé, flux initié par le SP.",
+  "Certificats configurés par tenant (jamais celui du message), rotation par chevauchement, expirations surveillées.",
+  "Dans un courtier : identifiant stable, pas de liaison automatique par e-mail, un IdP ne connecte que son tenant ; OIDC par défaut.",
+]} />
+
+<Sources items={[
+  { title: "WorkOS : SAMLStorm", url: "https://workos.com/blog/samlstorm" },
+  { title: "GitHub Blog : Sign in as anyone, parser differentials in ruby-saml", url: "https://github.blog/security/sign-in-as-anyone-bypassing-saml-sso-authentication-with-parser-differentials/" },
+  { title: "Duo : SAML vulnerabilities affecting multiple implementations (2018)", url: "https://duo.com/blog/duo-finds-saml-vulnerabilities-affecting-multiple-implementations" },
+  { title: "PortSwigger Research : The Fragile Lock", url: "https://portswigger.net/research/the-fragile-lock" },
+  { title: "PortSwigger Research : SAML roulette", url: "https://portswigger.net/research/saml-roulette-the-hacker-always-wins" },
+  { title: "OWASP Cheat Sheet : SAML Security", url: "https://cheatsheetseries.owasp.org/cheatsheets/SAML_Security_Cheat_Sheet.html" },
+  { title: "node-saml", url: "https://github.com/node-saml/node-saml" },
+  { title: "Amazon Cognito : AdminLinkProviderForUser", url: "https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminLinkProviderForUser.html" },
+]} />

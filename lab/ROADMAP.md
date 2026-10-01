@@ -15,12 +15,12 @@ formats non confirmés, outils absents de npm, instabilités connues — à leve
 
 Légende : ⚙ *fix* (corriger un artefact du dépôt) · ✎ *artifact* (produire un livrable). Sans marque : *exploit*.
 
-## M2 · Vulnérabilités web, écosystème JS
+## M7 · Vulnérabilités côté serveur
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Cartographier les défauts du lab** ⚙ | N1 | CWE-1008 | Produire la table de correspondance de chaque défaut vers OWASP Top 10:2025, API Top 10 et CWE Top 25, et la garder juste. | [Top 10 2025, API Top 10 et CWE Top 25](http://127.0.0.1:5173/#/modules/m02/l01)<br>[Cycle de vie d’une vulnérabilité](http://127.0.0.1:5173/#/modules/m05/l01) |
-| **Injection d’en-tête dans l’e-mail de facture** | N2 | CWE-93 | Faire partir une copie de la facture vers une adresse qui ne figure dans aucun champ destinataire. | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02)<br>[Abus de fonctionnalités](http://127.0.0.1:5173/#/modules/m10/l05) |
+| **Cartographier les défauts du lab** ⚙ | N1 | CWE-1008 | Produire la table de correspondance de chaque défaut vers OWASP Top 10:2025, API Top 10 et CWE Top 25, et la garder juste. | [Top 10 2025, API Top 10 et CWE Top 25](http://127.0.0.1:5173/#/modules/m25/l08)<br>[Cycle de vie d’une vulnérabilité](http://127.0.0.1:5173/#/modules/m05/l01) |
+| **Injection d’en-tête dans l’e-mail de facture** | N2 | CWE-93 | Faire partir une copie de la facture vers une adresse qui ne figure dans aucun champ destinataire. | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01)<br>[Abus de fonctionnalités](http://127.0.0.1:5173/#/modules/m10/l05) |
 
 <details>
 <summary>Détail des 2 challenges de ce module</summary>
@@ -39,7 +39,7 @@ Le nom du destinataire est interpolé dans les en-têtes du message sans filtrer
 
 </details>
 
-## M3 · Web avancé
+## M9 · Web avancé
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
@@ -56,15 +56,15 @@ Trois défauts jugés mineurs cohabitent : une énumération, une redirection ou
 
 </details>
 
-## M4 · Côté client & scripts tiers
+## M8 · Vulnérabilités côté client & scripts tiers
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Iframe de paiement sans sandbox** ⚙ | N2 | CWE-1021 | Depuis le contenu de l’iframe, faire naviguer la page de Novafact vers une origine choisie — puis empêcher que ce soit possible. | [Réduire la confiance](http://127.0.0.1:5173/#/modules/m04/l03)<br>[PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l07) |
-| **Jeton anti-CSRF non lié à la session** | N2 | CWE-352 | Exécuter une mutation sur le compte d’un autre utilisateur avec un jeton obtenu depuis le tien. | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06)<br>[React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) |
-| **Page de paiement sans CSP** ⚙ | N2 | CWE-1021 | Écrire la CSP stricte de la page de paiement : les fonctionnalités marchent toujours, les charges utiles connues ne passent plus. | [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04)<br>[En-têtes en production](http://127.0.0.1:5173/#/modules/m17/l05) |
-| **Cookie de session mal attribué** | N2 | CWE-1004 | Voler la session depuis une XSS, puis déclencher une action authentifiée depuis un autre site. | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06)<br>[React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) |
-| **Surveiller ce que la page charge** ⚙ | N3 | CWE-778 | Mettre en place la collecte des rapports de CSP et la surveillance d’intégrité des scripts, et le prouver en modifiant un script. | [Surveiller le client](http://127.0.0.1:5173/#/modules/m04/l08)<br>[Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) |
+| **Iframe de paiement sans sandbox** ⚙ | N2 | CWE-1021 | Depuis le contenu de l’iframe, faire naviguer la page de Novafact vers une origine choisie — puis empêcher que ce soit possible. | [Réduire la confiance](http://127.0.0.1:5173/#/modules/m04/l04)<br>[PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l08) |
+| **Jeton anti-CSRF non lié à la session** | N2 | CWE-352 | Exécuter une mutation sur le compte d’un autre utilisateur avec un jeton obtenu depuis le tien. | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07)<br>[React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) |
+| **Page de paiement sans CSP** ⚙ | N2 | CWE-1021 | Écrire la CSP stricte de la page de paiement : les fonctionnalités marchent toujours, les charges utiles connues ne passent plus. | [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05)<br>[En-têtes en production](http://127.0.0.1:5173/#/modules/m17/l05) |
+| **Cookie de session mal attribué** | N2 | CWE-1004 | Voler la session depuis une XSS, puis déclencher une action authentifiée depuis un autre site. | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07)<br>[React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) |
+| **Surveiller ce que la page charge** ⚙ | N3 | CWE-778 | Mettre en place la collecte des rapports de CSP et la surveillance d’intégrité des scripts, et le prouver en modifiant un script. | [Surveiller le client](http://127.0.0.1:5173/#/modules/m04/l09)<br>[Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) |
 
 <details>
 <summary>Détail des 5 challenges de ce module</summary>
@@ -101,7 +101,7 @@ Rien ne détecte qu’un script de la page de paiement a changé : ni empreinte,
 
 </details>
 
-## M5 · Gestion des vulnérabilités
+## M26 · Gestion des vulnérabilités
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
@@ -125,11 +125,11 @@ L’équipe produit refuse de prioriser un défaut « tant qu’on n’a pas vu 
 
 </details>
 
-## M6 · Faire adopter la sécurité
+## M30 · Faire adopter la sécurité
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Le correctif qu’on peut fusionner** ✎ | N2 | CWE-1059 | Accompagner le finding du test de régression qui échoue aujourd’hui et passera après correction. | [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l02)<br>[Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02) |
+| **Le correctif qu’on peut fusionner** ✎ | N2 | CWE-1059 | Accompagner le finding du test de régression qui échoue aujourd’hui et passera après correction. | [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l01)<br>[Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02) |
 
 <details>
 <summary>Détail des 1 challenges de ce module</summary>
@@ -142,11 +142,11 @@ Le constat est juste, mais il arrive seul. L’équipe doit deviner comment prou
 
 </details>
 
-## M7 · Fondations, exigences & vie privée
+## M12 · Exigences, vie privée & conformité
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **L’abuse case exécutable** ✎ | N2 | CWE-1059 | Écrire trois cas d’abus de Novafact et le code qui les incarne, sur trois routes distinctes. | [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l03)<br>[STRIDE par élément](http://127.0.0.1:5173/#/modules/m11/l02) |
+| **L’abuse case exécutable** ✎ | N2 | CWE-1059 | Écrire trois cas d’abus de Novafact et le code qui les incarne, sur trois routes distinctes. | [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l01)<br>[STRIDE par élément](http://127.0.0.1:5173/#/modules/m11/l02) |
 
 <details>
 <summary>Détail des 1 challenges de ce module</summary>
@@ -159,14 +159,14 @@ Les user stories décrivent ce que l’utilisateur veut faire. Rien ne décrit c
 
 </details>
 
-## M8 · Conception sécurisée & architecture
+## M13 · Spécifier et concevoir
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Webhook signé mais rejouable** | N2 | CWE-294 | Rejouer une notification de paiement pour créditer deux fois la même facture. | [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08)<br>[Invariants métier](http://127.0.0.1:5173/#/modules/m10/l06) |
-| **Mots de passe hachés trop vite** ⚙ | N2 | CWE-916 | Migrer vers argon2id sans déconnecter les comptes existants ni stocker un seul mot de passe en clair. | [Authentification applicative](http://127.0.0.1:5173/#/modules/m08/l06)<br>[Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) |
-| **Clé de signature unique et éternelle** ⚙ | N3 | CWE-321 | Rendre la clé rotative sans invalider les jetons en cours, et sans redéploiement. | [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08)<br>[Protection à l’exécution](http://127.0.0.1:5173/#/modules/m17/l08) |
-| **Nommer les patterns déjà présents** ✎ | N1 | CWE-1059 | Rattacher chaque contrôle existant au pattern qu’il implémente, et chaque défaut structurel à son anti-pattern. | [Les 14 patterns](http://127.0.0.1:5173/#/modules/m08/l02)<br>[Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l03) |
+| **Webhook signé mais rejouable** | N2 | CWE-294 | Rejouer une notification de paiement pour créditer deux fois la même facture. | [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07)<br>[Invariants métier](http://127.0.0.1:5173/#/modules/m10/l06) |
+| **Mots de passe hachés trop vite** ⚙ | N2 | CWE-916 | Migrer vers argon2id sans déconnecter les comptes existants ni stocker un seul mot de passe en clair. | [Authentification applicative](http://127.0.0.1:5173/#/modules/m09/l01)<br>[Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) |
+| **Clé de signature unique et éternelle** ⚙ | N3 | CWE-321 | Rendre la clé rotative sans invalider les jetons en cours, et sans redéploiement. | [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07)<br>[Protection à l’exécution](http://127.0.0.1:5173/#/modules/m17/l08) |
+| **Nommer les patterns déjà présents** ✎ | N1 | CWE-1059 | Rattacher chaque contrôle existant au pattern qu’il implémente, et chaque défaut structurel à son anti-pattern. | [Les 14 patterns](http://127.0.0.1:5173/#/modules/m08/l03)<br>[Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l04) |
 
 <details>
 <summary>Détail des 4 challenges de ce module</summary>
@@ -197,11 +197,11 @@ Novafact applique déjà plusieurs patterns de conception sans les nommer, et so
 
 </details>
 
-## M9 · OAuth 2.x / OIDC / SAML
+## M14 · Identité : authentification, autorisation, OAuth & SAML
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Lier le jeton à son porteur** ⚙ | N3 | CWE-294 | Lier chaque jeton à une clé détenue par le client, et refuser sa réutilisation ailleurs. | [RFC 9700, DPoP, PAR et FAPI](http://127.0.0.1:5173/#/modules/m09/l05)<br>[Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) |
+| **Lier le jeton à son porteur** ⚙ | N3 | CWE-294 | Lier chaque jeton à une clé détenue par le client, et refuser sa réutilisation ailleurs. | [RFC 9700, DPoP, PAR et FAPI](http://127.0.0.1:5173/#/modules/m09/l07)<br>[Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) |
 
 <details>
 <summary>Détail des 1 challenges de ce module</summary>
@@ -214,7 +214,7 @@ Les jetons d’accès sont au porteur : quiconque en vole un peut l’utiliser, 
 
 </details>
 
-## M10 · Anti-abus, ATO & fraude
+## M15 · Anti-abus, ATO & fraude
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
@@ -238,7 +238,7 @@ L’inscription et la connexion sont ouvertes à l’automatisation. Un CAPTCHA 
 
 </details>
 
-## M12 · Revue de code sécurité
+## M16 · Revue de code sécurité
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
@@ -255,15 +255,15 @@ Une des classes déjà corrigées subsiste à trois autres endroits, sous une fo
 
 </details>
 
-## M13 · Tests & analyse de code
+## M17 · Tests & analyse de code
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Le test qui prouve qu’un contrôle refuse** ✎ | N1 | CWE-1059 | Écrire, pour trois challenges déjà corrigés, le couple de tests qui manque. | [Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02)<br>[Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l02) |
+| **Le test qui prouve qu’un contrôle refuse** ✎ | N1 | CWE-1059 | Écrire, pour trois challenges déjà corrigés, le couple de tests qui manque. | [Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02)<br>[Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l01) |
 | **La même règle, en mode taint** ✎ | N2 | CWE-1059 | Porter la règle en mode taint : source, sink, et le schéma de validation comme assainisseur. | [Écrire ses règles](http://127.0.0.1:5173/#/modules/m13/l04)<br>[Méthode sur une base inconnue](http://127.0.0.1:5173/#/modules/m12/l02) |
-| **La propriété qui trouve le bug d’argent** ✎ | N2 | CWE-1059 | Écrire la propriété qui doit tenir sur tout total de facture, et la laisser chercher le contre-exemple. | [Fuzzing et tests de disponibilité](http://127.0.0.1:5173/#/modules/m13/l05)<br>[Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) |
-| **Le fuzz qui casse le parseur** ✎ | N2 | CWE-1333 | Écrire la cible de fuzz, trouver l’entrée qui fait exploser le temps de calcul, et la figer en régression. | [Fuzzing et tests de disponibilité](http://127.0.0.1:5173/#/modules/m13/l05)<br>[Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
-| **Le DAST sur environnement éphémère** ✎ | N2 | CWE-1059 | Le brancher en CI sur une instance éphémère, authentifié, avec le périmètre et le seuil de blocage. | [DAST et secrets](http://127.0.0.1:5173/#/modules/m13/l07)<br>[Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) |
+| **La propriété qui trouve le bug d’argent** ✎ | N2 | CWE-1059 | Écrire la propriété qui doit tenir sur tout total de facture, et la laisser chercher le contre-exemple. | [Fuzzing et tests de disponibilité](http://127.0.0.1:5173/#/modules/m13/l05)<br>[Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) |
+| **Le fuzz qui casse le parseur** ✎ | N2 | CWE-1333 | Écrire la cible de fuzz, trouver l’entrée qui fait exploser le temps de calcul, et la figer en régression. | [Fuzzing et tests de disponibilité](http://127.0.0.1:5173/#/modules/m13/l05)<br>[Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
+| **Le DAST sur environnement éphémère** ✎ | N2 | CWE-1059 | Le brancher en CI sur une instance éphémère, authentifié, avec le périmètre et le seuil de blocage. | [DAST et secrets](http://127.0.0.1:5173/#/modules/m13/l07)<br>[Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) |
 | **Secrets dans le dépôt** ⚙ | N1 | CWE-798 | Les trouver tous, les sortir du code, et mettre en place ce qui empêche le prochain d’entrer. | [DAST et secrets](http://127.0.0.1:5173/#/modules/m13/l07)<br>[Configuration de production](http://127.0.0.1:5173/#/modules/m17/l01) |
 
 <details>
@@ -307,12 +307,12 @@ Des identifiants traînent dans la configuration, dans un fichier d’exemple et
 
 </details>
 
-## M14 · Pipeline, supply chain & fournisseurs
+## M18 · Pipeline, supply chain & fournisseurs
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Répondre à un incident supply chain** ⚙ | N3 | CWE-1395 | Produire la réponse : versions réellement installées, secrets à tourner, runners à nettoyer, et la requête qui chasse les indicateurs de compromission. | [Répondre à un incident supply chain](http://127.0.0.1:5173/#/modules/m14/l10)<br>[Gérer une critique à J+0](http://127.0.0.1:5173/#/modules/m05/l07) |
-| **Exigences de sécurité envers un fournisseur** ⚙ | N2 | CWE-1059 | Écrire les exigences vérifiables de chaque fournisseur et les rattacher aux contrôles techniques qui les constatent. | [Fournisseurs et tiers](http://127.0.0.1:5173/#/modules/m14/l08)<br>[Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l07) |
+| **Répondre à un incident supply chain** ⚙ | N3 | CWE-1395 | Produire la réponse : versions réellement installées, secrets à tourner, runners à nettoyer, et la requête qui chasse les indicateurs de compromission. | [Répondre à un incident supply chain](http://127.0.0.1:5173/#/modules/m14/l11)<br>[Gérer une critique à J+0](http://127.0.0.1:5173/#/modules/m05/l07) |
+| **Exigences de sécurité envers un fournisseur** ⚙ | N2 | CWE-1059 | Écrire les exigences vérifiables de chaque fournisseur et les rattacher aux contrôles techniques qui les constatent. | [Fournisseurs et tiers](http://127.0.0.1:5173/#/modules/m14/l09)<br>[Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l05) |
 
 <details>
 <summary>Détail des 2 challenges de ce module</summary>
@@ -331,7 +331,7 @@ L’intégration du prestataire de paiement et celle du fournisseur d’IA n’o
 
 </details>
 
-## M16 · Infrastructure as Code
+## M20 · Infrastructure as Code
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
@@ -348,15 +348,15 @@ Un correctif d’urgence a été appliqué à la main en production. Le code dé
 
 </details>
 
-## M17 · Déploiement, exploitation & résilience
+## M21 · Déploiement, exploitation & résilience
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
 | **En-têtes de sécurité absents** ⚙ | N1 | CWE-693 | Poser les en-têtes au bon endroit et vérifier qu’ils survivent au déploiement. | [Configuration de production](http://127.0.0.1:5173/#/modules/m17/l01)<br>[En-têtes en production](http://127.0.0.1:5173/#/modules/m17/l05) |
-| **Le secret de repli** ⚙ | N1 | CWE-1188 | Faire échouer le démarrage plutôt que de continuer avec une valeur connue de tous. | [Configuration de production](http://127.0.0.1:5173/#/modules/m17/l01)<br>[Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) |
-| **La CSP qui ne protège de rien** ⚙ | N2 | CWE-693 | La resserrer jusqu’à ce qu’elle arrête réellement les charges utiles, sans casser l’application. | [En-têtes en production](http://127.0.0.1:5173/#/modules/m17/l05)<br>[CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04) |
+| **Le secret de repli** ⚙ | N1 | CWE-1188 | Faire échouer le démarrage plutôt que de continuer avec une valeur connue de tous. | [Configuration de production](http://127.0.0.1:5173/#/modules/m17/l01)<br>[Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) |
+| **La CSP qui ne protège de rien** ⚙ | N2 | CWE-693 | La resserrer jusqu’à ce qu’elle arrête réellement les charges utiles, sans casser l’application. | [En-têtes en production](http://127.0.0.1:5173/#/modules/m17/l05)<br>[CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05) |
 | **Aucun garde-fou de disponibilité** ⚙ | N2 | CWE-770 | Poser les limites et l’arrêt gracieux, et le prouver par une requête surdimensionnée et un signal d’arrêt. | [Résilience et continuité](http://127.0.0.1:5173/#/modules/m17/l06)<br>[Fuzzing et tests de disponibilité](http://127.0.0.1:5173/#/modules/m13/l05) |
-| **Éteindre un service proprement** ✎ | N2 | CWE-1059 | Écrire et exécuter la procédure de mise hors service, et prouver qu’il ne reste rien d’atteignable. | [Fin de vie](http://127.0.0.1:5173/#/modules/m17/l07)<br>[Classification des données](http://127.0.0.1:5173/#/modules/m07/l05) |
+| **Éteindre un service proprement** ✎ | N2 | CWE-1059 | Écrire et exécuter la procédure de mise hors service, et prouver qu’il ne reste rien d’atteignable. | [Fin de vie](http://127.0.0.1:5173/#/modules/m17/l07)<br>[Classification des données](http://127.0.0.1:5173/#/modules/m07/l03) |
 
 <details>
 <summary>Détail des 5 challenges de ce module</summary>
@@ -365,7 +365,7 @@ Un correctif d’urgence a été appliqué à la main en production. Le code dé
 
 Aucun en-tête de sécurité n’est servi : ni transport strict, ni non-reniflage, ni politique de référent, ni politique de permissions.
 
-*Classe à éliminer.* Une bibliothèque d’en-têtes pour la base, puis ceux conçus en M4 appliqués soit dans l’application, soit dans la politique de réponse du CDN — mais à un seul endroit, et vérifiés après chaque déploiement. Deux endroits qui posent des en-têtes finissent par se contredire.
+*Classe à éliminer.* Une bibliothèque d’en-têtes pour la base, puis ceux conçus en M8 appliqués soit dans l’application, soit dans la politique de réponse du CDN — mais à un seul endroit, et vérifiés après chaque déploiement. Deux endroits qui posent des en-têtes finissent par se contredire.
 
 **Le secret de repli** — `server/lib/jwt.ts` · fix · D7 · K5
 
@@ -393,11 +393,11 @@ L’ancien service d’export a été remplacé il y a six mois. Son enregistrem
 
 </details>
 
-## M18 · Surveillance, logging & SIEM
+## M23 · Journalisation & SIEM (Elastic)
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Le journal infalsifiable** | N2 | CWE-778 | Effacer la trace d’une action, puis poser le contrôle d’intégrité qui nomme l’endroit exact où la chaîne rompt. | [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01)<br>[C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m07/l02) |
+| **Le journal infalsifiable** | N2 | CWE-778 | Effacer la trace d’une action, puis poser le contrôle d’intégrité qui nomme l’endroit exact où la chaîne rompt. | [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01)<br>[C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m01/l03) |
 
 <details>
 <summary>Détail des 1 challenges de ce module</summary>
@@ -410,12 +410,12 @@ Une route d’administration permet de supprimer des lignes d’audit après cou
 
 </details>
 
-## M19 · Sécurité de l’IA
+## M27 · Sécurité des applications LLM
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
 | **Le profil de la session** ✎ | N2 | CWE-1059 | Configurer l’agent pour qu’une même charge utile réussisse avec les trois, et échoue dès qu’on en retire une seule, quelle qu’elle soit. | [Patterns de conception pour agents](http://127.0.0.1:5173/#/modules/m19/l03)<br>[OWASP LLM Top 10 2026](http://127.0.0.1:5173/#/modules/m19/l01) |
-| **Cartographier avec ATLAS** ✎ | N2 | CWE-1059 | Rattacher chaque challenge à sa technique ATLAS et au risque du Top 10 correspondant, et repérer les trous. | [MITRE ATLAS et OWASP AI Exchange](http://127.0.0.1:5173/#/modules/m19/l06)<br>[MITRE pour l’AppSec](http://127.0.0.1:5173/#/modules/m11/l04) |
+| **Cartographier avec ATLAS** ✎ | N2 | CWE-1059 | Rattacher chaque challenge à sa technique ATLAS et au risque du Top 10 correspondant, et repérer les trous. | [MITRE ATLAS et OWASP AI Exchange](http://127.0.0.1:5173/#/modules/m19/l05)<br>[MITRE pour l’AppSec](http://127.0.0.1:5173/#/modules/m11/l04) |
 
 <details>
 <summary>Détail des 2 challenges de ce module</summary>
@@ -434,22 +434,22 @@ Les challenges IA du lab ne sont rattachés à aucun référentiel : impossible 
 
 </details>
 
-## M20 · Capstone : revue de sécurité de Novafact
+## M32 · Capstone : revue de sécurité de Novafact
 
 | Challenge | Niv. | CWE | Objectif | Dans le cours |
 | --- | --- | --- | --- | --- |
-| **Étape 1 · Exigences et traçabilité** ✎ | N3 | CWE-1059 | Produire le sous-ensemble ASVS L2, la classification des données, et la matrice qui relie chaque exigence à sa preuve. | [Exigences et traçabilité](http://127.0.0.1:5173/#/modules/m20/l01)<br>[Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l04) |
-| **Étape 2 · Design doc et revue de conception** ✎ | N3 | CWE-1059 | Écrire le design doc, mener la revue selon les six étapes, et classer les constats en Must / Ought / Should. | [Design doc et revue de conception](http://127.0.0.1:5173/#/modules/m20/l02)<br>[Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l05)<br>[Écrire un design doc sécurisé](http://127.0.0.1:5173/#/modules/m08/l04) |
-| **Étape 3 · Threat model** ✎ | N3 | CWE-1059 | Produire le modèle de menaces complet de Novafact, avec les frontières de confiance et une mitigation par menace retenue. | [Threat model](http://127.0.0.1:5173/#/modules/m20/l03)<br>[Les 4 questions et la démarche](http://127.0.0.1:5173/#/modules/m11/l01) |
-| **Étape 4 · Revue de PR, règles et tests** ✎ | N3 | CWE-1059 | Rendre la revue, écrire la règle qui trouve toutes les variantes, et le test de régression qui les ferme. | [Revue de PR, règles et tests](http://127.0.0.1:5173/#/modules/m20/l04)<br>[Revoir une PR en 10 minutes](http://127.0.0.1:5173/#/modules/m12/l03) |
-| **Étape 5 · Page de paiement** ✎ | N3 | CWE-1021 | Inventorier les scripts, écrire la CSP stricte, et satisfaire les exigences d’inventaire et de détection de modification. | [Page de paiement](http://127.0.0.1:5173/#/modules/m20/l05)<br>[PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l07) |
-| **Étape 6 · Contrôles anti-abus** ✎ | N3 | CWE-1059 | Poser les contrôles sur les trois parcours, et mesurer ce qu’ils bloquent et ce qu’ils gênent. | [Contrôles anti-abus](http://127.0.0.1:5173/#/modules/m20/l06)<br>[Limitation de débit bien conçue](http://127.0.0.1:5173/#/modules/m10/l03) |
-| **Étape 7 · Pipeline et supply chain** ✎ | N3 | CWE-1059 | Durcir les workflows, la publication et les dépendances, et produire le SBOM qui répondra le jour de l’incident. | [Pipeline et supply chain](http://127.0.0.1:5173/#/modules/m20/l07)<br>[OWASP Top 10 CI/CD](http://127.0.0.1:5173/#/modules/m14/l01) |
-| **Étape 8 · IAM au moindre privilège** ✎ | N3 | CWE-732 | Réécrire les politiques à partir de l’usage réel, et poser le périmètre de données qui rattrape ce qu’elles laissent passer. | [IAM au moindre privilège](http://127.0.0.1:5173/#/modules/m20/l08)<br>[Moindre privilège en pratique](http://127.0.0.1:5173/#/modules/m15/l05) |
-| **Étape 9 · Vulnérabilités avancées** ⚙ | N3 | CWE-1059 | Les corriger tous, et faire passer au vert la suite de régression complète. | [Vulnérabilités avancées](http://127.0.0.1:5173/#/modules/m20/l09)<br>[Chaînes de vulnérabilités](http://127.0.0.1:5173/#/modules/m03/l04) |
-| **Étape 10 · Cinq détections testées** ✎ | N3 | CWE-1059 | Écrire cinq détections couvrant les attaques du capstone, avec leurs fixtures et leur recette de validation. | [Cinq détections Elastic](http://127.0.0.1:5173/#/modules/m20/l10)<br>[Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) |
-| **Étape 11 · Roadmap à 12 mois** ✎ | N3 | CWE-1059 | Produire l’évaluation de maturité et la feuille de route qui referme les écarts, trimestre par trimestre. | [Roadmap SAMM à 12 mois](http://127.0.0.1:5173/#/modules/m20/l11)<br>[OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m01/l03) |
-| **Étape 12 · Adoption et restitution** ✎ | N3 | CWE-1059 | Produire le plan d’adoption — champions, formation, SLA, portes de contrôle — et la restitution en une page. | [Plan d’adoption et restitution](http://127.0.0.1:5173/#/modules/m20/l12)<br>[Le paved road comme produit](http://127.0.0.1:5173/#/modules/m06/l07) |
+| **Étape 1 · Exigences et traçabilité** ✎ | N3 | CWE-1059 | Produire le sous-ensemble ASVS L2, la classification des données, et la matrice qui relie chaque exigence à sa preuve. | [Exigences et traçabilité](http://127.0.0.1:5173/#/modules/m20/l03)<br>[Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l02) |
+| **Étape 2 · Design doc et revue de conception** ✎ | N3 | CWE-1059 | Écrire le design doc, mener la revue selon les six étapes, et classer les constats en Must / Ought / Should. | [Design doc et revue de conception](http://127.0.0.1:5173/#/modules/m20/l04)<br>[Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l10)<br>[La spécification technique : le design doc](http://127.0.0.1:5173/#/modules/m08/l09) |
+| **Étape 3 · Threat model** ✎ | N3 | CWE-1059 | Produire le modèle de menaces complet de Novafact, avec les frontières de confiance et une mitigation par menace retenue. | [Threat model](http://127.0.0.1:5173/#/modules/m20/l02)<br>[Les 4 questions et la démarche](http://127.0.0.1:5173/#/modules/m11/l01) |
+| **Étape 4 · Revue de PR, règles et tests** ✎ | N3 | CWE-1059 | Rendre la revue, écrire la règle qui trouve toutes les variantes, et le test de régression qui les ferme. | [Revue de PR, règles et tests](http://127.0.0.1:5173/#/modules/m20/l06)<br>[Revoir une PR en 10 minutes](http://127.0.0.1:5173/#/modules/m12/l03) |
+| **Étape 5 · Page de paiement** ✎ | N3 | CWE-1021 | Inventorier les scripts, écrire la CSP stricte, et satisfaire les exigences d’inventaire et de détection de modification. | [Page de paiement](http://127.0.0.1:5173/#/modules/m20/l08)<br>[PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l08) |
+| **Étape 6 · Contrôles anti-abus** ✎ | N3 | CWE-1059 | Poser les contrôles sur les trois parcours, et mesurer ce qu’ils bloquent et ce qu’ils gênent. | [Contrôles anti-abus](http://127.0.0.1:5173/#/modules/m20/l05)<br>[Limitation de débit bien conçue](http://127.0.0.1:5173/#/modules/m10/l03) |
+| **Étape 7 · Pipeline et supply chain** ✎ | N3 | CWE-1059 | Durcir les workflows, la publication et les dépendances, et produire le SBOM qui répondra le jour de l’incident. | [Pipeline et supply chain](http://127.0.0.1:5173/#/modules/m20/l09)<br>[OWASP Top 10 CI/CD](http://127.0.0.1:5173/#/modules/m14/l01) |
+| **Étape 8 · IAM au moindre privilège** ✎ | N3 | CWE-732 | Réécrire les politiques à partir de l’usage réel, et poser le périmètre de données qui rattrape ce qu’elles laissent passer. | [IAM au moindre privilège](http://127.0.0.1:5173/#/modules/m20/l10)<br>[Moindre privilège en pratique](http://127.0.0.1:5173/#/modules/m15/l05) |
+| **Étape 9 · Vulnérabilités avancées** ⚙ | N3 | CWE-1059 | Les corriger tous, et faire passer au vert la suite de régression complète. | [Vulnérabilités avancées](http://127.0.0.1:5173/#/modules/m20/l07)<br>[Chaînes de vulnérabilités](http://127.0.0.1:5173/#/modules/m03/l04) |
+| **Étape 10 · Cinq détections testées** ✎ | N3 | CWE-1059 | Écrire cinq détections couvrant les attaques du capstone, avec leurs fixtures et leur recette de validation. | [Cinq détections Elastic](http://127.0.0.1:5173/#/modules/m20/l11)<br>[Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) |
+| **Étape 11 · Roadmap à 12 mois** ✎ | N3 | CWE-1059 | Produire l’évaluation de maturité et la feuille de route qui referme les écarts, trimestre par trimestre. | [Roadmap SAMM à 12 mois](http://127.0.0.1:5173/#/modules/m20/l14)<br>[OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m24/l02) |
+| **Étape 12 · Adoption et restitution** ✎ | N3 | CWE-1059 | Produire le plan d’adoption — champions, formation, SLA, portes de contrôle — et la restitution en une page. | [Plan d’adoption et restitution](http://127.0.0.1:5173/#/modules/m20/l15)<br>[Le paved road comme produit](http://127.0.0.1:5173/#/modules/m06/l05) |
 
 <details>
 <summary>Détail des 12 challenges de ce module</summary>
@@ -458,7 +458,7 @@ Les challenges IA du lab ne sont rattachés à aucun référentiel : impossible 
 
 Novafact part en revue complète. Rien n’est écrit de ce qu’elle doit tenir.
 
-*Classe à éliminer.* Reprend les livrables de M7 et les consolide. Le harnais vérifie la cohérence interne : toute donnée classée sensible doit être couverte par au moins une exigence, et toute exigence doit avoir un test qui passe.
+*Classe à éliminer.* Reprend les livrables de M12 et les consolide. Le harnais vérifie la cohérence interne : toute donnée classée sensible doit être couverte par au moins une exigence, et toute exigence doit avoir un test qui passe.
 
 **Étape 2 · Design doc et revue de conception** — `capstone/02-design/` · artifact · D4 · K6, K7
 
@@ -504,7 +504,7 @@ Les rôles ont été écrits pendant la mise en production, au plus large, et ja
 
 **Étape 9 · Vulnérabilités avancées** — `capstone/09-fixes/` · fix · D5
 
-Les défauts avancés du module M3 sont toujours là : course, cache, analyseurs divergents, jetons.
+Les défauts avancés du module M9 sont toujours là : course, cache, analyseurs divergents, jetons.
 
 *Classe à éliminer.* C’est la seule étape purement corrective, et elle est volontairement placée après la conception : on corrige plus vite quand on sait ce qu’on protège. La suite exige, comme toujours, que l’attaque échoue et que la fonctionnalité survive.
 

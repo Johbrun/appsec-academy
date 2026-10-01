@@ -1,184 +1,163 @@
 export const questions = [
   {
-    q: "Qui décide de la classification d'une donnée ?",
+    q: "Qu'est-ce qui a changé le 1er septembre 2026 pour les entreprises françaises en matière de facturation ?",
     options: [
-      "Le DPO, qui connaît les obligations légales attachées à chaque donnée",
-      "L'équipe qui exploite la donnée au quotidien, en tant que dépositaire",
-      "Le propriétaire métier, avec l'appui de la sécurité et du DPO",
-      "L'AppSec, seule à connaître l'impact d'une fuite pour chaque classe",
+      "Toutes les entreprises doivent émettre leurs factures via une plateforme agréée",
+      "Les PME et microentreprises doivent émettre des factures électroniques",
+      "Toutes doivent pouvoir recevoir ; grandes entreprises et ETI doivent émettre",
+      "Les factures papier deviennent interdites entre entreprises françaises",
     ],
     answer: 2,
-    explain: "Le propriétaire — souvent un responsable métier — connaît la valeur et l'usage réels de la donnée : c'est lui qui décide de la classe, des accès et de la durée de conservation. Le dépositaire applique les contrôles et sait ce qu'ils coûtent ; le DPO et la sécurité éclairent la décision sans la prendre. Laisser trancher la seule équipe technique produit le travers classique : on protège bien ce qu'on comprend, mots de passe et jetons, et mal ce qu'on ne voit pas, comme les notes libres ajoutées aux factures.",
+    explain: "La réforme se déploie en deux temps : au 01/09/2026, toutes les entreprises doivent pouvoir recevoir des factures électroniques via une plateforme agréée, et seules les grandes entreprises et les ETI doivent en émettre ; les PME et microentreprises suivront au 01/09/2027. Confondre les deux échéances fait croire à une obligation d'émission généralisée dès 2026 — l'erreur la plus répandue, et celle qui décale le plus le planning d'un éditeur de facturation.",
   },
   {
-    q: "Pourquoi classer les données avant de choisir les contrôles ?",
+    q: "Comment l'iframe de paiement d'un prestataire aide-t-elle Novafact vis-à-vis de PCI DSS ?",
     options: [
-      "Pour appliquer des contrôles proportionnés à la sensibilité",
-      "Pour alimenter le registre des traitements exigé par l'article 30",
-      "Pour savoir quelles données chiffrer au repos dans la base",
-      "Pour fixer la durée de conservation imposée par la loi",
+      "Elle réduit fortement le périmètre, sans exonérer la page qui l'intègre",
+      "Elle transfère la responsabilité au prestataire, qui répond du paiement",
+      "Elle place Novafact hors du champ de PCI DSS, comme n'importe quel marchand SAQ A",
+      "Elle n'a pas d'effet : le périmètre dépend du volume de transactions",
     ],
     answer: 0,
-    explain: "Sans classification, on protège tout de la même façon : trop pour le banal, pas assez pour le sensible — et c'est le sensible qui coûte. Le registre des traitements et les durées légales sont des usages dérivés et partiels, le premier ne couvrant que les données personnelles et la seconde qu'une partie des données. Quant au chiffrement au repos, ce n'est qu'un des contrôles que la classe déclenche, à côté du masquage dans les logs, des restrictions d'export et de l'audit.",
+    explain: "Les données de carte ne transitent plus par Novafact : le périmètre se réduit fortement, et c'est le levier le plus puissant de la conformité. Mais la page qui intègre l'iframe reste concernée — ses scripts relèvent du critère d'éligibilité du SAQ A depuis janvier 2025, parce qu'un script présent sur cette page peut remplacer l'iframe par un faux formulaire. Le prestataire répond de ce qu'il sert, pas de ta page ; et le volume de transactions détermine le niveau de marchand, pas le contenu du périmètre.",
   },
   {
-    q: "Le nombre de factures émises par chaque client, pris un par un, est une donnée interne. L'export qui liste ce volume pour tous les clients, avec leurs noms et leur chiffre d'affaires facturé, est-il aussi une donnée interne ?",
+    q: "L'authentification multifacteur (MFA) sur les accès d'administration de Novafact répond à la fois à une mesure de NIS2 (article 21), à une attente des questionnaires clients et à une exigence interne. Comment l'organiser ?",
     options: [
-      "Oui : la classe se détermine ligne par ligne, et chaque ligne est interne",
-      "Non : l'export devient une donnée personnelle, donc confidentielle",
-      "Cela dépend : l'export reste interne s'il ne sort pas du réseau de l'entreprise",
-      "Non : l'agrégation révèle la clientèle et l'activité, et élève la classe",
-    ],
-    answer: 3,
-    explain: "L'agrégation et le croisement font monter la sensibilité : la liste de tous les clients avec leur chiffre d'affaires facturé est une information commerciale qu'aucune de ses lignes ne constitue à elle seule. Un export, un tableau de bord ou un résumé produit par l'assistant se classent donc sur ce qu'ils révèlent ensemble. Ce n'est pas une question de données personnelles — il s'agit d'entreprises clientes — ni de l'endroit où le fichier réside : la classe porte sur le contenu, pas sur son emplacement.",
-  },
-  {
-    q: "La numérotation des factures de Novafact n'a rien de confidentiel. Pourquoi mérite-t-elle pourtant une attention particulière dans la classification ?",
-    options: [
-      "Parce que le numéro permet d'énumérer les factures d'un autre tenant",
-      "Parce que la classification porte aussi sur l'intégrité, ici d'impact élevé",
-      "Parce qu'elle apparaît dans les exports comptables transmis à des tiers",
-      "Parce qu'elle est soumise à la conservation légale de dix ans",
+      "Un projet de conformité par texte, chacun avec ses preuves propres",
+      "Un contrôle décrit une fois, relié à chaque exigence et à sa preuve",
+      "Une exigence interne unique, dont on dérive les réponses aux textes",
+      "Une preuve par audit, produite au moment précis où l'auditeur la réclame",
     ],
     answer: 1,
-    explain: "Une classification utile évalue séparément l'impact d'une atteinte à la confidentialité, à l'intégrité et à la disponibilité. La numérotation est peu confidentielle, mais son intégrité a un impact légal élevé : elle doit rester continue, sans trou ni doublon, d'où une séquence garantie en base plutôt qu'un calcul applicatif. L'énumération par identifiants devinables est un vrai sujet, mais c'est un problème d'autorisation ; et la conservation décennale vaut pour la facture entière, pas pour ce qui rend sa numérotation critique.",
+    explain: "Les textes se recoupent largement : un catalogue de contrôles, chacun relié aux exigences qu'il satisfait et à la preuve qui le démontre, évite de produire trois fois la même chose et garde une seule vérité. Le piège est de faire de l'exigence interne le pivot : elle est l'une des exigences satisfaites, pas le contrôle — et une clause contractuelle peut en demander davantage, par exemple une MFA résistante à l'hameçonnage. Quant à produire la preuve à la demande, c'est découvrir l'écart devant l'auditeur.",
+  },
+  {
+    q: "Pour NIS2, en quoi le rythme de notification d'un incident important ressemble-t-il à celui du CRA pour une vulnérabilité activement exploitée ?",
+    options: [
+      "NIS2 laisse 72 heures et le CRA 24 heures : les rythmes sont opposés",
+      "Les deux imposent un rapport unique, sous 14 jours après le correctif",
+      "Aucun rapport : NIS2 vise les incidents, le CRA les vulnérabilités",
+      "Les deux prévoient une alerte sous 24 h, puis une notification sous 72 h",
+    ],
+    answer: 3,
+    explain: "NIS2 (article 23) enchaîne alerte précoce sous 24 heures, notification sous 72 heures et rapport final dans le mois ; le CRA suit le même rythme 24 h / 72 h, avec un rapport final au plus tard 14 jours après la mise à disposition d'un correctif. L'objection sur la nature des faits — un incident pour NIS2, une vulnérabilité exploitée pour le CRA — est exacte, et c'est justement pourquoi le rythme commun est utile : un seul circuit d'astreinte, avec des modèles de message distincts, tient les deux obligations.",
   },
 ];
 
 <YouKnow>
-En pentest, tu sais d'instinct quelles données valent cher : identifiants, IBAN, secrets. La classification formalise cet instinct pour que chaque donnée reçoive les contrôles qu'elle mérite, sans surprotéger le reste.
+Tu as croisé la conformité surtout comme un prétexte à pentest annuel. Côté AppSec, elle devient une source d'exigences et, bien utilisée, un levier de budget.
 </YouKnow>
 
-## Les rôles
+## Une source d'exigences
 
-| Rôle | Responsabilité |
+La conformité impose des exigences de quatre types : **réglementaires** (lois), **légales** (contrats, responsabilité), **sectorielles** (normes d'un secteur) et **internes** (politiques de l'entreprise). Pour Novafact, les principales :
+
+| Texte | Ce qu'il impose côté logiciel |
 | --- | --- |
-| **Propriétaire** | Décide de la classification, des accès et de la durée de conservation (souvent un responsable métier) |
-| **Dépositaire** | Applique les contrôles au quotidien (équipe technique, plateforme) |
-| **Utilisateur** | Accède aux données dans le cadre de ses droits |
+| **RGPD** | Minimisation, sécurité adaptée, droits des personnes, notification des violations (leçon précédente) |
+| **Cyber Resilience Act** | Sécurité dès la conception, gestion des vulnérabilités, SBOM, signalement depuis le 11/09/2026 (M31) |
+| **NIS2** | Mesures de gestion des risques et notification d'incidents pour les entités essentielles et importantes, selon la taille et le secteur : à qualifier avec un juriste |
+| **PCI DSS 4.0.1** | Protection des données de carte ; périmètre réduit par la tokenisation et l'iframe du prestataire ; exigences sur les scripts des pages de paiement (M8) |
+| **Réforme de la facturation électronique** | Depuis le 01/09/2026, toutes les entreprises françaises doivent pouvoir **recevoir** des factures électroniques via une plateforme agréée, et les grandes entreprises et ETI doivent en **émettre** ; les PME suivront le 01/09/2027 |
 
-Un **dictionnaire de données** relie chaque champ de la base à son propriétaire et à sa classe.
+Les exigences **légales** sont les plus souvent oubliées parce qu'elles ne portent pas de nom de norme : ce sont les clauses de sécurité des contrats avec les clients grands comptes (délai de notification d'incident, droit d'audit, localisation des données, taux de disponibilité). Elles engagent Novafact autant qu'une loi, et elles sont parfois plus strictes. Une notification d'incident « sous 24 heures » promise à un client dans une annexe contractuelle s'impose à l'équipe de réponse, même si la loi laisse 72 heures.
 
-La séparation propriétaire / dépositaire évite un travers fréquent : l'équipe technique qui décide seule de ce qui est sensible. Elle protège bien ce qu'elle comprend (les mots de passe, les jetons) et mal ce qu'elle ne voit pas (les notes libres que les comptables ajoutent aux factures, qui contiennent parfois des informations de santé ou de litige). Le propriétaire métier connaît ces usages ; le dépositaire sait ce que coûte chaque contrôle. La classification naît de leur discussion.
+## NIS2 vu par l'AppSec
 
-## Une échelle simple
+NIS2 s'applique aux entités « essentielles » et « importantes » de secteurs listés, selon leur taille. Pour un SaaS, la qualification dépend de ce qu'il fait et de qui sont ses clients : c'est une question juridique. Mais si Novafact est concernée, trois articles touchent directement le travail de l'AppSec :
 
-Quatre niveaux suffisent presque toujours :
+- **l'article 21** liste des mesures minimales de gestion des risques. Plusieurs sont du ressort direct de l'AppSec : la sécurité de la **chaîne d'approvisionnement** (21.2.d), la sécurité de l'acquisition, du **développement** et de la maintenance des systèmes, y compris le **traitement et la divulgation des vulnérabilités** (21.2.e), la cryptographie (21.2.h), le contrôle d'accès (21.2.i) et l'**authentification multifacteur** (21.2.j) ;
+- **l'article 23** impose, pour un incident important, une **alerte précoce sous 24 heures**, une **notification sous 72 heures**, puis un **rapport final dans le mois** ;
+- **l'article 20** rend les organes de direction responsables de l'approbation et de la supervision de ces mesures, avec une obligation de formation (M30, leçon 3).
 
-| Classe | Exemples chez Novafact | Contrôles minimaux |
-| --- | --- | --- |
-| **Publique** | Page marketing, documentation d'API | Intégrité |
-| **Interne** | Métriques d'usage agrégées, documentation interne | Authentification, accès des employés |
-| **Confidentielle** | Factures, coordonnées des clients finaux, données personnelles | Chiffrement, accès par tenant, audit, masquage dans les logs |
-| **Secrète** | IBAN, clés de chiffrement, jetons du prestataire de paiement, secrets d'API | Chiffrement avec clé dédiée (KMS), accès nominatif et minimal, rotation, jamais dans les logs ni les exports |
+En France, la transposition passe par le projet de loi dit « Résilience », dont il faut suivre l'avancement. L'ANSSI a publié en document de travail **ReCyF**, un référentiel de cybersécurité prévu par ce texte, que les futures entités assujetties pourront choisir d'appliquer.
 
-## Pas seulement la confidentialité
+## La facturation électronique, un enjeu direct pour Novafact
 
-L'échelle ci-dessus parle surtout de confidentialité, parce que c'est ce qui fuit. Mais une donnée peut être anodine à lire et critique à modifier. La démarche classique (celle, par exemple, de la norme américaine FIPS 199) évalue séparément l'**impact d'une atteinte** à chacune des trois propriétés, avec des niveaux faible, modéré ou élevé :
+Pour un SaaS de facturation, la réforme change la donne : Novafact s'intègre à l'écosystème des **plateformes agréées**, échange des flux de factures structurées, et devient un maillon d'une chaîne où l'intégrité et la disponibilité sont critiques. Une facture altérée ou un flux interrompu n'est plus seulement un bug : c'est un problème fiscal pour les clients.
 
-| Donnée | Confidentialité | Intégrité | Disponibilité |
-| --- | --- | --- | --- |
-| Numérotation des factures | Faible | **Élevée** : elle doit être continue, sans trou ni doublon | Modérée |
-| IBAN de réception d'un tenant | Élevée | **Élevée** : le modifier détourne les paiements | Modérée |
-| Flux de factures électroniques reçues | Modérée | Élevée | **Élevée** : leur réception est une obligation légale des clients |
-| Documentation publique de l'API | Faible | Modérée : une doc modifiée peut inciter à une mauvaise intégration | Faible |
+Côté conception, cela se traduit par des exigences concrètes : authentifier et journaliser chaque échange avec la plateforme agréée, garantir que le contenu structuré d'une facture ne change pas entre sa génération et sa transmission (empreinte calculée à l'émission et vérifiée à l'envoi), rejouer sans doublon un envoi interrompu (idempotence), et surveiller la file de transmission comme un service critique (M23).
 
-Cette grille explique des contrôles que l'échelle de confidentialité seule ne justifie pas : la double validation du changement d'IBAN (leçon 3), la numérotation garantie par une séquence en base plutôt que calculée par l'application, la redondance des flux de réception.
+## Réduire le périmètre plutôt que tout protéger
 
-## Agrégation et données dérivées
+Le levier le plus puissant de la conformité est souvent la **réduction du périmètre** :
 
-Deux mécanismes font monter la classe d'une donnée sans que personne ne s'en aperçoive :
+- **Tokenisation** : les données de carte restent chez le prestataire de paiement, Novafact ne manipule que des jetons ;
+- **Minimisation** : ne pas collecter une donnée la sort du périmètre du RGPD pour ce traitement ;
+- **Isolation** : un service qui traite les données sensibles, séparé du reste, limite le périmètre des audits.
 
-- **l'agrégation** : des éléments internes pris un par un deviennent confidentiels ensemble. Le volume de factures d'un client est interne ; la liste de tous les clients avec leur chiffre d'affaires facturé est une information commerciale sensible. Les exports, les tableaux de bord et les requêtes analytiques se classent selon ce qu'ils révèlent **ensemble** ;
-- **la dérivation** : une donnée calculée à partir d'une autre en hérite, au moins en partie. Les **embeddings** des factures utilisés par l'assistant IA, les résumés qu'il produit, les caches de recherche et les index plein texte contiennent l'information d'origine sous une autre forme. Un index qui permet de retrouver « les factures d'un montant supérieur à 50 000 € » est aussi sensible que les factures elles-mêmes.
+La réduction de périmètre a un coût de conception, et il se paie une fois. Le périmètre qu'on laisse s'étendre se paie chaque année, à chaque audit, en contrôles appliqués à des systèmes qui n'avaient pas besoin de toucher la donnée. Pour PCI DSS, l'iframe du prestataire fait sortir le traitement des numéros de carte du périmètre de Novafact ; il reste la page qui l'intègre, soumise à des exigences sur ses scripts (M8, leçon 8).
 
-<Callout kind="info">
-Les données structurées (tables) se classent facilement. Les données **non structurées** (PDF de factures, pièces jointes, notes libres, conversations avec l'assistant IA) se classent mal et fuient souvent : pars du principe qu'elles héritent de la classe la plus sensible qu'elles peuvent contenir.
-</Callout>
+## Un contrôle, plusieurs textes
 
-## La classe dans le code
+Les textes se recoupent largement : la MFA sur les accès d'administration est une mesure de NIS2, une question de chaque questionnaire client, et une règle interne. Gérer la conformité texte par texte produit trois fois les mêmes preuves, et trois versions de la vérité. La pratique qui tient : un **catalogue de contrôles**, chacun relié aux exigences qu'il satisfait et à sa preuve, dans le prolongement de la matrice de traçabilité (leçon 2).
 
-Un dictionnaire de données tenu dans un tableur à part diverge du schéma en quelques semaines. Mieux vaut porter la classe **dans le schéma lui-même**, là où les développeurs la voient à chaque migration. Avec Prisma, les commentaires de documentation (trois barres obliques) sont conservés dans le modèle que les générateurs peuvent lire :
+<Code file="security/controls.yaml">
 
-<Code file="packages/db/prisma/schema.prisma">
+```yaml
+- id: CTRL-IAM-02
+  title: MFA résistante à l'hameçonnage sur tous les accès d'administration
+  owner: platform
+  satisfies:
+    - NOVA-AUTH-05          # exigence interne (catalogue de la leçon 2)
+    - NIS2 art. 21.2.j
+    - Contrat grands comptes, annexe sécurité §3.2
+  evidence:
+    - type: automated
+      source: rapport IAM Identity Center (utilisateurs sans MFA = 0), généré chaque nuit
+    - type: manual
+      source: docs/evidence/access-review/   # recertification trimestrielle (leçon 6)
 
-```prisma
-model Tenant {
-  id        String   @id @default(uuid())
-  /// @classification internal
-  name      String
-  /// @classification secret @owner finance
-  iban      String   // chiffré par l'application (enveloppe KMS, M8)
-  /// @classification confidential @owner customer-success
-  billingEmail String
-  createdAt DateTime @default(now())
-}
+- id: CTRL-VULN-01
+  title: Traitement et divulgation des vulnérabilités
+  owner: appsec
+  satisfies:
+    - NIS2 art. 21.2.e
+    - CRA art. 14 (signalement)            # pour le SDK
+    - PCI DSS 4.0.1, exigence 6.3          # identification et traitement des vulnérabilités
+  evidence:
+    - type: automated
+      source: DefectDojo, respect des SLA (M26)
+    - type: document
+      source: https://novafact.example/.well-known/security.txt
 ```
 
 </Code>
 
-Un générateur (ou un simple script qui lit le schéma) en tire la liste des champs à masquer. Cette liste alimente la configuration de journalisation, les filtres d'export et les jeux de données de test, au lieu d'être recopiée à la main à chaque endroit :
+Quand un questionnaire client arrive, ou qu'un nouveau texte s'applique, la question devient « quels contrôles existants le couvrent, et que manque-t-il ? » plutôt que « lançons un projet de conformité ».
 
-<Code file="packages/logging/src/logger.ts" hl="4,5,6,7,8">
+## Exigences envers les fournisseurs
 
-```ts
-import pino from 'pino';
-import { sensitiveFields } from '@novafact/db/generated/classification'; // ['iban', 'billingEmail', …]
+Les obligations de Novafact s'étendent à ses **sous-traitants** : un prestataire de paiement, un fournisseur d'e-mails, un fournisseur d'IA qui traitent des données pour son compte doivent respecter des exigences équivalentes (clauses RGPD, notification d'incident, droit d'audit). Le module 18 détaille l'évaluation des fournisseurs.
 
-export const logger = pino({
-  redact: {
-    paths: ['req.headers.authorization', 'req.headers.cookie', ...sensitiveFields.map((f) => `*.${f}`)],
-    censor: '[masqué]',
-  },
-});
-```
+Les points qui comptent dans le contrat, au-delà des clauses types :
 
-</Code>
-
-<Callout kind="warn">
-Le masquage par chemin ne voit que les champs nommés. Une adresse e-mail glissée dans un message d'erreur (`"facture refusée pour jean@client.example"`) ou un IBAN collé dans une note libre passe à travers. Le masquage des logs est un filet ; la vraie protection est de ne pas mettre de données sensibles dans les messages, et de journaliser des identifiants plutôt que des valeurs.
-</Callout>
-
-Côté infrastructure, la même classe se retrouve en **étiquette** sur les ressources AWS (un tag `data-classification` sur les buckets et les bases). Elle permet d'écrire des règles simples (« un bucket `confidential` doit être chiffré par KMS et sans accès public », M16) et de vérifier l'inventaire. Pour découvrir les données personnelles là où on ne les attendait pas, Amazon Macie analyse le contenu des buckets S3.
-
-## Le cycle de vie
-
-Chaque classe a ses règles à chaque étape :
-
-<Steps items={[
-  { title: "Création", text: "Collecter seulement ce qui sert un usage prévu (minimisation, leçon suivante)." },
-  { title: "Stockage", text: "Chiffrement, clés, isolation par tenant selon la classe." },
-  { title: "Utilisation et partage", text: "Qui peut lire, exporter, transmettre à un sous-traitant ?" },
-  { title: "Conservation", text: "Une durée par classe et par usage, fixée par le propriétaire (et par la loi pour les factures)." },
-  { title: "Destruction", text: "Suppression réelle, y compris dans les sauvegardes et les environnements de test (M17)." },
-]} />
-
-Pour la conservation, la loi fixe parfois le minimum : en France, le Code de commerce (article L123-22) impose de conserver les documents comptables et les pièces justificatives pendant **dix ans**, ce qui inclut les factures. Pour le reste, c'est au propriétaire de fixer une durée, et au dépositaire de l'appliquer automatiquement (règles de cycle de vie S3, index TTL de MongoDB, purges planifiées), plutôt que de compter sur une suppression manuelle qui n'arrive jamais.
-
-Les **environnements de test** méritent une règle explicite : pas de copie de données confidentielles ou secrètes de production. Des données synthétiques générées pour les tests, ou à défaut une copie pseudonymisée par un processus relu, jamais un `pg_dump` de la production sur un poste de développeur.
-
-<Callout kind="tip">
-Le jeu **Data Map** te fait classer les données de Novafact et choisir les contrôles de chaque classe.
-</Callout>
+- un **délai de notification d'incident** compatible avec tes propres délais : si Novafact doit alerter sous 24 heures, un fournisseur qui a 72 heures pour la prévenir rend la promesse intenable ;
+- la **liste des sous-traitants ultérieurs** et l'obligation de prévenir avant d'en ajouter un ;
+- la **localisation des données** et des accès de support ;
+- la **restitution et la suppression** des données en fin de contrat, avec une attestation.
 
 <Callout kind="debate">
-Classer finement ou grossièrement ? Une classification à sept niveaux et vingt étiquettes est plus précise, mais personne ne l'applique correctement ; tout finit en « confidentiel » par précaution, et la classe perd son sens. Quatre niveaux appliqués partout valent mieux qu'une taxonomie parfaite appliquée nulle part. Ajoute des étiquettes transverses (donnée personnelle, donnée de paiement) seulement quand elles déclenchent un contrôle différent.
+La conformité est-elle l'alliée ou l'ennemie de la sécurité ? Alliée : elle fixe des échéances, débloque des budgets et donne une légitimité aux demandes de l'AppSec auprès des équipes. Ennemie : elle pousse à produire des preuves plutôt qu'à réduire le risque, et un contrôle conforme peut être inefficace (une formation annuelle cochée, un pentest au périmètre étroit). La position la plus utile : utiliser la conformité comme un **argument** et un **calendrier** pour financer des contrôles utiles, jamais comme un **objectif**. Un programme conçu uniquement pour cocher des cases passe à côté des vrais risques.
 </Callout>
 
 <Recap items={[
-  "Propriétaire, dépositaire, utilisateur : trois rôles, un dictionnaire de données, une classification née de leur discussion.",
-  "Quatre classes suffisent : publique, interne, confidentielle, secrète.",
-  "Évaluer aussi l'impact sur l'intégrité et la disponibilité : une donnée publique peut exiger une intégrité forte.",
-  "L'agrégation et la dérivation (exports, embeddings, index) élèvent la classe.",
-  "Porter la classe dans le schéma et en dériver masquage des logs, exports et tags d'infrastructure.",
-  "Chaque classe a des règles à chaque étape du cycle de vie ; pas de données de production en test.",
+  "Quatre sources d'exigences : réglementaires, légales (dont les contrats clients), sectorielles, internes.",
+  "RGPD, CRA, NIS2, PCI DSS et réforme de la facture électronique concernent directement Novafact.",
+  "NIS2 : mesures de l'article 21 (chaîne d'approvisionnement, développement et vulnérabilités, MFA), notification 24 h / 72 h / un mois.",
+  "Depuis le 01/09/2026, réception obligatoire pour toutes les entreprises ; émission pour les PME au 01/09/2027.",
+  "Réduire le périmètre (tokenisation, minimisation, isolation) est le levier le plus puissant.",
+  "Un catalogue de contrôles reliés aux exigences et aux preuves évite de refaire la conformité texte par texte.",
+  "Les obligations s'étendent aux sous-traitants, avec des délais compatibles avec les tiens.",
 ]} />
 
 <Sources items={[
-  { title: "ISC2 CSSLP Exam Outline, domaine 3 (data classification)", url: "https://www.isc2.org/certifications/csslp/csslp-certification-exam-outline" },
-  { title: "OWASP ASVS 5.0, chapitre V14 (Data Protection)", url: "https://github.com/OWASP/ASVS" },
-  { title: "NIST FIPS 199 : Standards for Security Categorization", url: "https://csrc.nist.gov/pubs/fips/199/final" },
-  { title: "pino : redaction", url: "https://github.com/pinojs/pino/blob/main/docs/redaction.md" },
-  { title: "Légifrance : article L123-22 du Code de commerce", url: "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000006219327" },
-  { title: "Amazon Macie", url: "https://aws.amazon.com/macie/" },
+  { title: "economie.gouv.fr : facturation électronique entre entreprises", url: "https://www.economie.gouv.fr/actualites/facturation-electronique-entre-entreprises-coup-denvoi-de-la-reforme" },
+  { title: "PCI Security Standards Council", url: "https://www.pcisecuritystandards.org/" },
+  { title: "Commission européenne : CRA", url: "https://digital-strategy.ec.europa.eu/en/policies/cra-reporting" },
+  { title: "ANSSI : la directive NIS 2", url: "https://cyber.gouv.fr/la-directive-nis-2" },
+  { title: "Directive NIS2, article 21 (texte consolidé)", url: "https://www.nis-2-directive.com/NIS_2_Directive_Article_21.html" },
+  { title: "Directive NIS2, article 23 (texte consolidé)", url: "https://www.nis-2-directive.com/NIS_2_Directive_Article_23.html" },
+  { title: "CNIL : guide RGPD du développeur", url: "https://www.cnil.fr/fr/guide-rgpd-du-developpeur" },
 ]} />

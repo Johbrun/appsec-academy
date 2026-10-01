@@ -62,7 +62,7 @@ La chaîne **CWE → CAPEC → ATT&CK** relie une ligne de code à un comporteme
 
 ## Une chaîne complète, et ses trous
 
-Prenons la menace « credential stuffing sur la connexion » du threat model de Novafact (M10). Les fiches de MITRE permettent de la dérouler :
+Prenons la menace « credential stuffing sur la connexion » du threat model de Novafact (M15). Les fiches de MITRE permettent de la dérouler :
 
 | Niveau | Entrée | Ce qu'elle apporte |
 | --- | --- | --- |
@@ -81,8 +81,8 @@ Elle a aussi des trous, et il faut le savoir avant d'en faire un outil de décis
 
 ## Pourquoi c'est utile en AppSec
 
-- **Pour les développeurs** : CWE est leur vocabulaire (outils SAST, CVE, M2).
-- **Pour la détection** : ATT&CK est le vocabulaire de l'équipe de détection et du SIEM (M18). Rattacher une menace du threat model à une technique ATT&CK dit **ce qu'il faudrait voir en production** si elle se réalise.
+- **Pour les développeurs** : CWE est leur vocabulaire (outils SAST, CVE, M7).
+- **Pour la détection** : ATT&CK est le vocabulaire de l'équipe de détection et du SIEM (M24). Rattacher une menace du threat model à une technique ATT&CK dit **ce qu'il faudrait voir en production** si elle se réalise.
 - **Pour la conformité et la communication** : un référentiel partagé évite les débats de vocabulaire.
 
 Concrètement, Novafact ajoute trois colonnes à ses threat models : la CWE de la cause, la technique ATT&CK, et la détection attendue. La troisième est la plus précieuse : elle oblige à répondre à « comment saurions-nous que cela arrive ? » au moment de la conception, quand ajouter un événement de journal ne coûte presque rien.
@@ -109,7 +109,7 @@ L'enrichissement ne doit pas alourdir la séance avec l'équipe. Chez Novafact, 
 
 <Steps items={[
   { title: "Partir des menaces retenues", text: "Seulement celles qui ont donné lieu à une mitigation ou à une acceptation, pas toute la liste brute." },
-  { title: "Nommer la cause", text: "Une ou deux CWE par menace : c'est ce que le SAST et la revue de code (M12) chercheront." },
+  { title: "Nommer la cause", text: "Une ou deux CWE par menace : c'est ce que le SAST et la revue de code (M16) chercheront." },
   { title: "Nommer le comportement", text: "La technique ATT&CK la plus proche, et vérifier sur la fiche CAPEC s'il existe un lien direct." },
   { title: "Écrire la détection attendue", text: "L'événement à journaliser et la règle à écrire ; si rien n'est détectable, le dire explicitement." },
 ]} />
@@ -118,14 +118,14 @@ L'enrichissement ne doit pas alourdir la séance avec l'équipe. Chez Novafact, 
 
 | Technique ATT&CK | Chez Novafact |
 | --- | --- |
-| T1190 Exploit Public-Facing Application | Vulnérabilité de l'API ou du back-office (React2Shell, M2) |
-| T1195.001 Compromise Software Dependencies and Development Tools | Paquet npm compromis, extension d'IDE (M14) |
-| T1195.002 Compromise Software Supply Chain | Action GitHub ou pipeline compromis, artefact modifié (M14) |
-| T1078.004 Valid Accounts: Cloud Accounts | Identifiants AWS ou comptes clients volés (M10, M15) |
-| T1110.004 Brute Force: Credential Stuffing | Rejeu d'identifiants sur la connexion (M10) |
-| T1528 Steal Application Access Token | Jetons OAuth volés ou obtenus par consentement abusif (M9) |
-| T1552.005 Unsecured Credentials: Cloud Instance Metadata API | SSRF vers IMDS (M3, M15) |
-| T1530 Data from Cloud Storage | Bucket mal configuré (M16) |
+| T1190 Exploit Public-Facing Application | Vulnérabilité de l'API ou du back-office (React2Shell, M7) |
+| T1195.001 Compromise Software Dependencies and Development Tools | Paquet npm compromis, extension d'IDE (M18) |
+| T1195.002 Compromise Software Supply Chain | Action GitHub ou pipeline compromis, artefact modifié (M18) |
+| T1078.004 Valid Accounts: Cloud Accounts | Identifiants AWS ou comptes clients volés (M15, M19) |
+| T1110.004 Brute Force: Credential Stuffing | Rejeu d'identifiants sur la connexion (M15) |
+| T1528 Steal Application Access Token | Jetons OAuth volés ou obtenus par consentement abusif (M14) |
+| T1552.005 Unsecured Credentials: Cloud Instance Metadata API | SSRF vers IMDS (M9, M19) |
+| T1530 Data from Cloud Storage | Bucket mal configuré (M20) |
 
 Ces techniques se répartissent sur plusieurs tactiques (accès initial, accès aux identifiants, collecte). Les regarder par tactique aide à voir la **chaîne** : un T1552.005 réussi alimente un T1078.004, qui mène à un T1530. Un threat model qui ne couvre que l'accès initial laisse le reste de la chaîne sans détection.
 
@@ -137,7 +137,7 @@ Le **renseignement sur les menaces** utile à la conception n'est pas celui des 
 
 ## Le pont avec l'ATT&CK SaaS Academy
 
-Les techniques SaaS (fatigue MFA, applications OAuth malveillantes, règles de boîte mail cachées) décrivent ce qui arrive **aux comptes** des clients et des employés. Le threat model applicatif décrit ce qui arrive **au produit**. Les deux se rejoignent sur l'identité et les jetons (M9, M10). Pour Novafact, éditeur SaaS, les deux points de vue coexistent : ses employés sont la cible des techniques SaaS (un compte d'administration GitHub ou AWS pris), et son produit est l'environnement SaaS de ses clients, où ces mêmes techniques visent leurs comptes.
+Les techniques SaaS (fatigue MFA, applications OAuth malveillantes, règles de boîte mail cachées) décrivent ce qui arrive **aux comptes** des clients et des employés. Le threat model applicatif décrit ce qui arrive **au produit**. Les deux se rejoignent sur l'identité et les jetons (M14, M15). Pour Novafact, éditeur SaaS, les deux points de vue coexistent : ses employés sont la cible des techniques SaaS (un compte d'administration GitHub ou AWS pris), et son produit est l'environnement SaaS de ses clients, où ces mêmes techniques visent leurs comptes.
 
 <Recap items={[
   "CWE (faiblesse) → CAPEC (motif d'attaque) → ATT&CK (comportement), et D3FEND pour les contre-mesures, du durcissement à la détection.",

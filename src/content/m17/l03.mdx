@@ -55,8 +55,8 @@ Une mise en production traverse plusieurs maillons. Chacun répond à une questi
 
 | Maillon | Question | Contrôle chez Novafact |
 | --- | --- | --- |
-| Source | Le code a-t-il été relu ? | Rulesets et revue obligatoire sur `main` (M14) |
-| Build | A-t-il été construit par le pipeline, et seulement par lui ? | Workflow de release unique, runners hébergés, provenance SLSA (M14) |
+| Source | Le code a-t-il été relu ? | Rulesets et revue obligatoire sur `main` (M18) |
+| Build | A-t-il été construit par le pipeline, et seulement par lui ? | Workflow de release unique, runners hébergés, provenance SLSA (M18) |
 | Artefact | Est-ce bien ce binaire-là ? | Référence par **digest** `sha256`, jamais par tag |
 | Signature | Qui garantit ce digest ? | cosign sans clé (keyless) ou AWS Signer |
 | Admission | La plateforme refuse-t-elle le reste ? | Kyverno sur EKS, hook de déploiement ECS, code signing Lambda |
@@ -175,7 +175,7 @@ La même discipline s'applique à tout artefact qui entre dans la chaîne, pas s
 | Paquets npm | Champ `integrity` du lockfile (vérifié par `npm ci`), `npm audit signatures` pour les signatures et attestations du registre |
 | Binaire téléchargé en CI (Trivy, kubectl…) | Empreinte `sha256sum -c` contre une valeur épinglée, ou vérification de signature de l'éditeur |
 | Action GitHub | Épinglage par SHA de commit complet |
-| Artefact interne avec provenance | `gh attestation verify` (attestations GitHub, M14) |
+| Artefact interne avec provenance | `gh attestation verify` (attestations GitHub, M18) |
 | Image de base | `FROM` épinglé par digest |
 
 Le cas Codecov (leçon 1) l'illustre : les clients qui vérifiaient l'empreinte du script avant de l'exécuter n'ont pas exécuté la version modifiée.
@@ -211,7 +211,7 @@ Dans GitHub, un **environnement** `production` porte les règles : relecteurs ob
 
 Quand un job cible un environnement, le `sub` de son jeton prend la forme `environment:` et ne contient plus la branche. Pour les dépôts créés après le 15 juillet 2026, GitHub émet par défaut des `sub` immuables qui incluent les identifiants numériques du propriétaire et du dépôt (`repo:novafact@…/api@…:environment:production`) : adapte la condition, ou vérifie les claims `repository_id` et `repository_owner_id`, qui survivent aux renommages.
 
-L'**autorisation de mise en production** (*approval to operate*, notion issue du Risk Management Framework du NIST, SP 800-37) est d'une autre nature. Ce n'est pas un clic par déploiement : c'est une **décision de risque**, prise par un responsable identifié, pour un nouveau système ou un changement significatif, sur la base d'un dossier. Chez Novafact, ce dossier tient en une page : modèle de menaces à jour (M11), résultat de la revue ou du pentest, findings ouverts et exceptions signées (M5), SBOM, supervision et détections en place (M18), plan de reprise testé (leçon 6). L'autorisation est datée et revue à chaque changement significatif.
+L'**autorisation de mise en production** (*approval to operate*, notion issue du Risk Management Framework du NIST, SP 800-37) est d'une autre nature. Ce n'est pas un clic par déploiement : c'est une **décision de risque**, prise par un responsable identifié, pour un nouveau système ou un changement significatif, sur la base d'un dossier. Chez Novafact, ce dossier tient en une page : modèle de menaces à jour (M11), résultat de la revue ou du pentest, findings ouverts et exceptions signées (M26), SBOM, supervision et détections en place (M24), plan de reprise testé (leçon 6). L'autorisation est datée et revue à chaque changement significatif.
 
 <Callout kind="debate">
 Faut-il une approbation humaine à chaque déploiement ? Les équipes qui livrent plusieurs fois par jour répondent non : une approbation systématique devient un tampon que personne ne lit, et elle ralentit précisément les correctifs de sécurité. La position la plus défendable : des contrôles automatiques bloquants pour tous les changements standards (tests, SAST, scan, signature, politique d'admission), et un jugement humain réservé aux changements qui modifient le risque. La difficulté est de bien classer les changements, et c'est là que le threat modeling continu (M11) sert.

@@ -51,6 +51,12 @@ export interface SeriesProfile<T> {
   shuffleEachTime?: boolean;
 }
 
+/**
+ * Clé de score propre à une série, dans `progress.scores` : elle n'accorde pas
+ * d'XP, elle mémorise le record. C'est aussi ce que lit une leçon qui l'exige.
+ */
+export const seriesKey = (gameId: string, seriesId: string) => `${gameId}:${seriesId}`;
+
 /** Ce que l'écran de choix affiche d'une série. */
 export interface SeriesInfo {
   id: string;

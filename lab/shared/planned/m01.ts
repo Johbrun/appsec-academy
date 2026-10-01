@@ -1,4 +1,4 @@
-// M1 · Programme AppSec & DevSecOps — challenges spécifiés.
+// m01 · Programme AppSec & DevSecOps — challenges spécifiés.
 //
 // Module réputé impossible à mettre en lab : il parle de programme, pas de
 // code. Ce qui le rend praticable, c'est le livrable — l'apprenant produit un

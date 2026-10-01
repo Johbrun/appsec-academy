@@ -54,7 +54,7 @@ Ton métier t'a appris à prouver : une vulnérabilité sans preuve d'exploitati
 Dans *Designing Secure Software* (K13, *Crafting Working Exploits*), Kohnfelder défend une position qui surprend souvent les pentesters : produire un exploit complet pour faire corriger une vulnérabilité est **rarement nécessaire**. Deux arguments :
 
 - un exploit fiable demande beaucoup de travail une fois la cause identifiée ;
-- surtout, **échouer à écrire un exploit ne prouve pas que la vulnérabilité est inexploitable**. Un attaquant plus motivé, mieux outillé, ou disposant d'un autre maillon (M3, leçon 4) peut réussir.
+- surtout, **échouer à écrire un exploit ne prouve pas que la vulnérabilité est inexploitable**. Un attaquant plus motivé, mieux outillé, ou disposant d'un autre maillon (M9, leçon 4) peut réussir.
 
 Il recommande à la place d'écrire un **test de régression** qui déclenche directement le bug, même sans attaque complète. Il ajoute qu'en triage, on sous-estime une menace bien plus facilement qu'on ne la surestime.
 
@@ -111,7 +111,7 @@ Aucun de ces tests n'est un exploit. Le premier ne vole rien : il vérifie qu'un
 Une preuve d'exploitation reste parfois le seul argument qui débloque une correction : face à une équipe sceptique, à un produit qui refuse de prioriser, ou pour démontrer une chaîne dont chaque maillon semble anodin. Elle aide aussi à calibrer la priorité : entre « théoriquement possible » et « exploitable en deux requêtes », la différence d'urgence est réelle.
 </Callout>
 
-Il faut ajouter deux cas où la PoC est attendue par tout le monde. En **bug bounty**, les programmes exigent généralement une démonstration de l'impact, et la récompense en dépend : c'est une règle du jeu, pas une nécessité technique. En **détection**, rejouer une variante contrôlée de l'attaque dans un environnement de préproduction est la seule façon de vérifier qu'une règle WAF ou une détection Elastic se déclenche vraiment (M18). Dans ce cas, la PoC est un outil de test des défenses, et elle mérite l'effort.
+Il faut ajouter deux cas où la PoC est attendue par tout le monde. En **bug bounty**, les programmes exigent généralement une démonstration de l'impact, et la récompense en dépend : c'est une règle du jeu, pas une nécessité technique. En **détection**, rejouer une variante contrôlée de l'attaque dans un environnement de préproduction est la seule façon de vérifier qu'une règle WAF ou une détection Elastic se déclenche vraiment (M24). Dans ce cas, la PoC est un outil de test des défenses, et elle mérite l'effort.
 
 ## Une règle pratique
 

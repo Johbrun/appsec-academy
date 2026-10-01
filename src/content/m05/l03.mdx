@@ -57,7 +57,7 @@ Tu sais qu'une vulnérabilité « critique » sur le papier peut être inexploit
 | **EPSS** | Quelle probabilité d'exploitation dans les 30 prochains jours ? | FIRST, version 4 depuis mars 2025 |
 | **Atteignabilité** | Le code vulnérable est-il appelé par l'application ? | Analyse de l'outil SCA ou revue |
 | **Exposition** | L'actif est-il exposé sur Internet, ou interne ? | Inventaire, architecture |
-| **Impact métier** | Que touche l'actif : données de facturation, service critique ? | Classification des données (M7) |
+| **Impact métier** | Que touche l'actif : données de facturation, service critique ? | Classification des données (M12) |
 
 Chaque signal a son mode d'emploi et ses pièges.
 
@@ -67,7 +67,7 @@ Chaque signal a son mode d'emploi et ses pièges.
 
 **L'atteignabilité** se décline en niveaux : le paquet est présent dans l'arbre, il est importé par le code, la fonction vulnérable est appelée sur un chemin exécuté. Les outils SCA qui l'analysent construisent un graphe d'appels ; en JavaScript, ce graphe est imparfait (`require` dynamique, appels par réflexion, code généré). D'où la règle : une atteignabilité **inconnue** compte comme atteignable.
 
-**L'exposition** paraît binaire, mais « interne » ne veut pas dire « inaccessible » : une SSRF dans un service exposé rend le réseau interne joignable, et c'est tout le principe des chaînes de vulnérabilités (M3, leçon 4).
+**L'exposition** paraît binaire, mais « interne » ne veut pas dire « inaccessible » : une SSRF dans un service exposé rend le réseau interne joignable, et c'est tout le principe des chaînes de vulnérabilités (M9, leçon 4).
 
 ## SSVC : une décision plutôt qu'un score
 
@@ -84,7 +84,7 @@ L'intérêt de SSVC n'est pas l'arbre de la CISA en lui-même : c'est l'idée qu
 
 ## VEX : dire « non affecté »
 
-Un inventaire de composants (SBOM, M13) fait apparaître toutes les CVE des dépendances, y compris celles qui ne touchent pas le produit. **VEX** (Vulnerability Exploitability eXchange) permet de déclarer, pour une CVE et un produit, un **statut** :
+Un inventaire de composants (SBOM, M17) fait apparaître toutes les CVE des dépendances, y compris celles qui ne touchent pas le produit. **VEX** (Vulnerability Exploitability eXchange) permet de déclarer, pour une CVE et un produit, un **statut** :
 
 | Statut | Sens |
 | --- | --- |

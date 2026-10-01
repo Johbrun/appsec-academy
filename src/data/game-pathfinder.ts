@@ -1,4 +1,4 @@
-// Audits du jeu « IAM Privesc Pathfinder » (M15) : trouver l'instruction qui ouvre un chemin vers plus de droits,
+// Audits du jeu « IAM Privesc Pathfinder » (M19) : trouver l'instruction qui ouvre un chemin vers plus de droits,
 // puis la correction qui le coupe. `fixes[0]` est la bonne correction (le composant mélange l'ordre).
 //
 // Règle d'écriture : **les quatre corrections doivent être de vraies mesures de

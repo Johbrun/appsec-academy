@@ -1,200 +1,204 @@
 export const questions = [
   {
-    q: "L'assistant IA de Novafact appelle l'API interne avec son propre compte de service, très privilégié, pour exécuter les demandes des utilisateurs. Quel anti-pattern ?",
+    q: "Une API de profil renvoie tout l'enregistrement utilisateur, alors que l'appelant n'a besoin que du nom. Quel pattern est oublié ?",
     options: [
-      "Backflow of Trust : un composant peu fiable pilote un composant de confiance",
-      "Confused Deputy : un composant privilégié agit pour un appelant qui ne l'est pas",
-      "Third-Party Hooks : un tiers dispose d'un accès direct au cœur du système",
-      "Unpatchable Components : un composant qu'on ne peut plus corriger",
+      "Economy of Design : garder l'interface simple, sans cas particuliers",
+      "Least Information : ne transmettre que ce dont l'appelant a besoin",
+      "Complete Mediation : faire passer tous les chemins par le même contrôle",
+      "Least Common Mechanism : limiter ce que des utilisateurs distincts partagent",
     ],
     answer: 1,
-    explain: "L'assistant agit avec ses droits pour le compte d'un utilisateur qui ne les a pas : c'est l'adjoint confus. La confusion fréquente est avec le backflow of trust, qui décrit l'inverse — un composant de faible confiance qui en pilote un de haute confiance. Ici l'assistant est de confiance ; ce qui manque, c'est le contexte de l'appelant, qui doit voyager avec la requête et être exigé au moment d'accéder à la ressource.",
+    explain: "Least Information est l'équivalent de Least Privilege pour les données : chaque champ en trop élargit la surface d'une fuite. Complete Mediation est tentant parce qu'on parle d'une API, mais il porte sur le fait de contrôler tous les chemins d'accès, pas sur le volume renvoyé : ici le contrôle a bien eu lieu, c'est la projection qui est trop large.",
   },
   {
-    q: "Le runner CI de pull requests, qui exécute du code non relu, possède des identifiants de déploiement en production. Quel anti-pattern ?",
+    q: "Pourquoi Kohnfelder déconseille-t-il des identifiants de compte séquentiels ?",
     options: [
-      "Confused Deputy : le runner agit au-delà des droits de l'auteur de la PR",
-      "Third-Party Hooks : GitHub dispose d'un accès direct à la production",
-      "Backflow of Trust : du code non relu pilote un composant de haute confiance",
-      "Unpatchable Components : le runner exécute une image qu'on ne maîtrise pas",
+      "Least Information : un entier expose moins de champs qu'un identifiant composite",
+      "Least Common Mechanism : le compteur de séquence est partagé par tous les tenants",
+      "Avoid Predictability : un identifiant séquentiel révèle le volume et s'énumère",
+      "Economy of Design : un compteur global ajoute un état à maintenir dans la base",
     ],
     answer: 2,
-    explain: "Ce qui compte n'est pas la confiance qu'on accorde au runner, mais celle qu'il mérite : il exécute du code que personne n'a relu. C'est une élévation de privilège structurelle. L'adjoint confus est proche et souvent proposé, mais il suppose un composant honnête trompé sur l'identité du demandeur ; ici il n'y a aucune tromperie, on a simplement donné les clés de la production à du code arbitraire. Sur GitHub Actions, c'est le piège de pull_request_target.",
+    explain: "Ce qui se devine ne reste pas privé : l'identifiant séquentiel dévoile le nombre de clients à qui crée un compte chaque semaine, et invite à parcourir les objets des voisins. Least Common Mechanism est séduisant, le compteur étant effectivement partagé, mais partager un compteur ne fuit rien en soi : c'est sa prévisibilité qui pose problème. Un UUID v7 commence d'ailleurs par un horodatage : bonne clé, mauvais secret.",
   },
   {
-    q: "Le service d'export appelle une fonction utilitaire loadInvoices(ids), partagée avec les tâches d'administration et qui ne reçoit que des identifiants. Pourquoi est-ce un terrain favorable au confused deputy ?",
+    q: "Les 14 patterns sont rangés en cinq familles. À quoi sert ce regroupement quand on conçoit ?",
     options: [
-      "Parce que les identifiants passés sont prévisibles, donc faciles à énumérer",
-      "Parce que le contexte de l'appelant est perdu : la fonction ne sait pas qui demande",
-      "Parce qu'une fonction partagée entre tenants viole Least Common Mechanism",
-      "Parce que la fonction n'impose aucune limite au nombre d'identifiants acceptés",
-    ],
-    answer: 1,
-    explain: "Kohnfelder situe l'origine la plus fréquente des adjoints confus dans le code commun à des appelants de confiance différente : le contexte (qui demande, pour quel tenant) s'est perdu en route. Rendre les identifiants imprévisibles est utile ailleurs mais ne corrige rien ici — la fonction obéirait tout aussi bien à un UUID récupéré dans un lien partagé. La correction : faire voyager le contexte jusqu'à la fonction, et l'y exiger.",
-  },
-  {
-    q: "La page de paiement de Novafact charge un script depuis un CDN tiers. Le domaine du CDN change de propriétaire. Quelle combinaison de contrôles répond à l'anti-pattern ?",
-    options: [
-      "Mettre en place une CSP en mode report-only sur la page de paiement",
-      "Épingler la version du script dans l'URL du CDN, en /v3.2.1/pay.js",
-      "Héberger soi-même une copie figée, avec SRI et une CSP qui exclut l'origine tierce",
-      "Inscrire le CDN au registre des fournisseurs et le réévaluer chaque année",
+      "À doser la redondance : chaque famille ajoute une couche de défense indépendante des autres",
+      "À suivre l'ordre d'application : on traite une famille après l'autre, de la surface vers le cœur",
+      "À voir qu'on a couvert plusieurs angles, et pas empilé trois variantes du même geste",
+      "À graduer l'effort : les premières familles sont obligatoires, les dernières facultatives",
     ],
     answer: 2,
-    explain: "C'est un third-party hook : un tiers peut changer le code exécuté dans ta page. Épingler la version est le réflexe le plus fréquent et il ne protège pas — le nouveau propriétaire sert ce qu'il veut sous n'importe quelle URL, c'est exactement l'histoire de polyfill.io en 2024. Seules l'intégrité vérifiée (SRI) ou l'hébergement local retirent ce pouvoir au tiers ; une CSP en report-only, elle, n'a jamais rien bloqué.",
+    explain: "Les familles sont des angles d'attaque du problème, pas un ordre ni un barème. Une conception qui applique moindre privilège, moindre information et sûr par défaut a coché trois patterns — mais une seule famille : elle minimise bien l'exposition et ne fait rien pour la médiation ni pour la redondance. C'est ce déséquilibre que le regroupement rend visible. L'idée d'un ordre d'application est tentante et fausse : ces patterns se combinent, ils ne se succèdent pas. Et aucune famille n'est facultative — c'est le contexte, pas le rang, qui dit lesquels s'appliquent.",
+  },
+  {
+    q: "Novafact filtre le tenant dans la DAL et ajoute la RLS de PostgreSQL. Pourquoi ces deux couches renforcent-elles vraiment la défense ?",
+    options: [
+      "Parce que superposer deux contrôles double toujours la difficulté pour l'attaquant",
+      "Parce qu'un second appel à la même fonction de filtrage suffit à créer une redondance",
+      "Parce que la RLS s'évalue avant la DAL et rattrape donc ses erreurs de construction",
+      "Parce qu'elles sont indépendantes : un filtre oublié dans le code n'atteint pas la base",
+    ],
+    answer: 3,
+    explain: "La défense en profondeur ne multiplie les probabilités que si les couches échouent pour des raisons différentes — l'image des deux plaques percées au hasard. Répéter le même filtre dans la même fonction ne crée aucune redondance : les deux appels partagent le même bug. Et la RLS ne s'évalue pas « avant » la DAL : elle s'applique dans le moteur, à toute requête, quelle qu'en soit l'origine.",
   },
 ];
 
 <YouKnow>
-Ces quatre anti-patterns, tu les as exploités sous d'autres noms : SSRF avec les droits du serveur, compromission d'un fournisseur, composants abandonnés. Kohnfelder leur donne un vocabulaire de conception.
+Tu reconnais ces principes : ce sont souvent eux qui manquent quand une vulnérabilité existe. Kohnfelder (K4) les organise en 14 patterns répartis en 5 familles, avec des exemples concrets.
 </YouKnow>
 
-## Des anti-patterns, pas des vulnérabilités
+## Les 5 familles
 
-Kohnfelder précise que ces anti-patterns ne sont pas des failles en soi : ce sont des **structures** qui en produisent. Un confused deputy bien défendu peut tenir des années ; mais tant que la structure existe, chaque évolution du code risque de rouvrir la porte. En revue de conception, les nommer permet de discuter de la structure plutôt que du bug du jour.
-
-## Confused Deputy
-
-Un **adjoint confus** est un composant privilégié qu'un appelant moins privilégié amène à agir en son nom, **au-delà de ses propres droits**. Kohnfelder le présente comme « la mère de tous les anti-patterns », avec l'histoire d'un adjoint du shérif qui arrête la mauvaise personne parce que le suspect a fourni une fausse adresse : l'adjoint n'est ni malhonnête ni incompétent, il a utilisé son autorité sur la foi d'une information que l'autre contrôlait.
-
-| Contexte | Adjoint confus |
+| Famille | Patterns |
 | --- | --- |
-| Web | Une SSRF : le serveur émet la requête avec son accès au réseau interne ; un CSRF : le navigateur envoie la requête avec les cookies de la victime |
-| API | Un endpoint qui charge un objet par son identifiant avec les droits du service, sans vérifier le tenant du demandeur |
-| AWS | Un service qui agit sur une ressource de ton compte pour le compte d'un autre client (d'où l'`ExternalId` et les conditions `aws:SourceArn`, M15) |
-| IA | Un agent qui exécute les outils avec ses propres droits pour le compte de l'utilisateur ou d'un contenu injecté (M19) |
+| **Attributs de conception** | Economy of Design · Transparent Design |
+| **Minimisation de l'exposition** | Least Privilege · Least Information · Secure by Default · Allowlists over Blocklists · Avoid Predictability · Fail Securely |
+| **Application stricte** | Complete Mediation · Least Common Mechanism |
+| **Redondance** | Defense in Depth · Separation of Privilege |
+| **Confiance et responsabilité** | Reluctance to Trust · Accept Security Responsibility |
 
-### D'où vient la confusion
+Kohnfelder insiste sur un point : **ne pas tout appliquer partout**. Quand plusieurs patterns conviennent, on choisit les un ou deux meilleurs (davantage seulement pour les décisions les plus critiques) ; l'excès de mécanismes ajoute de la complexité, donc des bugs, et les rendements décroissent vite. Personne ne pose sept verrous sur sa porte d'entrée.
 
-Kohnfelder situe l'origine la plus fréquente dans le **code commun** à des appelants de confiance différente. Un composant intermédiaire sait qu'il est appelé par un utilisateur peu privilégié ; il délègue à un utilitaire qui, lui, n'a aucune notion de l'appelant et fait tout ce qu'on lui demande. Le contexte de la requête (qui, pour quel tenant, avec quels droits) s'est perdu en route.
+## Attributs de conception : simple et transparent
 
-Deuxième source : les **effets de bord**. Le demandeur n'a pas accès aux journaux, mais s'il peut faire écrire au service une chaîne qui corrompt ou falsifie une entrée de log, il utilise le privilège du service sur un actif auquel il n'a pas droit.
+**Economy of Design** n'interdit pas la complexité : il demande qu'elle **rapporte** quelque chose. Kohnfelder compare les permissions Unix (propriétaire, groupe, autres) aux ACL Windows (entrées d'autorisation et de refus, héritage, ordre d'évaluation significatif). Les secondes ne sont pas forcément boguées, mais elles sont plus difficiles à configurer correctement, pour les développeurs comme pour les utilisateurs. Chez Novafact, la même question s'est posée : des ACL par facture auraient couvert tous les cas imaginables, mais trois rôles plus un mécanisme de partage explicite (leçon 2 de M14) couvrent les besoins réels et restent **compréhensibles en revue**.
 
-La correction tient en une règle : **le contexte voyage avec la requête jusqu'au bout**, et le code qui touche une ressource l'exige.
+**Transparent Design** vise la sécurité par l'obscurité, pas le secret légitime : les clés et les données des clients restent confidentielles. Le test est simple : si publier la conception l'affaiblit, c'est la conception qu'il faut corriger. Un endpoint non documenté, un bundle JavaScript minifié ou un chemin d'administration « impossible à deviner » ne protègent rien : ton propre métier de pentester consiste à les retrouver.
 
-<Diff file="apps/api/src/invoices/invoices.repository.ts" hlBefore="1,2" hlAfter="1,3">
+## Minimisation de l'exposition : dans le doute, rester du côté sûr
+
+C'est la plus grande famille : six patterns qui expriment la même prudence.
+
+- **Least Privilege** : juste les droits nécessaires, juste le temps nécessaire, comme `sudo` qui oblige à un geste explicite avant une commande d'administration. Kohnfelder met en garde contre l'excès inverse : la granularité du mécanisme et le coût de changer de privilège comptent. Une politique IAM par fichier est ingérable ; une politique par préfixe de bucket et par service est tenable.
+- **Least Information** : l'équivalent de Least Privilege pour les données. Les interfaces qui évoluent finissent par transporter des champs « au cas où » ; on corrige ça à la conception, parce qu'après il faut changer les deux côtés de l'interface en même temps.
+- **Secure by Default** : l'inaction de l'opérateur ne doit pas créer de risque. Ça vaut pour la configuration, mais aussi pour les **paramètres d'API non fournis** : leur valeur par défaut doit être la plus restrictive. Et ne jamais déployer un état non sûr « qu'on sécurisera plus tard » : c'est une fenêtre de vulnérabilité, souvent oubliée.
+- **Allowlists over Blocklists** : une liste blanche incomplète refuse quelque chose de légitime (gênant, corrigeable) ; une liste noire incomplète laisse passer quelque chose de dangereux (une faille). Chaque omission d'une blocklist est un bug de sécurité.
+- **Avoid Predictability** : ce qui se devine ne reste pas privé. Un identifiant séquentiel révèle le nombre de clients à qui crée un compte jetable chaque semaine. Même un UUID v7 (RFC 9562) commence par un horodatage : très bien comme clé de base, pas comme secret.
+- **Fail Securely** : en cas d'erreur, finir dans un état sûr. Le code de gestion d'erreur est le moins testé, et l'attaquant provoque volontairement les erreurs.
+
+Least Information, appliqué à une API Prisma, tient souvent en un `select` explicite :
+
+<Diff file="apps/api/src/customers/customers.repository.ts" hlBefore="2" hlAfter="4">
 
 ```ts
-export const loadInvoices = (ids: string[]) =>
-  prisma.invoice.findMany({ where: { id: { in: ids } } }); // appelé par l'export ET par les tâches d'admin
+export const findCustomer = (tenantId: TenantId, id: string) =>
+  prisma.customer.findFirst({ where: { tenantId, id } }); // IBAN, notes internes, e-mail de facturation…
 ```
 
 ```ts
-export const loadInvoices = (ctx: RequestContext, ids: string[]) =>
-  prisma.invoice.findMany({
-    where: { id: { in: ids }, tenantId: ctx.tenantId }, // le tenant vient du contexte authentifié
+export const findCustomerSummary = (tenantId: TenantId, id: string) =>
+  prisma.customer.findFirst({
+    where: { tenantId, id },
+    select: { id: true, displayName: true, city: true }, // le strict nécessaire pour l'écran de liste
   });
-// les tâches d'administration ont leur propre fonction, avec un contexte « système » explicite et audité
 ```
 
 </Diff>
 
-Passer un contexte en paramètre partout est parfois lourd. Node propose `AsyncLocalStorage` (module `node:async_hooks`) pour attacher un contexte à toute une chaîne d'appels asynchrones ; c'est pratique pour la journalisation, mais pour l'autorisation, un paramètre explicite reste préférable : il rend l'oubli visible au typage et en revue.
+Et Fail Securely se joue souvent dans un seul bloc `catch` :
+
+<Diff file="apps/api/src/authz/middleware.ts" hlBefore="6" hlAfter="6,7">
+
+```ts
+export const authorize = (action: Action) => async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const allowed = await policyClient.isAllowed(req.auth, action, req.params);
+    return allowed ? next() : res.sendStatus(403);
+  } catch (err) {
+    return next(); // le moteur de politiques ne répond pas : on laisse passer « pour ne pas bloquer »
+  }
+};
+```
+
+```ts
+export const authorize = (action: Action) => async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const allowed = await policyClient.isAllowed(req.auth, action, req.params);
+    return allowed ? next() : res.sendStatus(403);
+  } catch (err) {
+    logger.error({ err, action }, 'authz_unavailable'); // alerte : c'est une panne, pas un refus normal
+    return res.sendStatus(503);
+  }
+};
+```
+
+</Diff>
+
+## Application stricte : pas d'échappatoire
+
+**Complete Mediation** demande que **tous** les chemins vers une ressource subissent le même contrôle. Kohnfelder décrit trois niveaux de conformité : élevé (un seul point de passage, le « goulot »), moyen (plusieurs points, avec un contrôle identique), faible (des contrôles différents selon le chemin, c'est-à-dire une médiation incomplète). Son exemple : une société d'investissement masque le numéro fiscal des clients à ses employés, mais leur permet de réimprimer un formulaire fiscal… qui contient ce numéro.
 
 <Callout kind="novafact">
-Le même principe s'applique à AWS. Quand un service AWS écrit dans un bucket de Novafact pour le compte d'une ressource (CloudTrail, par exemple), la politique du bucket restreint l'accès à **cette** ressource avec la condition `aws:SourceArn`, pour qu'une ressource d'un autre compte ne puisse pas utiliser le même service comme adjoint.
+L'équivalent chez Novafact : le rôle « lecteur » ne voit pas l'IBAN des clients à l'écran, mais l'export PDF d'une facture l'imprimait en pied de page. La correction n'a pas consisté à retirer l'IBAN du PDF, mais à faire passer **l'écran et l'export** par la même fonction de projection, qui décide des champs visibles selon le rôle.
 </Callout>
 
-<Code file="infra/s3/audit-bucket-policy.json" hl="9">
+**Least Common Mechanism** limite ce que des utilisateurs indépendants partagent. Kohnfelder l'illustre par le comptable qui étale les dossiers de tous ses clients sur un même bureau. En multi-tenant, le bureau partagé, c'est souvent le **cache** : une clé Redis construite sans le tenant (`invoice:2026-0042`) finit tôt ou tard par servir la facture d'un client à un autre. Préfixer chaque clé par le tenant, ou mieux, faire construire les clés par une fonction unique qui l'exige, applique le pattern.
 
-```json
-{
-  "Sid": "CloudTrailWrite",
-  "Effect": "Allow",
-  "Principal": { "Service": "cloudtrail.amazonaws.com" },
-  "Action": "s3:PutObject",
-  "Resource": "arn:aws:s3:::novafact-audit-logs/AWSLogs/111122223333/*",
-  "Condition": {
-    "StringEquals": {
-      "aws:SourceArn": "arn:aws:cloudtrail:eu-west-3:111122223333:trail/novafact-org-trail",
-      "s3:x-amz-acl": "bucket-owner-full-control"
-    }
-  }
-}
-```
+## Redondance : ne pas dépendre d'une seule couche
 
-</Code>
+**Defense in Depth** combine des protections **indépendantes**. L'image de Kohnfelder : deux plaques de contreplaqué percées de trous au hasard ; une seule laisse passer la lumière, deux superposées presque jamais. Son exemple logiciel est un bac à sable où un analyseur statique rejette le code interdit, puis un interpréteur bloque les mêmes opérations à l'exécution : deux mécanismes de nature différente ont peu de chances d'avoir la même faille. La multiplication des probabilités ne vaut **que** si les couches sont indépendantes ; deux copies du même filtre partagent les mêmes bugs. Et chaque couche coûte : on réserve le pattern aux décisions critiques.
 
-## Backflow of Trust
+**Separation of Privilege** confie une action critique à deux parties, comme le coffre bancaire dont la banque garde la salle et le client sa clé. Kohnfelder l'applique aussi aux journaux d'audit : ceux qui administrent le système ne doivent pas pouvoir effacer la trace de leurs propres actions. Pour les personnes honnêtes, c'est aussi une protection contre leurs propres erreurs.
 
-Un **reflux de confiance** se produit quand un composant de **faible** confiance contrôle un composant de **haute** confiance. Kohnfelder donne l'exemple de l'administrateur qui gère la production depuis son ordinateur personnel : la personne est digne de confiance, sa machine ne l'est pas. Ce qui compte n'est pas la confiance qu'on accorde, mais celle que le composant **mérite**. C'est une élévation de privilèges structurelle, qui attend son heure.
+## Confiance et responsabilité
 
-Chez Novafact, deux formes typiques :
+**Reluctance to Trust** : la confiance est une décision explicite, fondée sur des preuves. Le cookie renvoyé par le navigateur, le champ caché d'un formulaire, le webhook entrant, la bibliothèque trouvée sur npm : rien de tout ça n'est fiable par défaut.
 
-- un **runner CI** qui exécute le code des pull requests (non relu) et a accès aux identifiants de production. Sur GitHub Actions, c'est le piège du déclencheur `pull_request_target`, qui s'exécute avec les secrets du dépôt : combiné à un checkout du code de la PR, il fait exécuter du code non relu avec des droits élevés (M14) ;
-- un **poste de développeur** sans protection particulière qui détient des clés AWS à longue durée de vie.
+**Accept Security Responsibility** vise la phrase « je pensais que tu gérais la sécurité ». Entre un frontal qui transmet les entrées et un service métier qui les traite, chacun peut supposer que l'autre valide ; la solution est un accord explicite sur qui garantit quoi, et au besoin une validation des deux côtés. Kohnfelder étend le pattern au rapport entre concepteur et utilisateur : proposer une option dangereuse avec une boîte « Êtes-vous sûr ? » revient à transférer la responsabilité à quelqu'un qui n'a pas les moyens d'en juger. Mieux vaut dire précisément ce qui va se passer, proposer une annulation, ou supprimer l'option.
 
-La correction consiste à faire dépendre l'accès à la production d'une identité que seul un contexte de confiance peut obtenir. Avec la fédération OIDC entre GitHub et AWS, le rôle de déploiement n'accepte que les jobs de l'environnement `production` du bon dépôt, qu'on protège par une approbation obligatoire :
+## Tableau de synthèse pour Novafact
 
-<Code file="infra/iam/deploy-role-trust.json" hl="9,10">
+| Pattern | Exemple Novafact |
+| --- | --- |
+| Economy of Design | Un seul middleware d'autorisation plutôt qu'une vérification par route |
+| Transparent Design | Une API « cachée » s'authentifie comme les autres |
+| Least Privilege | Le service PDF lit un seul préfixe de bucket |
+| Least Information | L'API renvoie des DTO réduits, pas l'enregistrement complet |
+| Secure by Default | Un nouveau tenant démarre avec MFA exigée pour les administrateurs |
+| Allowlists over Blocklists | Schémas stricts, liste blanche d'origines CORS |
+| Avoid Predictability | Identifiants aléatoires, jetons issus d'un CSPRNG |
+| Fail Securely | Moteur d'autorisation indisponible : 503, jamais un accès |
+| Complete Mediation | Écran et export passent par la même projection |
+| Least Common Mechanism | Clés de cache préfixées par le tenant |
+| Defense in Depth | RLS PostgreSQL en plus du filtre de la DAL |
+| Separation of Privilege | Un remboursement au-delà de 5 000 € exige une seconde validation |
+| Reluctance to Trust | Les webhooks entrants sont signés et validés |
+| Accept Security Responsibility | Le service interne vérifie l'autorisation lui-même |
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Principal": { "Federated": "arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com" },
-    "Action": "sts:AssumeRoleWithWebIdentity",
-    "Condition": {
-      "StringEquals": {
-        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-        "token.actions.githubusercontent.com:sub": "repo:novafact/api:environment:production"
-      }
-    }
-  }]
-}
-```
+## Correspondance avec Saltzer & Schroeder et le CSSLP
 
-</Code>
+Beaucoup de ces patterns viennent de l'article de Saltzer et Schroeder (1975), qui énonce huit principes de conception, et que le CSSLP reprend dans son vocabulaire.
 
-Un workflow de pull request ne peut pas obtenir ce rôle : son `sub` ne correspond pas. Le threat modeling (M11) fait apparaître ces situations en examinant, frontière par frontière, **qui pilote qui**.
+| Saltzer & Schroeder | Pattern(s) de Kohnfelder |
+| --- | --- |
+| Economy of mechanism | Economy of Design |
+| Fail-safe defaults (décider par permission plutôt que par exclusion) | Secure by Default, Allowlists over Blocklists, Fail Securely |
+| Complete mediation | Complete Mediation |
+| Open design | Transparent Design |
+| Separation of privilege | Separation of Privilege |
+| Least privilege | Least Privilege |
+| Least common mechanism | Least Common Mechanism |
+| Psychological acceptability | Pas de pattern dédié ; présent dans la critique des boîtes « Êtes-vous sûr ? » |
 
-## Third-Party Hooks
+Les deux auteurs citaient aussi, comme principes imparfaitement applicables, le **facteur de travail** (le coût pour l'attaquant) et l'**enregistrement des compromissions** (savoir qu'une protection a été contournée). Le CSSLP ajoute d'autres notions, dont la **réutilisation de composants éprouvés** et le **maillon le plus faible**. Retiens surtout la correspondance : en revue, le même problème peut être nommé dans un vocabulaire ou dans l'autre.
 
-Une variante du précédent : un **tiers** dispose d'un accès direct au cœur du système, hors du contrôle de ceux qui l'exploitent. Kohnfelder cite le fournisseur d'un composant de prévision par IA qui exige un tunnel à travers le pare-feu pour le maintenir : s'il est malhonnête ou compromis, il exfiltre sans que personne ne le voie. Côté web, c'est exactement le script tiers de la page de paiement (M4), le serveur MCP d'un éditeur branché sur l'assistant (M19), ou la GitHub App avec des droits en écriture sur tous les dépôts (M14).
-
-<Callout kind="case">
-**polyfill.io (2024)**. Plus de 100 000 sites chargeaient un script depuis `cdn.polyfill.io`. En février 2024, le domaine et le compte GitHub du projet sont rachetés par une société nommée Funnull ; en juin, Sansec signale que le CDN sert du code qui redirige certains visiteurs mobiles vers des sites frauduleux, en évitant les administrateurs et les outils d'analyse. Le registrar suspend le domaine le 27 juin. Aucun des sites touchés n'avait été compromis : ils avaient simplement donné à un tiers le pouvoir de changer leur code.
+<Callout kind="tip">
+Le jeu **Pattern Match** présente des situations de conception : à toi de nommer le pattern appliqué ou l'anti-pattern présent.
 </Callout>
-
-Un hook limité peut être acceptable : Kohnfelder admet un mécanisme de mise à jour qui ne fait que télécharger et installer des versions signées. Un accès général ne l'est pas. Pour les scripts du navigateur, la réponse structurelle est connue : héberger soi-même une version figée, vérifier son intégrité avec **Subresource Integrity**, et une **CSP** qui n'autorise pas l'origine tierce. PCI DSS 4.0 impose d'ailleurs, sur les pages de paiement, l'inventaire et la justification de chaque script (exigence 6.4.3).
-
-## Unpatchable Components
-
-Tout composant populaire aura un jour une vulnérabilité connue. Un composant qu'on **ne peut pas corriger** devient donc une dette permanente. Kohnfelder en liste plusieurs formes : matériel non mis à jour, logiciel abandonné par son éditeur, binaire sans source, code compilé avec un outil obsolète, code écrit dans un langage que plus personne ne maîtrise. Pour Novafact :
-
-- un paquet npm **abandonné** (plus de release, mainteneur injoignable) ;
-- une version de Node en **fin de vie** : Node 18 depuis le 30 avril 2025, Node 20 depuis le 30 avril 2026 ;
-- du code **vendorisé** (copié dans le dépôt) sans suivi de l'original ;
-- un service qu'une seule personne sait déployer, ou une image Docker que plus personne ne sait reconstruire.
-
-<Callout kind="case">
-**event-stream (2018)**. Le mainteneur d'un paquet très utilisé, qui ne s'en occupait plus, en a cédé la publication à un inconnu qui s'était proposé pour l'aider. Celui-ci a ajouté une dépendance, `flatmap-stream`, contenant du code chiffré qui ne s'activait que dans l'application de portefeuille Bitcoin Copay. Un paquet abandonné n'est pas seulement impossible à corriger : il est aussi disponible pour qui veut le reprendre.
-</Callout>
-
-Contrôles concrets :
-
-<Steps items={[
-  { title: "Un critère de choix", text: "Avant d'adopter un composant : peut-on le mettre à jour en quelques heures ? Qui le maintient, à quel rythme, avec quelle politique de sécurité ?" },
-  { title: "Une mesure continue", text: "OpenSSF Scorecard (contrôle « Maintained »), dates de fin de vie des runtimes et des images de base suivies comme des échéances." },
-  { title: "Des mises à jour régulières", text: "Renovate ou Dependabot, avec des montées de version petites et fréquentes plutôt qu'un grand saut annuel impossible à tester (M13)." },
-  { title: "Un plan de sortie", text: "Pour chaque dépendance critique abandonnée : forker et maintenir, remplacer, ou isoler derrière une interface qui facilite le remplacement." },
-]} />
 
 <Recap items={[
-  "Confused Deputy : un composant privilégié agit au-delà des droits de son demandeur ; faire voyager le contexte jusqu'au code qui touche la ressource.",
-  "Backflow of Trust : un composant peu fiable pilote un composant très fiable ; l'accès à la production dépend d'une identité que seul un contexte de confiance obtient.",
-  "Third-Party Hooks : un tiers peut changer ton code ou accéder au cœur du système ; figer, vérifier, limiter.",
-  "Unpatchable Components : ce qu'on ne peut pas corriger devient une dette permanente, et un paquet abandonné peut être repris par n'importe qui.",
-  "Ces anti-patterns sont des structures : on les corrige en conception, pas bug par bug.",
+  "14 patterns en 5 familles : attributs, minimisation, application stricte, redondance, confiance et responsabilité.",
+  "Choisir le ou les deux meilleurs patterns plutôt que tous : la complexité crée des bugs.",
+  "Least Information et Fail Securely se jouent souvent dans une ligne : un select explicite, un catch qui refuse.",
+  "Complete Mediation : tous les chemins vers une ressource, y compris les exports, passent par le même contrôle.",
+  "Defense in Depth ne vaut que pour des couches indépendantes ; Accept Security Responsibility refuse le « je pensais que tu gérais ».",
 ]} />
 
 <Sources items={[
-  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 4, Anti-Patterns" },
-  { title: "AWS : le problème du confused deputy", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html" },
-  { title: "GitHub Security Lab : Preventing pwn requests", url: "https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/" },
-  { title: "GitHub Docs : OIDC dans AWS", url: "https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services" },
-  { title: "Sansec : Polyfill supply chain attack hits 100K+ sites", url: "https://sansec.io/research/polyfill-supply-chain-attack" },
-  { title: "Node.js : calendrier des versions", url: "https://github.com/nodejs/release#release-schedule" },
-  { title: "OpenSSF Scorecard", url: "https://scorecard.dev/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 4, Patterns" },
+  { title: "Saltzer & Schroeder, The Protection of Information in Computer Systems (1975)", url: "https://www.cs.virginia.edu/~evans/cs551/saltzer/" },
+  { title: "RFC 9562 : Universally Unique IDentifiers (UUIDs)", url: "https://www.rfc-editor.org/rfc/rfc9562" },
+  { title: "Prisma : select fields", url: "https://www.prisma.io/docs/orm/prisma-client/queries/select-fields" },
 ]} />

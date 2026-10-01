@@ -1,227 +1,230 @@
 export const questions = [
   {
-    q: "Dans Discover, `user.name : \"Alice.Martin\"` ne renvoie rien sur CloudTrail, alors que l'événement existe avec `alice.martin`. Pourquoi ?",
+    q: "Dans l'intégration CloudTrail, un collègue renseigne à la fois l'ARN du bucket et l'URL de la file SQS, « pour être sûr ». Que se passe-t-il ?",
     options: [
-      "KQL met les valeurs en minuscules, mais pas le contenu des champs `keyword`",
-      "Il faut échapper le point de `user.name`, interprété comme un séparateur de chemin",
-      "Sur un champ `keyword`, KQL exige une correspondance exacte, casse comprise",
-      "`user.name` n'est pas rempli par l'intégration CloudTrail, qui n'utilise que `user.id`",
+      "L'agent privilégie la file SQS et ne se sert du bucket que pour rattraper l'historique",
+      "La file est ignorée : l'intégration liste le bucket, au risque de saturer la mémoire",
+      "La configuration est refusée à la validation : les deux modes sont exclusifs",
+      "Les événements sont ingérés deux fois, une par chaque mode, d'où des doublons",
     ],
-    answer: 2,
-    explain: "Les champs `keyword`, numériques, dates et booléens se comparent tels quels : seuls les champs `text` passent par un analyseur qui met en minuscules. KQL n'applique aucune normalisation de son côté, et c'est l'inversion à corriger — le traitement dépend du type déclaré dans le mapping, pas du langage de requête. Le point dans `user.name` est un séparateur de chemin parfaitement normal et ne s'échappe pas. Pour les variantes de casse, passe par ES|QL (`TO_LOWER`) ou par EQL, dont l'opérateur `:` est insensible à la casse.",
+    answer: 1,
+    explain: "La documentation de l'intégration le précise : quand un ARN de bucket et une URL de file sont fournis ensemble, la file est ignorée et l'agent bascule en polling — il liste et traite tout le bucket, avec un risque réel de surconsommation mémoire sur un historique volumineux. Rien n'est refusé à la validation, et rien n'est ingéré deux fois : c'est justement ce silence qui rend la panne difficile à diagnostiquer, puisque les événements finissent par arriver, simplement plus lentement et au prix d'un agent instable. Pour le mode SQS, on ne renseigne que l'URL de la file.",
   },
   {
-    q: "Tu veux détecter, pour un même utilisateur, une connexion réussie suivie d'une désactivation de la MFA puis d'un export de factures, le tout en moins de 30 minutes. Quel outil convient ?",
+    q: "Après l'exfiltration d'objets du bucket des factures, l'enquêteur ne trouve aucun GetObject dans Elastic, alors que l'ingestion CloudTrail fonctionne. Explication la plus probable ?",
     options: [
-      "Une séquence EQL `sequence by user.id with maxspan=30m` à trois étapes",
-      "Une requête KQL combinant les trois conditions avec `and`",
-      "Une règle threshold sur `user.id` avec un seuil de trois événements",
-      "Une règle ES|QL qui agrège les trois actions par `user.id` avec `STATS…BY`",
+      "CloudTrail ne journalise jamais les lectures d'objets S3, seulement les écritures",
+      "Les `GetObject` réussis ne sont pas journalisés, seuls les refus le sont",
+      "Le trail ne capte que les événements de gestion : les data events s'activent à part",
+      "Le pipeline Elastic de l'intégration filtre les lectures pour limiter le volume d'index",
+    ],
+    answer: 2,
+    explain: "Les événements de données (`GetObject`, `PutObject`, `DeleteObject`) sont désactivés par défaut sur un trail et se facturent à part : ils existent bel et bien, il faut les activer, de façon ciblée sur les buckets qui comptent. Croire que CloudTrail ignore les lectures, ou qu'il ne garde que les refus, mène à la même conclusion opérationnelle — on n'active rien — et c'est le pire résultat : le jour de l'enquête, il ne reste que des suppositions sur ce qui a été lu. Le pipeline Elastic, lui, ne filtre pas les lectures.",
+  },
+  {
+    q: "Pourquoi une requête `source.ip: \"203.0.113.42\"` peut-elle couvrir d'un coup les logs WAF, CloudTrail et l'API Novafact ?",
+    options: [
+      "Parce que les pipelines et le format ECS ramènent l'adresse dans le même champ",
+      "Parce que Kibana cherche dans tous les champs quand aucun n'est précisé",
+      "Parce que les trois sources partagent un même flux de données et un même index",
+      "Parce que les intégrations AWS recopient `sourceIPAddress` tel quel dans chaque document",
     ],
     answer: 0,
-    explain: "EQL est fait pour les séquences : des étapes ordonnées, jointes par une clé commune et bornées par `maxspan`. L'agrégation ES|QL est la proposition la plus séduisante, parce qu'elle sait bien réunir les trois actions sous un même `user.id` dans la fenêtre de la règle — mais elle ne dit rien de l'ordre, donc elle alerterait aussi sur un utilisateur qui réactive sa MFA après un export de routine. Le `and` de KQL est pire encore : il évalue un document à la fois, et aucun document ne porte les trois actions.",
+    explain: "C'est tout l'intérêt d'ECS : chaque source garde ses champs propres (`aws.cloudtrail.*`, `aws.waf.*`), mais les notions communes sont recopiées sous un nom unique par le pipeline d'ingestion. Ce n'est donc pas la conservation du nom d'origine qui rend la requête possible — `sourceIPAddress` et `clientIp` sont bien là, sous leur nom, et les interroger ne couvrirait qu'une source à la fois. Les documents vivent dans des flux de données distincts, et Kibana ne devine rien : c'est le champ commun qui fait tout le travail.",
   },
   {
-    q: "Une source tierce écrit `AccessDenied`, la tienne `accessdenied`, et tu ne peux pas normaliser à l'ingestion. Quel opérateur EQL rattrape les deux ?",
+    q: "Quel indicateur révèle le mieux qu'une détection est devenue aveugle sans que personne ne s'en aperçoive ?",
     options: [
-      "`like`, qui compare par motif et tolère donc les variantes de casse",
-      "`in`, en énumérant les écritures rencontrées dans une liste de valeurs",
-      "`:`, la variante insensible à la casse de l'égalité stricte",
-      "`==` avec la valeur en minuscules, EQL repliant les deux côtés",
-    ],
-    answer: 2,
-    explain: "EQL marque l'insensibilité à la casse par une famille d'opérateurs dédiés : `:` pour l'égalité, et `like~`, `regex~`, `in~` pour les autres — le tilde est le signe. Sans lui, `like` et `in` restent sensibles à la casse, et `==` ne replie rien. Énumérer les écritures marche jusqu'à la prochaine variante que personne n'avait vue passer. Cela dit, l'opérateur est ici un pansement : la vraie correction est de normaliser à l'ingestion, pour que toutes les règles en profitent au lieu de la rattraper chacune de son côté.",
-  },
-
-  {
-    q: "Une règle ES|QL agrège les échecs de connexion par `source.ip` avec STATS…BY. L'analyste s'étonne que l'alerte ne contienne ni user-agent ni exemples d'identifiants. Pourquoi ?",
-    options: [
-      "Parce que les règles ES|QL tronquent les alertes au-delà de dix champs",
-      "Parce que le user-agent est supprimé par la redaction du pipeline d'ingestion Elastic",
-      "Parce que `STATS` ne conserve que le premier document de chaque groupe",
-      "Après `STATS`, la ligne ne porte que les champs du `BY` et les valeurs calculées",
+      "Le nombre d'alertes de la semaine, comparé à celui de la semaine précédente",
+      "Le nombre de règles en échec d'exécution dans le journal des règles de détection",
+      "Le taux de faux positifs, qui chute quand une source cesse d'alimenter les règles",
+      "La date du dernier événement reçu pour chaque flux attendu",
     ],
     answer: 3,
-    explain: "Chaque ligne du résultat devient une alerte, et après une agrégation une ligne ne contient plus que les champs du `BY` et ce qui a été calculé. `STATS` ne garde pas davantage « le premier document du groupe » : il n'y a plus de document du tout, seulement un agrégat — c'est la nuance qui trompe, parce qu'on imagine un échantillon représentatif. Ce que l'analyste doit voir se prévoit donc dans la requête : `VALUES(user_agent.original)`, `COUNT_DISTINCT(user.name)`, `MIN` et `MAX` sur l'horodatage.",
+    explain: "Une règle dont la source s'est tarie ne produit rien et ne signale aucune erreur : son exécution réussit, sur zéro document. Le journal d'exécution des règles est donc un indicateur rassurant et incomplet — il attrape les règles cassées, pas les règles affamées, et c'est la nuance qui laisse passer des mois de silence. Le nombre d'alertes baisse bien, mais une semaine calme lui ressemble trait pour trait. Surveiller la fraîcheur de chaque flux, face à une liste explicite des sources attendues, est la première détection à écrire.",
   },
 ];
 
 <YouKnow>
-Dans Burp, tu passes sans y penser de la recherche dans l'historique au comparateur puis à l'extension qui rejoue une séquence. Elastic te donne le même découpage : **KQL** pour chercher, **EQL** pour enchaîner des événements dans le temps, **ES|QL** pour compter et comparer. Choisir le bon langage fait souvent la différence entre une requête de trois lignes et une impasse.
+Tu as sans doute déjà lu des logs CloudTrail bruts en fin d'audit cloud : du JSON imbriqué, un `sourceIPAddress` qui vaut parfois `AWS Internal`, des champs qui changent d'un service à l'autre. Un SIEM utile commence par une ingestion propre : chaque source arrive, arrive vite, et parle la même langue.
 </YouKnow>
 
-## Trois langages, trois questions
+## Elastic Agent, Fleet et les flux de données
 
-| Langage | Question typique | Où on l'utilise | Limite |
+L'écosystème d'ingestion d'Elastic repose sur quelques briques qu'il faut distinguer :
+
+| Brique | Rôle | Chez Novafact |
+| --- | --- | --- |
+| **Elastic Agent** | Un agent unique qui exécute les entrées (S3, SQS, CloudWatch, fichiers, API) | Un petit service ECS dans le compte d'archivage des logs, avec un *task role* dédié |
+| **Fleet** et Fleet Server | Gestion centrale des agents : politiques, mises à jour, état de santé | Géré depuis Kibana, sur Elastic Cloud |
+| **Agent policy** | Ensemble d'intégrations appliqué à un groupe d'agents | `aws-security` (CloudTrail, GuardDuty, WAF, ALB) et `app-logs` |
+| **Intégration** | Paquet qui fournit l'entrée, le pipeline d'ingestion, les mappings ECS, les tableaux de bord | Intégration AWS, Custom AWS Logs |
+| **Data stream** | Flux nommé `type-dataset-namespace` | `logs-aws.cloudtrail-prod`, `logs-novafact.api-prod` |
+
+L'agent peut aussi tourner en mode **standalone** (configuration en YAML, sans Fleet), utile en infrastructure immuable. Et certaines intégrations AWS, comme GuardDuty par API ou les métriques CloudWatch, existent en mode **agentless** : Elastic exécute la collecte pour toi. Pour les logs dans S3, Novafact garde un agent qu'elle maîtrise, ce qui lui permet de contrôler le rôle IAM utilisé.
+
+Le **namespace** est plus qu'une étiquette : il sépare `prod` de `staging` dans des flux distincts, donc avec des durées de rétention et des droits d'accès différents. Un analyste peut lire `logs-*-prod` sans voir les logs de recette qui contiennent des données de test, et inversement pour un développeur.
+
+## Les sources AWS
+
+| Source | Transport | Ce qu'elle raconte | Piège |
 | --- | --- | --- | --- |
-| **KQL** | « Montre-moi les refus d'autorisation du tenant Acme » | Barre de recherche de Discover et des tableaux de bord, règles *custom query*, *threshold*, *new terms* | Filtre seulement : ni agrégation, ni tri, ni ordre temporel |
-| **EQL** | « Qui a fait A puis B puis C en moins de 30 minutes ? » | Règles EQL, onglet *Correlation* de Timeline | Pensé pour des événements ordonnés, pas pour des statistiques |
-| **ES\|QL** | « Quelles IP ont essayé plus de 20 identifiants distincts cette heure ? » | Discover en mode ES\|QL, règles ES\|QL, tableaux de bord | Une ligne de résultat devient une alerte : à concevoir en conséquence |
+| **CloudTrail** (trail d'organisation) | S3, notification vers SQS | Qui a appelé quelle API AWS, d'où, avec quel résultat | Les événements de données (S3 `GetObject`, Lambda `Invoke`) sont désactivés par défaut et payants |
+| **GuardDuty** | Export des findings vers S3 (clé KMS obligatoire), ou API | Détections gérées par AWS : identifiants exfiltrés, appels depuis des IP malveillantes, anomalies S3 | Un finding est une conclusion, pas une preuve : il faut revenir à CloudTrail |
+| **AWS WAF** | S3 (bucket nommé `aws-waf-logs-…`), CloudWatch Logs ou Firehose | Chaque requête inspectée, la règle qui a tranché, les labels | Livraison dans S3 par lots de cinq minutes |
+| **ALB** (access logs) | S3 | Requêtes, codes, latences, classification *desync* | À activer explicitement par load balancer |
+| **CloudFront** (logs standard) | S3 | Requêtes en bordure, résultat de cache | Pas de temps réel sans les *real-time logs* |
+| **VPC Flow Logs** | S3 ou CloudWatch Logs | Flux réseau acceptés ou rejetés | Aucun contenu applicatif |
 
-Une enquête typique les enchaîne : KQL pour cadrer, ES|QL pour trouver l'anomalie dans la masse, EQL pour vérifier qu'une chaîne d'actions s'est bien produite dans l'ordre.
-
-## KQL : chercher vite, et juste
-
-KQL est le langage que tu tapes le plus souvent. Sa syntaxe tient en quelques formes :
-
-<Code file="elastic/queries/kql-novafact.txt">
-
-```text
-event.dataset : "novafact.api" and event.action : "authz_fail" and organization.id : "acme"
-
-event.dataset : "aws.waf" and event.action : "BLOCK" and not url.path : "/health"
-
-http.response.status_code >= 500 and service.name : "novafact-api"
-
-aws.cloudtrail.user_identity.access_key_id : AKIA* and event.outcome : "success"
-
-novafact.object_id : *
-```
-
-</Code>
-
-Les pièges se ressemblent d'une équipe à l'autre :
-
-- **La casse et les keywords** : sur un champ `keyword`, la valeur doit correspondre exactement, casse comprise. `event.action : "block"` ne trouve rien dans les logs WAF, qui écrivent `BLOCK`. Seuls les champs `text` passent par l'analyseur.
-- **L'existence** : `champ : *` teste la présence d'un champ, ce qui sert à repérer les documents incomplets (un événement de sécurité sans `user.id`, par exemple).
-- **Les jokers en tête** (`*admin`) sont coûteux et peuvent être désactivés par l'option `query:allowLeadingWildcards` de Kibana.
-- **La priorité** entre `and` et `or` : mets des parenthèses dès que tu mélanges les deux, plutôt que de te fier à ta mémoire.
-- **Ce qu'il ne sait pas faire** : KQL filtre, un point c'est tout. Dès que la question contient « combien », « le plus », « puis » ou « jamais vu », tu as besoin d'un autre langage.
-
-## EQL : raconter une séquence
-
-EQL (*Event Query Language*) décrit une suite d'événements ordonnés. Chaque étape a la forme `catégorie where condition`, la catégorie étant lue dans `event.category` (d'où l'intérêt d'avoir rempli ce champ ECS dès l'application, leçon 1). `any where` accepte toutes les catégories.
-
-Le scénario de prise de contrôle de compte de Novafact (M10) s'écrit ainsi :
-
-<Code file="elastic/rules/ato-mfa-export.eql" hl="1,5">
-
-```text
-sequence by user.id with maxspan=30m
-  [authentication where event.action == "authn_login_success"]
-  [iam where event.action == "authn_mfa_disabled"]
-  [database where event.action == "invoice_export"]
-until [authentication where event.action == "session_logout"]
-```
-
-</Code>
-
-Trois mécanismes font la puissance de la séquence :
-
-- **La clé de jointure** (`sequence by user.id`) : les trois événements doivent partager la même valeur. Si la clé porte un nom différent selon l'étape, on la déclare étape par étape avec `by`, par exemple `by source.ip` pour un log WAF puis `by client.ip` pour une autre source.
-- **La fenêtre** (`with maxspan=30m`) : tous les événements doivent tomber dans les 30 minutes qui suivent le premier.
-- **L'expiration** (`until`) : si l'utilisateur se déconnecte entre deux étapes, la séquence en cours est abandonnée. C'est un moyen simple de réduire les faux positifs.
-
-EQL sait aussi chercher ce qui **manque**. Chez Novafact, un changement d'IBAN doit être confirmé par un lien envoyé par e-mail. Une demande suivie d'un export sans confirmation dans l'intervalle est suspecte :
-
-<Code file="elastic/rules/iban-sans-confirmation.eql">
-
-```text
-sequence by user.id with maxspan=1h
-  [iam where event.action == "iban_change_requested"]
-  ![iam where event.action == "iban_change_confirmed"]
-  [database where event.action == "invoice_export"]
-```
-
-</Code>
-
-Les étapes « manquantes » (préfixées par `!`) exigent une fenêtre `maxspan`. Côté syntaxe, retiens la distinction entre `==` (sensible à la casse) et `:` (insensible), et les variantes `like~`, `regex~` et `in~` : utiles quand deux sources n'écrivent pas les valeurs de la même façon.
+La règle générale : les services AWS écrivent dans S3, **S3 notifie une file SQS**, l'agent lit la file puis l'objet. Plusieurs agents peuvent consommer la même file, chaque message est traité une fois, et rien ne repose sur un listing coûteux du bucket.
 
 <Callout kind="warn">
-Une séquence n'est jamais meilleure que ses données. Si l'événement `authn_mfa_disabled` n'est pas journalisé quand c'est le **support** qui désactive la MFA (par l'outil d'administration plutôt que par l'API), la règle a un angle mort exactement là où les attaquants d'ingénierie sociale passent. Vérifie chaque étape avec un vrai parcours, pas seulement avec la requête.
+Si tu renseignes à la fois l'ARN du bucket et l'URL de la file dans l'intégration, elle **ignore la file** et passe en mode polling : elle liste et traite tout le bucket. Sur des années d'historique CloudTrail, c'est un pic mémoire et une facture de requêtes S3. Pour le mode SQS, seule l'URL de la file est renseignée.
 </Callout>
 
-## ES|QL : compter, comparer, enrichir
+La plomberie tient en quelques ressources Terraform (M20) :
 
-ES|QL est un langage en tuyaux : chaque commande reçoit une table et en produit une autre. C'est le bon outil pour les questions statistiques. Le credential stuffing se voit par le **nombre d'identifiants distincts** tentés depuis une même source, bien plus que par le nombre d'échecs :
+<Code file="infra/log-archive/cloudtrail-sqs.tf" hl="16,17,18,19,20">
 
-<Code file="elastic/queries/stuffing-par-ip.esql" hl="3,4">
+```hcl
+resource "aws_sqs_queue" "cloudtrail_events" {
+  name                       = "elastic-cloudtrail-events"
+  visibility_timeout_seconds = 300
+  message_retention_seconds  = 1209600
+  sqs_managed_sse_enabled    = true
+}
 
-```sql
-FROM logs-novafact.api-prod
-| WHERE event.action == "authn_login_fail" AND @timestamp > NOW() - 1 hour
-| STATS echecs = COUNT(*), identifiants = COUNT_DISTINCT(novafact.login_fingerprint),
-        agents = VALUES(user_agent.original) BY source.ip
-| WHERE identifiants >= 20
-| SORT identifiants DESC
-| LIMIT 50
+data "aws_iam_policy_document" "s3_to_sqs" {
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [aws_sqs_queue.cloudtrail_events.arn]
+    principals {
+      type        = "Service"
+      identifiers = ["s3.amazonaws.com"]
+    }
+    condition {
+      test     = "ArnEquals"
+      variable = "aws:SourceArn"
+      values   = [aws_s3_bucket.org_trail.arn]
+    }
+  }
+}
+
+resource "aws_sqs_queue_policy" "s3_to_sqs" {
+  queue_url = aws_sqs_queue.cloudtrail_events.id
+  policy    = data.aws_iam_policy_document.s3_to_sqs.json
+}
+
+resource "aws_s3_bucket_notification" "org_trail" {
+  bucket = aws_s3_bucket.org_trail.id
+  queue {
+    queue_arn     = aws_sqs_queue.cloudtrail_events.arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "AWSLogs/"
+  }
+  depends_on = [aws_sqs_queue_policy.s3_to_sqs]
+}
 ```
 
 </Code>
 
-L'empreinte HMAC de la leçon 1 prend ici tout son sens : on compte des identifiants distincts sans jamais les avoir stockés en clair. `COUNT_DISTINCT` est une approximation, largement suffisante à ces volumes.
-
-Côté AWS, une clé volée se trahit souvent par une **rafale de refus** sur des actions variées : l'attaquant cartographie ce qu'elle a le droit de faire.
-
-<Code file="elastic/queries/cartographie-permissions.esql">
-
-```sql
-FROM logs-aws.cloudtrail-*
-| WHERE @timestamp > NOW() - 24 hours AND event.outcome == "failure"
-  AND (aws.cloudtrail.error_code LIKE "*AccessDenied*" OR aws.cloudtrail.error_code LIKE "*UnauthorizedOperation*")
-| STATS refus = COUNT(*), actions = COUNT_DISTINCT(event.action), services = VALUES(event.provider)
-    BY aws.cloudtrail.user_identity.arn, source.ip
-| WHERE actions >= 15
-| SORT actions DESC
-```
-
-</Code>
-
-Deux commandes méritent d'être connues. `BUCKET(@timestamp, 1 hour)` dans un `BY` découpe le temps pour tracer une évolution. `LOOKUP JOIN` enrichit chaque ligne avec un index de référence, configuré en mode `lookup` : Novafact y range ses tenants (offre, pays, responsable de compte), ce qui transforme `organization.id: "t_4812"` en information utile pour le triage.
-
-```sql
-FROM logs-novafact.api-prod
-| WHERE event.action == "authz_fail"
-| STATS refus = COUNT(*) BY organization.id, heure = BUCKET(@timestamp, 1 hour)
-| LOOKUP JOIN novafact-tenants ON organization.id
-| KEEP heure, organization.id, tenant.plan, tenant.owner, refus
-| SORT refus DESC
-```
-
-Dans une règle ES|QL, **chaque ligne du résultat devient une alerte**. Une requête agrégée ne garde que les champs du `BY` et les valeurs calculées : ce que l'analyste doit voir dans l'alerte (user-agents, exemples d'actions) se prévoit dans la requête, avec `VALUES` par exemple.
-
-## Des requêtes qui tiennent la charge
-
-Une requête d'enquête tourne une fois ; une règle tourne toutes les cinq minutes, pendant des années. Quelques habitudes évitent les mauvaises surprises :
-
-- **Cibler l'index** : `FROM logs-aws.cloudtrail-*` plutôt que `FROM logs-*`. Le motif d'index est le premier filtre, et le moins cher.
-- **Filtrer tôt** : en ES|QL, le `WHERE` sur `@timestamp` et `event.action` vient avant tout `STATS` ou `EVAL`. En EQL, une condition précise à chaque étape réduit le nombre de séquences candidates que le moteur garde en mémoire.
-- **Borner les résultats** : sans `LIMIT`, ES|QL renvoie 1 000 lignes par défaut, et jamais plus de 10 000. Une enquête qui « ne trouve que 1 000 IP » a peut-être atteint la limite, pas la réalité.
-- **Nommer les colonnes** en français ou en anglais, mais toujours de la même façon : les requêtes d'enquête deviennent des règles, et les règles des tableaux de bord que d'autres liront.
-
-## Timelines et cas : de l'alerte au dossier
-
-Une requête répond à une question ; une enquête en pose vingt. Elastic Security fournit deux outils pour garder le fil.
-
-<Steps items={[
-  { title: "Ouvrir l'alerte dans une Timeline", text: "La Timeline rassemble les événements autour de l'alerte. Tu y ajoutes des requêtes KQL, et l'onglet Correlation accepte des requêtes EQL, séquences comprises." },
-  { title: "Épingler et annoter", text: "Chaque événement pertinent est épinglé ; les notes expliquent pourquoi. La Timeline devient le récit de l'enquête, relisible par un collègue." },
-  { title: "Attacher un modèle à la règle", text: "Un modèle de Timeline, associé à une règle, préremplit l'enquête avec les bons champs et les bonnes requêtes dès l'alerte suivante." },
-  { title: "Ouvrir un cas", text: "Le cas regroupe alertes, Timelines, entités et commentaires. Il peut se synchroniser avec Jira ou ServiceNow et fermer les alertes rattachées à sa clôture." },
-  { title: "Transformer la découverte en règle", text: "Une requête EQL écrite dans la Timeline peut devenir une règle EQL : l'enquête d'aujourd'hui est la détection de demain (leçon 4)." },
-]} />
+La condition `aws:SourceArn` empêche un autre bucket d'écrire dans la file (le problème du *confused deputy*, M19). Côté lecture, le rôle de l'agent reçoit le strict nécessaire : `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:ChangeMessageVisibility`, `sqs:GetQueueAttributes`, `s3:GetObject` sur le préfixe des logs, et `kms:Decrypt` si le bucket est chiffré avec une clé KMS. Il n'a aucun droit d'écriture ni de suppression sur le bucket : un agent compromis ne peut pas effacer l'historique.
 
 <Callout kind="novafact">
-Premier incident traité dans Elastic par Novafact (scénario fictif) : une alerte ES|QL signale 180 identifiants distincts depuis une même IP en une heure. La Timeline montre trois connexions réussies parmi eux ; la séquence EQL de prise de contrôle ne s'est déclenchée pour aucun des trois comptes. Le cas documente la réinitialisation des mots de passe, la révocation des sessions et l'ajout de l'ASN en règle WAF à débit limité. Durée totale : 50 minutes, dont 20 perdues à retrouver quel champ contenait le tenant, d'où l'index de référence `novafact-tenants`.
+L'architecture de Novafact (chiffres fictifs) : un trail d'organisation écrit dans le bucket du compte d'archivage, avec **S3 Object Lock** et la validation d'intégrité CloudTrail activée ; les événements de données S3 sont activés sur deux buckets seulement (factures et exports), pour contenir le coût. Au total, environ 35 Go par jour arrivent dans Elastic, dont un tiers pour le WAF et moins de 1 Go pour les événements de sécurité applicatifs, qui sont pourtant ceux qui déclenchent le plus d'alertes utiles.
 </Callout>
+
+## Les logs applicatifs
+
+L'API écrit ses logs pino/ECS sur `stdout` (leçon 1). Sur ECS Fargate, le pilote `awslogs` les envoie dans CloudWatch Logs. Deux chemins mènent ensuite à Elastic :
+
+| Chemin | Principe | À savoir |
+| --- | --- | --- |
+| **Custom AWS Logs**, entrée CloudWatch | L'agent interroge les groupes de logs, avec un nom de dataset choisi (`novafact.api`) | Les API CloudWatch Logs utilisées (`DescribeLogGroups`, `FilterLogEvents`) sont limitées à 5 transactions par seconde par compte et par région, partagées entre tous les appelants |
+| **Amazon Data Firehose** | Un filtre d'abonnement CloudWatch pousse vers Firehose, qui livre à Elastic | Pas d'agent à gérer ; le paramètre `es_datastream_name` choisit le flux de destination |
+
+Novafact a commencé par l'agent, plus simple à mettre en place. Dans les deux cas, le message arrive sous forme d'une chaîne JSON qu'un pipeline d'ingestion déplie. Comme l'application produit déjà de l'ECS, il n'y a **rien à renommer** : c'est tout l'intérêt de normaliser à la source plutôt qu'à l'ingestion.
+
+<Code file="elastic/pipelines/novafact-api-ecs.json">
+
+```json
+PUT _ingest/pipeline/novafact-api-ecs
+{
+  "description": "Déplie les logs pino au format ECS de l'API Novafact",
+  "processors": [
+    {
+      "json": {
+        "field": "message",
+        "add_to_root": true,
+        "add_to_root_conflict_strategy": "merge",
+        "if": "ctx.message instanceof String && ctx.message.startsWith('{')"
+      }
+    },
+    { "dot_expander": { "field": "*" } }
+  ]
+}
+```
+
+</Code>
+
+Le pipeline est référencé dans l'option `pipeline` de l'intégration. La stratégie `merge` fusionne les objets déjà posés par l'agent (`aws`, `cloud`) avec ceux du log ; `dot_expander` transforme les clés pointées d'ecs-pino-format (`log.level`, `service.name`) en objets, pour que les processeurs suivants y accèdent. Pour les intégrations gérées par Fleet, les ajouts maison vont dans un pipeline `@custom` (au format `type-dataset@custom`), jamais dans le pipeline fourni, qui est remplacé à chaque mise à jour.
+
+## ECS : une question, un seul champ
+
+Chaque source garde ses champs propres (`aws.cloudtrail.*`, `aws.waf.*`, `aws.elb.*`), mais les pipelines ramènent les notions communes vers des champs ECS :
+
+| Notion | CloudTrail | WAF | API Novafact |
+| --- | --- | --- | --- |
+| Adresse source | `sourceIPAddress` vers `source.ip` (avec `source.geo` et `source.as`) | `httpRequest.clientIp` vers `source.ip` | `source.ip` |
+| Action | `eventName` vers `event.action` | `action` (ALLOW, BLOCK…) vers `event.action` | `authz_fail`, `invoice_export`… |
+| Résultat | `errorCode` vers `event.outcome` | selon l'action | `event.outcome` |
+| Acteur | `userIdentity` vers `user.name`, `aws.cloudtrail.user_identity.arn` | aucun | `user.id` |
+| Périmètre | `cloud.account.id` | `aws.waf.arn` | `organization.id` (le tenant) |
+
+Conséquence directe : `source.ip: "203.0.113.42"` sur `logs-*` retrouve la même adresse dans le WAF, dans l'API et dans CloudTrail si elle a servi à appeler AWS. Et les règles prêtes à l'emploi d'Elastic, écrites en ECS, fonctionnent sur tes données sans adaptation.
 
 <Callout kind="tip">
-Le jeu **Log Detective AppSec** te présente des événements Elastic (pino/ECS, CloudTrail, WAF) : à toi d'identifier l'attaque et la technique ATT&CK. Un bon entraînement pour choisir le bon langage selon la question.
+CloudTrail met `AWS Internal` ou le nom DNS d'un service dans `sourceIPAddress` pour les appels faits par AWS lui-même. Le pipeline garde la valeur brute dans `source.address` et ne remplit `source.ip` que si c'est une adresse. Une requête sur `source.ip` exclut donc naturellement ces appels internes.
 </Callout>
 
+## Ingérer n'est pas détecter : surveiller le silence
+
+La panne la plus dangereuse d'un SIEM est **silencieuse** : une rotation de clé KMS casse le déchiffrement, une file SQS change de nom, un pipeline échoue sur un nouveau format. Aucune alerte ne sonne, puisqu'il n'y a plus de données. Un attaquant qui désactive le trail (`StopLogging`, `DeleteTrail`) produit exactement ce silence ; Elastic fournit d'ailleurs des règles prêtes à l'emploi pour ces appels.
+
+La première détection de Novafact porte donc sur l'ingestion elle-même :
+
+<Code file="elastic/queries/fraicheur-des-flux.esql">
+
+```sql
+FROM logs-*-prod
+| WHERE @timestamp > NOW() - 7 days
+| STATS dernier = MAX(@timestamp) BY data_stream.dataset
+| EVAL minutes = DATE_DIFF("minute", dernier, NOW())
+| WHERE minutes > 60
+| SORT minutes DESC
+```
+
+</Code>
+
+Une source muette depuis plus de sept jours disparaît de ce résultat : la requête est donc comparée à une liste des flux attendus, et l'alerte porte sur l'absence. Côté intégrité, la validation CloudTrail (fichiers de *digest* signés en SHA-256 avec RSA) prouve qu'aucun fichier n'a été modifié ni supprimé dans S3, et l'intégration peut ingérer ces digests si tu renseignes l'expression correspondante.
+
+Reste la **rétention**. Les politiques de cycle de vie des flux (ILM ou *data stream lifecycle*) déplacent les données vers des paliers moins chers puis les suppriment. Novafact garde 13 mois pour les flux de sécurité et 30 jours pour les logs techniques, en cohérence avec sa politique de journalisation (leçon 1) : une durée qui n'est écrite nulle part finit toujours par être « pour toujours » ou « jusqu'à ce que le disque soit plein ».
+
 <Recap items={[
-  "KQL filtre, EQL séquence, ES|QL agrège et enrichit : choisis selon la question, pas par habitude.",
-  "En KQL, les champs keyword se comparent exactement, casse comprise ; KQL ne sait ni compter ni ordonner.",
-  "EQL relie des événements par une clé, dans une fenêtre, avec until pour expirer et ! pour les étapes manquantes.",
-  "ES|QL compte des valeurs distinctes, découpe le temps et joint un index de référence ; dans une règle, chaque ligne devient une alerte.",
-  "Timeline et cas transforment une suite de requêtes en enquête documentée, puis en nouvelle règle.",
+  "Elastic Agent exécute les entrées, Fleet gère les politiques ; les données arrivent dans des flux type-dataset-namespace.",
+  "Pour les sources AWS, le schéma S3 puis SQS puis agent est la norme ; ne renseigne pas le bucket si tu utilises la file.",
+  "CloudTrail ne journalise pas les événements de données par défaut : active-les sur les buckets critiques.",
+  "Les logs applicatifs déjà en ECS n'ont besoin que d'un pipeline qui déplie le JSON ; les ajouts vont dans des pipelines @custom.",
+  "ECS donne un seul champ par notion (source.ip, event.action, event.outcome) à travers toutes les sources.",
+  "Surveille la fraîcheur de chaque flux : une source muette ressemble à du calme.",
 ]} />
 
 <Sources items={[
-  { title: "Elastic : KQL", url: "https://www.elastic.co/docs/explore-analyze/query-filter/languages/kql" },
-  { title: "Elastic : syntaxe EQL", url: "https://www.elastic.co/docs/reference/query-languages/eql/eql-syntax" },
-  { title: "Elastic : ES|QL", url: "https://www.elastic.co/docs/reference/query-languages/esql" },
-  { title: "Elastic : LOOKUP JOIN", url: "https://www.elastic.co/docs/reference/query-languages/esql/commands/lookup-join" },
-  { title: "Elastic Security : Timeline", url: "https://www.elastic.co/docs/solutions/security/investigate/timeline" },
-  { title: "Elastic Security : cas", url: "https://www.elastic.co/docs/solutions/security/investigate/security-cases" },
+  { title: "Elastic : intégration AWS", url: "https://www.elastic.co/docs/reference/integrations/aws" },
+  { title: "Elastic : intégration AWS CloudTrail", url: "https://www.elastic.co/docs/reference/integrations/aws/cloudtrail" },
+  { title: "Elastic : Custom AWS Logs", url: "https://www.elastic.co/docs/reference/integrations/aws_logs" },
+  { title: "Elastic : pipelines d'ingestion personnalisés (Fleet)", url: "https://www.elastic.co/docs/reference/fleet/data-streams-pipeline-tutorial" },
+  { title: "AWS : événements de données CloudTrail", url: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-data-events-with-cloudtrail.html" },
+  { title: "AWS WAF : journalisation vers S3", url: "https://docs.aws.amazon.com/waf/latest/developerguide/logging-s3.html" },
+  { title: "Elastic Common Schema", url: "https://www.elastic.co/docs/reference/ecs" },
 ]} />

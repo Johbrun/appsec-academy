@@ -91,9 +91,9 @@ curl -s https://endoflife.date/api/v1/products/nodejs/ \
 
 Les contrôles qui en découlent :
 
-- **à la conception** : pas de composant dont la fin de support tombe pendant la durée de vie prévue du service sans plan de migration, et une préférence documentée pour les composants qu'on sait mettre à jour vite (M8) ;
-- **en continu** : le SBOM (M13) croisé avec les dates de fin de vie, une alerte six mois avant chaque échéance, et le budget de montée de version inscrit dans la feuille de route, pas pris sur le temps libre ;
-- **quand on ne peut pas migrer à temps** : isoler (réseau, droits minimaux), compenser (virtual patching, leçon 8), et consigner l'exception avec une date de fin, comme toute acceptation de risque (M5).
+- **à la conception** : pas de composant dont la fin de support tombe pendant la durée de vie prévue du service sans plan de migration, et une préférence documentée pour les composants qu'on sait mettre à jour vite (M13) ;
+- **en continu** : le SBOM (M17) croisé avec les dates de fin de vie, une alerte six mois avant chaque échéance, et le budget de montée de version inscrit dans la feuille de route, pas pris sur le temps libre ;
+- **quand on ne peut pas migrer à temps** : isoler (réseau, droits minimaux), compenser (virtual patching, leçon 8), et consigner l'exception avec une date de fin, comme toute acceptation de risque (M26).
 
 ## Décommissionner un service
 
@@ -151,13 +151,13 @@ do {
 
 ## Disposer des données
 
-Décommissionner un service ne veut pas dire tout effacer, ni tout garder. La **disposition des données** se décide donnée par donnée, à partir de l'inventaire fait en M7 :
+Décommissionner un service ne veut pas dire tout effacer, ni tout garder. La **disposition des données** se décide donnée par donnée, à partir de l'inventaire fait en M12 :
 
 | Donnée | Obligation | Décision chez Novafact |
 | --- | --- | --- |
 | Factures émises et pièces comptables | 10 ans à compter de la clôture de l'exercice (Code de commerce, art. L123-22) ; 6 ans pour les documents fiscaux (LPF, art. L102 B) | Archive S3 dédiée, Object Lock en compliance pour la durée légale, accès limité au rôle comptable |
 | Comptes utilisateurs, journaux de connexion | Minimisation et limitation de conservation (RGPD) | Suppression à la fin de la période de rétention définie |
-| Logs applicatifs dans Elastic | Politique de rétention du SIEM (M18) | Expiration par cycle de vie d'index, sans action manuelle |
+| Logs applicatifs dans Elastic | Politique de rétention du SIEM (M23) | Expiration par cycle de vie d'index, sans action manuelle |
 | Copies en environnement de test | Aucune justification une fois le service retiré | Destruction immédiate |
 | Données chez les sous-traitants (SES, prestataire de paiement, support) | Contrats et RGPD | Demande de suppression écrite, preuve conservée |
 

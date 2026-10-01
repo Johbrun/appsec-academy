@@ -1,184 +1,165 @@
 export const questions = [
   {
-    q: "Un rapport CSP signale un script inconnu sur la page de paiement, depuis quelques visiteurs seulement. Quelle est la première action ?",
+    q: "Depuis quand les exigences PCI DSS 6.4.3 et 11.6.1 sont-elles obligatoires ?",
     options: [
-      "Qualifier la source : extension du visiteur, ou script réellement servi ?",
-      "Classer en bruit : un volume aussi faible vient presque toujours d'extensions",
-      "Attendre la revue hebdomadaire pour voir si le signal se confirme",
-      "Ajouter l'URL bloquée à la politique, pour arrêter les rapports en attendant",
-    ],
-    answer: 0,
-    explain: "Une bonne partie des rapports vient effectivement des extensions des visiteurs, et c'est ce qui rend le classement en bruit tentant. Mais un skimmer ciblé ne touche parfois qu'une poignée de personnes : le faible volume n'est pas un argument. Ce qui tranche, c'est l'origine du script — servi par Novafact ou par un tiers, c'est un incident possible. Attendre ou élargir la politique revient à supprimer le signal avant de l'avoir lu.",
-  },
-  {
-    q: "Comment la supply chain du front se protège-t-elle d'un paquet npm compromis ?",
-    options: [
-      "Par le contrôle synthétique d'empreintes, qui verra le bundle changer",
-      "Par la CSP stricte, qui refuse tout script non porteur du nonce",
-      "Par SRI sur le bundle, dont l'empreinte est calculée par le pipeline",
-      "Par le lockfile et npm ci, un délai avant adoption, un pipeline de confiance",
+      "Depuis mars 2022, date de publication de PCI DSS 4.0",
+      "Depuis juin 2024, avec la révision 4.0.1 qui les a précisées",
+      "Depuis janvier 2025, quand le SAQ A a été remanié",
+      "Depuis le 31 mars 2025, fin de la période de bonnes pratiques",
     ],
     answer: 3,
-    explain: "Le code d'un paquet compromis est compilé dans ton propre bundle : il porte le nonce, il correspond à l'empreinte que le pipeline vient de calculer, et le contrôle synthétique enregistre la nouvelle référence comme un déploiement ordinaire. Aucun contrôle de la page ne le voit. La défense est en amont — lockfile et npm ci, scripts d'installation désactivés, délai avant d'adopter une version, pipeline de confiance —, c'est-à-dire les contrôles du module 14 appliqués au front.",
+    explain: "PCI DSS 4.0 a bien été publiée en mars 2022, mais ces deux exigences y figuraient comme bonnes pratiques jusqu'au 31 mars 2025 : c'est cette fin de transition qui les rend opposables. La révision 4.0.1 de juin 2024 les a clarifiées sans toucher à l'échéance, et le remaniement du SAQ A de janvier 2025 a introduit un critère d'éligibilité, pas une date d'entrée en vigueur.",
   },
   {
-    q: "Le fichier JavaScript de la page de paiement, autorisé et porteur du nonce, a été modifié sur le bucket S3. Quelle source de détection a le plus de chances de le voir ?",
+    q: "Novafact intègre l'iframe de paiement d'un prestataire. Est-elle dispensée de toute question sur les scripts de sa page ?",
     options: [
-      "Les rapports CSP : un script modifié déclenche une violation d'intégrité",
-      "Le contrôle synthétique, qui compare l'empreinte de chaque script servi",
-      "Le pare-feu applicatif, qui inspecte les réponses servies aux visiteurs",
-      "Le versioning S3, qui signale toute nouvelle version d'un objet du bucket",
-    ],
-    answer: 1,
-    explain: "Le script modifié garde son URL et reste autorisé par la politique : aucune violation, donc aucun rapport — c'est l'angle mort de la CSP. Le versioning S3 conserve bien l'ancienne version, mais il archive, il n'alerte pas ; et le pare-feu applicatif filtre des requêtes entrantes, pas le contenu que le CDN sert. Seule la comparaison d'empreintes à une référence produite par le pipeline voit le changement.",
-  },
-  {
-    q: "L'équipe restaure la version saine du bundle dans le bucket S3 derrière CloudFront. Le skimmer est-il retiré pour les visiteurs ?",
-    options: [
-      "Oui : CloudFront revalide l'objet auprès de S3 à chaque requête",
-      "Oui, puisque le versioning S3 est actif sur le bucket du front",
-      "Pas forcément : le cache CloudFront sert l'ancien objet jusqu'à l'invalidation",
-      "Non : tant que le point d'entrée n'est pas identifié, le skimmer peut revenir",
+      "Oui : les scripts de la page sortent du périmètre dès que la saisie est isolée",
+      "Oui, si le prestataire fournit une attestation de conformité pour sa solution",
+      "Non : le SAQ A exige désormais de confirmer que la page intégrante est protégée",
+      "Non : dès qu'une page de paiement existe, c'est le SAQ A-EP qui s'applique",
     ],
     answer: 2,
-    explain: "Le retrait n'est effectif qu'une fois le cache du CDN purgé : sans invalidation, CloudFront continue de servir la copie compromise jusqu'à expiration, et le versioning S3 ne change rien à ce qui est déjà en cache. L'objection du point d'entrée non identifié est juste en soi — c'est l'étape suivante du runbook — mais elle ne répond pas à la question posée, qui porte sur ce que reçoivent les visiteurs maintenant. La vérification se fait côté navigateur, avec le contrôle d'empreintes.",
+    explain: "6.4.3 et 11.6.1 ont été retirées du SAQ A en janvier 2025, mais remplacées par un critère d'éligibilité : la page qui intègre l'iframe doit être protégée contre les attaques par script, puisqu'un script présent sur cette page peut remplacer l'iframe par un faux formulaire. L'attestation du prestataire ne suffit pas telle quelle — elle ne vaut que si elle porte explicitement sur la protection de la page intégrante ; sinon Novafact applique elle-même des mesures équivalentes.",
+  },
+  {
+    q: "Novafact s'appuie uniquement sur les rapports CSP pour 11.6.1. Un attaquant qui contrôle le déploiement retire l'en-tête CSP de la page de paiement. Que voit Novafact ?",
+    options: [
+      "Rien : sans en-tête, plus de politique appliquée, donc plus de rapports",
+      "Une baisse du volume de rapports, visible sur le tableau de bord Elastic",
+      "Des erreurs dans la console des visiteurs, remontées par le suivi d'erreurs",
+      "Une alerte du prestataire, qui vérifie les en-têtes à chaque appel de l'iframe",
+    ],
+    answer: 0,
+    explain: "Sans en-tête, le navigateur n'applique plus rien et n'envoie plus rien : le silence ressemble à une journée calme. Guetter une baisse du volume ne sauve pas, car une page saine ne produit déjà presque aucun rapport — on ne distingue pas zéro de zéro. C'est pourquoi 11.6.1 vise les en-têtes tels que reçus par le navigateur : un contrôle externe doit constater que la politique est encore là, au lieu d'écouter ce qu'elle rapporte.",
+  },
+  {
+    q: "À quelle fréquence le mécanisme de 11.6.1 doit-il s'exécuter ?",
+    options: [
+      "À chaque déploiement, puisque c'est le moment où les scripts de la page changent",
+      "Au moins chaque semaine, ou selon une analyse de risque ciblée documentée",
+      "Au moins une fois par trimestre, comme les scans de vulnérabilités ASV",
+      "En continu : la norme impose une détection en temps réel sur cette page",
+    ],
+    answer: 1,
+    explain: "La norme fixe un plancher hebdomadaire, qu'une analyse de risque ciblée (exigence 12.3.1) permet d'ajuster à condition de la documenter. La confusion la plus fréquente est avec le rythme trimestriel des scans ASV, qui relève d'une autre exigence. Rien n'interdit d'aller plus vite, et un contrôle à chaque déploiement est un bon complément — mais il ne voit rien de ce qui change entre deux déploiements, c'est-à-dire précisément le cas du script tiers compromis.",
   },
 ];
 
 <YouKnow>
-Tu sais qu'un skimmer peut rester des mois sur une page avant d'être découvert, souvent par les banques. Cette leçon organise la surveillance côté client et la réponse.
+Tu as peut-être déjà audité des pages de paiement ou croisé des skimmers. Cette leçon traduit les exigences PCI DSS sur les scripts en contrôles concrets pour une SPA React.
 </YouKnow>
 
-## Trois sources de détection
+## Deux exigences pour les pages de paiement
 
-| Source | Ce qu'elle voit | Limites |
-| --- | --- | --- |
-| **Rapports CSP** | Scripts, connexions ou cadres bloqués (ou qui l'auraient été en Report-Only), chez les vrais visiteurs | Beaucoup de bruit dû aux extensions de navigateur ; ne voit pas un script autorisé qui a changé |
-| **Contrôle synthétique** | Un robot charge la page de paiement à intervalles réguliers et compare scripts, empreintes et en-têtes à la référence | Ne voit que ce qui est servi au robot : un skimmer ciblé peut l'éviter |
-| **Outils de protection côté client** | Un agent dans la page qui surveille le comportement des scripts (accès aux champs, envois de données) | Coût, et c'est un script tiers de plus à évaluer |
+PCI DSS 4.0 (révision 4.0.1, juin 2024) a introduit deux exigences contre les attaques de type Magecart. Elles sont **obligatoires depuis le 31 mars 2025**.
 
-Les trois se complètent : un skimmer ciblé échappe au robot mais déclenche des rapports CSP, et un script autorisé modifié échappe à la CSP mais pas au contrôle d'empreinte.
+| Exigence | Ce qu'elle demande |
+| --- | --- |
+| **6.4.3** | Un **inventaire** de tous les scripts exécutés sur la page de paiement, avec pour chacun une **justification** et une **autorisation**, et un mécanisme qui garantit leur **intégrité** |
+| **11.6.1** | Un mécanisme de **détection de modification** qui alerte en cas de changement non autorisé des scripts et des **en-têtes HTTP de sécurité** tels que reçus par le navigateur, vérifié au moins chaque semaine |
 
-## À quoi ressemble un skimmer, vu du défenseur
+Lues de près, les deux exigences se partagent le travail. 6.4.3 est **préventive** : décider de ce qui a le droit de s'exécuter, et empêcher le reste. 11.6.1 est **détective** : constater que ce que le navigateur reçoit réellement correspond encore à ce qui a été décidé. La nuance « tels que reçus par le navigateur » est importante : l'état du dépôt Git ou du bucket S3 ne suffit pas, puisqu'une modification peut intervenir plus loin (CDN, tiers, en-têtes réécrits).
 
-Connaître les habitudes des skimmers sert à régler la surveillance, pas à les reproduire. Les rapports de chercheurs (Sansec en publie régulièrement) décrivent des constantes :
+Quelques précisions du texte :
 
-- **ajout discret** à un fichier légitime, souvent en fin de fichier et obfusqué, plutôt qu'un nouveau fichier : le nom et l'URL ne changent pas, seule l'empreinte change ;
-- **activation conditionnelle** : seulement sur l'URL de paiement, seulement pour certains pays ou appareils, pas pour les robots identifiables ;
-- **exfiltration vers un domaine proche** de celui du site ou d'un service connu, au moment de la saisie ou de l'envoi du formulaire ;
-- **usage de services légitimes** comme relais (conteneur de tag manager, stockage public), pour passer les listes de domaines autorisés.
+- l'intégrité n'impose **aucun mécanisme précis** : CSP, SRI ou un autre moyen, tant qu'il est justifié ;
+- 11.6.1 doit alerter sur les indicateurs de compromission, les modifications, les ajouts et les suppressions ;
+- la fréquence est d'**au moins une fois par semaine**, ou celle définie par une **analyse de risque ciblée** (exigence 12.3.1) si l'entité en choisit une autre et la documente.
 
-Chaque constante indique un réglage : comparer les **empreintes** et non les URL, exécuter le contrôle synthétique avec des **profils variés**, surveiller les **connexions sortantes** de la page (directive `connect-src` et ses rapports), et préférer une CSP stricte à une liste de domaines.
+## Le cas des iframes de paiement
 
-## Évaluer un outil de protection côté client
+Beaucoup de marchands intègrent le paiement via l'iframe d'un prestataire et relèvent du **SAQ A**, le questionnaire le plus léger. En janvier 2025, le PCI SSC a **retiré 6.4.3 et 11.6.1 du SAQ A**, mais les a remplacées par un **critère d'éligibilité** : le marchand doit confirmer que ses pages, **y compris celle qui intègre l'iframe**, ne sont pas exposées aux attaques par script. En effet, un script malveillant sur ta page peut remplacer l'iframe du prestataire par un faux formulaire.
 
-Les outils du marché ajoutent la seule vue que les deux autres sources n'ont pas : le **comportement** des scripts chez les vrais visiteurs. Ils restent un script tiers de plus, sur la page la plus sensible. Avant d'en adopter un, pose les mêmes questions qu'à n'importe quel tiers (leçon 2), et quelques autres :
+Deux façons de satisfaire ce critère : appliquer toi-même des protections équivalentes à 6.4.3 et 11.6.1 sur la page, ou obtenir du prestataire une confirmation écrite que sa solution intégrée protège contre ces attaques.
 
-- l'agent est-il chargé avec une version figée et une empreinte, ou modifiable à tout moment par le fournisseur ?
-- quelles données de la page remontent chez le fournisseur ? Les valeurs saisies ne doivent jamais en faire partie ;
-- l'outil **bloque**-t-il, ou se contente-t-il d'**alerter** ? Un blocage mal réglé casse le paiement ;
-- ses alertes arrivent-elles dans Elastic, avec le reste de la détection, ou dans une console de plus que personne n'ouvre ?
+La révision 4.0.1 a aussi clarifié le partage des responsabilités hors SAQ A. Les scripts de **ta** page qui intègre l'iframe sont dans le périmètre de 6.4.3. Les scripts **à l'intérieur** de l'iframe du prestataire relèvent du prestataire, dont tu peux attendre des preuves de conformité. Chacun répond de l'origine qu'il sert.
 
-## Le contrôle synthétique en pratique
+## Ce que ça impose à Novafact
 
-<Code file="tools/monitor/payment-page.ts" hl="11,12,20-22">
+<Steps items={[
+  { title: "Inventaire versionné", text: "Un fichier dans le dépôt liste chaque script de la page de paiement : source, usage, propriétaire, date d'autorisation. Toute modification passe en revue de code." },
+  { title: "Intégrité", text: "Bundle auto-hébergé et construit par le pipeline, SRI pour les rares fichiers externes figés, CSP stricte à nonces (leçon 5) qui refuse tout script non prévu." },
+  { title: "Détection de modification", text: "Rapports CSP collectés dans Elastic, et un contrôle automatisé qui charge la page et compare scripts et en-têtes à la référence, au moins chaque semaine." },
+  { title: "Preuves", text: "Inventaire, politique CSP, rapports et historique des alertes : ce qu'un évaluateur QSA demandera." },
+]} />
 
-```ts
-import { chromium } from 'playwright';
-import { createHash } from 'node:crypto';
-import baseline from './payment-baseline.json' with { type: 'json' };
+L'inventaire le plus utile est celui qui est **vérifié par la machine**. Chez Novafact, il vit à côté du code de la page, et la CI échoue si la page observée dans un navigateur charge un script absent de la liste.
 
-const browser = await chromium.launch();
-const page = await browser.newPage({ locale: 'fr-FR' });
-const scripts = new Map<string, string>();
-page.on('response', async (res) => {
-  if (res.request().resourceType() !== 'script') return;
-  const body = await res.body().catch(() => Buffer.alloc(0));
-  scripts.set(res.url(), createHash('sha256').update(body).digest('hex'));
-});
-const main = await page.goto('https://app.novafact.example/pay/monitor', { waitUntil: 'networkidle' });
-await page.waitForTimeout(5_000);
+<Code file="apps/web/security/payment-scripts.yml">
 
-const findings: string[] = [];
-for (const [url, hash] of scripts) {
-  if (!(url in baseline.scripts)) findings.push(`script inconnu : ${url}`);
-  else if (baseline.scripts[url] !== hash) findings.push(`empreinte modifiée : ${url}`);
-}
-for (const name of baseline.requiredHeaders) {
-  if (!main?.headers()[name]) findings.push(`en-tête absent : ${name}`);
-}
-console.log(JSON.stringify({ event: 'payment_page.check', ok: findings.length === 0, findings }));
-await browser.close();
-process.exit(findings.length ? 1 : 0);
+```yaml
+# Inventaire PCI DSS 6.4.3 : page /pay. Toute modification exige l'approbation de @novafact/appsec (CODEOWNERS).
+page: https://app.novafact.example/pay
+scripts:
+  - match: https://app.novafact.example/assets/pay-*.js
+    kind: first-party
+    justification: Application de paiement (bundle Vite construit par le pipeline)
+    owner: equipe-paiement
+    authorized: 2026-06-12
+    integrity: CSP nonce + build signé
+  - match: https://js.psp.example/v3/embed.js
+    kind: third-party
+    justification: Chargeur de l'iframe du prestataire de paiement
+    owner: equipe-paiement
+    authorized: 2026-06-12
+    integrity: SRI sha384 (version figée v3.14.2)
+headers:
+  content-security-policy: required
+  permissions-policy: required
 ```
 
 </Code>
 
-Quelques décisions accompagnent ce script. Il tourne **toutes les heures** (bien au-delà du minimum hebdomadaire de PCI 11.6.1) et après chaque déploiement, depuis plusieurs régions. Sa sortie JSON part dans Elastic, où une règle alerte sur `ok: false`. La référence (`payment-baseline.json`) est produite par le pipeline au moment du build, à partir du bundle qu'il vient de construire : une mise à jour légitime met à jour la référence dans le même mouvement. Les URL des bundles Vite contiennent une empreinte de contenu, donc chaque déploiement change la liste : c'est normal, et c'est pour cela que la référence doit venir du pipeline plutôt que d'une saisie manuelle.
+Trois mécanismes se renforcent : le fichier est protégé par `CODEOWNERS` (l'**autorisation** est l'approbation de la PR, horodatée), la CI compare la page réelle au fichier (un script ajouté sans mise à jour de l'inventaire casse le build), et la surveillance de la leçon 9 fait la même comparaison en production.
 
-## Réduire le bruit des rapports
+| Exigence | Contrôle chez Novafact | Preuve pour l'évaluateur |
+| --- | --- | --- |
+| 6.4.3 inventaire et justification | `payment-scripts.yml` | Fichier et historique Git |
+| 6.4.3 autorisation | Approbation obligatoire de la PR par l'AppSec | PR approuvées, règles de protection de branche |
+| 6.4.3 intégrité | CSP à nonces, SRI sur le chargeur du prestataire, bundle construit par la CI | En-têtes de réponse, configuration du pipeline |
+| 11.6.1 détection | Contrôle synthétique toutes les heures, rapports CSP dans Elastic | Historique d'exécution, règles d'alerte |
+| 11.6.1 alerte et traitement | Alerte vers l'astreinte, ticket d'investigation | Tickets, comptes rendus |
 
-Une grande partie des rapports CSP vient des **extensions** installées par les visiteurs. Dans Elastic (M18), filtre les sources `chrome-extension://`, `moz-extension://` et `safari-web-extension://`, regroupe par URL bloquée, et alerte sur **les nouvelles URL bloquées sur la page de paiement** plutôt que sur le volume brut.
-
-```text
-FROM logs-novafact.web-*
-| WHERE event == "csp.violation" AND documentUrl LIKE "*/pay*"
-| WHERE NOT (blockedUrl LIKE "chrome-extension*" OR blockedUrl LIKE "moz-extension*"
-             OR blockedUrl LIKE "safari-web-extension*")
-| STATS reports = COUNT(*), ips = COUNT_DISTINCT(client.ip) BY blockedUrl
-| SORT reports DESC
-```
-
-Cette requête ES|QL sert à l'exploration. Pour l'alerte, une règle de type **New Terms** d'Elastic Security sur le champ `blockedUrl`, restreinte à la page de paiement, se déclenche la première fois qu'une valeur apparaît. Le volume n'a pas d'importance : un skimmer ciblé ne touche parfois qu'une poignée de visiteurs, et c'est justement la nouveauté qui compte.
-
-## Réagir à un skimmer
-
-<Steps items={[
-  { title: "Retirer", text: "Supprimer le script ou revenir à la version précédente du bundle ; si le script vient d'un tiers, le retirer de la page le temps d'éclaircir." },
-  { title: "Délimiter", text: "Depuis quand ? Historique du contrôle synthétique, rapports CSP, déploiements, journaux du CDN." },
-  { title: "Comprendre l'entrée", text: "Tiers compromis, paquet npm, accès au pipeline ou au bucket de déploiement ? La réponse dicte les correctifs (M14, M17)." },
-  { title: "Notifier", text: "Prestataire de paiement et banques (données de carte), CNIL sous 72 h si des données personnelles sont touchées, clients, et CRA si le produit est concerné." },
-]} />
-
-Sur AWS, chaque étape s'appuie sur des traces précises, à condition de les avoir activées **avant** l'incident :
-
-- **Retirer** : restaurer la version saine de l'objet, puis **invalider le cache CloudFront** ; sans invalidation, le CDN continue de servir la version compromise jusqu'à expiration. Vérifier ensuite côté navigateur avec le contrôle synthétique.
-- **Délimiter** : le **versioning S3** du bucket du front garde toutes les versions de chaque fichier, avec leur date ; les journaux d'accès CloudFront donnent le volume de visiteurs servis pendant la fenêtre.
-- **Comprendre l'entrée** : les événements `PutObject` sur le bucket n'apparaissent dans CloudTrail que si les **événements de données** S3 sont activés pour ce bucket ; ils disent quelle identité a écrit, et depuis où.
-- **Conserver** : une copie du script malveillant et de ses empreintes, pour l'investigation et pour les partenaires qui la demanderont.
-
-<Callout kind="warn">
-Le réflexe « on restaure et on passe à autre chose » efface les preuves et oublie le point d'entrée. Tant que la question de l'accès (qui a pu écrire ?) n'est pas tranchée, le skimmer peut revenir par le même chemin, parfois dans l'heure.
+<Callout kind="debate">
+**La CSP suffit-elle pour 11.6.1 ?** Certains la présentent comme la réponse complète : chaque script non autorisé génère un rapport. Deux angles morts s'y opposent. Un script **autorisé** dont le contenu change (le chargeur du prestataire compromis, sans SRI) ne déclenche aucune violation. Et si l'en-tête CSP lui-même disparaît, les rapports s'arrêtent : le silence ressemble alors à une journée calme. La CSP est un excellent capteur, pas un mécanisme de détection de modification à elle seule. Le contrôle externe des empreintes et des en-têtes comble ces angles morts.
 </Callout>
 
-## La supply chain du front
-
-La plus grande partie du JavaScript de la page vient de **dépendances npm**. Un paquet compromis (le ver Shai-Hulud en 2025-2026 en est l'exemple le plus massif) finit dans le bundle sans que personne ne modifie le code de Novafact. Les contrôles du module 14 s'appliquent pleinement au front : lockfile et `npm ci`, scripts d'installation désactivés, délai avant d'adopter une nouvelle version, bundle construit par un pipeline de confiance et publié sur un stockage dont l'écriture est restreinte.
-
-<Callout kind="case">
-**chalk, debug et 16 autres paquets (8 septembre 2025)** : un mainteneur piégé par un faux e-mail de mise à jour de la double authentification publie des versions malveillantes de paquets téléchargés des milliards de fois par semaine. La charge visait le **navigateur** : elle s'accrochait à `fetch`, à `XMLHttpRequest` et aux API des portefeuilles de cryptomonnaie pour détourner les transactions. Les versions ont été retirées en quelques heures, mais toute application front construite dans cette fenêtre, sans lockfile figé, embarquait le code dans son bundle. Un délai minimal avant d'adopter une version (le réglage `minimumReleaseAge` de pnpm, depuis la version 10.16, ou l'équivalent dans Renovate) aurait suffi à l'éviter.
+<Callout kind="info">
+Novafact doit aussi se demander dans quel rôle elle se trouve vis-à-vis de PCI DSS : marchand pour ses propres abonnements, et prestataire pour ses clients qui encaissent via sa plateforme. La réponse change le questionnaire applicable : fais-la valider par un évaluateur qualifié.
 </Callout>
 
-<Callout kind="novafact">
-Le bucket S3 qui sert le front de Novafact était modifiable par le rôle de CI de trois dépôts différents. Un seul dépôt compromis aurait suffi à injecter un skimmer sans toucher au code. Correctif : un seul rôle de déploiement, limité à ce bucket, utilisable seulement depuis la branche principale (M15). Versioning S3 et événements de données CloudTrail activés sur le bucket, invalidation CloudFront ajoutée au runbook.
-</Callout>
+## Les pièges d'une première évaluation
+
+- **Oublier les scripts indirects** : l'inventaire doit couvrir ce que le navigateur exécute, y compris ce que charge un autre script.
+- **Justifier par l'usage, pas par le besoin** : « le marketing l'utilise » n'est pas une justification technique ou métier pour la page de saisie de carte.
+- **Une page de paiement qui n'est pas celle qu'on croit** : dans une SPA, le « paiement » est une route du même bundle que le reste de l'application. Tout le code chargé sur cette route compte, y compris les modules partagés et les scripts chargés dès l'accueil.
+- **Des alertes que personne ne lit** : 11.6.1 demande d'alerter le personnel ; l'évaluateur vérifiera qu'une alerte a déjà été traitée, pas seulement qu'elle existe.
+
+Le troisième piège pousse vers une décision d'architecture : servir la page de paiement comme une **application séparée**, minimale, avec son propre bundle. L'inventaire tient alors en quelques lignes et la surface de modification est réduite.
+
+## Quand le prestataire met à jour son script
+
+Le chargeur du prestataire pose une question pratique. Si le prestataire publie des versions figées, SRI s'applique et chaque mise à jour devient une PR : nouvelle empreinte, nouvelle date d'autorisation, approbation. Certains prestataires imposent au contraire de charger leur script depuis leur domaine, sans version figée, pour pouvoir le corriger à tout moment : SRI devient impossible. L'intégrité repose alors sur trois éléments documentés ensemble : la CSP qui limite l'origine autorisée, l'engagement écrit du prestataire sur la sécurité de son script, et la détection par empreinte, qui alertera à chaque mise à jour du prestataire. Ces alertes-là sont attendues : prévois un circuit court (vérifier l'annonce du prestataire, comparer le comportement réseau, valider) pour qu'elles ne deviennent pas du bruit que l'on finit par ignorer.
+
+## Au-delà de la conformité
+
+Ces exigences formalisent ce que les leçons précédentes recommandaient déjà : inventorier, justifier, figer, isoler, surveiller. La conformité fournit surtout **un argument et un calendrier** pour obtenir les moyens de le faire.
+
+Le PCI SSC a publié en 2025 un supplément d'information consacré à ces deux exigences (*Payment Page Security and Preventing E-Skimming*) : il détaille les approches acceptables et reste la meilleure lecture avant de discuter avec un évaluateur.
 
 <Recap items={[
-  "Rapports CSP, contrôle synthétique et protection côté client se complètent.",
-  "Les habitudes des skimmers dictent les réglages : empreintes plutôt qu'URL, profils variés, surveillance des connexions sortantes.",
-  "Contrôle synthétique horaire, référence produite par le pipeline, résultat dans Elastic.",
-  "Filtrer le bruit des extensions et alerter sur les nouvelles URL bloquées de la page de paiement (règle New Terms).",
-  "Réponse : retirer (et invalider le CDN), délimiter, comprendre l'entrée, notifier ; les traces AWS s'activent avant l'incident.",
-  "Le bundle du front dépend de npm : lockfile, délai avant adoption, pipeline de confiance, écriture restreinte sur le stockage.",
+  "6.4.3 (préventive) : inventaire, justification, autorisation et intégrité des scripts de la page de paiement.",
+  "11.6.1 (détective) : détection des modifications de scripts et d'en-têtes tels que reçus par le navigateur, au moins hebdomadaire ou selon une analyse de risque ciblée.",
+  "Obligatoires depuis le 31/03/2025 ; aucun mécanisme imposé, mais une justification attendue.",
+  "SAQ A : critère d'éligibilité depuis janvier 2025, la page qui intègre l'iframe doit être protégée ; les scripts dans l'iframe relèvent du prestataire.",
+  "Inventaire versionné et vérifié par la CI, autorisation par CODEOWNERS, CSP stricte, contrôle synthétique et rapports dans Elastic.",
+  "La CSP seule ne voit ni le contenu modifié d'un script autorisé, ni la disparition de son propre en-tête.",
 ]} />
 
 <Sources items={[
-  { title: "Sansec : recherche sur les attaques Magecart", url: "https://sansec.io/research" },
-  { title: "MDN : Reporting API", url: "https://developer.mozilla.org/en-US/docs/Web/API/Reporting_API" },
-  { title: "Elastic : règles de type New Terms", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/create-detection-rule" },
-  { title: "AWS : invalider des fichiers dans CloudFront", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html" },
-  { title: "AWS : événements de données CloudTrail", url: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-data-events-with-cloudtrail.html" },
-  { title: "Aikido : compromission de debug et chalk", url: "https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised" },
-  { title: "pnpm : mitigating supply chain attacks", url: "https://pnpm.io/supply-chain-security" },
-  { title: "OWASP Cheat Sheet : Third Party JavaScript Management", url: "https://cheatsheetseries.owasp.org/cheatsheets/Third_Party_Javascript_Management_Cheat_Sheet.html" },
+  { title: "PCI Security Standards Council", url: "https://www.pcisecuritystandards.org/" },
+  { title: "PCI SSC : supplément Payment Page Security and Preventing E-Skimming", url: "https://blog.pcisecuritystandards.org/new-information-supplement-payment-page-security-and-preventing-e-skimming" },
+  { title: "Jscrambler : PCI DSS 4.0.1, changements sur 6.4.3 et 11.6.1", url: "https://jscrambler.com/blog/pci-dss-4-0-1/" },
+  { title: "Feroot : SAQ A et SAQ A-EP sous PCI DSS 4", url: "https://www.feroot.com/blog/pci-4-saq-a-saq-a-ep-everything-merchants-need-to-know-to-master-pci-dss-4-compliance/" },
+  { title: "GitHub : fichier CODEOWNERS", url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners" },
 ]} />

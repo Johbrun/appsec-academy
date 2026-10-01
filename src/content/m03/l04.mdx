@@ -114,13 +114,13 @@ Faut-il corriger un maillon qui n'a aucun impact seul ? Certains programmes rép
 
 ## Ce que ça change pour la conception
 
-Les chaînes montrent l'intérêt de la **défense en profondeur** (M8) : chaque couche qui tient casse des chaînes qu'on n'a pas imaginées. Une validation exacte des `redirect_uri`, une CSP stricte ou un IMDSv2 obligatoire coupent des familles entières de chaînes, y compris celles qui passent par des bugs pas encore découverts.
+Les chaînes montrent l'intérêt de la **défense en profondeur** (M13) : chaque couche qui tient casse des chaînes qu'on n'a pas imaginées. Une validation exacte des `redirect_uri`, une CSP stricte ou un IMDSv2 obligatoire coupent des familles entières de chaînes, y compris celles qui passent par des bugs pas encore découverts.
 
 En revue de conception, ajoute une question à ta liste : **quelles hypothèses de triage cette fonctionnalité invalide-t-elle ?** Une nouvelle surface (un champ désormais éditable par le client, un contenu qui devient public, un service qui s'ouvre aux partenaires) réveille les bugs dormants qui supposaient cette surface fermée. Chez Novafact, l'ouverture des modèles de factures aux clients a ainsi fait remonter un vieux ticket : le moteur PDF chargeait toutes les URL présentes dans le HTML. Tant que seuls les employés écrivaient les modèles, c'était « sans impact » ; avec des modèles clients, c'était une SSRF (leçon 11). Le ticket a été relié à la chaîne, et sa correction mise comme prérequis de la fonctionnalité.
 
 ## Détecter les chaînes en cours
 
-Une chaîne laisse souvent une suite de signaux faibles, chacun ignoré seul : un paramètre de redirection pointant vers un domaine externe, puis une requête de callback OAuth avec un `state` inconnu, puis une connexion depuis un nouvel appareil. Dans Elastic (M18), une règle de séquence (EQL) sur un même utilisateur et une fenêtre courte transforme ces signaux faibles en alerte. C'est le pendant défensif du raisonnement en chaîne.
+Une chaîne laisse souvent une suite de signaux faibles, chacun ignoré seul : un paramètre de redirection pointant vers un domaine externe, puis une requête de callback OAuth avec un `state` inconnu, puis une connexion depuis un nouvel appareil. Dans Elastic (M24), une règle de séquence (EQL) sur un même utilisateur et une fenêtre courte transforme ces signaux faibles en alerte. C'est le pendant défensif du raisonnement en chaîne.
 
 <Callout kind="tip">
 Le jeu **Stepping Stones** entraîne exactement ce réflexe : relier des findings faibles en une chaîne, puis choisir le correctif unique qui en casse le plus.

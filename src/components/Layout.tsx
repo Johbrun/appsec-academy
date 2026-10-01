@@ -8,6 +8,7 @@ import { useSession } from '../store/session';
 import { blocks, lessonKey, modules, pad2 } from '../data/catalog';
 import { availableGames, gameById, gameCategories } from '../data/games';
 import { isWritten } from '../lib/content';
+import { lessonsUnlocked } from '../lib/diagnostic';
 
 const syncLabel: Record<SyncState, string> = {
   saved: 'Progression enregistrée',
@@ -29,12 +30,15 @@ function useTheme() {
   return [theme, () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))] as const;
 }
 
-// Prochaine leçon rédigée et non validée, dans l'ordre du parcours.
+// Prochaine leçon rédigée et non validée, dans l'ordre du parcours. Si son
+// module attend encore le diagnostic d'entrée, on envoie vers le module.
 export function useNextLesson() {
   const { progress } = useProgress();
   for (const m of modules) {
     for (const l of m.lessons) {
-      if (isWritten(m.id, l.id) && !progress.lessons[lessonKey(m.id, l.id)]) return { module: m, lesson: l, to: `/modules/${m.id}/${l.id}` };
+      if (isWritten(m.id, l.id) && !progress.lessons[lessonKey(m.id, l.id)]) {
+        return { module: m, lesson: l, to: lessonsUnlocked(progress, m) ? `/modules/${m.id}/${l.id}` : `/modules/${m.id}` };
+      }
     }
   }
   return null;
@@ -78,6 +82,7 @@ function ModuleSubNav({ moduleId }: { moduleId: string }) {
   const m = modules.find((x) => x.id === moduleId);
   if (!m) return null;
   const done = m.lessons.filter((l) => progress.lessons[lessonKey(m.id, l.id)]).length;
+  const unlocked = lessonsUnlocked(progress, m);
   return (
     <div className="subnav">
       <div className="container subnav-inner">
@@ -89,14 +94,14 @@ function ModuleSubNav({ moduleId }: { moduleId: string }) {
           {m.lessons.map((l, i) => {
             const ok = !!progress.lessons[lessonKey(m.id, l.id)];
             const written = isWritten(m.id, l.id);
-            return written ? (
+            return written && unlocked ? (
               <NavLink key={l.id} to={`/modules/${m.id}/${l.id}`} className={({ isActive }) => `subnav-link ${isActive ? 'active' : ''}`} title={l.title}>
                 <span className="num">{pad2(i + 1)}</span>
                 {l.title.length > 26 ? `${l.title.slice(0, 24)}…` : l.title}
                 {ok && <Check size={14} className="done" aria-label="validée" />}
               </NavLink>
             ) : (
-              <span key={l.id} className="subnav-link off" title={`${l.title} (en rédaction)`}><span className="num">{pad2(i + 1)}</span>{l.title.length > 26 ? `${l.title.slice(0, 24)}…` : l.title}</span>
+              <span key={l.id} className="subnav-link off" title={`${l.title} (${written ? 'après le diagnostic d’entrée' : 'en rédaction'})`}><span className="num">{pad2(i + 1)}</span>{l.title.length > 26 ? `${l.title.slice(0, 24)}…` : l.title}</span>
             );
           })}
         </nav>

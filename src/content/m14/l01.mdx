@@ -67,10 +67,10 @@ Le **OWASP Top 10 CI/CD Security Risks** (publié par l'équipe de Cider Securit
 | CICD-SEC-6 | Insufficient Credential Hygiene | Clés AWS longue durée dans les secrets, secrets affichés dans les logs | OIDC, rotation, masquage, secret scanning |
 | CICD-SEC-7 | Insecure System Configuration | Runner self-hosted persistant sur un dépôt public, image de runner jamais mise à jour | Runners éphémères, durcissement, inventaire |
 | CICD-SEC-8 | Ungoverned Usage of 3rd Party Services | Application GitHub tierce avec accès à tous les dépôts, action Marketplace adoptée sans revue | Liste d'actions autorisées, revue des GitHub Apps |
-| CICD-SEC-9 | Improper Artifact Integrity Validation | Artefact déployé sans vérifier qui l'a construit, script téléchargé et exécuté tel quel | Épinglage SHA, attestations de provenance (leçon 9) |
+| CICD-SEC-9 | Improper Artifact Integrity Validation | Artefact déployé sans vérifier qui l'a construit, script téléchargé et exécuté tel quel | Épinglage SHA, attestations de provenance (leçon 10) |
 | CICD-SEC-10 | Insufficient Logging and Visibility | Aucun suivi des modifications de workflows, des runners enregistrés, des secrets créés | Journal d'audit GitHub envoyé au SIEM |
 
-Deux remarques pour lire ce tableau. D'abord, les risques s'**enchaînent** : une PPE (SEC-4) ne devient grave que parce que le job a trop de droits (SEC-5) et des secrets longue durée (SEC-6). Ensuite, la plupart des incidents réels de la leçon 7 touchent trois ou quatre lignes à la fois ; c'est ce qui rend le Top 10 utile comme grille d'analyse post-incident.
+Deux remarques pour lire ce tableau. D'abord, les risques s'**enchaînent** : une PPE (SEC-4) ne devient grave que parce que le job a trop de droits (SEC-5) et des secrets longue durée (SEC-6). Ensuite, la plupart des incidents réels de la leçon 8 touchent trois ou quatre lignes à la fois ; c'est ce qui rend le Top 10 utile comme grille d'analyse post-incident.
 
 ## Les trois risques qui font le plus de dégâts
 
@@ -86,11 +86,11 @@ Dans l'écosystème JS, l'I-PPE est omniprésente : `npm install` exécute les s
 
 ### CICD-SEC-6 : l'hygiène des identifiants
 
-Le pipeline a besoin d'identités ; la question est leur **durée de vie** et leur **portée**. Une clé AWS stockée dans un secret de dépôt est valide jusqu'à ce que quelqu'un pense à la révoquer ; un rôle assumé par OIDC ne l'est que pour la durée du job, et seulement depuis le dépôt et l'environnement prévus. Le masquage des logs aide, mais il compare des chaînes littérales : un secret encodé en base64 ou découpé passe au travers, comme l'a montré tj-actions (leçon 7).
+Le pipeline a besoin d'identités ; la question est leur **durée de vie** et leur **portée**. Une clé AWS stockée dans un secret de dépôt est valide jusqu'à ce que quelqu'un pense à la révoquer ; un rôle assumé par OIDC ne l'est que pour la durée du job, et seulement depuis le dépôt et l'environnement prévus. Le masquage des logs aide, mais il compare des chaînes littérales : un secret encodé en base64 ou découpé passe au travers, comme l'a montré tj-actions (leçon 8).
 
 ### CICD-SEC-3 : la chaîne des dépendances
 
-Le pipeline installe des paquets npm, des actions, des images Docker et des outils téléchargés. Chacun est du code tiers qui s'exécute avec les droits du job. C'est le risque dont les vagues Shai-Hulud ont fait un phénomène de masse ; il est traité en détail aux leçons 5 et 7.
+Le pipeline installe des paquets npm, des actions, des images Docker et des outils téléchargés. Chacun est du code tiers qui s'exécute avec les droits du job. C'est le risque dont les vagues Shai-Hulud ont fait un phénomène de masse ; il est traité en détail aux leçons 5 et 8.
 
 <Callout kind="case">
 **Codecov, 2021.** Un attaquant a modifié le script *Bash Uploader* de Codecov, téléchargé et exécuté tel quel par des milliers de pipelines, pour qu'il envoie les variables d'environnement de la CI vers un serveur externe. La modification est restée en place environ deux mois (fin janvier à début avril), jusqu'à ce qu'un client remarque que l'empreinte du script ne correspondait pas à celle publiée. Grille Top 10 : SEC-8 (service tiers exécuté sans gouvernance), SEC-9 (aucune vérification d'intégrité), SEC-6 (des secrets longue durée dans l'environnement). La leçon défensive : tout ce que la CI télécharge est épinglé et vérifié, et un job ne voit que les secrets dont il a besoin.
@@ -141,7 +141,7 @@ Le principe : le job qui exécute le code de la PR n'a **ni secret, ni droit d'�
 
 ## Ne pas oublier la visibilité (SEC-10)
 
-Un pipeline compromis se voit rarement dans les logs de l'application. Les signaux utiles sont dans le **journal d'audit GitHub** : modification d'un fichier `.github/workflows/`, création d'un secret, enregistrement d'un runner self-hosted, nouveau dépôt public, ajout d'une GitHub App, modification d'un ruleset. Sur GitHub Enterprise Cloud, ce journal peut être diffusé en continu (vers un bucket S3 par exemple) puis ingéré dans Elastic, à côté de CloudTrail. Côté AWS, chaque `AssumeRoleWithWebIdentity` venant de GitHub laisse une trace qui permet de relier un déploiement à un run précis (M18).
+Un pipeline compromis se voit rarement dans les logs de l'application. Les signaux utiles sont dans le **journal d'audit GitHub** : modification d'un fichier `.github/workflows/`, création d'un secret, enregistrement d'un runner self-hosted, nouveau dépôt public, ajout d'une GitHub App, modification d'un ruleset. Sur GitHub Enterprise Cloud, ce journal peut être diffusé en continu (vers un bucket S3 par exemple) puis ingéré dans Elastic, à côté de CloudTrail. Côté AWS, chaque `AssumeRoleWithWebIdentity` venant de GitHub laisse une trace qui permet de relier un déploiement à un run précis (M23).
 
 <Callout kind="novafact">
 Première passe du Top 10 sur Novafact (constat fictif) : 14 dépôts, 61 workflows. Trois workflows utilisent `pull_request_target` (SEC-4), 40 n'ont pas de bloc `permissions` et héritent d'un jeton en écriture (SEC-5), deux clés AWS longue durée sont encore dans les secrets de `novafact/infra` (SEC-6), 23 actions tierces sont référencées par tag mobile (SEC-9), et le journal d'audit GitHub n'est pas envoyé dans Elastic (SEC-10). Aucun de ces points n'est une vulnérabilité exploitable à lui seul ; ensemble, ils forment une chaîne.

@@ -212,6 +212,83 @@ for (const f of dataFiles) {
   }
 }
 
+// ── Séries exigées par les leçons ───────────────────────────────────────────
+//
+// `lessonGames` (catalog.ts) suspend la validation d'une leçon à des records de
+// série. Une référence fausse ne se voit pas à l'écran : la leçon devient juste
+// impossible à valider. On exige donc :
+//
+//   · une leçon qui existe, et un à MAX_LESSON_GAMES jeux disponibles par leçon ;
+//   · des séries qui existent, sans doublon dans une même leçon (un même jeu
+//     cité deux fois, lui, est refusé par TypeScript : clé d'objet en double) ;
+//   · chaque jeu disponible exigé par au moins une leçon ;
+//   · un series-index.ts qui couvre tout le catalogue de jeux, chaque entrée
+//     désignant l'export que le composant du jeu passe à `SeriesGame`.
+
+/** Nombre maximal de jeux exigés par une leçon. */
+const MAX_LESSON_GAMES = 2;
+
+const catalog = await load('catalog.ts');
+const { games: gameCatalog } = await load('games.ts');
+const { seriesLoaders } = await load('series-index.ts');
+
+const gameById = new Map(gameCatalog.map((g) => [g.id, g]));
+/** Les ids de séries de chaque jeu, `null` si l'entrée ne rend pas un jeu de séries. */
+const seriesIds = {};
+for (const [id, loader] of Object.entries(seriesLoaders)) {
+  const set = await loader();
+  seriesIds[id] = Array.isArray(set?.list) ? new Set(set.list.map((s) => s.id)) : null;
+  if (!seriesIds[id]) problems.push(`series-index.ts : l'entrée « ${id} » ne rend pas un jeu de séries`);
+}
+for (const id of gameById.keys()) if (!seriesLoaders[id]) problems.push(`series-index.ts : le jeu « ${id} » n'a pas d'entrée`);
+
+const indexSrc = fs.readFileSync(path.join(D, 'series-index.ts'), 'utf8');
+const exportOf = Object.fromEntries(
+  [...indexSrc.matchAll(/^\s*'?([\w-]+)'?: \(\) => import\('[^']+'\)\.then\(\(m\) => m\.(\w+)\)/gm)].map((x) => [x[1], x[2]]),
+);
+const gameSources = Object.fromEntries(fs.readdirSync(G).filter((f) => f.endsWith('.tsx')).map((f) => {
+  const src = fs.readFileSync(path.join(G, f), 'utf8');
+  return [src.match(/gameId="([^"]+)"/)?.[1], { f, src }];
+}));
+for (const id of Object.keys(seriesLoaders)) {
+  if (!gameById.has(id)) { problems.push(`series-index.ts : « ${id} » n'est pas un jeu du catalogue`); continue; }
+  // Une entrée que la regex ne lit pas échapperait au contrôle : on le dit.
+  if (!exportOf[id]) { problems.push(`series-index.ts : l'entrée « ${id} » n'a pas la forme () => import('./…').then((m) => m.xxxSeries)`); continue; }
+  const game = gameSources[id];
+  if (!game) problems.push(`series-index.ts : aucun composant de src/games ne déclare gameId="${id}"`);
+  else if (!new RegExp(`\\b${exportOf[id]}\\b`).test(game.src)) {
+    problems.push(`series-index.ts : « ${id} » charge ${exportOf[id]}, que src/games/${game.f} n'utilise pas`);
+  }
+}
+
+const lessonKeys = new Set(catalog.modules.flatMap((m) => m.lessons.map((l) => catalog.lessonKey(m.id, l.id))));
+const requiredRows = [];
+for (const [key, req] of Object.entries(catalog.lessonGames)) {
+  const where = `lessonGames · ${key}`;
+  if (!lessonKeys.has(key)) problems.push(`${where} : leçon inconnue du catalogue`);
+  const entries = Object.entries(req);
+  if (entries.length < 1 || entries.length > MAX_LESSON_GAMES) {
+    problems.push(`${where} : ${entries.length} jeu(x) exigé(s), il en faut de 1 à ${MAX_LESSON_GAMES}`);
+  }
+  for (const [game, ids] of entries) {
+    if (!gameById.get(game)?.available || !seriesLoaders[game]) { problems.push(`${where} : jeu inconnu ou indisponible « ${game} »`); continue; }
+    if (!ids.length) problems.push(`${where} : aucune série exigée pour « ${game} »`);
+    const known = seriesIds[game];
+    ids.forEach((s, i) => {
+      if (known && !known.has(s)) problems.push(`${where} : « ${game} » n'a pas de série « ${s} »`);
+      if (ids.indexOf(s) !== i) problems.push(`${where} : la série « ${game}:${s} » est exigée deux fois`);
+    });
+    requiredRows.push({ key, game, ids });
+  }
+}
+// Un jeu qu'aucune leçon n'exige ne fait pas partie du parcours : on le joue ou
+// pas, et rien ne vérifie qu'il sert. Chaque jeu disponible doit être exigé au
+// moins une fois.
+const requiredGames = new Set(requiredRows.map((r) => r.game));
+for (const g of gameCatalog) {
+  if (g.available && !requiredGames.has(g.id)) problems.push(`lessonGames : le jeu « ${g.id} » n'est exigé par aucune leçon`);
+}
+
 const pct = (x) => `${Math.round(x * 100)} %`;
 console.log('jeu'.padEnd(13) + 'options'.padStart(8) + '+longue'.padStart(9) + 'ratio'.padStart(8) + 'manches'.padStart(9) + 'couverture'.padStart(12));
 for (const r of rows) {
@@ -228,6 +305,10 @@ for (const r of rows) {
 console.log('');
 console.log('séries'.padEnd(44) + 'n'.padStart(4) + '  N1/N2/N3   tailles');
 for (const r of seriesRows) console.log(r.where.padEnd(44) + String(r.n).padStart(4) + '  ' + r.levels.padEnd(10) + ' ' + r.sizes);
+
+console.log('');
+console.log('séries exigées par les leçons');
+for (const r of requiredRows) console.log('  ' + r.key.padEnd(10) + r.game.padEnd(22) + r.ids.join(', '));
 
 if (warnings.length) {
   console.log('');

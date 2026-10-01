@@ -1,6 +1,6 @@
-// M16 · Infrastructure as Code — challenges jouables.
+// m16 · Infrastructure as Code — challenges jouables.
 //
-// Comme en M14, le défaut vit dans le dépôt fixture `novafact/` et pas dans
+// Comme en M18, le défaut vit dans le dépôt fixture `novafact/` et pas dans
 // une requête : on l'audite, on corrige le fichier, et on relance l'audit —
 // depuis la page du challenge ou par POST /api/lab/audit.
 //
@@ -104,7 +104,7 @@ export const m16: ExerciseDef[] = [
     brief: 'La contrainte de version du provider est ouverte vers le haut, et un module est tiré d’un dépôt git sans référence figée.',
     goal: 'Épingler le provider avec son fichier de verrouillage, et le module sur une empreinte de commit.',
     file: 'novafact/infra/terraform/versions.tf',
-    lessons: ['m16/l04', 'm14/l09'],
+    lessons: ['m16/l04', 'm14/l10'],
     hints: [
       'Quatre dépendances sont déclarées : deux providers et deux modules. Aucune n’est réellement figée.',
       '`?ref=main` est un alias, exactement comme `@v4` sur une action GitHub : celui qui pousse sur la branche décide de ce que le prochain `apply` déploie. C’est l’incident tj-actions transposé à l’IaC.',
@@ -174,7 +174,7 @@ export const m16: ExerciseDef[] = [
     brief: 'L’analyse de conformité n’est pas branchée sur l’application CDK, et plusieurs suppressions sont posées avec un motif vide.',
     goal: 'Rebrancher l’analyse et ne garder que les suppressions réellement justifiées.',
     file: 'novafact/infra/cdk/bin/app.ts',
-    lessons: ['m16/l03', 'm01/l05'],
+    lessons: ['m16/l03', 'm32/l03'],
     hints: [
       'Une ligne du fichier a été mise en commentaire « le temps de la release ». Le commentaire est plus vieux que la release.',
       'Quatre suppressions sont déclarées. Une seule dit quoi, pourquoi, sous quel ticket et jusqu’à quand.',
@@ -202,7 +202,7 @@ export const m16: ExerciseDef[] = [
     brief: 'Ni journaux de flux réseau, ni piste d’audit multi-région avec validation d’intégrité, ni pilote de journalisation sur les conteneurs.',
     goal: 'Poser les trois, et vérifier qu’aucune ressource n’échappe à la collecte.',
     file: 'novafact/infra/terraform/logging.tf',
-    lessons: ['m16/l05', 'm18/l02'],
+    lessons: ['m16/l05', 'm18/l03'],
     hints: [
       'Trois collectes manquent, et la troisième concerne deux conteneurs, pas un.',
       'Une piste d’audit sur une seule région ne voit pas ce qui se passe dans les autres — et sans validation d’intégrité, rien ne prouvera qu’elle n’a pas été retouchée.',

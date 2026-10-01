@@ -1,4 +1,4 @@
-// Scénarios du jeu « OAuth Flow Debugger » (M9) : un flux, une étape faible, une attaque, une correction.
+// Scénarios du jeu « OAuth Flow Debugger » (M14) : un flux, une étape faible, une attaque, une correction.
 //
 // La difficulté ne vient pas de la rareté du protocole (DPoP « plus pointu » que
 // PKCE) — elle vient de la **distance entre l'indice et la conclusion**, et de la

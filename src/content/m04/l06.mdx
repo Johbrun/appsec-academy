@@ -1,231 +1,197 @@
 export const questions = [
   {
-    q: "Une requête arrive sur /api/invoices avec Sec-Fetch-Site: cross-site et Sec-Fetch-Mode: no-cors. Que fait une resource isolation policy ?",
+    q: "Avec require-trusted-types-for 'script' actif, que se passe-t-il pour element.innerHTML = chaîne ?",
     options: [
-      "Elle l'accepte : sans en-tête Origin, ce n'est pas une requête inter-site",
-      "Elle la refuse : une ressource privée n'a pas à être chargée par un autre site",
-      "Elle l'accepte parce que la méthode est GET : seules les écritures sont refusées",
-      "Elle la laisse passer et s'en remet au cookie SameSite=Lax pour la bloquer",
-    ],
-    answer: 1,
-    explain: "Les en-têtes Sec-Fetch-* sont posés par le navigateur, et un site tiers ne peut pas les falsifier : cross-site en mode no-cors décrit exactement la forme d'un CSRF ou d'un XS-Leak. La politique refuse cette forme quelle que soit la méthode — seule une navigation (mode navigate en GET) reste tolérée, pour ne pas casser les liens entrants. Compter sur SameSite=Lax ne suffit pas : Lax laisse justement passer ces navigations.",
-  },
-  {
-    q: "Que garantit un cookie nommé avec le préfixe __Host- ?",
-    options: [
-      "Qu'il est Secure, sans Domain et en Path=/ : aucun sous-domaine ne l'écrase",
-      "Qu'il est Secure et HttpOnly : aucun script de la page ne peut jamais le lire",
-      "Qu'il est Secure et SameSite=Strict, donc absent des requêtes inter-sites",
-      "Qu'il est lié à l'hôte exact, port compris, sur lequel il a été posé",
-    ],
-    answer: 0,
-    explain: "Le navigateur n'accepte un cookie __Host- que s'il est Secure, sans attribut Domain et avec Path=/ : il reste lié à l'hôte exact, donc un sous-domaine compromis ne peut ni le poser ni l'écraser. Le préfixe ne dit rien de HttpOnly ni de SameSite, qu'il faut écrire soi-même, et l'isolation ne va pas jusqu'au port, que les cookies ignorent. C'est __Secure- qui se contente d'exiger Secure, en laissant passer Domain.",
-  },
-  {
-    q: "Le prestataire de paiement appelle le webhook POST /webhooks/psp de Novafact depuis ses serveurs. Que fait le middleware Fetch Metadata de la leçon ?",
-    options: [
-      "Il bloque : la requête ne vient pas d'une origine de novafact.example",
-      "Il bloque, sauf si le chemin figure dans la liste d'exceptions CORS publiques",
-      "Il laisse passer : un client hors navigateur n'envoie pas de Sec-Fetch-*",
-      "Il laisse passer si l'appel porte un Origin correspondant au prestataire",
+      "La chaîne est assainie automatiquement par le navigateur avant insertion",
+      "Le navigateur journalise une violation CSP, mais exécute l'affectation",
+      "L'affectation lève une erreur : le sink n'accepte qu'un TrustedHTML",
+      "L'affectation passe si la chaîne ne contient aucune balise exécutable",
     ],
     answer: 2,
-    explain: "Fetch Metadata protège contre les requêtes émises par un navigateur détourné ; un appel serveur à serveur ne porte aucun de ces en-têtes, et le middleware le laisse donc passer sans rien savoir de lui. C'est tout l'enjeu : ce n'est pas une authentification. Le webhook se valide par sa signature HMAC horodatée, ni par une exception de chemin, ni par un en-tête Origin qu'un appelant serveur choisit librement.",
+    explain: "Trusted Types transforme les sinks dangereux en API typées : le contrôle porte sur le type de la valeur, jamais sur son contenu — une chaîne sans balise script est refusée comme les autres. Le navigateur n'assainit rien de lui-même, c'est le rôle de la politique que tu déclares, et en mode bloquant la violation n'est pas seulement rapportée : l'affectation échoue.",
   },
   {
-    q: "Une XSS a permis d'enregistrer un service worker malveillant sur l'origine du back-office. La XSS est corrigée. Que faut-il encore faire ?",
+    q: "Depuis quand Trusted Types est-il disponible dans tous les navigateurs majeurs ?",
     options: [
-      "Rien : le service worker sera remplacé au prochain chargement de la page",
-      "Purger le cache de CloudFront pour ne plus servir le script compromis",
-      "Révoquer les sessions : le service worker perd alors tout accès aux données",
-      "Le désenregistrer chez les visiteurs : Clear-Site-Data ou script de remplacement",
+      "Depuis 2020 : Chrome 83 a été suivi de près par Firefox et Safari",
+      "Depuis février 2026, quand Firefox 148 l'a livré à son tour",
+      "Il ne l'est pas : c'est resté une spécification propre à Chrome",
+      "Depuis Safari 26 ; Firefox ne l'expose que derrière un drapeau",
+    ],
+    answer: 1,
+    explain: "Chrome et Edge le prennent en charge depuis 2020, Safari depuis la version 26, et Firefox seulement depuis la 148, en février 2026 : c'est cette dernière date qui fait le socle commun. Tant qu'on croit Firefox absent ou l'API réservée à Chrome, on traite Trusted Types comme un bonus, alors qu'il couvre désormais l'essentiel du trafic.",
+  },
+  {
+    q: "Un développeur crée une politique createHTML: (s) => s pour faire disparaître les erreurs, et l'exporte dans un module utilitaire. Qu'a-t-il obtenu ?",
+    options: [
+      "Une politique de transition acceptable, à condition de la nommer default",
+      "Une erreur au chargement : la directive trusted-types refuse une politique vide",
+      "Une protection partielle : le navigateur assainit encore avant d'insérer",
+      "Une politique qui ne vérifie rien : le sink est simplement renommé",
     ],
     answer: 3,
-    explain: "Un service worker vit dans le navigateur de chaque visiteur, indépendamment du serveur : purger le CDN ou révoquer les sessions ne l'atteint pas, et il ne sera remplacé que si quelque chose est servi à son URL. Le nettoyage se fait côté client — Clear-Site-Data: storage sur une réponse de ton origine, ou un service worker publié à la même URL qui se désinscrit à l'activation — et cette étape appartient au runbook d'incident.",
+    explain: "Trusted Types ne protège que par ce que font les politiques ; un passe-plat exporté partout remet l'application dans son état d'avant, avec en prime l'impression d'être conforme. Le navigateur n'assainit rien de son côté : il vérifie seulement qu'une politique déclarée a produit la valeur. Et la renommer default n'arrange rien — ce filet n'est acceptable que s'il journalise et assainit.",
+  },
+  {
+    q: "À quoi sert raisonnablement une politique nommée default ?",
+    options: [
+      "À journaliser et assainir les chaînes brutes restantes, le temps d'une migration",
+      "À dispenser de nonce les scripts déjà couverts par la directive trusted-types",
+      "À servir de repli sur les navigateurs qui ne connaissent pas Trusted Types",
+      "À s'appliquer quand aucune autre politique n'est listée dans la directive",
+    ],
+    answer: 0,
+    explain: "Le navigateur appelle la politique nommée default quand une chaîne brute atteint un sink sans être passée par une politique explicite : c'est un filet de migration, et chaque passage par elle est un appel à corriger. Ce n'est pas un repli pour navigateurs anciens — ceux-là ignorent Trusted Types tout entier — ni un défaut qui s'activerait faute d'autre politique déclarée : elle doit être créée et listée comme les autres.",
   },
 ];
 
 <YouKnow>
-Tu connais le CSRF, le clickjacking et les XS-Leaks côté attaque (M3, leçon 12). Cette leçon rassemble les mécanismes du navigateur qui isolent ton origine des autres, et que tu peux activer depuis Express.
+Tu trouves des DOM XSS en suivant une source (URL, message, stockage) jusqu'à un sink (innerHTML, script.src, eval). Trusted Types ferme les sinks eux-mêmes : c'est le contrôle de classe du DOM XSS.
 </YouKnow>
 
-## Fetch Metadata
+## Le principe
 
-Les navigateurs ajoutent à chaque requête des en-têtes `Sec-Fetch-*` qui décrivent son contexte : **d'où** elle vient (`Sec-Fetch-Site` : same-origin, same-site, cross-site, none), **comment** (`Sec-Fetch-Mode` : navigate, cors, no-cors…) et **pour quoi** (`Sec-Fetch-Dest` : document, image, script…). Un site tiers ne peut pas les falsifier.
+Trusted Types part d'un constat : les DOM XSS passent par une poignée de **sinks** (`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `script.src`, `eval`…). Plutôt que de vérifier chaque chemin, on **change le type** attendu par ces sinks : ils n'acceptent plus une chaîne, mais un objet `TrustedHTML`, `TrustedScript` ou `TrustedScriptURL`, produit uniquement par une **politique** déclarée.
 
-Une **resource isolation policy** utilise ces en-têtes pour refuser les requêtes inter-sites vers les ressources privées. Elle bloque d'un coup le CSRF, de nombreux XS-Leaks et l'inclusion de ressources privées.
+Activé par la directive CSP `require-trusted-types-for 'script'`, le navigateur refuse toute chaîne brute envoyée à un sink. Un DOM XSS devient une **erreur de type**, visible dès les tests.
 
-Pourquoi est-ce si efficace ? La plupart des attaques inter-sites ont la même forme : un site contrôlé par l'attaquant fait émettre au navigateur de la victime une requête vers ton application, avec les cookies de la victime. CSRF, inclusion d'un JSON privé par une balise `<script>`, sondage d'une ressource pour en déduire un état (XS-Leak) : dans tous ces cas, la requête arrive avec `Sec-Fetch-Site: cross-site`. Au lieu de défendre chaque endpoint contre chaque technique, on refuse la **forme** de la requête. Les en-têtes font partie du socle commun des navigateurs depuis mars 2023, date à laquelle Safari les a rejoints.
+Le changement de perspective est le même que celui des requêtes paramétrées pour l'injection SQL. On ne demande plus à chaque développeur de penser à assainir au bon endroit ; on rend l'erreur **impossible à écrire sans le vouloir**. La revue de sécurité se déplace : au lieu de suivre des centaines de flux de données dans l'application, on relit la poignée de fonctions qui fabriquent des valeurs de confiance.
 
-<Code file="apps/api/src/middleware/fetchMetadata.ts">
-
-```ts
-// Resource isolation policy : refuse les requêtes inter-sites, sauf navigations simples.
-export const isolateResources = (req, res, next) => {
-  const site = req.get('sec-fetch-site');
-  if (!site) return next();                                   // ancien navigateur ou client non navigateur
-  if (['same-origin', 'same-site', 'none'].includes(site)) return next();
-  const isNav = req.get('sec-fetch-mode') === 'navigate' && req.method === 'GET'
-    && !['object', 'embed'].includes(req.get('sec-fetch-dest') ?? '');
-  if (isNav) return next();                                   // liens entrants vers les pages
-  res.status(403).json({ error: 'Requête inter-site refusée' });
-};
-```
-
-</Code>
-
-## Déployer la politique sans casser
-
-Trois catégories de requêtes légitimes méritent une attention particulière :
-
-- **les clients non navigateurs** (webhooks du prestataire de paiement, SDK `@novafact/sdk` côté serveur, scripts des clients) n'envoient pas ces en-têtes : ils passent la politique, et doivent être authentifiés autrement. Fetch Metadata est une défense contre le navigateur détourné, pas une authentification ;
-- **les endpoints volontairement publics en CORS** (un widget de statut intégré par les clients, par exemple) reçoivent des requêtes `cross-site` en mode `cors` : ils vont dans une liste d'exceptions explicite, revue ;
-- **`same-site`** couvre tous les sous-domaines de `novafact.example`. Si l'un d'eux sert du contenu moins fiable, restreins la politique de l'API à `same-origin`.
-
-Comme pour la CSP, commence par un mode qui journalise sans bloquer, regarde ce qui serait refusé pendant une à deux semaines, puis bascule.
-
-<Code file="apps/api/src/middleware/fetchMetadata.ts" hl="1,2,8,11">
-
-```ts
-const PUBLIC_CORS = new Set(['/public/status', '/.well-known/security.txt']);
-const ENFORCE = process.env.FETCH_METADATA_MODE === 'enforce';
-
-export const isolateResources: RequestHandler = (req, res, next) => {
-  const site = req.get('sec-fetch-site');
-  if (!site || site === 'same-origin' || site === 'same-site' || site === 'none') return next();
-  const isNav = req.get('sec-fetch-mode') === 'navigate' && req.method === 'GET';
-  if (isNav || PUBLIC_CORS.has(req.path)) return next();
-  req.log.warn({ event: 'fetch_metadata.cross_site', path: req.path, site,
-    mode: req.get('sec-fetch-mode'), dest: req.get('sec-fetch-dest'), enforced: ENFORCE });
-  if (!ENFORCE) return next();
-  res.status(403).json({ error: 'Requête inter-site refusée' });
-};
-```
-
-</Code>
-
-Et un test qui garde la politique en place quand quelqu'un réorganise les middlewares :
-
-<Code file="apps/api/test/fetchMetadata.test.ts">
-
-```ts
-import request from 'supertest';
-import { app } from '../src/app';
-
-test('refuse une requête inter-site non navigante vers une API privée', async () => {
-  await request(app).get('/api/invoices')
-    .set('Sec-Fetch-Site', 'cross-site').set('Sec-Fetch-Mode', 'no-cors').expect(403);
-});
-
-test('laisse un client non navigateur atteindre l’authentification', async () => {
-  await request(app).get('/api/invoices').expect(401); // refusé plus loin, faute de jeton
-});
-```
-
-</Code>
-
-## Isoler les fenêtres et les ressources
-
-| En-tête | Effet | Valeur conseillée |
+| Type | Sinks concernés (exemples) | Ce qu'une politique doit garantir |
 | --- | --- | --- |
-| `Cross-Origin-Opener-Policy` | Coupe la référence entre ta fenêtre et celles ouvertes par ou vers d'autres sites (XS-Leaks, attaques via `window.opener`) | `same-origin` (ou `same-origin-allow-popups` si un fournisseur d'identité ouvre une fenêtre) |
-| `Cross-Origin-Resource-Policy` | Empêche d'autres sites de charger tes ressources (images, scripts, JSON) | `same-origin` sur l'API |
-| `Cross-Origin-Embedder-Policy` | N'autorise que les ressources qui acceptent explicitement d'être chargées | `require-corp`, surtout pour activer l'isolation complète si besoin |
-| `frame-ancestors` (CSP) | Qui peut intégrer la page dans une iframe | `'none'`, ou la liste exacte des domaines partenaires |
+| `TrustedHTML` | `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `srcdoc` d'une iframe | Le HTML ne contient rien d'exécutable (assainissement) |
+| `TrustedScript` | `eval`, `setTimeout` avec une chaîne, le texte d'un élément `script` | Presque jamais légitime : la meilleure politique est de ne pas en avoir |
+| `TrustedScriptURL` | `script.src`, `new Worker(url)` | L'URL pointe vers une origine et un chemin attendus |
 
-`helmet`, dans Express, positionne la plupart de ces en-têtes avec des valeurs par défaut raisonnables, à ajuster selon l'application.
+## Disponible partout
 
-Deux nuances évitent des surprises. D'abord, `COOP: same-origin` coupe aussi la relation avec les fenêtres que **ta** page ouvre vers d'autres origines : un login par popup ou une fenêtre d'authentification 3-D Secure qui communique avec l'opener cesse de fonctionner. `same-origin-allow-popups` garde ce cas tout en protégeant contre les sites qui t'ouvrent. Ensuite, COEP ne sert que si tu as besoin de l'**isolation cross-origin** complète (condition d'accès à `SharedArrayBuffer` et aux minuteurs de haute précision). Une application de facturation n'en a généralement pas besoin, et `helmet` ne pose pas COEP par défaut.
+Chrome et Edge le supportent depuis 2020, Safari depuis la version 26, et **Firefox depuis la version 148 (février 2026)**. Trusted Types fait désormais partie du socle commun des navigateurs : ce n'est plus une protection réservée à Chrome.
 
-<Code file="apps/api/src/app.ts">
+Conséquence pratique : jusqu'ici, une partie des visiteurs échappait à la protection, et les équipes la voyaient comme un bonus. Désormais, elle couvre l'essentiel du trafic, et un DOM XSS signalé dans une application Novafact où Trusted Types est actif devrait être rare et limité aux politiques elles-mêmes.
+
+## En pratique
+
+<Code file="apps/web/src/security/trustedTypes.ts">
 
 ```ts
-import helmet from 'helmet';
+import DOMPurify from 'dompurify';
 
-app.use(helmet({
-  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // popup d'authentification entreprise
-  crossOriginResourcePolicy: { policy: 'same-origin' },
-  // COEP non activé : aucune fonctionnalité ne demande l'isolation cross-origin
-}));
+// Une seule politique nommée, dans un module revu, pour tout le HTML dynamique.
+export const htmlPolicy = window.trustedTypes?.createPolicy('novafact-html', {
+  createHTML: (input: string) => DOMPurify.sanitize(input),
+});
+
+export const toTrustedHtml = (input: string) => (htmlPolicy ? htmlPolicy.createHTML(input) : DOMPurify.sanitize(input));
 ```
 
 </Code>
-
-## Les cookies
 
 ```text
-Set-Cookie: __Host-session=…; Secure; HttpOnly; SameSite=Lax; Path=/
+Content-Security-Policy: require-trusted-types-for 'script'; trusted-types novafact-html dompurify
 ```
 
-- **`__Host-`** : le navigateur n'accepte ce cookie que s'il est `Secure`, sans `Domain` et avec `Path=/`. Un sous-domaine compromis ne peut ni le poser ni l'écraser.
-- **`SameSite=Lax`** (ou `Strict`) explicite, comme vu en M2.
-- **Cookies partitionnés** (attribut `Partitioned`, dit CHIPS) : pour un widget tiers qui a besoin d'un cookie, celui-ci est isolé par site intégrant.
+La directive `trusted-types` liste les **noms de politiques autorisés** : impossible de créer une politique non prévue ailleurs dans le code. Les endroits où du HTML dynamique entre dans la page se réduisent à une liste courte, facile à relire. Le nom `dompurify` figure dans la liste parce que DOMPurify tente de créer sa propre politique sous ce nom quand Trusted Types est disponible (il peut alors renvoyer directement un `TrustedHTML` avec l'option `RETURN_TRUSTED_TYPE`). Si tu n'appelles DOMPurify que depuis ta propre politique, les versions récentes acceptent `TRUSTED_TYPES_POLICY: null` pour qu'il n'en crée pas : `dompurify` peut alors sortir de la liste, qui ne contient plus qu'un nom.
 
-Le préfixe `__Secure-` n'exige que l'attribut `Secure` : il laisse passer `Domain`, donc le partage avec les sous-domaines. `__Host-` est le bon choix pour une session. Pourquoi « explicite » pour `SameSite` ? Parce que le comportement par défaut d'un cookie sans l'attribut n'est pas le même dans tous les navigateurs : Chrome le traite comme `Lax`, d'autres non. Écrire l'attribut rend le comportement identique partout.
+## Concevoir de bonnes politiques
 
-<Diff file="apps/bff/src/session.ts" hlBefore="3,4" hlAfter="1,4-7">
+Une politique est un **mini-composant de sécurité**. Trois règles la rendent utile :
+
+- **elle vérifie vraiment** : assainissement pour le HTML, liste blanche d'origines et de chemins pour les URL de script. Une politique qui renvoie son entrée telle quelle n'apporte rien ;
+- **elle reste privée** : l'objet politique n'est pas exporté ; le module expose des fonctions au rôle précis (afficher une note de facture, charger un module de graphique), pas un `createHTML` générique ;
+- **elle est configurée pour son usage** : le HTML d'une note de facture n'a besoin ni de tableaux ni d'images. Une liste restreinte de balises réduit la surface, y compris face à une future faille de l'assainisseur.
+
+<Code file="apps/web/src/security/policies.ts" hl="5,6,10-12">
 
 ```ts
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  name: 'sid',
-  cookie: { domain: '.novafact.example', secure: true },
-}));
+import DOMPurify from 'dompurify';
+
+const policy = window.trustedTypes?.createPolicy('novafact-html', {
+  createHTML: (input: string) =>
+    DOMPurify.sanitize(input, { ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a'],
+      ALLOWED_ATTR: ['href'] }),
+  createScriptURL: (input: string) => {
+    const url = new URL(input, location.origin);
+    const ok = url.origin === location.origin && url.pathname.startsWith('/assets/');
+    if (!ok) throw new TypeError(`URL de script refusée : ${url.href}`);
+    return url.href;
+  },
+});
+
+// Seules ces fonctions sortent du module.
+export const invoiceNoteHtml = (html: string) => policy?.createHTML(html) ?? html;
+export const chartWorkerUrl = () => policy?.createScriptURL('/assets/chart-worker.js') ?? '/assets/chart-worker.js';
 ```
 
-```ts
-app.set('trust proxy', 1); // derrière l'ALB : sinon Express croit la requête en HTTP et refuse de poser un cookie Secure
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  name: '__Host-sid',
-  cookie: { secure: true, httpOnly: true, sameSite: 'lax', path: '/' }, // pas de domain
-  resave: false, saveUninitialized: false,
-}));
+</Code>
+
+Le repli `?? html` ne sert qu'aux environnements sans Trusted Types (tests unitaires sous jsdom, par exemple). Si tu dois encore servir des navigateurs anciens, passe par DOMPurify dans ce repli, comme dans le premier module.
+
+## React et les bibliothèques
+
+React n'utilise pas les sinks dangereux pour son rendu normal, donc une application React est souvent compatible avec peu de changements. Les points à traiter : `dangerouslySetInnerHTML` (passer par la politique), les bibliothèques de rendu Markdown ou d'éditeur riche, et les scripts tiers qui écrivent du HTML. Commence en **Report-Only** pour les repérer (leçon 5).
+
+React accepte une valeur `TrustedHTML` dans `dangerouslySetInnerHTML` et la transmet au navigateur sans la convertir en chaîne (depuis React 17.0.2 ; les versions plus anciennes la transformaient en texte, ce qui la faisait refuser).
+
+<Diff file="apps/web/src/invoices/InvoiceNote.tsx" hlBefore="2" hlAfter="1,3">
+
+```tsx
+export function InvoiceNote({ note }: { note: { html: string } }) {
+  return <div className="note" dangerouslySetInnerHTML={{ __html: note.html }} />;
+}
+```
+
+```tsx
+import { invoiceNoteHtml } from '../security/policies';
+export function InvoiceNote({ note }: { note: { html: string } }) {
+  return <div className="note" dangerouslySetInnerHTML={{ __html: invoiceNoteHtml(note.html) }} />;
+}
 ```
 
 </Diff>
 
-## Les service workers
+Au niveau du code, deux règles ESLint complètent le contrôle du navigateur : `react/no-danger` signale chaque `dangerouslySetInnerHTML`, et le plugin `no-unsanitized` de Mozilla signale les affectations directes à `innerHTML` et consorts. Le lint attrape le problème à l'écriture ; Trusted Types le bloque à l'exécution, y compris dans les dépendances que le lint ne voit pas.
 
-Un service worker intercepte les requêtes de son périmètre et survit au rechargement de la page. Si un attaquant parvient à en enregistrer un (via une XSS et un fichier JavaScript sur ton origine), il **persiste** même après correction de la XSS. Garde le périmètre (`scope`) minimal, ne sers jamais de JavaScript contrôlé par les utilisateurs depuis ton origine, et prévois une procédure de désenregistrement (en-tête `Clear-Site-Data`) en cas d'incident.
+## Migrer une application existante
 
-Quelques règles du navigateur fixent les limites du risque. Le script d'un service worker doit venir de la même origine que la page, et son périmètre maximal est le répertoire du script, sauf si le serveur l'élargit avec l'en-tête `Service-Worker-Allowed`. Un fichier déposé par un utilisateur et servi sous `/uploads/` ne pourrait donc contrôler que `/uploads/`, à condition d'être servi comme du JavaScript : raison de plus pour servir les fichiers des clients depuis un autre domaine, avec `Content-Disposition: attachment` et `X-Content-Type-Options: nosniff`.
+<Steps items={[
+  { title: "Observer", text: "Activer require-trusted-types-for 'script' en Report-Only : chaque rapport indique le sink concerné et un extrait de la valeur. En quelques jours, la liste des appels à traiter se dessine." },
+  { title: "Corriger ton code", text: "Remplacer innerHTML par textContent quand aucun HTML n'est voulu, ou passer par une fonction du module de politiques." },
+  { title: "Traiter les dépendances", text: "Mettre à jour les bibliothèques (beaucoup gèrent désormais Trusted Types), les configurer, ou les remplacer." },
+  { title: "Poser un filet temporaire", text: "Une politique nommée default reçoit les chaînes brutes restantes : elle journalise le sink et assainit, le temps de corriger." },
+  { title: "Bloquer", text: "Passer la directive en mode bloquant, puis retirer la politique default dès que ses journaux sont vides." },
+]} />
 
-Pour le nettoyage, deux outils se complètent :
+<Callout kind="debate">
+Faut-il garder une politique `default` en production ? Pour : elle évite qu'une dépendance oubliée casse une page le jour de la bascule. Contre : elle rend à nouveau toutes les chaînes acceptables pour tous les sinks, et elle a tendance à devenir permanente. La position défendable : une politique `default` qui **journalise et assainit**, jamais une qui laisse passer ; une date de retrait inscrite dans le ticket ; et une alerte si elle est appelée sur la page de paiement.
+</Callout>
 
-- `Clear-Site-Data: "storage"` sur une réponse de ton origine désenregistre les service workers et vide le stockage local (ajouter `"cache"` et `"cookies"` pour une remise à zéro complète, au prix d'une déconnexion) ;
-- un **service worker de remplacement**, publié à la même URL que le légitime, qui se désinscrit à l'activation : le navigateur vérifie les mises à jour du script à chaque navigation, et au moins toutes les 24 heures.
+## La Sanitizer API
 
-## XS-Leaks : la défense en couches
+La **Sanitizer API** propose un assainissement natif : `element.setHTML(input)` insère du HTML en retirant ce qui est dangereux, sans bibliothèque. Firefox 148 a été le premier navigateur à la livrer sous sa forme sûre, en février 2026. En attendant un support complet partout, **DOMPurify** reste la valeur sûre en repli, et les deux se combinent bien avec Trusted Types.
 
-Les XS-Leaks n'ont pas de correctif unique : chaque technique exploite un canal différent (nombre de cadres, temps de chargement, erreurs, cache). La défense consiste à fermer les canaux par familles, avec les mécanismes de cette leçon : `SameSite` retire les cookies des requêtes inter-sites, Fetch Metadata les refuse, COOP coupe l'accès aux fenêtres, `frame-ancestors` empêche l'intégration, CORP bloque le chargement des ressources. Le wiki xsleaks.dev associe chaque technique aux défenses qui la neutralisent : c'est la grille à utiliser en revue.
-
-## En pratique chez toi
-
-- Relève les en-têtes `Sec-Fetch-*` reçus par ton API pendant une journée (un simple log suffit) : la répartition entre `same-origin`, `same-site` et `cross-site` te dit tout de suite si une politique est réaliste.
-- Liste les cookies posés par l'application : lesquels pourraient porter le préfixe `__Host-`, lesquels ont un attribut `Domain` qui n'a pas de raison d'être ?
-- Cherche les fenêtres ouvertes par l'application (login, paiement, export) avant de poser COOP : chacune est un test de non-régression.
-- Vérifie qu'aucun service worker n'est enregistré sur une origine qui n'en a pas besoin, et que le runbook d'incident sait comment les retirer.
+L'API distingue deux familles de méthodes. Les méthodes **sûres** (`setHTML`, `Document.parseHTML`) retirent toujours les éléments et attributs exécutables, même si la configuration passée les autorise. Les méthodes **non sûres** (`setHTMLUnsafe`, `Document.parseHTMLUnsafe`) appliquent la configuration à la lettre. La configuration s'écrit soit en liste d'autorisation (`elements`, `attributes`), soit en liste de retrait (`removeElements`, `removeAttributes`) : préfère la première, pour la même raison qu'en validation d'entrée.
 
 <Callout kind="novafact">
-Configuration retenue pour l'API et le BFF de Novafact : politique Fetch Metadata en mode journalisation pendant deux semaines (trois exceptions découvertes : le widget de statut, le webhook du prestataire, un ancien export ouvert dans un nouvel onglet), puis bascule en blocage. Cookie de session `__Host-sid` en `SameSite=Lax`, COOP `same-origin-allow-popups` pour le SSO entreprise, CORP `same-origin` sur l'API, pas de COEP, et `Clear-Site-Data` ajouté au runbook d'incident du back-office.
+Chez Novafact, le back-office affiche des notes de facture en Markdown. Décision : rendu Markdown sans HTML brut, puis assainissement par la politique `novafact-html` avec six balises autorisées. Le jour où `setHTML` sera disponible pour tous les navigateurs cibles, la politique l'appellera à la place de DOMPurify ; le reste du code ne changera pas, puisqu'il ne connaît que `invoiceNoteHtml`.
 </Callout>
 
 <Recap items={[
-  "Fetch Metadata dit d'où vient une requête ; une resource isolation policy refuse l'inter-site sur les ressources privées.",
-  "Les clients non navigateurs passent la politique : ils s'authentifient autrement ; les endpoints CORS publics sont des exceptions explicites.",
-  "Journaliser d'abord, bloquer ensuite, et un test qui garde la politique en place.",
-  "COOP, CORP, COEP et frame-ancestors isolent fenêtres, ressources et intégrations ; COEP seulement si l'isolation complète est nécessaire.",
-  "Cookies : __Host-, SameSite explicite, trust proxy derrière l'ALB, Partitioned pour les tiers.",
-  "Un service worker malveillant persiste : périmètre minimal, fichiers utilisateurs ailleurs, Clear-Site-Data ou service worker de remplacement.",
+  "Trusted Types remplace les chaînes par des types dans les sinks dangereux du DOM : un DOM XSS devient une erreur de type.",
+  "Disponible dans tous les navigateurs majeurs depuis Firefox 148 (février 2026).",
+  "Des politiques peu nombreuses, privées, qui vérifient vraiment, listées par la directive trusted-types.",
+  "React transmet un TrustedHTML dans dangerouslySetInnerHTML ; ESLint complète au moment de l'écriture.",
+  "Migration : Report-Only, corrections, politique default temporaire qui journalise, puis blocage.",
+  "setHTML arrive nativement et retire toujours l'exécutable ; DOMPurify reste le repli sûr.",
 ]} />
 
+<Lab id="ps-dom" note="Refais un lab DOM-based en activant mentalement Trusted Types : quel sink aurait levé une erreur ?" />
+
 <Sources items={[
-  { title: "web.dev : Fetch Metadata", url: "https://web.dev/articles/fetch-metadata" },
-  { title: "MDN : Sec-Fetch-Site", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Sec-Fetch-Site" },
-  { title: "MDN : Cross-Origin-Opener-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy" },
-  { title: "MDN : cookies et préfixes", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies" },
-  { title: "MDN : Clear-Site-Data", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Clear-Site-Data" },
-  { title: "helmet", url: "https://helmetjs.github.io/" },
-  { title: "XS-Leaks Wiki : défenses", url: "https://xsleaks.dev/" },
+  { title: "web.dev : Trusted Types", url: "https://web.dev/articles/trusted-types" },
+  { title: "MDN : require-trusted-types-for", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/require-trusted-types-for" },
+  { title: "MDN : Trusted Types API", url: "https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API" },
+  { title: "React : dangerouslySetInnerHTML et TrustedHTML", url: "https://react.dev/reference/react-dom/components/common" },
+  { title: "MDN : HTML Sanitizer API", url: "https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API" },
+  { title: "DOMPurify", url: "https://github.com/cure53/DOMPurify" },
+  { title: "eslint-plugin-no-unsanitized (Mozilla)", url: "https://github.com/mozilla/eslint-plugin-no-unsanitized" },
 ]} />

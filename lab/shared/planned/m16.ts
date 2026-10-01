@@ -1,4 +1,4 @@
-// M16 · Infrastructure as Code — challenges spécifiés.
+// m16 · Infrastructure as Code — challenges spécifiés.
 //
 // Tout se joue sur des fichiers : Terraform, CDK en TypeScript, et le template
 // CloudFormation produit par `cdk synth` — qui se génère hors ligne, sans

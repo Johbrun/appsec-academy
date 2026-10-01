@@ -1,4 +1,4 @@
-// Fichiers du jeu « IaC Misconfig Hunt » (M16) : Terraform (provider AWS)
+// Fichiers du jeu « IaC Misconfig Hunt » (M20) : Terraform (provider AWS)
 // surtout, avec un gabarit CloudFormation et un stack CDK en TypeScript.
 //
 // Le jeu demande de cliquer les lignes mal configurées puis de nommer la

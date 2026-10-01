@@ -1,4 +1,4 @@
-// Findings du jeu « True or False Positive » (M13). La première raison est la bonne.
+// Findings du jeu « True or False Positive » (M17). La première raison est la bonne.
 //
 // Le joueur reçoit un finding d'un outil (SAST, secrets, relecteur ou agent IA)
 // avec sa trace, tranche vrai/faux positif, puis choisit la justification.
@@ -534,7 +534,7 @@ router.patch('/settings', (req, res) => res.json(deepMerge(loadSettings(tenantOf
       'La fusion n’écrit que sur des clés propres énumérables, ce qu’__proto__ n’est pas',
       'Le typage any désactive les vérifications, mais la cible reste un littéral neuf',
     ],
-    why: 'Vrai positif : le corps JSON est une source directe. Correction : refuser __proto__, constructor et prototype, fusionner vers Object.create(null), et surtout valider le corps avec un schéma strict (M3).',
+    why: 'Vrai positif : le corps JSON est une source directe. Correction : refuser __proto__, constructor et prototype, fusionner vers Object.create(null), et surtout valider le corps avec un schéma strict (M9).',
   },
   {
     id: 'path-resolve', level: 2,

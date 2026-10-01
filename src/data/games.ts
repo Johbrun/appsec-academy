@@ -47,7 +47,7 @@ export interface GameMeta {
 }
 
 export const games: GameMeta[] = [
-  { id: 'flashcards', title: 'Flashcards espacées', text: 'Douze paquets, un par bloc du parcours plus deux transverses, et la révision du jour : les cartes ratées reviennent plus souvent.', category: 'fondamentaux', level: 1, modules: [], palette: 'dawn', icon: 'Layers', time: '5 min', xp: 40, available: true },
+  { id: 'flashcards', title: 'Flashcards espacées', text: 'Des paquets par thème du parcours, deux paquets transverses et la révision du jour : les cartes ratées reviennent plus souvent.', category: 'fondamentaux', level: 1, modules: [], palette: 'dawn', icon: 'Layers', time: '5 min', xp: 40, available: true },
   { id: 'referentiel', title: 'Quel référentiel ?', text: 'Huit séries, des intitulés qui portent le nom de leur liste jusqu’aux faux amis : range chaque risque dans le bon référentiel OWASP avant la fin du chrono.', category: 'fondamentaux', level: 1, modules: ['m01', 'm10', 'm19'], palette: 'moss', icon: 'Shapes', time: '4 min', xp: 50, available: true },
   { id: 'spot-the-sink', title: 'Spot the Sink', text: 'Dix séries, de la reconnaissance de motif à la revue de code : trouve la ligne vulnérable dans un vrai fichier, puis nomme sa CWE.', category: 'reperer', level: 1, modules: ['m02'], palette: 'ember', icon: 'Crosshair', time: '6 min', xp: 70, available: true },
   { id: 'patch-or-pwn', title: 'Patch or Pwn', text: 'Huit séries, de la prise en main aux contournements : quatre correctifs, un seul tient, et chaque mauvais choix montre comment il se contourne.', category: 'arbitrer', level: 2, modules: ['m02', 'm03', 'm09'], palette: 'crimson', icon: 'Swords', time: '8 min', xp: 90, available: true },

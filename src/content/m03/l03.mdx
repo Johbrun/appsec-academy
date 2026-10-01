@@ -84,7 +84,7 @@ export const getEntries = (tenant: TenantId, account: string) => {
 
 Un autre détail propre à Express : avec l'analyseur de requête par défaut, `?account=a&account=b` devient un **tableau**. Si l'API publique transmet `req.query.account` tel quel, le service interne reçoit deux valeurs, et chaque composant choisit la première, la dernière ou les deux. Le schéma `z.string()` rejette le tableau et règle la question.
 
-Et surtout : **le service interne ne fait pas confiance à l'appelant**. Il vérifie lui-même l'identité (jeton de service) et l'autorisation, plutôt que de supposer que l'API publique a filtré. C'est le pattern *Accept Security Responsibility* de Kohnfelder (M8) appliqué aux services. Chez Novafact, le jeton de service porte le tenant de l'utilisateur d'origine : le ledger refuse une requête dont le chemin vise un autre tenant que celui du jeton, même si l'appelant est l'API publique.
+Et surtout : **le service interne ne fait pas confiance à l'appelant**. Il vérifie lui-même l'identité (jeton de service) et l'autorisation, plutôt que de supposer que l'API publique a filtré. C'est le pattern *Accept Security Responsibility* de Kohnfelder (M13) appliqué aux services. Chez Novafact, le jeton de service porte le tenant de l'utilisateur d'origine : le ledger refuse une requête dont le chemin vise un autre tenant que celui du jeton, même si l'appelant est l'API publique.
 
 ## Mass assignment et propriétés d'objet
 
@@ -120,7 +120,7 @@ router.patch('/me', async (req, res) => {
 
 Les API exposent souvent plus que ce que l'interface utilise : champs acceptés mais non documentés, anciennes versions encore en ligne (API9, Improper Inventory Management). Deux contrôles :
 
-- **un schéma d'entrée strict** qui refuse les champs inconnus (M2) ;
+- **un schéma d'entrée strict** qui refuse les champs inconnus (M7) ;
 - **un inventaire** des API exposées, généré depuis le code ou le trafic, comparé à la spécification OpenAPI.
 
 Chez Novafact, la CI génère la spécification OpenAPI depuis les schémas zod, et un job hebdomadaire compare les chemins observés dans les journaux de l'ALB à cette spécification : toute route qui reçoit du trafic sans être documentée devient un ticket.
@@ -161,7 +161,7 @@ export const resolvers = {
 
 </Code>
 
-Le dépôt (`repos.invoices`) exige le tenant en premier argument : il est impossible d'écrire un résolveur qui l'oublie sans que le typage le signale. C'est la même idée que l'autorisation centralisée de M2, appliquée au graphe.
+Le dépôt (`repos.invoices`) exige le tenant en premier argument : il est impossible d'écrire un résolveur qui l'oublie sans que le typage le signale. C'est la même idée que l'autorisation centralisée de M7, appliquée au graphe.
 
 <Code file="apps/api/src/graphql/server.ts">
 

@@ -51,7 +51,7 @@ Tu connais les techniques de test une par une. Ce module les assemble en une str
 
 ## Tester, c'est vérifier des exigences
 
-Un test de sécurité vérifie une **exigence** (M7) : « un lecteur ne peut pas émettre d'avoir », « les jetons expirent en une heure ». Sans exigence, un test ne peut que chercher au hasard. La stratégie part donc des exigences et du threat model (M11), et choisit pour chacune la technique qui la vérifie le mieux.
+Un test de sécurité vérifie une **exigence** (M12) : « un lecteur ne peut pas émettre d'avoir », « les jetons expirent en une heure ». Sans exigence, un test ne peut que chercher au hasard. La stratégie part donc des exigences et du threat model (M11), et choisit pour chacune la technique qui la vérifie le mieux.
 
 | Dimension | Options |
 | --- | --- |
@@ -69,7 +69,7 @@ La stratégie devient concrète dans une matrice qui relie chaque exigence à se
 | Exigence (ASVS ou maison) | Vérification | Technique | Moment |
 | --- | --- | --- | --- |
 | Un lecteur ne peut pas émettre d'avoir | `credit-notes.authz.test.ts` | Test d'intégration (supertest) | PR |
-| Isolation stricte entre tenants | Tests paramétrés inter-tenant, revue ciblée | Tests, revue (M12) | PR, avant release |
+| Isolation stricte entre tenants | Tests paramétrés inter-tenant, revue ciblée | Tests, revue (M16) | PR, avant release |
 | Aucune note de facture n'exécute de script | `note-xss.spec.ts`, CSP en mode strict | Test Playwright, DAST | PR, nightly |
 | Les jetons de session expirent en 1 h | Test unitaire de la configuration, DAST authentifié | Test, DAST | PR, nightly |
 | L'API refuse les corps de plus de 100 Ko | Test d'intégration, test de charge | Test, k6 | PR, release |
@@ -81,7 +81,7 @@ Deux lectures de cette matrice sont utiles. Par ligne : une exigence sans vérif
 
 - L'**OWASP WSTG** (Web Security Testing Guide) liste les cas de test web par catégorie, avec des identifiants stables (`WSTG-ATHZ-04` pour les IDOR). C'est la grille idéale pour vérifier la couverture d'un plan, et pour demander à un prestataire ce qu'il a réellement testé.
 - L'**OSSTMM** (ISECOM) apporte une méthode plus générale de mesure de la sécurité opérationnelle, utile pour cadrer un test d'infrastructure ou de processus plus que d'application.
-- L'**ASVS** (M7), dans sa version 5.0 publiée en mai 2025, fournit les exigences que les tests vérifient : c'est la colonne de gauche de la matrice.
+- L'**ASVS** (M12), dans sa version 5.0 publiée en mai 2025, fournit les exigences que les tests vérifient : c'est la colonne de gauche de la matrice.
 
 WSTG et ASVS se complètent : l'un dit **comment tester**, l'autre **ce qui doit être vrai**.
 
@@ -95,7 +95,7 @@ Pour une release importante ou un nouveau produit, la stratégie se décline en 
   { title: "Techniques et outils", text: "Tests automatiques, DAST, revue ciblée, pentest : qui fait quoi." },
   { title: "Environnement et données", text: "Où l'on teste, avec quels comptes et quelles données (leçon 8)." },
   { title: "Critères d'entrée et de sortie", text: "Quand on commence (fonctionnalité gelée, environnement stable), quand on considère la recette réussie." },
-  { title: "Rôles et calendrier", text: "Qui décide d'une exception, qui signe la mise en production (M14)." },
+  { title: "Rôles et calendrier", text: "Qui décide d'une exception, qui signe la mise en production (M18)." },
 ]} />
 
 Le critère de sortie est la partie la plus souvent bâclée. « Zéro finding » est irréaliste et pousse à ne plus rien signaler. Un bon critère est vérifiable : aucun finding critique ou élevé ouvert sans exception validée, les tests de refus des exigences critiques au vert, le DAST authentifié sans nouvelle alerte élevée.
@@ -105,10 +105,10 @@ Le critère de sortie est la partie la plus souvent bâclée. « Zéro finding �
 | Moment | Durée acceptable | Techniques |
 | --- | --- | --- |
 | **IDE et pre-commit** | Secondes | Lint sécurité, détection de secrets, TypeScript strict |
-| **PR** | Quelques minutes | SAST différentiel, SCA, tests unitaires et d'intégration, revue (M12) |
+| **PR** | Quelques minutes | SAST différentiel, SCA, tests unitaires et d'intégration, revue (M16) |
 | **Nightly** | Heures | SAST complet, DAST, fuzzing, scan IaC complet |
 | **Release** | Selon le risque | DAST authentifié, pentest ciblé, revue de conception |
-| **Production** | En continu | Bug bounty, détection (M18), tests de chaos |
+| **Production** | En continu | Bug bounty, détection (M24), tests de chaos |
 
 Dans GitHub Actions, la séparation se lit directement dans le workflow :
 
@@ -131,7 +131,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8   # v5.0.0
         with: { fetch-depth: 0 }
       - run: semgrep scan --config p/typescript --config ./rules --baseline-commit "origin/$BASE_REF" --error
-        env: { BASE_REF: "${{ github.base_ref }}" }         # jamais d'expression directement dans run (M14)
+        env: { BASE_REF: "${{ github.base_ref }}" }         # jamais d'expression directement dans run (M18)
   nightly-dast:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest

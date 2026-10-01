@@ -51,7 +51,7 @@ Tes attaques de pentest laissent des traces : rafales de 403, identifiants qui d
 
 ## Credential stuffing et prise de contrôle de compte
 
-Le credential stuffing ne se voit pas au nombre d'échecs par compte (chaque compte n'est essayé qu'une fois) mais au **nombre d'identifiants distincts** par source. La requête ES|QL de la leçon 3 le fait sur les logs applicatifs, grâce à l'empreinte HMAC de l'identifiant (leçon 1).
+Le credential stuffing ne se voit pas au nombre d'échecs par compte (chaque compte n'est essayé qu'une fois) mais au **nombre d'identifiants distincts** par source. La requête ES|QL de la leçon 4 de M23 le fait sur les logs applicatifs, grâce à l'empreinte HMAC de l'identifiant (leçon 1 de M23).
 
 Les campagnes sérieuses se distribuent sur des milliers d'adresses résidentielles, à raison de quelques essais chacune : le regroupement par IP ne voit plus rien. Il faut alors regrouper par ce que les requêtes ont **en commun**. Les logs AWS WAF exposent l'empreinte TLS JA4 du client, que l'intégration Elastic range dans `aws.waf.ja4_fingerprint` :
 
@@ -71,7 +71,7 @@ FROM logs-aws.waf-*
 
 Une empreinte TLS n'identifie pas un attaquant : un navigateur courant la partage avec des millions d'utilisateurs. Elle devient un signal quand elle apparaît soudain sur des centaines d'IP qui ne font **que** se connecter. Compare toujours au volume habituel de la même empreinte.
 
-Une fois un compte pris, la suite se lit dans les logs applicatifs : la séquence EQL connexion, désactivation de la MFA, export (leçon 3), et les signaux de M10 (nouvel appareil, voyage impossible, changement d'IBAN).
+Une fois un compte pris, la suite se lit dans les logs applicatifs : la séquence EQL connexion, désactivation de la MFA, export (leçon 4 de M23), et les signaux de M15 (nouvel appareil, voyage impossible, changement d'IBAN).
 
 <Callout kind="case">
 **Snowflake (2024)**. Mandiant a attribué à UNC5537 une campagne contre des instances clientes de Snowflake, menée avec des identifiants volés par des infostealers, certains depuis 2020 et jamais changés. Les comptes touchés n'avaient pas de MFA ; environ 165 organisations ont été notifiées comme potentiellement exposées. Une connexion réussie avec un mot de passe valide, suivie d'un export massif, est exactement le scénario qu'une séquence « connexion depuis un réseau nouveau puis export » est faite pour voir.
@@ -105,7 +105,7 @@ L'attaquant qui a trouvé une BOLA la parcourt : il incrémente ou rejoue des id
 
 </Code>
 
-Deux conditions de conception en amont. D'abord, **le refus doit être journalisé même s'il est masqué** : si l'API répond 404 pour ne pas révéler l'existence d'une facture d'un autre tenant (bonne pratique), le log interne, lui, écrit `authz_fail` avec l'objet demandé. Ensuite, la BOLA **réussie** ne produit aucun refus : c'est pourquoi la règle new terms « premier export » (leçon 4) et les volumes de `sensitive_read` par utilisateur complètent ce filet. Côté identifiants, des UUID aléatoires rendent l'énumération bruyante et coûteuse ; des entiers séquentiels la rendent silencieuse.
+Deux conditions de conception en amont. D'abord, **le refus doit être journalisé même s'il est masqué** : si l'API répond 404 pour ne pas révéler l'existence d'une facture d'un autre tenant (bonne pratique), le log interne, lui, écrit `authz_fail` avec l'objet demandé. Ensuite, la BOLA **réussie** ne produit aucun refus : c'est pourquoi la règle new terms « premier export » (leçon 3) et les volumes de `sensitive_read` par utilisateur complètent ce filet. Côté identifiants, des UUID aléatoires rendent l'énumération bruyante et coûteuse ; des entiers séquentiels la rendent silencieuse.
 
 ## Rejeu de jeton
 
@@ -123,11 +123,11 @@ FROM logs-novafact.api-prod
 
 </Code>
 
-Deux IP seules ne suffisent pas (un téléphone passe du Wi-Fi à la 4G) ; deux IP **et** deux user-agents sur une même session en trente minutes, beaucoup plus. Le cas le plus net reste le **refresh token révoqué qui revient** : avec la rotation des refresh tokens (M9), la réutilisation d'un jeton déjà consommé est l'événement `authn_token_reuse` du Logging Vocabulary, classé CRITICAL. Il mérite une custom query à sévérité élevée, et une réponse automatique : révocation de toute la famille de jetons.
+Deux IP seules ne suffisent pas (un téléphone passe du Wi-Fi à la 4G) ; deux IP **et** deux user-agents sur une même session en trente minutes, beaucoup plus. Le cas le plus net reste le **refresh token révoqué qui revient** : avec la rotation des refresh tokens (M14), la réutilisation d'un jeton déjà consommé est l'événement `authn_token_reuse` du Logging Vocabulary, classé CRITICAL. Il mérite une custom query à sévérité élevée, et une réponse automatique : révocation de toute la famille de jetons.
 
 ## Desync et cache poisoning, vus depuis l'ALB et le WAF
 
-Les attaques de protocole (M3, M17) laissent des traces en amont de l'application. L'ALB, en mode de mitigation *defensive* (le mode par défaut), **classe** chaque requête non conforme à la RFC 7230 et l'écrit dans ses access logs : `classification` vaut Acceptable, Ambiguous ou Severe, et `classification_reason` en donne la cause. Les requêtes Severe sont bloquées ; les Ambiguous passent, signalées.
+Les attaques de protocole (M9, M21) laissent des traces en amont de l'application. L'ALB, en mode de mitigation *defensive* (le mode par défaut), **classe** chaque requête non conforme à la RFC 7230 et l'écrit dans ses access logs : `classification` vaut Acceptable, Ambiguous ou Severe, et `classification_reason` en donne la cause. Les requêtes Severe sont bloquées ; les Ambiguous passent, signalées.
 
 <Code file="elastic/queries/desync-alb.kql">
 
@@ -174,7 +174,7 @@ Pour la clé AWS, **Canarytokens** (Thinkst) génère des clés prêtes à l'emp
 event.dataset : "aws.cloudtrail" and aws.cloudtrail.user_identity.access_key_id : "AKIA_LEURRE_EXEMPLE"
 ```
 
-La route leurre s'écrit en quelques lignes, avec le helper de la leçon 1 :
+La route leurre s'écrit en quelques lignes, avec le helper de la leçon 1 de M23 :
 
 <Code file="apps/api/src/routes/honeytrap.ts">
 

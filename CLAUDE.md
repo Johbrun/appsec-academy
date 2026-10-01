@@ -1,13 +1,13 @@
 # AppSec Academy
 
-Site de formation AppSec (JS + AWS) : 20 modules, leçons MDX, jeux, examens, progression. Tout est en français. Le dossier parent `mitre/` contient d'autres projets (`../src`, `../pse`) : ne pas les confondre avec celui-ci. Le dépôt git est `appsec/` seul.
+Site de formation AppSec (JS + AWS) : blocs A à H qui suivent le SSDLC, leçons MDX, jeux, examens, progression. Tout est en français. Le dossier parent `mitre/` contient d'autres projets (`../src`, `../pse`) : ne pas les confondre avec celui-ci. Le dépôt git est `appsec/` seul.
 
 ## Carte du code
 
 | Où | Quoi |
 | --- | --- |
 | `src/` | Front Vite + React 18 + TypeScript (routes dans `pages/`, jeux dans `games/`, données dans `data/`) |
-| `src/content/<mXX>/<lXX>.mdx` | Une leçon par fichier (162). Composants MDX dans `src/components/mdx.tsx` |
+| `src/content/<mXX>/<lXX>.mdx` | Une leçon par fichier. Composants MDX dans `src/components/mdx.tsx` |
 | `src/data/catalog.ts` | Modules et leçons : **source de vérité du parcours** (cahier des charges : `PROGRAMME.md`) |
 | `server/` | API Express 5 + SQLite (`better-sqlite3`), sessions, argon2id, promos/enseignants. Tests dans `server/test/` |
 | `scripts/check-*.mjs` | Garde-fous de contenu (quiz, jeux, sinks, MDX) |
@@ -37,12 +37,15 @@ node scripts/check-mdx.mjs [chemin] # si tu touches une leçon ou mdx.tsx — PA
 
 Ces scripts dupliquent des listes du code ; les oublier fait échouer ou, pire, contourner le contrôle en silence.
 
-- **Nouveau composant MDX ou nouveau `kind` de `Callout`** → l'ajouter aussi dans `known` / `kinds` de `scripts/check-mdx.mjs` (c'est la cause de l'échec actuel sur `CarteDuParcours`).
+- **Nouveau composant MDX ou nouveau `kind` de `Callout`** → l'ajouter aussi dans `known` / `kinds` de `scripts/check-mdx.mjs`.
 - **`export const questions = [ … \n];`** : garde ce format littéral, `check-mdx` l'extrait par regex. Une `Lab id` doit exister dans `src/data/labs.ts` (lu par regex aussi : ne change pas la forme des `id:` / `ps('…')` sans adapter le script).
 - **Nouveau jeu à options** → l'ajouter à `GAMES` **et** `POOLS` dans `scripts/check-games.mjs` (catalogue en dur : un jeu absent n'est jamais contrôlé), et mélanger les options à l'affichage (`shuffle`).
 - **Séries** : tout jeu passe par `SeriesGame` (`src/components/Series.tsx`) avec au moins cinq séries `defineSeries` exportées depuis son fichier de données (`check-games` le vérifie). Ajouter des items = leur donner `id` stable et `level`. Les records de série sont des clés `jeu:série` dans `scores` : tout code qui compte les jeux (`server/summary.ts`, badges) doit les ignorer.
+- **Séries exigées par une leçon** : `lessonGames` dans `catalog.ts` (un ou deux jeux, séries désignées par leur `id`, jamais par leur rang ; chaque jeu disponible exigé par au moins une leçon), réussies à `SERIES_PASS` (`store/progress.tsx`). Nouveau jeu → entrée dans `src/data/series-index.ts`. `check-games` vérifie les deux ; renommer l'`id` d'une série exigée casse la leçon.
 - **Sinks** (`src/data/sinks/pool-*.ts`) : `check-sinks` vérifie les numéros de ligne, les leurres et les longueurs par niveau, pas que la ligne désignée est *la bonne*. Relis à la main.
 - **Nouvelle leçon** = entrée `L(...)` dans `catalog.ts` + fichier `.mdx`. Une leçon sans fichier s'affiche « en rédaction » ; ce n'est pas une erreur.
+- **Module** : son `id` (`mXX`) est stable et sert de clé partout (progression, cartes `m02-c7`, labs, jeux) ; seul `num` (numéro affiché) suit l'ordre du tableau. Un module qui a une leçon rédigée doit avoir son diagnostic dans `src/data/checkpoints.ts` (`check-quiz`).
+- **Déplacer ou renuméroter une leçon** change sa clé de progression `mXX-lYY` : table de correspondance dans `src/store/migrate.ts` et nouveau format de progression (sinon un onglet resté sur l'ancienne version réécrit les anciennes clés). Les renvois « M8, leçon 6 » des textes et du lab sont à réécrire (`lab/shared` puis `npm run challenges`).
 
 ## Serveur : il doit tenir ce qu'il enseigne
 

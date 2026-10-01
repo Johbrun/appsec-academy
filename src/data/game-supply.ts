@@ -1,4 +1,4 @@
-// Incidents du jeu « Supply Chain Kill Chain » (M14). `steps` est dans l'ordre chronologique ;
+// Incidents du jeu « Supply Chain Kill Chain » (M18). `steps` est dans l'ordre chronologique ;
 // `controls[0]` est le contrôle qui casse la chaîne le plus tôt du point de vue de la victime indiquée.
 //
 // Tous les incidents sont **réels et documentés**. Les étapes sont fidèles aux

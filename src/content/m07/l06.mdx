@@ -1,164 +1,176 @@
 export const questions = [
   {
-    q: "Une adresse e-mail remplacée par un identifiant aléatoire, avec une table de correspondance conservée ailleurs, est-elle encore une donnée personnelle au sens du RGPD ?",
+    q: "Un développeur change d'équipe. Que doit-il se passer pour ses accès ?",
     options: [
-      "Non : sans la table de correspondance, le jeu de données est anonyme",
-      "Oui, sauf si la table de correspondance est chiffrée et conservée à part",
-      "Non, à condition que l'identifiant soit tiré au hasard et non calculé",
-      "Oui : c'est une pseudonymisation, la réidentification reste possible",
-    ],
-    answer: 3,
-    explain: "La pseudonymisation réduit l'exposition sans faire sortir les données du champ du RGPD : tant qu'un moyen de réidentification existe quelque part, la donnée reste personnelle. Chiffrer la table de correspondance et la conserver séparément est exactement ce que demande l'EDPB, mais c'est une mesure de protection, pas un changement de nature. Seule une anonymisation irréversible, y compris par recoupement, sort du champ — et elle est bien plus difficile à obtenir qu'il n'y paraît.",
-  },
-  {
-    q: "En cas de violation de données personnelles présentant un risque, dans quel délai notifier la CNIL ?",
-    options: [
-      "24 heures, comme l'alerte précoce prévue par le CRA",
-      "72 heures après en avoir pris connaissance",
-      "Un mois, comme le délai de réponse aux droits des personnes",
-      "Sans délai, dès la détection de l'intrusion",
-    ],
-    answer: 1,
-    explain: "L'article 33 du RGPD impose une notification à l'autorité de contrôle dans les 72 heures après en avoir pris connaissance, sauf si la violation est peu susceptible d'engendrer un risque ; l'information des personnes concernées relève de l'article 34, quand le risque est élevé. Les autres délais existent, mais ailleurs : 24 heures, c'est l'alerte précoce du CRA pour une vulnérabilité activement exploitée ; un mois, c'est le délai de réponse à une demande d'exercice de droits.",
-  },
-  {
-    q: "Dans sa sanction de janvier 2026 contre Free Mobile, qu'a reproché la CNIL en plus de l'insuffisance des mesures de sécurité ?",
-    options: [
-      "La conservation excessive de données d'anciens abonnés, sans justification",
-      "L'hébergement de sauvegardes hors de l'Union européenne, sans encadrement",
-      "L'absence d'analyse d'impact préalable sur ce traitement à risque élevé",
-      "Le défaut de chiffrement des IBAN dans la base de production",
+      "Ses nouveaux accès sont accordés, et les anciens hors rôle sont retirés",
+      "Il conserve ses anciens accès le temps d'assurer la passation",
+      "Son compte est recréé dans la nouvelle équipe, et l'ancien est désactivé ensuite",
+      "Ses accès sont copiés sur ceux d'un collègue de la nouvelle équipe",
     ],
     answer: 0,
-    explain: "Trois manquements ont été retenus : mesures de sécurité insuffisantes (article 32), information incomplète des personnes concernées (article 34) et, pour Free Mobile, conservation excessive (article 5.1.e). C'est ce dernier point qui parle au développeur : des données qui n'auraient plus dû exister ont aggravé la fuite, et la CNIL a ordonné une purge ne gardant que les données comptables soumises à l'obligation décennale. La purge est une fonctionnalité à construire, pas une tâche d'exploitation qu'on repousse.",
+    explain: "Le mover est l'étape la plus souvent ratée : sans retrait, les droits s'accumulent à chaque mobilité jusqu'à faire d'un développeur ordinaire un quasi-administrateur. Le besoin de passation est réel, mais il se traite par une prolongation datée — deux semaines, par exemple —, pas par un maintien silencieux. Copier les droits d'un collègue reproduit ses exceptions accumulées, alors que les accès doivent venir d'un rôle défini à l'avance. Et recréer le compte ferait perdre l'historique d'audit attaché à l'identité.",
   },
   {
-    q: "Novafact veut calculer des statistiques d'usage par client final sans manipuler les adresses e-mail. Elle remplace chaque adresse par un HMAC calculé avec une clé stockée dans Secrets Manager. Quelle affirmation est juste ?",
+    q: "Pourquoi faire une recertification périodique des accès ?",
     options: [
-      "Les statistiques deviennent anonymes et sortent du champ du RGPD",
-      "Le HMAC est réversible : il ne protège pas mieux qu'un identifiant en clair",
-      "C'est une pseudonymisation utile tant que la clé reste séparée et protégée",
-      "Un SHA-256 sans clé offrirait la même protection, sans clé à gérer",
+      "Pour satisfaire l'exigence d'audit annuel des référentiels de conformité",
+      "Parce que le provisionnement automatique ne couvre pas les comptes de service",
+      "Pour vérifier que chaque accès est encore justifié et retirer les autres",
+      "Pour forcer la rotation des identifiants des comptes les plus sensibles",
     ],
     answer: 2,
-    explain: "Avec la clé, on recalcule le pseudonyme d'une adresse connue : la réidentification reste possible, donc les données restent personnelles. Toute la valeur tient à la séparation de la clé, comme le rappellent les lignes directrices de l'EDPB sur la pseudonymisation. Le hash sans clé est la fausse bonne idée classique : quiconque dispose d'une liste d'adresses la hache et compare. Et le HMAC n'est pas réversible au sens d'un déchiffrement — ce qui l'affaiblirait, ce serait une clé rangée à côté du jeu statistique.",
+    explain: "Même avec un bon provisionnement, les exceptions temporaires jamais refermées, les accès hérités d'une mobilité et les comptes oubliés s'accumulent : la revue par le propriétaire les fait remonter. Les comptes de service posent un problème voisin mais distinct — ils n'ont pas de départ naturel, et c'est la recherche d'accès inutilisés qui les attrape. La rotation des identifiants et la production de preuves d'audit sont des effets utiles, pas la raison d'être de l'exercice.",
+  },
+  {
+    q: "Un employé part. Son compte est désactivé dans le fournisseur d'identité et ses sessions Cognito sont révoquées par AdminUserGlobalSignOut. Quel accès peut encore subsister quelques minutes ?",
+    options: [
+      "Aucun : la révocation des sessions coupe tout de manière immédiate",
+      "L'accès à la console AWS, qui dépend d'un autre fournisseur d'identité",
+      "Les jetons de rafraîchissement, encore valables jusqu'à leur date d'expiration",
+      "Les jetons d'accès déjà émis, validés localement jusqu'à leur expiration",
+    ],
+    answer: 3,
+    explain: "AdminUserGlobalSignOut empêche justement Cognito d'accepter les jetons de rafraîchissement — c'est ce qui rend l'autre réponse tentante —, mais une API qui valide un JWT localement, sur sa signature et son expiration, n'interroge personne : le jeton d'accès déjà émis reste accepté jusqu'au bout. Deux parades se complètent : des jetons d'accès de courte durée, et une vérification de l'état du compte pour les actions sensibles, comme un export ou un changement d'IBAN.",
+  },
+  {
+    q: "Lors du départ d'un développeur, quels accès le SSO ne coupe-t-il pas à lui seul ?",
+    options: [
+      "Les sessions applicatives ouvertes, qui expirent d'elles-mêmes",
+      "Les identifiants émis hors SSO : jetons personnels, clés d'API, clés SSH",
+      "Les accès physiques aux locaux, gérés par un système de badges entièrement distinct",
+      "Les comptes SaaS provisionnés par SCIM depuis le fournisseur d'identité",
+    ],
+    answer: 1,
+    explain: "Tout identifiant émis indépendamment du fournisseur d'identité survit à la désactivation du compte : jetons d'accès personnels GitHub ou npm — y compris ceux qui peuvent publier le SDK —, clés d'API créées pour un test, clés SSH, autorisations OAuth accordées à des applications tierces. Il faut aussi faire tourner les secrets partagés que la personne connaissait : ils ne peuvent pas être désappris. Les comptes provisionnés par SCIM sont au contraire exactement ce que le SSO coupe, et compter sur l'expiration naturelle des sessions revient à laisser une fenêtre ouverte au lieu de les révoquer.",
   },
 ];
 
 <YouKnow>
-Tu as sans doute trouvé des données personnelles là où elles n'avaient rien à faire : logs, exports, environnements de test. La vie privée se joue surtout à la conception : ce qu'on ne collecte pas ne peut pas fuir.
+En pentest interne, tu as souvent trouvé des comptes d'anciens employés actifs, des comptes de service surpuissants, ou des stagiaires administrateurs. Ce sont des défaillances de provisionnement.
 </YouKnow>
 
-## Collecter moins
+## Le cycle joiner-mover-leaver
 
-Kohnfelder (K1) résume l'essentiel : collecter le **minimum**, pour un **usage précis**, le conserver **tant qu'il sert**, et le supprimer ensuite. Collecter « au cas où » est presque toujours une mauvaise idée : chaque donnée conservée est un risque de fuite. Pour les données les plus sensibles, il va plus loin : **supprimer dès que le risque de divulgation dépasse la valeur de la conservation**.
-
-C'est aussi le cœur du RGPD (article 5) : licéité, limitation des finalités, **minimisation**, exactitude, **limitation de la conservation**, intégrité et confidentialité.
-
-Pour un développeur, la minimisation se joue dans des décisions très concrètes : ne pas demander la date de naissance à l'inscription parce qu'un formulaire type la prévoyait, ne pas stocker l'adresse IP complète quand la ville suffit à la détection de fraude, ne pas copier le corps d'une facture dans un événement de log quand son identifiant suffit, ne pas envoyer au fournisseur d'IA la facture entière quand la question porte sur son montant.
-
-## Le RGPD pour un développeur
-
-| Principe | Ce que ça change dans le code |
+| Événement | Ce qui doit se passer |
 | --- | --- |
-| **Base légale** et finalité | Chaque donnée collectée correspond à un usage documenté (registre des traitements, article 30) |
-| **Privacy by design et by default** (article 25) | Les réglages par défaut sont les plus protecteurs ; la protection est pensée dès la conception |
-| **Droits des personnes** | Accès, rectification, **effacement** (article 17), portabilité : prévoir les fonctions et les traitements par lots |
-| **Sécurité** (article 32) | Mesures adaptées au risque : chiffrement, pseudonymisation, contrôle d'accès, tests réguliers |
-| **Violation** (article 33) | Notifier la CNIL dans les **72 heures**, et les personnes concernées si le risque est élevé (article 34) |
-| **AIPD** (article 35) | Une analyse d'impact pour les traitements à risque élevé |
+| **Arrivée** (joiner) | Des accès attribués selon le rôle, pas copiés sur un collègue |
+| **Changement** (mover) | Les nouveaux accès sont ajoutés **et** les anciens retirés |
+| **Départ** (leaver) | Tous les accès révoqués le jour même : SSO, sessions actives, clés, jetons personnels, accès aux SaaS |
 
-Un point de position à comprendre : pour les factures de ses clients, Novafact est en général **sous-traitant** (elle traite les données des clients finaux pour le compte de ses clients, qui sont responsables de traitement). Pour les comptes de ses propres utilisateurs, elle est **responsable de traitement**. Cette distinction détermine qui répond à une demande d'effacement, qui notifie la CNIL, et ce que le contrat (article 28) doit prévoir.
+Le point le plus souvent raté est le **mover** : au fil des mobilités, les droits s'accumulent.
+
+Chaque étape a son piège propre :
+
+- **à l'arrivée**, le « fais comme pour Julie » : on copie les droits d'un collègue, avec les exceptions accumulées au fil de ses années. Les accès doivent venir d'un **rôle** défini à l'avance (développeur de l'équipe Facturation, comptable, support niveau 1), qui donne un socle d'accès, et les exceptions se demandent à part, avec une date de fin ;
+- **au changement**, l'argument « il aura peut-être encore besoin de l'ancien accès pour la passation ». C'est légitime, mais la réponse est une période de transition **datée** (deux semaines), pas un maintien indéfini ;
+- **au départ**, la confiance excessive dans le SSO. Le SSO coupe ce qui passe par lui ; tout ce qui a été émis indépendamment lui survit.
 
 <Callout kind="case">
-Le 13 janvier 2026, la CNIL a sanctionné Free Mobile et Free à hauteur de 27 et 15 millions d'euros, après une intrusion survenue en octobre 2024 qui avait touché les données de 24 millions de contrats d'abonnés, dont des IBAN. Trois manquements ont été retenus : des mesures de sécurité insuffisantes (article 32), notamment une authentification à l'accès VPN pas assez robuste et une détection des comportements anormaux inefficace ; une information incomplète des personnes concernées (article 34) ; et, pour Free Mobile, une **conservation excessive** des données d'anciens abonnés (article 5.1.e). La CNIL a ordonné de terminer le tri et la purge, en ne gardant que les données comptables soumises à l'obligation de conservation. La leçon pour un développeur : les données qui n'auraient plus dû exister ont aggravé la fuite, et la purge est une fonctionnalité, pas une tâche d'administration.
+En avril 2022, Block (maison mère de Cash App) a déclaré à la SEC qu'un ancien employé avait téléchargé, en décembre 2021, des rapports contenant des informations sur des clients de Cash App Investing aux États-Unis. Il avait accès à ces rapports dans le cadre de ses fonctions passées, et y a accédé sans autorisation après son départ. L'entreprise a ensuite prévenu environ 8,2 millions de clients actuels et anciens. Un accès légitime pendant l'emploi, jamais retiré au départ : c'est exactement le scénario que le leaver doit fermer.
 </Callout>
 
-## Pseudonymiser ou anonymiser
+## Ce que le SSO ne coupe pas
 
-- **Pseudonymiser** : remplacer un identifiant par un autre (jeton, hash avec clé), en gardant la possibilité de revenir en arrière. Utile pour limiter l'exposition, mais **les données restent personnelles**.
-- **Anonymiser** : rendre la réidentification impossible, de façon **irréversible**, y compris par recoupement. Beaucoup plus difficile qu'il n'y paraît : un jeu de données « anonyme » se réidentifie souvent avec quelques attributs.
+Le jour du départ d'un développeur de Novafact, la désactivation dans le fournisseur d'identité est nécessaire, pas suffisante. La checklist du leaver doit couvrir :
 
-Le piège le plus courant est le **hash sans clé** présenté comme une anonymisation. Hacher une adresse e-mail avec SHA-256 ne protège rien contre quelqu'un qui dispose d'une liste d'adresses : il lui suffit de hacher la liste et de comparer. Un HMAC avec une clé gardée à part est une vraie pseudonymisation, tant que la clé reste séparée des données :
+<Steps items={[
+  { title: "Les jetons personnels", text: "Personal access tokens GitHub, jetons npm (y compris ceux qui peuvent publier @novafact/sdk), clés SSH et clés de signature enregistrées." },
+  { title: "Les identifiants d'applications", text: "Clés d'API créées pour des tests, autorisations OAuth accordées à des applications tierces avec son compte." },
+  { title: "Les secrets qu'il a vus", text: "Un secret partagé connu d'un partant (mot de passe d'un compte de secours, clé d'un environnement) se fait tourner : il ne peut pas être « désappris »." },
+  { title: "Ce qu'il possédait", text: "Comptes de service, dépôts, tâches planifiées, alertes dont il était le seul destinataire : un propriétaire de remplacement est désigné." },
+  { title: "Les sessions actives", text: "Révoquées explicitement, sans attendre leur expiration naturelle." },
+]} />
 
-<Code file="packages/analytics/src/pseudonymize.ts">
+## Automatiser depuis une source de vérité
+
+Le **fournisseur d'identité** (SSO) est la source de vérité : les applications internes et les SaaS reçoivent les comptes par **SCIM** (provisionnement automatique) et l'authentification par SSO. Un départ désactivé dans l'annuaire se propage partout. Côté AWS, **IAM Identity Center** joue ce rôle pour les accès humains (M19).
+
+SCIM (RFC 7643 pour le schéma, RFC 7644 pour le protocole) définit une API standard : le fournisseur d'identité crée, modifie et désactive les comptes dans chaque application. Une désactivation arrive typiquement comme une requête `PATCH` qui passe l'attribut `active` à `false`. Recevoir ce signal ne suffit pas : l'application doit en tirer toutes les conséquences, **sessions comprises**.
+
+<Code file="apps/api/src/scim/users.ts" hl="15,16,17,18,19,20">
 
 ```ts
-import { createHmac } from 'node:crypto';
+import { AdminUserGlobalSignOutCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { z } from 'zod';
 
-// La clé vit dans Secrets Manager, jamais dans l'entrepôt analytique.
-// Sans elle, le pseudonyme ne se recalcule pas ; avec elle, on peut relier une adresse connue.
-export function pseudonymize(key: Buffer, email: string): string {
-  const normalized = email.trim().toLowerCase();
-  return createHmac('sha256', key).update(normalized).digest('base64url');
-}
+const cognito = new CognitoIdentityProviderClient({});
+const PatchOp = z.object({
+  schemas: z.array(z.literal('urn:ietf:params:scim:api:messages:2.0:PatchOp')),
+  Operations: z.array(z.object({ op: z.string(), path: z.string().optional(), value: z.unknown() })),
+});
+
+scim.patch('/Users/:id', async (req, res) => {
+  const body = PatchOp.parse(req.body);
+  const deactivate = body.Operations.some((o) => o.op.toLowerCase() === 'replace' &&
+    ((o.path === 'active' && o.value === false) || (!o.path && (o.value as any)?.active === false)));
+  const user = await users.getForTenant(req.scimTenantId, req.params.id); // le jeton SCIM est lié à un tenant
+  if (deactivate) {
+    await users.setActive(user.id, false);
+    await bffSessions.deleteAllFor(user.id);                        // sessions du BFF
+    await cognito.send(new AdminUserGlobalSignOutCommand({ UserPoolId: POOL_ID, Username: user.cognitoUsername }));
+    await apiKeys.revokeAllFor(user.id);                            // clés d'API personnelles
+    await audit.write({ action: 'user.deprovision', actor: 'scim', tenantId: user.tenantId, target: user.id });
+  }
+  res.json(toScimUser(await users.get(user.id)));
+});
 ```
 
 </Code>
-
-Le comité européen de la protection des données (EDPB) a adopté en janvier 2025 des lignes directrices sur la pseudonymisation (01/2025) qui insistent sur ce point : l'information qui permet de réattribuer les données doit être **conservée séparément** et protégée par des mesures techniques et organisationnelles. En pratique : la clé HMAC n'est pas lisible par les personnes et les services qui accèdent aux statistiques.
-
-## Le droit à l'effacement
-
-Supprimer vraiment une personne, c'est la retirer de la base principale, mais aussi des **index de recherche**, des **caches**, des **exports**, des **environnements de test**, des **embeddings** de l'assistant IA (M19) et, selon la politique, des **sauvegardes** (qui expirent alors d'elles-mêmes). Sans cartographie des données (leçon précédente), c'est impossible.
-
-La réponse doit arriver dans un délai d'**un mois**, prolongeable de deux mois pour les demandes complexes (article 12). Une suppression qui touche six systèmes ne tient pas ce délai si elle dépend d'un ticket manuel par système. Le schéma qui passe à l'échelle : chaque système qui stocke des données personnelles **enregistre un effaceur**, et une orchestration suit l'avancement :
-
-<Code file="apps/privacy/src/erasure.ts" hl="11,12,13,14">
-
-```ts
-type Eraser = { store: string; erase: (subjectId: string) => Promise<'erased' | 'retained-legal'> };
-
-const erasers: Eraser[] = [
-  { store: 'postgres.users', erase: users.eraseSubject },
-  { store: 'mongo.invoices', erase: invoices.restrictSubject },   // conservation légale : usage restreint
-  { store: 'search.index', erase: searchIndex.deleteSubject },
-  { store: 'ai.embeddings', erase: embeddings.deleteSubject },
-];
-
-export async function processErasure(requestId: string, subjectId: string) {
-  const results = await Promise.allSettled(erasers.map((e) => e.erase(subjectId)));
-  const report = results.map((r, i) => ({ store: erasers[i].store, status: r.status === 'fulfilled' ? r.value : 'failed' }));
-  await erasureRequests.update(requestId, { report, completedAt: report.every((r) => r.status !== 'failed') ? new Date() : null });
-  return report; // les échecs sont rejoués ; la demande n'est close que lorsque tout a réussi
-}
-```
-
-</Code>
-
-Le registre d'effaceurs a un effet secondaire précieux : un nouveau stockage de données personnelles qui n'y figure pas se remarque en revue. Un test peut même vérifier que chaque collection marquée `confidential` dans le schéma (leçon précédente) a un effaceur enregistré.
 
 <Callout kind="warn">
-Novafact doit aussi conserver les factures pendant la durée légale imposée par le droit fiscal et commercial. Le droit à l'effacement ne l'emporte pas sur une obligation légale de conservation : la réponse correcte est de restreindre l'usage de ces données, pas de les supprimer.
+`AdminUserGlobalSignOut` empêche Cognito d'accepter les jetons de rafraîchissement de l'utilisateur, mais un **jeton d'accès JWT déjà émis reste valide** pour toute API qui le vérifie localement (signature et expiration) jusqu'à son expiration. Deux parades complémentaires : des jetons d'accès de courte durée, et une vérification de l'état du compte (`active`) côté API pour les actions sensibles (export, changement d'IBAN, gestion des rôles).
 </Callout>
 
-## Les transferts hors de l'Union
+## Les comptes de service
 
-Les données personnelles transférées hors de l'Union européenne (un sous-traitant américain, un fournisseur d'IA) exigent une base juridique : décision d'adéquation (comme le Data Privacy Framework pour certaines entreprises américaines), clauses contractuelles types, et parfois des mesures techniques complémentaires. La **résidence des données** (région AWS européenne) se décide dès la conception.
+Les comptes non humains (CI, intégrations, workers) sont souvent les plus puissants et les moins surveillés :
 
-Le Data Privacy Framework est valable, mais fragile : ses deux prédécesseurs (Safe Harbor puis Privacy Shield) ont été invalidés par la Cour de justice de l'UE. En septembre 2025, le Tribunal de l'UE a rejeté un recours en annulation contre la décision d'adéquation (affaire Latombe), qui a fait l'objet d'un pourvoi devant la Cour de justice. Pour un architecte, la conséquence est pratique : un transfert qui repose sur une seule base juridique doit pouvoir basculer (clauses contractuelles types prêtes, possibilité de changer de région ou de fournisseur) si cette base tombe.
+<Steps items={[
+  { title: "Un propriétaire", text: "Chaque compte de service a une équipe responsable, documentée." },
+  { title: "Le minimum", text: "Des droits limités à son usage, jamais un compte « admin technique » partagé." },
+  { title: "Des identifiants temporaires", text: "Fédération d'identité (OIDC) plutôt que des clés longues durées (M18, M19)." },
+  { title: "Une surveillance", text: "Une utilisation hors de son périmètre habituel déclenche une alerte (M24)." },
+]} />
 
-Un point souvent oublié : le transfert ne se limite pas au stockage. Un appel à une API d'IA hébergée hors UE, un outil de support qui affiche des données de clients, un service de journalisation SaaS qui reçoit des logs contenant des adresses e-mail sont aussi des transferts.
+Un compte de service n'a pas de départ naturel : personne ne le désactive quand le projet qui l'utilisait s'arrête. Il faut donc chercher activement les accès **inutilisés**. Sur AWS, IAM Access Analyzer propose des analyses d'accès inutilisés (rôles, clés d'accès et permissions non utilisés depuis une période donnée) ; les dates de dernière utilisation des clés et des rôles donnent le même signal à moindre coût. Chez Novafact, un rôle ou une clé inutilisé depuis 90 jours déclenche un ticket à son équipe propriétaire, puis sa désactivation sans réponse sous deux semaines.
 
-## Vers le threat modeling : LINDDUN
+## Les accès d'urgence
 
-Les méthodes de threat modeling classiques cherchent surtout des menaces de sécurité. **LINDDUN** propose une grille dédiée à la vie privée : *Linking* (relier des données entre elles), *Identifying* (identifier une personne), *Non-repudiation* (ne plus pouvoir nier une action, un problème de vie privée quand il s'agit par exemple d'un lanceur d'alerte), *Detecting* (déduire l'existence d'une donnée), *Data disclosure*, *Unawareness and unintervenability* (la personne ignore le traitement ou ne peut pas agir dessus), *Non-compliance*. Le module 11 l'applique à Novafact.
+Supprimer les comptes partagés crée une question légitime : que faire si le fournisseur d'identité est en panne pendant un incident ? La réponse est un petit nombre de comptes **d'accès d'urgence** (*break-glass*) : protégés par une MFA matérielle stockée en lieu sûr, jamais utilisés en temps normal, et dont **chaque utilisation déclenche une alerte** et une revue a posteriori. Un compte d'urgence utilisé « pour aller plus vite » est un incident de sécurité, pas une commodité.
+
+## La recertification
+
+Chaque trimestre (ou semestre selon la sensibilité), le **propriétaire** de chaque système valide la liste des accès : ceux qui ne sont plus justifiés sont retirés. Pour que ce ne soit pas une formalité, présente des listes **courtes et contextualisées** (dernière utilisation, rôle) plutôt que des tableaux de 2 000 lignes.
+
+Le risque principal d'une recertification est le **tampon automatique** : le manager valide tout en deux clics, parce que retirer un accès lui fait courir le risque de bloquer quelqu'un. Trois techniques le réduisent :
+
+- **ne présenter que les écarts** : les accès conformes au rôle sont validés d'office ; seuls les accès hors rôle, les exceptions et les accès non utilisés depuis longtemps demandent une décision ;
+- **inverser le défaut** pour les accès inutilisés : sans réponse, ils sont retirés, et la personne peut les redemander ;
+- **mesurer** le taux de retrait : une recertification qui ne retire jamais rien est probablement un tampon.
+
+## Côté clients de Novafact
+
+Novafact gère aussi les accès **de ses clients** : chaque tenant a ses administrateurs, qui invitent des utilisateurs et attribuent des rôles. Les mêmes principes s'appliquent au produit : rôles prédéfinis et minimaux, journal d'audit des changements de rôle, SSO et SCIM proposés aux clients entreprise, et une alerte quand un tenant ajoute un nouvel administrateur.
+
+Proposer SCIM aux clients entreprise n'est pas qu'un argument commercial : c'est ce qui garantit que l'employé qui quitte le client perd aussi son accès à ses factures dans Novafact, sans dépendre d'un administrateur qui pense à le retirer. Pour les tenants sans SCIM, un rapport périodique envoyé à l'administrateur (« ces utilisateurs ne se sont pas connectés depuis 90 jours ») transpose la recertification dans le produit.
 
 <Recap items={[
-  "Collecter le minimum, pour un usage précis, le supprimer quand il ne sert plus : la purge est une fonctionnalité.",
-  "RGPD : base légale, privacy by design, droits des personnes, sécurité, notification sous 72 h ; savoir si l'on est responsable de traitement ou sous-traitant.",
-  "La sanction Free (2026) montre le coût d'une conservation excessive combinée à une sécurité insuffisante.",
-  "La pseudonymisation (HMAC avec clé séparée) réduit le risque, mais les données restent personnelles ; un hash sans clé ne protège pas.",
-  "L'effacement touche aussi index, caches, exports, tests et embeddings : un registre d'effaceurs le rend tenable en un mois.",
-  "Les transferts hors UE et la résidence des données se décident dès la conception, avec un plan de repli.",
+  "Joiner, mover, leaver : accès par rôle, transitions datées, départ le jour même ; le mover est l'étape la plus souvent ratée.",
+  "Le SSO ne coupe pas les jetons personnels, les clés d'API, les secrets connus ni ce que la personne possédait.",
+  "Le fournisseur d'identité est la source de vérité ; SCIM propage les désactivations, qui doivent aussi révoquer les sessions.",
+  "Un JWT déjà émis survit à la révocation jusqu'à son expiration : jetons courts et vérification de l'état pour les actions sensibles.",
+  "Comptes de service : propriétaire, droits minimaux, identifiants temporaires, surveillance, retrait des accès inutilisés.",
+  "Recertification par le propriétaire, centrée sur les écarts, pour éviter le tampon automatique.",
+  "Les mêmes principes s'appliquent aux accès des clients dans le produit.",
 ]} />
 
 <Sources items={[
-  { title: "CNIL : guide RGPD du développeur", url: "https://www.cnil.fr/fr/guide-rgpd-du-developpeur" },
-  { title: "CNIL : notifier une violation de données", url: "https://www.cnil.fr/fr/notifier-une-violation-de-donnees-personnelles" },
-  { title: "CNIL : sanction de 42 millions d'euros contre Free Mobile et Free", url: "https://www.cnil.fr/fr/sanction-free-2026" },
-  { title: "EDPB : Guidelines 01/2025 on Pseudonymisation", url: "https://www.edpb.europa.eu/our-work-tools/documents/public-consultations/2025/guidelines-012025-pseudonymisation_en" },
-  { title: "LINDDUN : privacy threat types", url: "https://linddun.org/threat-types/" },
-  { title: "OWASP Cheat Sheet : User Privacy Protection", url: "https://cheatsheetseries.owasp.org/cheatsheets/User_Privacy_Protection_Cheat_Sheet.html" },
-  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 1, Privacy" },
+  { title: "OWASP ASVS 5.0, chapitre V8 (Authorization)", url: "https://github.com/OWASP/ASVS" },
+  { title: "RFC 7644 : SCIM Protocol", url: "https://www.rfc-editor.org/rfc/rfc7644" },
+  { title: "RFC 7643 : SCIM Core Schema", url: "https://www.rfc-editor.org/rfc/rfc7643" },
+  { title: "Amazon Cognito : révocation des jetons", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/token-revocation.html" },
+  { title: "AWS IAM Access Analyzer : unused access", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-findings.html" },
+  { title: "Block, formulaire 8-K du 4 avril 2022 (SEC)", url: "https://www.sec.gov/Archives/edgar/data/1512673/000119312522095215/d343042d8k.htm" },
+  { title: "TechCrunch : Block confirme la fuite Cash App liée à un ancien employé (2022)", url: "https://techcrunch.com/2022/04/05/block-cash-app-data-breach/" },
+  { title: "ISC2 CSSLP Exam Outline, domaine 3 (data access provisioning)", url: "https://www.isc2.org/certifications/csslp/csslp-certification-exam-outline" },
 ]} />

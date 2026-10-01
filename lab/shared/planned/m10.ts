@@ -1,4 +1,4 @@
-// M10 · Anti-abus, ATO & fraude — challenges spécifiés, pas encore implémentés.
+// m10 · Anti-abus, ATO & fraude — challenges spécifiés, pas encore implémentés.
 
 import { P } from './helper.ts';
 import type { ExerciseDef } from '../exercises.ts';

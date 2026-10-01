@@ -1,16 +1,16 @@
 export const questions = [];
 
 <YouKnow>
-Dernière étape. Un programme ne vaut que s’il est adopté et compris par ceux qui décident. Tu vas produire le plan d’adoption et la synthèse pour la direction, avec le module 6, puis clore le capstone.
+Dernière étape. Un programme ne vaut que s’il est adopté et compris par ceux qui décident. Tu vas produire le plan d’adoption et la synthèse pour la direction, avec le module 30, puis clore le capstone.
 </YouKnow>
 
-## Étape 12 : adoption et restitution
+## Étape 15 : adoption et restitution
 
 Ton livrable : un **plan d’adoption** (champions, formation, SLA) et une **synthèse pour la direction** d’une page, qui transforme tout le dossier technique en décisions. C’est ce qui fait la différence entre une revue rangée dans un tiroir et un programme qui vit.
 
 ## Le plan d’adoption
 
-La sécurité ne s’impose pas, elle s’adopte (M6). Trois leviers :
+La sécurité ne s’impose pas, elle s’adopte (M30). Trois leviers :
 
 <Steps items={[
   { title: "Réseau de champions", text: "Un champion par équipe produit, formé et missionné (temps dédié, pas du bénévolat). Il porte les revues de PR sensibles et fait le lien avec l’AppSec." },
@@ -20,7 +20,7 @@ La sécurité ne s’impose pas, elle s’adopte (M6). Trois leviers :
 
 ## Les SLA
 
-Sépare clairement, comme au module 6, le **délai** de correction (par gravité) et la **capacité** réservée à la sécurité dans chaque sprint. Un SLA sans capacité réservée est un vœu.
+Sépare clairement, comme au module 30, le **délai** de correction (par gravité) et la **capacité** réservée à la sécurité dans chaque sprint. Un SLA sans capacité réservée est un vœu.
 
 | Gravité | Délai de correction | Exemple |
 | --- | --- | --- |
@@ -32,13 +32,13 @@ Prévois le mécanisme d’**exception** : motivée, datée, approuvée, avec un
 
 ## La synthèse pour la direction
 
-Une page, sans jargon, qui répond aux questions d’un dirigeant (M6, M7) :
+Une page, sans jargon, qui répond aux questions d’un dirigeant (M30, M12) :
 
 <Steps items={[
   { title: "Où en est-on ?", text: "L’état de sécurité de Novafact en trois à cinq points, en risque métier (fuite de données clients, fraude, indisponibilité, sanction réglementaire), pas en CVE." },
   { title: "Qu’a-t-on fait ?", text: "Les gains déjà obtenus par le capstone : classes de vulnérabilités éliminées, rayon d’explosion réduit, détections en place." },
   { title: "Que reste-t-il, et que décider ?", text: "Les risques résiduels priorisés, chacun avec une décision attendue : accepter, financer la correction, transférer. La direction décide, l’AppSec éclaire." },
-  { title: "Que demande-t-on ?", text: "Les moyens de la roadmap (étape 11) : champions, budget de formation, capacité réservée. Reliés aux obligations (CRA, NIS2) qui donnent du poids." },
+  { title: "Que demande-t-on ?", text: "Les moyens de la roadmap (étape 14) : champions, budget de formation, capacité réservée. Reliés aux obligations (CRA, NIS2) qui donnent du poids." },
 ]} />
 
 <Callout kind="tip">
@@ -47,7 +47,7 @@ Adapte le message à qui lit. Un dirigeant veut le risque métier et la décisio
 
 ## Clore le capstone
 
-Rassemble les douze livrables en un dossier cohérent, dans l’ordre : exigences, conception, threat model, code et tests, page de paiement, anti-abus, pipeline, IAM, vulnérabilités avancées, détections, roadmap, adoption. Vérifie que chaque finding se relie à une exigence, chaque exigence à un contrôle et à un test, chaque risque résiduel à une décision.
+Rassemble les quinze livrables en un dossier cohérent, dans l’ordre : exigences, conception, threat model, code et tests, page de paiement, anti-abus, pipeline, IAM, vulnérabilités avancées, détections, roadmap, adoption. Vérifie que chaque finding se relie à une exigence, chaque exigence à un contrôle et à un test, chaque risque résiduel à une décision.
 
 <Callout kind="novafact">
 Tu as maintenant, sur Novafact, ce qu’un client paierait une prestation complète : une revue de sécurité traçable, des corrections vérifiées, un programme chiffré et une restitution qui parle à la direction. C’est le livrable qui clôt le parcours, et le modèle que tu peux réutiliser sur n’importe quel système.
@@ -58,7 +58,7 @@ Tu as maintenant, sur Novafact, ce qu’un client paierait une prestation compl�
 - Le **plan d’adoption** : champions, formation ciblée, paved road.
 - Les **SLA** (délai par gravité, capacité réservée, mécanisme d’exception).
 - La **synthèse d’une page** pour la direction, en risque métier et décisions.
-- Le **dossier complet** des douze étapes, cohérent et traçable de bout en bout.
+- Le **dossier complet** des quinze étapes, cohérent et traçable de bout en bout.
 
 <Recap items={[
   "La sécurité s’adopte : champions missionnés, formation ancrée dans le code réel, paved road.",

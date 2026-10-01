@@ -1,204 +1,241 @@
 export const questions = [
   {
-    q: "Une API de profil renvoie tout l'enregistrement utilisateur, alors que l'appelant n'a besoin que du nom. Quel pattern est oublié ?",
+    q: "Que signifie « réduire la fenêtre de vulnérabilité » selon Kohnfelder ?",
     options: [
-      "Economy of Design : garder l'interface simple, sans cas particuliers",
-      "Least Information : ne transmettre que ce dont l'appelant a besoin",
-      "Complete Mediation : faire passer tous les chemins par le même contrôle",
-      "Least Common Mechanism : limiter ce que des utilisateurs distincts partagent",
-    ],
-    answer: 1,
-    explain: "Least Information est l'équivalent de Least Privilege pour les données : chaque champ en trop élargit la surface d'une fuite. Complete Mediation est tentant parce qu'on parle d'une API, mais il porte sur le fait de contrôler tous les chemins d'accès, pas sur le volume renvoyé : ici le contrôle a bien eu lieu, c'est la projection qui est trop large.",
-  },
-  {
-    q: "Pourquoi Kohnfelder déconseille-t-il des identifiants de compte séquentiels ?",
-    options: [
-      "Least Information : un entier expose moins de champs qu'un identifiant composite",
-      "Least Common Mechanism : le compteur de séquence est partagé par tous les tenants",
-      "Avoid Predictability : un identifiant séquentiel révèle le volume et s'énumère",
-      "Economy of Design : un compteur global ajoute un état à maintenir dans la base",
-    ],
-    answer: 2,
-    explain: "Ce qui se devine ne reste pas privé : l'identifiant séquentiel dévoile le nombre de clients à qui crée un compte chaque semaine, et invite à parcourir les objets des voisins. Least Common Mechanism est séduisant, le compteur étant effectivement partagé, mais partager un compteur ne fuit rien en soi : c'est sa prévisibilité qui pose problème. Un UUID v7 commence d'ailleurs par un horodatage : bonne clé, mauvais secret.",
-  },
-  {
-    q: "Les 14 patterns sont rangés en cinq familles. À quoi sert ce regroupement quand on conçoit ?",
-    options: [
-      "À doser la redondance : chaque famille ajoute une couche de défense indépendante des autres",
-      "À suivre l'ordre d'application : on traite une famille après l'autre, de la surface vers le cœur",
-      "À voir qu'on a couvert plusieurs angles, et pas empilé trois variantes du même geste",
-      "À graduer l'effort : les premières familles sont obligatoires, les dernières facultatives",
-    ],
-    answer: 2,
-    explain: "Les familles sont des angles d'attaque du problème, pas un ordre ni un barème. Une conception qui applique moindre privilège, moindre information et sûr par défaut a coché trois patterns — mais une seule famille : elle minimise bien l'exposition et ne fait rien pour la médiation ni pour la redondance. C'est ce déséquilibre que le regroupement rend visible. L'idée d'un ordre d'application est tentante et fausse : ces patterns se combinent, ils ne se succèdent pas. Et aucune famille n'est facultative — c'est le contexte, pas le rang, qui dit lesquels s'appliquent.",
-  },
-  {
-    q: "Novafact filtre le tenant dans la DAL et ajoute la RLS de PostgreSQL. Pourquoi ces deux couches renforcent-elles vraiment la défense ?",
-    options: [
-      "Parce que superposer deux contrôles double toujours la difficulté pour l'attaquant",
-      "Parce qu'un second appel à la même fonction de filtrage suffit à créer une redondance",
-      "Parce que la RLS s'évalue avant la DAL et rattrape donc ses erreurs de construction",
-      "Parce qu'elles sont indépendantes : un filtre oublié dans le code n'atteint pas la base",
+      "Réduire le délai entre la publication d'un correctif et son déploiement en production",
+      "Réduire le nombre de points d'entrée exposés : ports ouverts, endpoints, paramètres",
+      "Réduire la durée de validité des sessions et des jetons émis par l'application",
+      "Réduire la durée pendant laquelle du code privilégié traite des données peu fiables",
     ],
     answer: 3,
-    explain: "La défense en profondeur ne multiplie les probabilités que si les couches échouent pour des raisons différentes — l'image des deux plaques percées au hasard. Répéter le même filtre dans la même fonction ne crée aucune redondance : les deux appels partagent le même bug. Et la RLS ne s'évalue pas « avant » la DAL : elle s'applique dans le moteur, à toute requête, quelle qu'en soit l'origine.",
+    explain: "C'est l'équivalent temporel de la réduction de surface : le code privilégié vérifie avant, agit vite et rend la main. Le délai de déploiement d'un correctif est bien une fenêtre, mais celle d'une vulnérabilité connue : un problème de remédiation, pas de conception.",
+  },
+  {
+    q: "Un utilisateur supprime son compte. Quelle approche minimise l'exposition des données ?",
+    options: [
+      "Supprimer réellement les données inutiles et borner la durée de vie des copies",
+      "Marquer le compte comme supprimé et filtrer sur ce drapeau à chaque lecture",
+      "Déplacer les lignes dans une table d'archive restreinte, conservée sans limite",
+      "Chiffrer les données du compte avec la clé de l'application et garder les lignes",
+    ],
+    answer: 0,
+    explain: "Le drapeau « supprimé » est la solution la plus courante et la plus fragile : il oblige tout le code, présent et à venir, à s'en souvenir, et un seul oubli (un export, un envoi groupé) ressuscite les données. Chiffrer sans détruire la clé ne change rien non plus, puisque la clé est là.",
+  },
+  {
+    q: "Le support de Novafact doit pouvoir ouvrir le dossier de n'importe quel tenant, mais un agent n'en traite qu'une dizaine par jour. Quelle politique suit l'idée de Kohnfelder ?",
+    options: [
+      "Un plafond calculé sur le pire jour de l'année, pour ne bloquer personne",
+      "Pas de plafond, mais une alerte quand un agent dépasse sa moyenne hebdomadaire",
+      "Un plafond serré par agent et par jour, avec une exception justifiée et journalisée",
+      "Une validation par un manager avant chaque ouverture de dossier client",
+    ],
+    answer: 2,
+    explain: "Un plafond dimensionné pour le pire jour de l'année ne se déclenche jamais : c'est un plafond décoratif. L'alerte seule arrive après la copie des données. La soupape garde la limite près de l'usage réel tout en laissant passer les pics, et rend chaque exception visible.",
+  },
+  {
+    q: "En Node, pourquoi manipuler une clé déchiffrée dans un Buffer plutôt que dans une chaîne ?",
+    options: [
+      "Parce que comparer deux Buffers se fait à temps constant, pas deux chaînes",
+      "Parce qu'un Buffer peut être écrasé par fill(0), alors qu'une chaîne est immuable",
+      "Parce qu'un Buffer est alloué hors du tas V8 et n'apparaît pas dans un vidage mémoire",
+      "Parce qu'une chaîne est internée par V8 et survit jusqu'à l'arrêt du processus",
+    ],
+    answer: 1,
+    explain: "Seule la mutabilité compte ici : on écrase le Buffer dès qu'on a fini. Un Buffer est bien alloué hors du tas V8, mais il reste dans la mémoire du processus, donc dans un core dump ; et V8 n'interne que certaines chaînes littérales, pas une clé déchiffrée à l'exécution. Le temps constant, lui, vient de timingSafeEqual, pas du type.",
   },
 ];
 
 <YouKnow>
-Tu reconnais ces principes : ce sont souvent eux qui manquent quand une vulnérabilité existe. Kohnfelder (K4) les organise en 14 patterns répartis en 5 familles, avec des exemples concrets.
+Tu réduis la surface d'attaque par réflexe en recommandation de pentest. Kohnfelder (K3) en fait une stratégie de conception parmi trois, et ajoute deux dimensions moins connues : le temps et les données.
 </YouKnow>
 
-## Les 5 familles
+## Trois stratégies structurelles
 
-| Famille | Patterns |
-| --- | --- |
-| **Attributs de conception** | Economy of Design · Transparent Design |
-| **Minimisation de l'exposition** | Least Privilege · Least Information · Secure by Default · Allowlists over Blocklists · Avoid Predictability · Fail Securely |
-| **Application stricte** | Complete Mediation · Least Common Mechanism |
-| **Redondance** | Defense in Depth · Separation of Privilege |
-| **Confiance et responsabilité** | Reluctance to Trust · Accept Security Responsibility |
+Avant les patterns détaillés (leçon suivante), Kohnfelder propose trois stratégies qui réduisent le risque **par la structure** du système, avant même de parler de contrôles.
 
-Kohnfelder insiste sur un point : **ne pas tout appliquer partout**. Quand plusieurs patterns conviennent, on choisit les un ou deux meilleurs (davantage seulement pour les décisions les plus critiques) ; l'excès de mécanismes ajoute de la complexité, donc des bugs, et les rendements décroissent vite. Personne ne pose sept verrous sur sa porte d'entrée.
+| Stratégie | Idée | Chez Novafact |
+| --- | --- | --- |
+| **Réduire la surface d'attaque** | Moins de points d'entrée, moins de fonctionnalités exposées | Le back-office n'est pas exposé sur Internet ; les API internes ne sont pas routées par l'ALB public |
+| **Réduire la fenêtre de vulnérabilité** | Le code à haut privilège s'exécute le moins longtemps possible sur des données peu fiables | La génération de PDF valide tout **avant** d'appeler le service qui accède au stockage des factures, puis rend la main |
+| **Minimiser l'exposition des données** | Les données sensibles existent le moins longtemps et au moins d'endroits possible | Un IBAN n'est déchiffré qu'au moment du virement, jamais chargé dans les listes ; les comptes supprimés sont vraiment purgés |
 
-## Attributs de conception : simple et transparent
+## Réduire la surface : mesurer ce qui est atteignable
 
-**Economy of Design** n'interdit pas la complexité : il demande qu'elle **rapporte** quelque chose. Kohnfelder compare les permissions Unix (propriétaire, groupe, autres) aux ACL Windows (entrées d'autorisation et de refus, héritage, ordre d'évaluation significatif). Les secondes ne sont pas forcément boguées, mais elles sont plus difficiles à configurer correctement, pour les développeurs comme pour les utilisateurs. Chez Novafact, la même question s'est posée : des ACL par facture auraient couvert tous les cas imaginables, mais trois rôles plus un mécanisme de partage explicite (leçon 7) couvrent les besoins réels et restent **compréhensibles en revue**.
+Une bonne façon de penser la surface d'attaque, selon Kohnfelder, est de regarder **combien de code et de données** sont touchés en aval de chaque point d'entrée. Deux endpoints qui font la même chose représentent deux fois plus de code à défendre : les unifier réduit la surface, même si aucune route ne disparaît fonctionnellement.
 
-**Transparent Design** vise la sécurité par l'obscurité, pas le secret légitime : les clés et les données des clients restent confidentielles. Le test est simple : si publier la conception l'affaiblit, c'est la conception qu'il faut corriger. Un endpoint non documenté, un bundle JavaScript minifié ou un chemin d'administration « impossible à deviner » ne protègent rien : ton propre métier de pentester consiste à les retrouver.
+Chez Novafact, deux décisions découlent de ce raisonnement :
 
-## Minimisation de l'exposition : dans le doute, rester du côté sûr
+- l'ancien endpoint `/v1/exports` et le nouveau `/v2/exports` partageaient la même logique métier avec deux validations différentes. La v1 est retirée plutôt que maintenue en parallèle (M7, API9) ;
+- le **lien de paiement public** d'une facture, seule fonctionnalité anonyme, n'expose qu'un résumé (montant, émetteur, échéance) et passe par un jeton aléatoire à durée limitée. Tout le reste exige une session ;
 
-C'est la plus grande famille : six patterns qui expriment la même prudence.
+La surface dérive avec le temps : chaque sprint ajoute des routes. Un test qui compare les routes anonymes à une liste validée ne prouve pas qu'elles sont sûres, mais garantit qu'aucune ne s'ajoute sans décision explicite, visible dans le diff.
 
-- **Least Privilege** : juste les droits nécessaires, juste le temps nécessaire, comme `sudo` qui oblige à un geste explicite avant une commande d'administration. Kohnfelder met en garde contre l'excès inverse : la granularité du mécanisme et le coût de changer de privilège comptent. Une politique IAM par fichier est ingérable ; une politique par préfixe de bucket et par service est tenable.
-- **Least Information** : l'équivalent de Least Privilege pour les données. Les interfaces qui évoluent finissent par transporter des champs « au cas où » ; on corrige ça à la conception, parce qu'après il faut changer les deux côtés de l'interface en même temps.
-- **Secure by Default** : l'inaction de l'opérateur ne doit pas créer de risque. Ça vaut pour la configuration, mais aussi pour les **paramètres d'API non fournis** : leur valeur par défaut doit être la plus restrictive. Et ne jamais déployer un état non sûr « qu'on sécurisera plus tard » : c'est une fenêtre de vulnérabilité, souvent oubliée.
-- **Allowlists over Blocklists** : une liste blanche incomplète refuse quelque chose de légitime (gênant, corrigeable) ; une liste noire incomplète laisse passer quelque chose de dangereux (une faille). Chaque omission d'une blocklist est un bug de sécurité.
-- **Avoid Predictability** : ce qui se devine ne reste pas privé. Un identifiant séquentiel révèle le nombre de clients à qui crée un compte jetable chaque semaine. Même un UUID v7 (RFC 9562) commence par un horodatage : très bien comme clé de base, pas comme secret.
-- **Fail Securely** : en cas d'erreur, finir dans un état sûr. Le code de gestion d'erreur est le moins testé, et l'attaquant provoque volontairement les erreurs.
-
-Least Information, appliqué à une API Prisma, tient souvent en un `select` explicite :
-
-<Diff file="apps/api/src/customers/customers.repository.ts" hlBefore="2" hlAfter="4">
+<Code file="apps/api/test/public-surface.test.ts">
 
 ```ts
-export const findCustomer = (tenantId: TenantId, id: string) =>
-  prisma.customer.findFirst({ where: { tenantId, id } }); // IBAN, notes internes, e-mail de facturation…
-```
+import { describe, expect, it } from 'vitest';
+import { routeRegistry } from '../src/http/defineRoute'; // registre alimenté par defineRoute (M7)
 
-```ts
-export const findCustomerSummary = (tenantId: TenantId, id: string) =>
-  prisma.customer.findFirst({
-    where: { tenantId, id },
-    select: { id: true, displayName: true, city: true }, // le strict nécessaire pour l'écran de liste
+const APPROVED_PUBLIC_ROUTES = [
+  'GET /health',
+  'GET /pay/:paymentToken',
+  'POST /auth/login',
+  'POST /auth/password-reset',
+];
+
+describe('surface publique', () => {
+  it("n'expose aucune route anonyme non validée", () => {
+    const publicRoutes = routeRegistry
+      .filter((r) => r.auth === 'none')
+      .map((r) => `${r.method} ${r.path}`)
+      .sort();
+    expect(publicRoutes).toEqual([...APPROVED_PUBLIC_ROUTES].sort());
   });
+});
+```
+
+</Code>
+
+## La dimension temporelle
+
+La **fenêtre de vulnérabilité** est une idée précieuse à la frontière de confiance : quand une requête peu fiable doit déclencher une action privilégiée, on fait **toutes les vérifications avant**, puis le code privilégié agit vite et rend la main. Kohnfelder compare ça au chasseur qui ne retire la sécurité de son arme qu'au moment de tirer. Il s'appuie sur un modèle qu'il a connu de près, Code Access Security dans .NET : du code de confiance appelé par du code moins fiable hérite des droits réduits de l'appelant, **affirme** explicitement un privilège juste pour l'opération qui l'exige, puis le révoque aussitôt.
+
+Node n'a pas ce mécanisme, mais l'idée se transpose :
+
+<Diff file="apps/api/src/invoices/pdf.ts" hlBefore="3,4,5" hlAfter="3,4,5,9,10">
+
+```ts
+export async function downloadInvoicePdf(req: Request, res: Response) {
+  // le handler charge tout avec le rôle large du service, puis vérifie
+  const obj = await s3.send(new GetObjectCommand({ Bucket: INVOICES, Key: req.query.key as string }));
+  const meta = parseMetadata(obj.Metadata);
+  if (meta.tenantId !== req.auth.tenantId) return res.sendStatus(404);
+  obj.Body!.pipe(res);
+}
+```
+
+```ts
+export async function downloadInvoicePdf(req: Request, res: Response) {
+  // 1. tout ce qui vient de la requête est validé et autorisé AVANT l'accès privilégié
+  const { invoiceId } = InvoiceParams.parse(req.params);
+  const invoice = await invoices.findForTenant(req.auth.tenantId, invoiceId); // DAL (M7)
+  if (!invoice) return res.sendStatus(404);
+  // 2. l'étape privilégiée est étroite : une clé calculée côté serveur, une URL de 60 secondes
+  const url = await getSignedUrl(
+    s3,
+    new GetObjectCommand({ Bucket: INVOICES, Key: `${invoice.tenantId}/${invoice.id}.pdf` }),
+    { expiresIn: 60 },
+  );
+  res.redirect(303, url);
+}
 ```
 
 </Diff>
 
-Et Fail Securely se joue souvent dans un seul bloc `catch` :
-
-<Diff file="apps/api/src/authz/middleware.ts" hlBefore="6" hlAfter="6,7">
-
-```ts
-export const authorize = (action: Action) => async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const allowed = await policyClient.isAllowed(req.auth, action, req.params);
-    return allowed ? next() : res.sendStatus(403);
-  } catch (err) {
-    return next(); // le moteur de politiques ne répond pas : on laisse passer « pour ne pas bloquer »
-  }
-};
-```
-
-```ts
-export const authorize = (action: Action) => async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const allowed = await policyClient.isAllowed(req.auth, action, req.params);
-    return allowed ? next() : res.sendStatus(403);
-  } catch (err) {
-    logger.error({ err, action }, 'authz_unavailable'); // alerte : c'est une panne, pas un refus normal
-    return res.sendStatus(503);
-  }
-};
-```
-
-</Diff>
-
-## Application stricte : pas d'échappatoire
-
-**Complete Mediation** demande que **tous** les chemins vers une ressource subissent le même contrôle. Kohnfelder décrit trois niveaux de conformité : élevé (un seul point de passage, le « goulot »), moyen (plusieurs points, avec un contrôle identique), faible (des contrôles différents selon le chemin, c'est-à-dire une médiation incomplète). Son exemple : une société d'investissement masque le numéro fiscal des clients à ses employés, mais leur permet de réimprimer un formulaire fiscal… qui contient ce numéro.
+Dans la version corrigée, la clé S3 ne vient plus de la requête, l'autorisation précède l'accès au stockage, et le droit délégué au navigateur ne vit qu'une minute. La même logique vaut pour les identifiants AWS : des credentials STS temporaires (la durée minimale d'une session `AssumeRole` est de 15 minutes) plutôt que des clés à longue durée de vie (M19).
 
 <Callout kind="novafact">
-L'équivalent chez Novafact : le rôle « lecteur » ne voit pas l'IBAN des clients à l'écran, mais l'export PDF d'une facture l'imprimait en pied de page. La correction n'a pas consisté à retirer l'IBAN du PDF, mais à faire passer **l'écran et l'export** par la même fonction de projection, qui décide des champs visibles selon le rôle.
+Kohnfelder imagine une banque qui laisserait chaque client plafonner ce qu'un appareil peut faire (consultation seule, montant journalier limité). Novafact applique l'idée aux **clés d'API d'intégration** : un logiciel comptable connecté reçoit une clé en lecture seule, limitée aux factures, avec un plafond de requêtes. Si la clé fuit, le pire scénario est borné par conception.
 </Callout>
 
-**Least Common Mechanism** limite ce que des utilisateurs indépendants partagent. Kohnfelder l'illustre par le comptable qui étale les dossiers de tous ses clients sur un même bureau. En multi-tenant, le bureau partagé, c'est souvent le **cache** : une clé Redis construite sans le tenant (`invoice:2026-0042`) finit tôt ou tard par servir la facture d'un client à un autre. Préfixer chaque clé par le tenant, ou mieux, faire construire les clés par une fonction unique qui l'exige, applique le pattern.
+## La dimension des données
 
-## Redondance : ne pas dépendre d'une seule couche
+Les données en mémoire, en cache, dans les logs ou dans une sauvegarde restent exposables. Kohnfelder propose de traiter les données les plus sensibles comme si « le compteur tournait » : chaque instant de conservation est un risque, même sans vulnérabilité connue aujourd'hui.
 
-**Defense in Depth** combine des protections **indépendantes**. L'image de Kohnfelder : deux plaques de contreplaqué percées de trous au hasard ; une seule laisse passer la lumière, deux superposées presque jamais. Son exemple logiciel est un bac à sable où un analyseur statique rejette le code interdit, puis un interpréteur bloque les mêmes opérations à l'exécution : deux mécanismes de nature différente ont peu de chances d'avoir la même faille. La multiplication des probabilités ne vaut **que** si les couches sont indépendantes ; deux copies du même filtre partagent les mêmes bugs. Et chaque couche coûte : on réserve le pattern aux décisions critiques.
-
-**Separation of Privilege** confie une action critique à deux parties, comme le coffre bancaire dont la banque garde la salle et le client sa clé. Kohnfelder l'applique aussi aux journaux d'audit : ceux qui administrent le système ne doivent pas pouvoir effacer la trace de leurs propres actions. Pour les personnes honnêtes, c'est aussi une protection contre leurs propres erreurs.
-
-## Confiance et responsabilité
-
-**Reluctance to Trust** : la confiance est une décision explicite, fondée sur des preuves. Le cookie renvoyé par le navigateur, le champ caché d'un formulaire, le webhook entrant, la bibliothèque trouvée sur npm : rien de tout ça n'est fiable par défaut.
-
-**Accept Security Responsibility** vise la phrase « je pensais que tu gérais la sécurité ». Entre un frontal qui transmet les entrées et un service métier qui les traite, chacun peut supposer que l'autre valide ; la solution est un accord explicite sur qui garantit quoi, et au besoin une validation des deux côtés. Kohnfelder étend le pattern au rapport entre concepteur et utilisateur : proposer une option dangereuse avec une boîte « Êtes-vous sûr ? » revient à transférer la responsabilité à quelqu'un qui n'a pas les moyens d'en juger. Mieux vaut dire précisément ce qui va se passer, proposer une annulation, ou supprimer l'option.
-
-## Tableau de synthèse pour Novafact
-
-| Pattern | Exemple Novafact |
-| --- | --- |
-| Economy of Design | Un seul middleware d'autorisation plutôt qu'une vérification par route |
-| Transparent Design | Une API « cachée » s'authentifie comme les autres |
-| Least Privilege | Le service PDF lit un seul préfixe de bucket |
-| Least Information | L'API renvoie des DTO réduits, pas l'enregistrement complet |
-| Secure by Default | Un nouveau tenant démarre avec MFA exigée pour les administrateurs |
-| Allowlists over Blocklists | Schémas stricts, liste blanche d'origines CORS |
-| Avoid Predictability | Identifiants aléatoires, jetons issus d'un CSPRNG |
-| Fail Securely | Moteur d'autorisation indisponible : 503, jamais un accès |
-| Complete Mediation | Écran et export passent par la même projection |
-| Least Common Mechanism | Clés de cache préfixées par le tenant |
-| Defense in Depth | RLS PostgreSQL en plus du filtre de la DAL |
-| Separation of Privilege | Un remboursement au-delà de 5 000 € exige une seconde validation |
-| Reluctance to Trust | Les webhooks entrants sont signés et validés |
-| Accept Security Responsibility | Le service interne vérifie l'autorisation lui-même |
-
-## Correspondance avec Saltzer & Schroeder et le CSSLP
-
-Beaucoup de ces patterns viennent de l'article de Saltzer et Schroeder (1975), qui énonce huit principes de conception, et que le CSSLP reprend dans son vocabulaire.
-
-| Saltzer & Schroeder | Pattern(s) de Kohnfelder |
-| --- | --- |
-| Economy of mechanism | Economy of Design |
-| Fail-safe defaults (décider par permission plutôt que par exclusion) | Secure by Default, Allowlists over Blocklists, Fail Securely |
-| Complete mediation | Complete Mediation |
-| Open design | Transparent Design |
-| Separation of privilege | Separation of Privilege |
-| Least privilege | Least Privilege |
-| Least common mechanism | Least Common Mechanism |
-| Psychological acceptability | Pas de pattern dédié ; présent dans la critique des boîtes « Êtes-vous sûr ? » |
-
-Les deux auteurs citaient aussi, comme principes imparfaitement applicables, le **facteur de travail** (le coût pour l'attaquant) et l'**enregistrement des compromissions** (savoir qu'une protection a été contournée). Le CSSLP ajoute d'autres notions, dont la **réutilisation de composants éprouvés** et le **maillon le plus faible**. Retiens surtout la correspondance : en revue, le même problème peut être nommé dans un vocabulaire ou dans l'autre.
-
-<Callout kind="tip">
-Le jeu **Pattern Match** présente des situations de conception : à toi de nommer le pattern appliqué ou l'anti-pattern présent.
+<Callout kind="case">
+**Heartbleed** (CVE-2014-0160, avril 2014) permettait de lire jusqu'à 64 Ko de mémoire d'un serveur OpenSSL par requête, en boucle : clés privées, cookies de session, mots de passe s'y trouvaient au hasard des allocations. Kohnfelder note que limiter la durée de présence des secrets en mémoire aurait réduit la récolte, sans rien savoir de la faille à l'avance. En mai 2018, Twitter a invité l'ensemble de ses utilisateurs à changer leur mot de passe après avoir découvert qu'un bug les écrivait en clair dans un journal interne, **avant** le hachage : une donnée sensible avait une durée de vie et un emplacement que personne n'avait prévus.
 </Callout>
+
+En JavaScript, il y a une subtilité : les **chaînes sont immuables**, on ne peut pas les effacer, et le moteur peut en garder des copies. Pour un secret vraiment critique, on travaille avec des `Buffer` qu'on écrase après usage :
+
+<Code file="apps/api/src/payments/iban.ts" hl="8,14,15">
+
+```ts
+import { KMSClient, DecryptCommand } from '@aws-sdk/client-kms';
+
+const kms = new KMSClient({});
+
+export async function withIban<T>(tenantId: string, encrypted: Uint8Array, use: (iban: Buffer) => Promise<T>) {
+  const { Plaintext } = await kms.send(new DecryptCommand({
+    CiphertextBlob: encrypted,
+    EncryptionContext: { tenantId, purpose: 'iban' }, // un chiffré d'un autre tenant ne se déchiffre pas ici
+  }));
+  const iban = Buffer.from(Plaintext!);
+  try {
+    return await use(iban); // l'IBAN n'existe en clair que pendant le virement
+  } finally {
+    iban.fill(0);
+    Plaintext!.fill(0);
+  }
+}
+```
+
+</Code>
+
+Ce n'est pas une garantie absolue (le client HTTP du prestataire fera ses propres copies), mais la durée d'exposition devient **explicite et courte**, avec un seul chemin vers l'IBAN en clair. La règle générale :
+
+- déchiffrer au dernier moment, et ne pas garder le clair plus longtemps que nécessaire ;
+- ne jamais journaliser de secrets ni de données de carte (M23), et filtrer à la source plutôt qu'en aval ;
+- ne pas mettre en cache une donnée sensible pour gagner quelques millisecondes : un cache est une copie supplémentaire, souvent plus exposée que l'original.
+
+## Supprimer vraiment
+
+Kohnfelder prend l'exemple de la suppression de compte. La solution facile consiste à marquer le compte « à supprimer » et à garder les données 30 jours pour permettre une restauration. Mais alors **tout le code** doit vérifier ce drapeau : le jour où un envoi d'e-mails groupé l'oublie, l'utilisateur reçoit une relance d'un service qu'il a quitté. Sa proposition : pousser immédiatement le contenu vers une **sauvegarde hors ligne**, supprimer les données actives, et restaurer depuis la sauvegarde dans le rare cas où c'est nécessaire. Aucun bug applicatif ne peut plus réutiliser ces données.
+
+Chez Novafact, la suppression d'un tenant suit ce schéma : export chiffré vers un bucket d'archive dont une règle de cycle de vie S3 supprime les objets après 30 jours, puis purge des bases actives. Les données éphémères (jetons de réinitialisation, liens de paiement expirés) portent leur date de mort dès leur création, avec un index TTL MongoDB :
+
+<Code file="apps/api/src/db/indexes.ts">
+
+```ts
+await db.collection('payment_links').createIndex(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 0 }, // chaque document est supprimé une fois expiresAt dépassé
+);
+```
+
+</Code>
+
+<Callout kind="debate">
+**Soft delete ou suppression réelle ?** Les équipes produit aiment le soft delete : restauration facile, historique conservé, clés étrangères intactes. Les équipes sécurité et conformité y voient des données qui survivent à la volonté de l'utilisateur, et un filtre à ne jamais oublier. Un compromis courant : soft delete pour une courte période de grâce, **sur des données déjà minimisées**, puis une purge planifiée et testée, avec une métrique qui alerte si des lignes « supprimées » dépassent leur date de purge.
+</Callout>
+
+## Les politiques d'accès
+
+Le chapitre 3 critique ensuite le réflexe hérité des systèmes de fichiers : lecture ou écriture, tout ou rien. Un service web agit pour le compte de nombreux utilisateurs avec une seule identité technique, qui a donc accès à **toutes** les données en permanence. Une politique d'accès bien pensée comble l'écart entre ce qui devrait être permis et ce que le mécanisme sait exprimer : quotas par période, volume maximal, plages horaires, comparaison avec l'activité habituelle.
+
+Son exemple : des agents du service client doivent pouvoir ouvrir le dossier de n'importe quel client, mais n'en traitent qu'un nombre limité par jour. Un plafond par agent et par jour réduit le pire cas (un agent malhonnête ne copie pas toute la base en une journée). Pour ne pas bloquer les pics légitimes, Kohnfelder propose une **soupape** : l'agent peut relever temporairement sa limite en déclarant une justification, qui est journalisée et revue. Si les exceptions deviennent fréquentes, on relève la limite en connaissant la raison.
+
+Transposé au back-office de Novafact (chiffres fictifs) : un agent consulte en moyenne 8 tenants par jour ; la limite est fixée à 20, au-delà de laquelle un champ « motif » débloque 10 accès de plus et notifie le responsable du support.
+
+## Interfaces, communication, stockage
+
+Le chapitre passe enfin en revue trois points d'attention qui reviendront dans tout le bloc (les politiques d'accès, détaillées en leçon 2 de M14, complètent la liste) :
+
+- **Interfaces** : les frontières réseau et entre processus isolent fortement ; les frontières **à l'intérieur** d'un processus (un module qui « ne devrait pas » lire tel objet) sont bien plus faciles à franchir. Une frontière de confiance importante mérite donc un processus ou un service distinct (leçons 6 et 5).
+- **Communication** : chiffrer et authentifier ce qui circule, y compris en interne. Le chiffrement ne cache ni le fait qu'une communication a lieu, ni son volume approximatif, et n'empêche pas de la bloquer.
+- **Stockage** : stocker, c'est envoyer des données vers le futur. Chaque copie de sauvegarde protège contre la perte mais augmente le risque de fuite ; on ne minimise pas les deux à la fois, on arbitre (sauvegardes chiffrées, clés séparées, durée de rétention, leçon 7).
+
+## En pratique chez toi
+
+<Steps items={[
+  { title: "Lister les entrées", text: "Routes, files, webhooks, tâches planifiées, avec leur authentification. Ce qui est anonyme ou dupliqué est candidat à la suppression." },
+  { title: "Isoler le privilège", text: "Pour chaque action privilégiée, vérifier que la validation et l'autorisation précèdent l'appel, et que les droits délégués sont courts." },
+  { title: "Cartographier les copies", text: "Pour chaque donnée sensible : où existe-t-elle en clair (mémoire, cache, logs, sauvegardes, exports), et combien de temps ?" },
+  { title: "Dater la mort des données", text: "Chaque collection sensible a une durée de conservation appliquée par un mécanisme (TTL, cycle de vie S3, purge planifiée), pas par une promesse." },
+]} />
 
 <Recap items={[
-  "14 patterns en 5 familles : attributs, minimisation, application stricte, redondance, confiance et responsabilité.",
-  "Choisir le ou les deux meilleurs patterns plutôt que tous : la complexité crée des bugs.",
-  "Least Information et Fail Securely se jouent souvent dans une ligne : un select explicite, un catch qui refuse.",
-  "Complete Mediation : tous les chemins vers une ressource, y compris les exports, passent par le même contrôle.",
-  "Defense in Depth ne vaut que pour des couches indépendantes ; Accept Security Responsibility refuse le « je pensais que tu gérais ».",
+  "Trois stratégies structurelles : réduire la surface, la fenêtre de vulnérabilité et l'exposition des données.",
+  "La surface se mesure au code et aux données atteignables depuis chaque entrée ; un test peut figer la liste des routes anonymes.",
+  "Le code privilégié reçoit des données déjà validées et autorisées, agit vite et rend la main ; les droits délégués sont courts.",
+  "Les données sensibles existent le moins longtemps et au moins d'endroits possible : Buffer écrasé, pas de cache ni de log, suppression réelle.",
+  "Une politique d'accès fine, avec une soupape justifiée et journalisée, borne le pire cas sans bloquer le travail.",
 ]} />
 
 <Sources items={[
-  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 4, Patterns" },
-  { title: "Saltzer & Schroeder, The Protection of Information in Computer Systems (1975)", url: "https://www.cs.virginia.edu/~evans/cs551/saltzer/" },
-  { title: "RFC 9562 : Universally Unique IDentifiers (UUIDs)", url: "https://www.rfc-editor.org/rfc/rfc9562" },
-  { title: "Prisma : select fields", url: "https://www.prisma.io/docs/orm/prisma-client/queries/select-fields" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 3, Mitigation" },
+  { title: "OWASP Cheat Sheet : Attack Surface Analysis", url: "https://cheatsheetseries.owasp.org/cheatsheets/Attack_Surface_Analysis_Cheat_Sheet.html" },
+  { title: "MongoDB : TTL indexes", url: "https://www.mongodb.com/docs/manual/core/index-ttl/" },
+  { title: "AWS STS : AssumeRole", url: "https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html" },
+  { title: "Heartbleed (CVE-2014-0160)", url: "https://heartbleed.com/" },
 ]} />

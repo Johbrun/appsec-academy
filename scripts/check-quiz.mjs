@@ -146,6 +146,17 @@ for (const [mod, questions] of Object.entries(checkpoints)) {
   perModule.set(mod, stat);
   diagnostics += questions.length;
 }
+// Les leçons d'un module restent verrouillées tant que son diagnostic d'entrée
+// n'est pas passé (src/lib/diagnostic.ts) : un module sans diagnostic serait
+// fermé pour toujours. Un module dont aucune leçon n'est rédigée n'a rien à
+// ouvrir ; son diagnostic s'écrit avec ses premières leçons, quand on sait ce
+// qu'il doit mesurer.
+const catalog = fs.readFileSync(path.join(root, 'src/data/catalog.ts'), 'utf8');
+const hasWritten = (mod) => fs.existsSync(path.join(CONTENT, mod)) && fs.readdirSync(path.join(CONTENT, mod)).some((f) => f.endsWith('.mdx'));
+for (const [, mod] of catalog.matchAll(/^\s+id: '(m\d{2})', num:/gm)) {
+  if (hasWritten(mod) && !checkpoints[mod]?.length) problems.push(`${mod} : pas de diagnostic d’entrée, ses leçons ne s’ouvriraient jamais`);
+}
+const sansDiagnostic = problems.filter((p) => p.includes('pas de diagnostic')).length;
 
 const share = total ? longest / total : 0;
 const overLength = problems.filter((p) => p.includes('signes contre')).length;
@@ -155,6 +166,7 @@ console.log(`questions          ${total}  (dont ${diagnostics} de diagnostic)`);
 console.log(`bonne réponse la plus longue   ${longest} (${(share * 100).toFixed(0)} %, seuil ${MAX_LONGEST_SHARE * 100} %)`);
 console.log(`trop longues (>×${MAX_RATIO})        ${overLength}`);
 console.log(`explications qui citent un rang  ${positional}`);
+console.log(`modules sans diagnostic          ${sansDiagnostic}`);
 
 if (process.argv.includes('--by-module')) {
   console.log('\npar module :');
@@ -171,7 +183,7 @@ if (process.argv.includes('--list')) {
 }
 
 if (process.argv.includes('--ci')) {
-  const failed = overLength > 0 || positional > 0 || share > MAX_LONGEST_SHARE;
+  const failed = overLength > 0 || positional > 0 || sansDiagnostic > 0 || share > MAX_LONGEST_SHARE;
   if (failed) {
     console.error('\nLes quiz se réussissent encore à la forme. Relance avec --list pour le détail.');
     process.exit(1);

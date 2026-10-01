@@ -1,4 +1,4 @@
-// M18 · Surveillance, logging & SIEM — challenges jouables.
+// m18 · Surveillance, logging & SIEM — challenges jouables.
 //
 // Challenges « artifact » ✎ : l'apprenant ne corrige pas un fichier du dépôt,
 // il en **produit** un dans `workspace/`, et c'est ce fichier qui est jugé. Le
@@ -24,7 +24,7 @@ export const m18: ExerciseDef[] = [
     brief: 'Les journaux racontent en texte libre : « échec de connexion pour untel », « accès refusé ». Aucune règle ne peut s’appuyer dessus. Huit scénarios sont dans `fixtures/m18/vocabulary/scenarios.json`, avec le contexte dont le code dispose au moment d’écrire la ligne.',
     goal: 'Écrire le catalogue qui donne à chaque scénario son identifiant d’événement normalisé et les champs obligatoires de sa ligne.',
     file: 'logging/vocabulary.yaml',
-    lessons: ['m18/l01', 'm07/l02'],
+    lessons: ['m18/l01', 'm01/l03'],
     hints: [
       'Les identifiants ne s’inventent pas : ils se choisissent dans le vocabulaire de journalisation d’OWASP, publié dans `fixtures/m18/vocabulary/owasp-events.txt`.',
       'Le format attendu est une liste sous `events`, chaque entrée portant `scenario`, `event` et `required_fields`. Le socle obligatoire est le même pour tous : `@timestamp`, `event.action`, `event.outcome`, `user.name`, `source.ip`.',
@@ -38,7 +38,7 @@ export const m18: ExerciseDef[] = [
     brief: 'Mots de passe, jetons, IBAN et numéros de carte se retrouvent dans les lignes de journal, parce qu’on journalise le corps des requêtes. Le corpus `fixtures/m18/redaction/` en est plein.',
     goal: 'Écrire les règles de caviardage : plus aucun secret dans le corpus, et la détection de référence lève toujours ses douze vrais positifs.',
     file: 'logging/redaction.yaml',
-    lessons: ['m18/l01', 'm07/l06'],
+    lessons: ['m18/l01', 'm07/l04'],
     hints: [
       'Deux verbes suffisent : `drop` supprime un champ entier, `mask` remplace sa valeur en n’en gardant que les derniers caractères (`keep`, entre 0 et 4).',
       'Cherchez d’où viennent les secrets : un seul champ en concentre la plus grande partie, et `fixtures/m18/redaction/secrets.json` liste les motifs que la vérification traque.',
@@ -52,7 +52,7 @@ export const m18: ExerciseDef[] = [
     brief: 'Une règle de détection fournie (`fixtures/m18/ecs-fields/rule.yaml`) a besoin de l’adresse source, de l’utilisateur, du résultat et de la méthode. L’application émet bien ces informations, mais sous ses propres noms : `ip`, `who`, `ok`, `verb`.',
     goal: 'Écrire la correspondance qui normalise le journal brut, pour que la règle, inchangée, se mette à lever ses douze alertes.',
     file: 'logging/field-mapping.yaml',
-    lessons: ['m18/l02', 'm18/l01'],
+    lessons: ['m18/l03', 'm18/l01'],
     hints: [
       'Le format est une liste sous `map`, chaque entrée portant `to` (le champ normalisé) et `from` (le champ brut). `transform: uppercase` et une table `values:` traitent les valeurs qui ne se recopient pas telles quelles.',
       'Le champ le plus facile à oublier est celui sans lequel la fenêtre glissante ne peut même pas s’ouvrir.',
@@ -66,7 +66,7 @@ export const m18: ExerciseDef[] = [
     brief: 'Les vingt-quatre lignes de `fixtures/m18/ecs-lint/events.ndjson` portent les bons noms de champs, mais neuf d’entre elles ont des valeurs hors énumération ou des combinaisons incohérentes.',
     goal: 'Produire le corpus réparé : énumérations respectées, contraintes croisées tenues, et les vingt-quatre lignes toujours là.',
     file: 'logging/events.ndjson',
-    lessons: ['m18/l02', 'm13/l01'],
+    lessons: ['m18/l03', 'm13/l01'],
     hints: [
       'Copiez le fichier de fixtures dans `workspace/logging/events.ndjson` et réparez-le sur place. Les valeurs valides de `event.kind`, `event.category`, `event.type` et `event.outcome` sont celles d’ECS.',
       'Quatre contraintes croisées : une catégorie `authentication` impose un `event.type` parmi start, end et info, et un `event.outcome` renseigné ; une catégorie `web` impose le chemin, la méthode et le code de statut ; un `event.kind: alert` impose `rule.name` ; et un statut supérieur ou égal à 400 interdit `outcome: success`.',
@@ -80,7 +80,7 @@ export const m18: ExerciseDef[] = [
     brief: 'Personne ne sait ce que l’application journalise. Les exigences demandent un inventaire documenté. Ce que la suite de bout en bout fait réellement émettre est dans `fixtures/m18/inventory/emitted.ndjson`.',
     goal: 'Documenter l’inventaire, et le faire coïncider exactement avec ce que l’application émet.',
     file: 'program/logging-inventory.yaml',
-    lessons: ['m18/l01', 'm07/l04'],
+    lessons: ['m18/l01', 'm07/l02'],
     hints: [
       'Le format est une liste sous `events`, chaque entrée portant au moins `event` (l’identifiant émis) et `fields` (les champs de la ligne).',
       'Le harnais échoue dans les deux sens : un événement émis mais non documenté, comme un événement documenté mais jamais émis.',
@@ -96,7 +96,7 @@ export const m18: ExerciseDef[] = [
     brief: 'Le corpus `fixtures/m18/cs/` contient douze vrais positifs et quarante leurres : deux tests de charge, trois passerelles SSO, dix applications mobiles qui réessaient, quinze utilisateurs maladroits, cinq mots de passe oubliés, trois sondes de supervision et deux suites d’intégration.',
     goal: 'Écrire la requête qui attrape exactement les douze, et aucun des quarante.',
     file: 'detections/credential-stuffing.yaml',
-    lessons: ['m18/l03', 'm18/l04'],
+    lessons: ['m18/l04', 'm28/l03'],
     hints: [
       'La syntaxe est celle du lab, décrite dans `fixtures/m18/README.md` : `where`, `window`, `group_by`, `having`. Commencez par filtrer les échecs et regrouper par source.',
       'Chaque famille de leurres casse une règle naïve précise. Le test de charge et l’application mobile produisent beaucoup d’échecs sur **un seul** compte. La passerelle SSO en produit beaucoup sur des comptes distincts, mais étalés sur trois heures. La suite d’intégration en produit quinze sur quinze comptes en huit minutes.',
@@ -105,12 +105,12 @@ export const m18: ExerciseDef[] = [
     fix: 'Les leurres sont l’exercice : une règle qui attrape tout est facile, une règle qui ne lève jamais l’est aussi. C’est entre les deux que vit le detection engineering. La règle est rejouée sur un second corpus tiré des mêmes générateurs avec une autre graine — énumérer les douze adresses du premier n’y trouve rien.',
   },
   {
-    id: 'rule-threshold', module: 'm18', title: 'Régler le seuil',
+    id: 'rule-threshold', module: 'm28', title: 'Régler le seuil',
     status: 'live', kind: 'artifact', level: 2, csslp: ['D7'], cwe: 'CWE-1059',
     brief: 'Le corpus `fixtures/m18/cs-hard/` ajoute trois attaques discrètes, juste sous le seuil évident, et un test d’intrusion autorisé qui se comporte exactement comme une attaque. La séparation parfaite n’existe pas. La règle est écrite (`cs-hard/skeleton.yaml`) : seuls la fenêtre et les deux seuils sont à toi.',
     goal: 'Trouver le réglage qui tient les cibles annoncées : 90 % de précision et 85 % de rappel.',
     file: 'detections/thresholds.yaml',
-    lessons: ['m18/l04', 'm18/l06'],
+    lessons: ['m28/l03', 'm28/l06'],
     hints: [
       'Le livrable ne contient que trois valeurs : `window`, `thresholds.failures` et `thresholds.distinct_users`. Le harnais compose la règle autour.',
       'Le harnais affiche la précision et le rappel obtenus, et nomme les cas ratés et les cas attrapés à tort : chaque essai vous dit dans quel sens bouger.',
@@ -124,7 +124,7 @@ export const m18: ExerciseDef[] = [
     brief: 'Un seul échec par compte, sur près de deux cents comptes, depuis une même adresse : aucune règle par compte ne le verra jamais. Le corpus `fixtures/m18/spray/` contient six campagnes et trente-trois leurres, dont un test de charge qui produit trois cents échecs sur un seul compte.',
     goal: 'Écrire la corrélation qui compte les comptes distincts par source et par fenêtre, et ignore les échecs isolés.',
     file: 'detections/password-spray.yaml',
-    lessons: ['m18/l03', 'm10/l02'],
+    lessons: ['m18/l04', 'm10/l02'],
     hints: [
       'Compter les échecs ne peut pas marcher : le test de charge en produit plus qu’une campagne entière. C’est la grandeur mesurée qu’il faut changer, pas le seuil.',
       'La métrique `distinct` prend un `field` : le nombre de valeurs distinctes du champ dans la fenêtre.',
@@ -133,12 +133,12 @@ export const m18: ExerciseDef[] = [
     fix: 'Le pulvérisage est conçu pour passer sous les seuils par compte : il faut changer d’axe d’agrégation. C’est le cas d’école qui justifie les langages de corrélation plutôt que la simple recherche — et la raison pour laquelle une limitation de débit par compte, seule, ne protège de rien.',
   },
   {
-    id: 'honeytoken', module: 'm18', title: 'Le piège à miel',
+    id: 'honeytoken', module: 'm28', title: 'Le piège à miel',
     status: 'live', kind: 'artifact', level: 2, csslp: ['D7'], cwe: 'CWE-1059',
     brief: 'Trois leurres n’existent que dans le HTML et le bundle : une route d’export total, une facture qui n’a jamais été émise, et une clé d’API jamais distribuée. Aucun usage légitime ne les atteint. Le corpus `fixtures/m18/honeytoken/` contient quarante parcours légitimes qui passent tout autour.',
     goal: 'Faire lever une alerte à tout accès à l’un des trois leurres, avec exactement zéro faux positif sur le corpus légitime complet.',
     file: 'detections/honeytoken.yaml',
-    lessons: ['m18/l05', 'm10/l07'],
+    lessons: ['m28/l05', 'm10/l07'],
     hints: [
       'Un honeytoken se détecte à l’événement : pas de fenêtre, pas d’agrégat, pas de seuil. Un seul accès suffit, et une règle sans `having` lève sur chaque événement retenu.',
       'Trois leurres, trois champs différents. Le groupe `any_of` permet de les réunir dans une seule règle.',
@@ -147,12 +147,12 @@ export const m18: ExerciseDef[] = [
     fix: 'Un honeytoken a le meilleur rapport signal sur bruit du métier : il n’a aucune raison d’être touché. C’est aussi ce qui détecte un attaquant **déjà à l’intérieur**, que les règles de périmètre laissent passer — et ce qui rend la détection indépendante de la sophistication de l’attaque.',
   },
   {
-    id: 'detect-prompt-injection', module: 'm18', title: 'Détecter l’injection indirecte',
+    id: 'detect-prompt-injection', module: 'm28', title: 'Détecter l’injection indirecte',
     status: 'live', kind: 'artifact', level: 3, csslp: ['D4', 'D7'], cwe: 'CWE-1059',
     brief: 'L’assistant appelle des outils. Le journal porte désormais `novafact.assistant.origin` — l’origine de l’instruction qui a déclenché l’appel. Le corpus `fixtures/m18/assistant/` contient six appels d’origine document visant l’extérieur, et trente usages légitimes.',
     goal: 'Écrire la règle qui attrape les six, sans lever sur les trente.',
     file: 'detections/prompt-injection.yaml',
-    lessons: ['m18/l05', 'm19/l05'],
+    lessons: ['m28/l05', 'm30/l01'],
     hints: [
       'Regardez les champs sous `novafact.assistant` : l’outil appelé, l’origine de l’instruction, et la nature de la cible.',
       'Ni l’origine ni la destination ne suffisent seules. Douze envois de facture vers un domaine client sont demandés par l’utilisateur ; huit résumés sont dictés par un document mais restent internes.',
@@ -161,12 +161,12 @@ export const m18: ExerciseDef[] = [
     fix: 'Le vocabulaire OWASP porte désormais des événements dédiés — injection de prompt, empoisonnement d’outil, épuisement de ressource — qui font le pont entre les deux domaines. L’origine de l’instruction est le champ qui rend l’injection indirecte détectable, et l’instrumenter coûte trois lignes dans la couche d’outils.',
   },
   {
-    id: 'rule-silent-after-fix', module: 'm18', title: 'La règle qui se tait après le correctif',
+    id: 'rule-silent-after-fix', module: 'm28', title: 'La règle qui se tait après le correctif',
     status: 'live', kind: 'artifact', level: 2, csslp: ['D6', 'D7'], cwe: 'CWE-1059',
     brief: 'Le défaut d’autorisation a été corrigé : le sondage d’identifiants d’un autre tenant reçoit maintenant un 403 au lieu d’un 200. La règle qui l’attrapait (`fixtures/m18/silent-before/rule-origine.yaml`) lève encore sur le corpus d’après correctif, et personne ne sait pourquoi.',
     goal: 'Réécrire la règle : muette sur le corpus d’après correctif, et toujours levée sur celui d’avant.',
     file: 'detections/idor-probing.yaml',
-    lessons: ['m18/l06', 'm13/l02'],
+    lessons: ['m28/l06', 'm13/l02'],
     hints: [
       'Comparez un événement de sondage dans `silent-before/` et le même dans `silent-after/`. Le trafic n’a pas changé ; le résultat, si.',
       'La règle d’origine compte les factures d’un autre tenant demandées par un même compte. Il lui manque une condition sur ce qui s’est **passé** ensuite.',
@@ -177,12 +177,12 @@ export const m18: ExerciseDef[] = [
 
   // ── Outiller les règles ───────────────────────────────────────────────────
   {
-    id: 'rule-fixtures', module: 'm18', title: 'Deux fixtures par règle',
+    id: 'rule-fixtures', module: 'm28', title: 'Deux fixtures par règle',
     status: 'live', kind: 'artifact', level: 1, csslp: ['D6', 'D7'], cwe: 'CWE-1059',
     brief: 'Cinq règles de la bibliothèque (`fixtures/m18/rules/`) sont livrées sans test. Personne ne sait si elles lèvent encore après un changement de schéma.',
     goal: 'Accompagner chacune d’un événement qu’elle doit attraper et d’un quasi-jumeau qu’elle ne doit pas attraper.',
     file: 'detections/fixtures/',
-    lessons: ['m18/l04', 'm13/l02'],
+    lessons: ['m28/l03', 'm13/l02'],
     hints: [
       'Un fichier par règle, nommé comme elle : `detections/fixtures/honeytoken-access.yaml`, `admin-role-change.yaml`, `prompt-injection-external.yaml`, `unsupported-http-method.yaml`, `mass-export.yaml`. Chacun porte une liste `positive` et une liste `negative` d’événements ECS.',
       'Les corpus de `fixtures/m18/` fournissent des événements réalistes à recopier. Chaque événement doit avoir un `@timestamp` lisible et un `event.action`.',
@@ -191,12 +191,12 @@ export const m18: ExerciseDef[] = [
     fix: 'La CI refuse une règle sans ses deux fixtures, et refuse une règle qui attrape sa propre fixture négative. C’est exactement le contrat du reste du lab — le contrôle refuse, et le légitime passe — appliqué à la détection. C’est aussi ce qui permet de changer une règle sans peur six mois plus tard.',
   },
   {
-    id: 'rule-lint', module: 'm18', title: 'Le lint de règle',
+    id: 'rule-lint', module: 'm28', title: 'Le lint de règle',
     status: 'live', kind: 'artifact', level: 2, csslp: ['D6', 'D7'], cwe: 'CWE-1059',
     brief: 'Douze fichiers de règles dans `fixtures/m18/rules/`, cinq cassés : score de risque hors de la plage de sa sévérité, étiquette dupliquée, note sans section de triage, fenêtre d’historique absente.',
     goal: 'Produire la bibliothèque corrigée, et faire passer le lint à zéro échec.',
     file: 'detections/rules/',
-    lessons: ['m18/l04', 'm13/l01'],
+    lessons: ['m28/l03', 'm13/l01'],
     hints: [
       'Copiez les douze fichiers dans `workspace/detections/rules/` en gardant leurs noms, puis corrigez-les. Le message du harnais nomme la règle et le défaut.',
       'Les plages de score sont celles d’Elastic : low 0–21, medium 22–47, high 48–73, critical 74–99. Une règle high ou critical doit porter un guide d’investigation avec une section « ## Triage ». Et `from` (la fenêtre d’historique) doit dépasser `interval`, sinon un événement passe entre deux exécutions.',
@@ -205,12 +205,12 @@ export const m18: ExerciseDef[] = [
     fix: 'Les assertions sont celles du dépôt de règles d’Elastic, réimplémentées. Une règle est du code : elle se lint, elle se teste, elle se revoit. C’est ce qui fait la différence entre une bibliothèque de règles et un dossier de requêtes.',
   },
   {
-    id: 'atomic-test', module: 'm18', title: 'L’atomique qui valide la règle',
+    id: 'atomic-test', module: 'm28', title: 'L’atomique qui valide la règle',
     status: 'live', kind: 'artifact', level: 2, csslp: ['D6', 'D7'], cwe: 'CWE-1059',
     brief: 'La règle `fixtures/m18/atomic/rule.yaml` a été écrite d’après une hypothèse. Personne n’a vérifié qu’une vraie attaque la déclenche. Le lab fournit un environnement simulé — un annuaire de comptes et une horloge — sur lequel un test d’attaque s’exécute.',
     goal: 'Écrire le test en trois temps — mise en place, détonation, retour arrière — et prouver le cycle complet.',
     file: 'detections/atomics/credential-stuffing.yaml',
-    lessons: ['m18/l04', 'm13/l01'],
+    lessons: ['m28/l03', 'm13/l01'],
     hints: [
       'Trois listes d’étapes : `setup`, `detonation`, `rollback`. Quatre actions existent : `create_account`, `delete_account`, `login` et `advance`. Une étape porte `repeat: N` pour se répéter, et `{{i}}` est remplacé par le rang dans les chaînes.',
       'Regardez les seuils de `fixtures/m18/atomic/rule.yaml` : la détonation doit les franchir, donc assez d’échecs sur assez de comptes distincts, depuis une seule adresse, dans la fenêtre. `advance` règle le temps virtuel entre deux étapes.',
@@ -221,12 +221,12 @@ export const m18: ExerciseDef[] = [
 
   // ── Détections applicatives ───────────────────────────────────────────────
   {
-    id: 'appsensor-points', module: 'm18', title: 'Les points de détection applicatifs',
+    id: 'appsensor-points', module: 'm28', title: 'Les points de détection applicatifs',
     status: 'live', kind: 'artifact', level: 2, csslp: ['D5', 'D7'], cwe: 'CWE-778',
     brief: 'L’application ne distingue pas une erreur d’un comportement hostile : un utilisateur qui essaie dix identifiants d’objet à la suite ne déclenche rien. Le corpus `fixtures/m18/appsensor/` contient six trafics hostiles — un par point du catalogue — et un parcours légitime complet.',
     goal: 'Déclarer les six points de détection du catalogue, et vérifier qu’aucun ne se déclenche sur le parcours légitime.',
     file: 'detections/appsensor.yaml',
-    lessons: ['m18/l05', 'm10/l07'],
+    lessons: ['m28/l05', 'm10/l07'],
     hints: [
       'Le catalogue des six points est dans `fixtures/m18/appsensor/catalogue.yaml` : AE1, ACE3, RE2, SE5, HT2 et IE5. Le livrable est une liste sous `points`, chaque entrée portant l’`id` du point et une requête dans la syntaxe du lab.',
       'Trois points se détectent à l’événement (une méthode HTTP non supportée, une ressource leurre, une intégrité rompue). Trois demandent un agrégat : plusieurs identifiants depuis une source, plusieurs objets refusés à un compte, plusieurs adresses dans une session.',
@@ -235,12 +235,12 @@ export const m18: ExerciseDef[] = [
     fix: 'Les points de détection d’AppSensor sont la contribution la plus sous-estimée d’OWASP : l’application sait des choses que le réseau ignore. Elle sait qu’une session a changé d’adresse, et que la chaîne d’intégrité de son propre journal est rompue. Ce qui n’est pas noté : la réponse associée à chaque point — elle fait l’objet du challenge suivant.',
   },
   {
-    id: 'graduated-response', module: 'm18', title: 'La réponse graduée',
+    id: 'graduated-response', module: 'm28', title: 'La réponse graduée',
     status: 'live', kind: 'artifact', level: 2, csslp: ['D5', 'D7'], cwe: 'CWE-1059',
     brief: 'Une détection ne sait faire qu’une chose : écrire une ligne. Personne ne la lit avant le lendemain. Le corpus `fixtures/m18/graduated/` contient dix-neuf sessions et, à côté, le palier que chacune doit atteindre.',
     goal: 'Écrire la politique qui fait passer le même signal de la trace à l’alerte, puis au ralentissement, puis au verrouillage — sans gêner un compte légitime.',
     file: 'detections/response-policy.yaml',
-    lessons: ['m18/l05', 'm10/l03'],
+    lessons: ['m28/l05', 'm10/l03'],
     hints: [
       'Le livrable est une liste sous `stages`, une entrée par palier (`trace`, `alerte`, `ralentissement`, `verrouillage`), chacune portant une requête dans la syntaxe du lab. Les paliers attendus sont publiés dans `fixtures/m18/graduated/expected.json` : c’est une spécification, pas une devinette.',
       'Les quatre paliers doivent partager le même axe et la même fenêtre : le harnais vérifie qu’un cas qui verrouille est passé par les trois paliers d’avant. Une réponse qui saute des étapes n’en est pas une.',
@@ -251,12 +251,12 @@ export const m18: ExerciseDef[] = [
 
   // ── Documenter, couvrir, investiguer ──────────────────────────────────────
   {
-    id: 'ads-documentation', module: 'm18', title: 'La fiche de stratégie de détection',
+    id: 'ads-documentation', module: 'm28', title: 'La fiche de stratégie de détection',
     status: 'live', kind: 'artifact', level: 2, csslp: ['D7'], cwe: 'CWE-1059',
     brief: 'Les règles existent sans contexte : personne ne sait ce qu’elles couvrent, ce qu’elles ratent, ni quoi faire quand elles lèvent.',
     goal: 'Documenter la règle de bourrage d’identifiants selon les rubriques du cadre ADS, dont une recette de validation que le harnais exécute.',
     file: 'detections/ads/credential-stuffing.md',
-    lessons: ['m18/l04', 'm18/l06'],
+    lessons: ['m28/l03', 'm28/l06'],
     hints: [
       'Neuf rubriques en titres de niveau deux : objectif, catégorisation, résumé de la stratégie, contexte technique, angles morts et hypothèses, faux positifs, validation, priorité, réponse.',
       'La catégorisation doit citer une technique ATT&CK existante et non dépréciée — le catalogue du lab est dans `fixtures/m18/coverage/attack.json`.',
@@ -265,12 +265,12 @@ export const m18: ExerciseDef[] = [
     fix: 'La rubrique de validation est celle qui compte : le harnais l’exécute et exige que la règle lève réellement. Les angles morts et les faux positifs attendus sont ce qui permet à l’analyste de trier à trois heures du matin. Ce qui n’est pas noté : la qualité de la prose — le harnais vérifie la présence et la longueur minimale des rubriques, pas leur pertinence.',
   },
   {
-    id: 'detection-coverage', module: 'm18', title: 'La couverture qui se prouve',
+    id: 'detection-coverage', module: 'm28', title: 'La couverture qui se prouve',
     status: 'live', kind: 'artifact', level: 3, csslp: ['D7'], cwe: 'CWE-1059',
     brief: 'Douze règles, huit scénarios d’attaque, et aucune idée de ce qui est couvert ni de ce qui ne l’est pas.',
     goal: 'Faire déclarer à chaque scénario les règles qu’il déclenche, et à chaque règle sa technique, puis nommer le trou.',
     file: 'detections/coverage.yaml',
-    lessons: ['m18/l04', 'm11/l04'],
+    lessons: ['m28/l03', 'm11/l04'],
     hints: [
       'Trois sections : `rules` (une technique par règle), `scenarios` (les règles que chacun déclenche) et `uncovered` (les règles qu’aucun scénario ne déclenche).',
       'Le harnais ne croit pas la déclaration : il rejoue chaque scénario contre la bibliothèque et compare. Une règle citée qui ne lève pas au rejeu est signalée, et une règle qui lève sans être citée aussi.',
@@ -279,12 +279,12 @@ export const m18: ExerciseDef[] = [
     fix: 'Le test échoue si un scénario cite une règle inexistante, si une technique citée est inconnue ou dépréciée, ou si la déclaration ne correspond pas au rejeu. La couverture ATT&CK se mesure alors pour de vrai, au lieu d’être une carte de chaleur décorative que personne n’ose contredire.',
   },
   {
-    id: 'incident-timeline', module: 'm18', title: 'La chronologie de l’incident',
+    id: 'incident-timeline', module: 'm28', title: 'La chronologie de l’incident',
     status: 'live', kind: 'artifact', level: 3, csslp: ['D7'], cwe: 'CWE-1059',
     brief: 'Neuf cent quatorze lignes de journal dans `fixtures/m18/incident/log.ndjson`, un incident de quatorze événements dedans. Il faut dire par où c’est entré, ce qui a été touché, et ce qui est sorti.',
     goal: 'Reconstituer la liste ordonnée des événements de l’incident — aucun manquant, aucun en trop.',
     file: 'incident/timeline.yaml',
-    lessons: ['m18/l06', 'm05/l07'],
+    lessons: ['m28/l06', 'm05/l07'],
     hints: [
       'Le livrable porte `entree`, `exfiltration` et une liste `evenements` d’identifiants, dans l’ordre chronologique.',
       'Commencez par ce qui ne ressemble à rien d’autre : un changement de permissions, une journalisation désactivée, un webhook vers un domaine inconnu. Puis remontez par l’identifiant de corrélation (`trace.id`).',

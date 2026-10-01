@@ -1,0 +1,184 @@
+export const questions = [
+  {
+    q: "Un rapport CSP signale un script inconnu sur la page de paiement, depuis quelques visiteurs seulement. Quelle est la première action ?",
+    options: [
+      "Qualifier la source : extension du visiteur, ou script réellement servi ?",
+      "Classer en bruit : un volume aussi faible vient presque toujours d'extensions",
+      "Attendre la revue hebdomadaire pour voir si le signal se confirme",
+      "Ajouter l'URL bloquée à la politique, pour arrêter les rapports en attendant",
+    ],
+    answer: 0,
+    explain: "Une bonne partie des rapports vient effectivement des extensions des visiteurs, et c'est ce qui rend le classement en bruit tentant. Mais un skimmer ciblé ne touche parfois qu'une poignée de personnes : le faible volume n'est pas un argument. Ce qui tranche, c'est l'origine du script — servi par Novafact ou par un tiers, c'est un incident possible. Attendre ou élargir la politique revient à supprimer le signal avant de l'avoir lu.",
+  },
+  {
+    q: "Comment la supply chain du front se protège-t-elle d'un paquet npm compromis ?",
+    options: [
+      "Par le contrôle synthétique d'empreintes, qui verra le bundle changer",
+      "Par la CSP stricte, qui refuse tout script non porteur du nonce",
+      "Par SRI sur le bundle, dont l'empreinte est calculée par le pipeline",
+      "Par le lockfile et npm ci, un délai avant adoption, un pipeline de confiance",
+    ],
+    answer: 3,
+    explain: "Le code d'un paquet compromis est compilé dans ton propre bundle : il porte le nonce, il correspond à l'empreinte que le pipeline vient de calculer, et le contrôle synthétique enregistre la nouvelle référence comme un déploiement ordinaire. Aucun contrôle de la page ne le voit. La défense est en amont — lockfile et npm ci, scripts d'installation désactivés, délai avant d'adopter une version, pipeline de confiance —, c'est-à-dire les contrôles du module 18 appliqués au front.",
+  },
+  {
+    q: "Le fichier JavaScript de la page de paiement, autorisé et porteur du nonce, a été modifié sur le bucket S3. Quelle source de détection a le plus de chances de le voir ?",
+    options: [
+      "Les rapports CSP : un script modifié déclenche une violation d'intégrité",
+      "Le contrôle synthétique, qui compare l'empreinte de chaque script servi",
+      "Le pare-feu applicatif, qui inspecte les réponses servies aux visiteurs",
+      "Le versioning S3, qui signale toute nouvelle version d'un objet du bucket",
+    ],
+    answer: 1,
+    explain: "Le script modifié garde son URL et reste autorisé par la politique : aucune violation, donc aucun rapport — c'est l'angle mort de la CSP. Le versioning S3 conserve bien l'ancienne version, mais il archive, il n'alerte pas ; et le pare-feu applicatif filtre des requêtes entrantes, pas le contenu que le CDN sert. Seule la comparaison d'empreintes à une référence produite par le pipeline voit le changement.",
+  },
+  {
+    q: "L'équipe restaure la version saine du bundle dans le bucket S3 derrière CloudFront. Le skimmer est-il retiré pour les visiteurs ?",
+    options: [
+      "Oui : CloudFront revalide l'objet auprès de S3 à chaque requête",
+      "Oui, puisque le versioning S3 est actif sur le bucket du front",
+      "Pas forcément : le cache CloudFront sert l'ancien objet jusqu'à l'invalidation",
+      "Non : tant que le point d'entrée n'est pas identifié, le skimmer peut revenir",
+    ],
+    answer: 2,
+    explain: "Le retrait n'est effectif qu'une fois le cache du CDN purgé : sans invalidation, CloudFront continue de servir la copie compromise jusqu'à expiration, et le versioning S3 ne change rien à ce qui est déjà en cache. L'objection du point d'entrée non identifié est juste en soi — c'est l'étape suivante du runbook — mais elle ne répond pas à la question posée, qui porte sur ce que reçoivent les visiteurs maintenant. La vérification se fait côté navigateur, avec le contrôle d'empreintes.",
+  },
+];
+
+<YouKnow>
+Tu sais qu'un skimmer peut rester des mois sur une page avant d'être découvert, souvent par les banques. Cette leçon organise la surveillance côté client et la réponse.
+</YouKnow>
+
+## Trois sources de détection
+
+| Source | Ce qu'elle voit | Limites |
+| --- | --- | --- |
+| **Rapports CSP** | Scripts, connexions ou cadres bloqués (ou qui l'auraient été en Report-Only), chez les vrais visiteurs | Beaucoup de bruit dû aux extensions de navigateur ; ne voit pas un script autorisé qui a changé |
+| **Contrôle synthétique** | Un robot charge la page de paiement à intervalles réguliers et compare scripts, empreintes et en-têtes à la référence | Ne voit que ce qui est servi au robot : un skimmer ciblé peut l'éviter |
+| **Outils de protection côté client** | Un agent dans la page qui surveille le comportement des scripts (accès aux champs, envois de données) | Coût, et c'est un script tiers de plus à évaluer |
+
+Les trois se complètent : un skimmer ciblé échappe au robot mais déclenche des rapports CSP, et un script autorisé modifié échappe à la CSP mais pas au contrôle d'empreinte.
+
+## À quoi ressemble un skimmer, vu du défenseur
+
+Connaître les habitudes des skimmers sert à régler la surveillance, pas à les reproduire. Les rapports de chercheurs (Sansec en publie régulièrement) décrivent des constantes :
+
+- **ajout discret** à un fichier légitime, souvent en fin de fichier et obfusqué, plutôt qu'un nouveau fichier : le nom et l'URL ne changent pas, seule l'empreinte change ;
+- **activation conditionnelle** : seulement sur l'URL de paiement, seulement pour certains pays ou appareils, pas pour les robots identifiables ;
+- **exfiltration vers un domaine proche** de celui du site ou d'un service connu, au moment de la saisie ou de l'envoi du formulaire ;
+- **usage de services légitimes** comme relais (conteneur de tag manager, stockage public), pour passer les listes de domaines autorisés.
+
+Chaque constante indique un réglage : comparer les **empreintes** et non les URL, exécuter le contrôle synthétique avec des **profils variés**, surveiller les **connexions sortantes** de la page (directive `connect-src` et ses rapports), et préférer une CSP stricte à une liste de domaines.
+
+## Évaluer un outil de protection côté client
+
+Les outils du marché ajoutent la seule vue que les deux autres sources n'ont pas : le **comportement** des scripts chez les vrais visiteurs. Ils restent un script tiers de plus, sur la page la plus sensible. Avant d'en adopter un, pose les mêmes questions qu'à n'importe quel tiers (leçon 3), et quelques autres :
+
+- l'agent est-il chargé avec une version figée et une empreinte, ou modifiable à tout moment par le fournisseur ?
+- quelles données de la page remontent chez le fournisseur ? Les valeurs saisies ne doivent jamais en faire partie ;
+- l'outil **bloque**-t-il, ou se contente-t-il d'**alerter** ? Un blocage mal réglé casse le paiement ;
+- ses alertes arrivent-elles dans Elastic, avec le reste de la détection, ou dans une console de plus que personne n'ouvre ?
+
+## Le contrôle synthétique en pratique
+
+<Code file="tools/monitor/payment-page.ts" hl="11,12,20-22">
+
+```ts
+import { chromium } from 'playwright';
+import { createHash } from 'node:crypto';
+import baseline from './payment-baseline.json' with { type: 'json' };
+
+const browser = await chromium.launch();
+const page = await browser.newPage({ locale: 'fr-FR' });
+const scripts = new Map<string, string>();
+page.on('response', async (res) => {
+  if (res.request().resourceType() !== 'script') return;
+  const body = await res.body().catch(() => Buffer.alloc(0));
+  scripts.set(res.url(), createHash('sha256').update(body).digest('hex'));
+});
+const main = await page.goto('https://app.novafact.example/pay/monitor', { waitUntil: 'networkidle' });
+await page.waitForTimeout(5_000);
+
+const findings: string[] = [];
+for (const [url, hash] of scripts) {
+  if (!(url in baseline.scripts)) findings.push(`script inconnu : ${url}`);
+  else if (baseline.scripts[url] !== hash) findings.push(`empreinte modifiée : ${url}`);
+}
+for (const name of baseline.requiredHeaders) {
+  if (!main?.headers()[name]) findings.push(`en-tête absent : ${name}`);
+}
+console.log(JSON.stringify({ event: 'payment_page.check', ok: findings.length === 0, findings }));
+await browser.close();
+process.exit(findings.length ? 1 : 0);
+```
+
+</Code>
+
+Quelques décisions accompagnent ce script. Il tourne **toutes les heures** (bien au-delà du minimum hebdomadaire de PCI 11.6.1) et après chaque déploiement, depuis plusieurs régions. Sa sortie JSON part dans Elastic, où une règle alerte sur `ok: false`. La référence (`payment-baseline.json`) est produite par le pipeline au moment du build, à partir du bundle qu'il vient de construire : une mise à jour légitime met à jour la référence dans le même mouvement. Les URL des bundles Vite contiennent une empreinte de contenu, donc chaque déploiement change la liste : c'est normal, et c'est pour cela que la référence doit venir du pipeline plutôt que d'une saisie manuelle.
+
+## Réduire le bruit des rapports
+
+Une grande partie des rapports CSP vient des **extensions** installées par les visiteurs. Dans Elastic (M24), filtre les sources `chrome-extension://`, `moz-extension://` et `safari-web-extension://`, regroupe par URL bloquée, et alerte sur **les nouvelles URL bloquées sur la page de paiement** plutôt que sur le volume brut.
+
+```text
+FROM logs-novafact.web-*
+| WHERE event == "csp.violation" AND documentUrl LIKE "*/pay*"
+| WHERE NOT (blockedUrl LIKE "chrome-extension*" OR blockedUrl LIKE "moz-extension*"
+             OR blockedUrl LIKE "safari-web-extension*")
+| STATS reports = COUNT(*), ips = COUNT_DISTINCT(client.ip) BY blockedUrl
+| SORT reports DESC
+```
+
+Cette requête ES|QL sert à l'exploration. Pour l'alerte, une règle de type **New Terms** d'Elastic Security sur le champ `blockedUrl`, restreinte à la page de paiement, se déclenche la première fois qu'une valeur apparaît. Le volume n'a pas d'importance : un skimmer ciblé ne touche parfois qu'une poignée de visiteurs, et c'est justement la nouveauté qui compte.
+
+## Réagir à un skimmer
+
+<Steps items={[
+  { title: "Retirer", text: "Supprimer le script ou revenir à la version précédente du bundle ; si le script vient d'un tiers, le retirer de la page le temps d'éclaircir." },
+  { title: "Délimiter", text: "Depuis quand ? Historique du contrôle synthétique, rapports CSP, déploiements, journaux du CDN." },
+  { title: "Comprendre l'entrée", text: "Tiers compromis, paquet npm, accès au pipeline ou au bucket de déploiement ? La réponse dicte les correctifs (M18, M21)." },
+  { title: "Notifier", text: "Prestataire de paiement et banques (données de carte), CNIL sous 72 h si des données personnelles sont touchées, clients, et CRA si le produit est concerné." },
+]} />
+
+Sur AWS, chaque étape s'appuie sur des traces précises, à condition de les avoir activées **avant** l'incident :
+
+- **Retirer** : restaurer la version saine de l'objet, puis **invalider le cache CloudFront** ; sans invalidation, le CDN continue de servir la version compromise jusqu'à expiration. Vérifier ensuite côté navigateur avec le contrôle synthétique.
+- **Délimiter** : le **versioning S3** du bucket du front garde toutes les versions de chaque fichier, avec leur date ; les journaux d'accès CloudFront donnent le volume de visiteurs servis pendant la fenêtre.
+- **Comprendre l'entrée** : les événements `PutObject` sur le bucket n'apparaissent dans CloudTrail que si les **événements de données** S3 sont activés pour ce bucket ; ils disent quelle identité a écrit, et depuis où.
+- **Conserver** : une copie du script malveillant et de ses empreintes, pour l'investigation et pour les partenaires qui la demanderont.
+
+<Callout kind="warn">
+Le réflexe « on restaure et on passe à autre chose » efface les preuves et oublie le point d'entrée. Tant que la question de l'accès (qui a pu écrire ?) n'est pas tranchée, le skimmer peut revenir par le même chemin, parfois dans l'heure.
+</Callout>
+
+## La supply chain du front
+
+La plus grande partie du JavaScript de la page vient de **dépendances npm**. Un paquet compromis (le ver Shai-Hulud en 2025-2026 en est l'exemple le plus massif) finit dans le bundle sans que personne ne modifie le code de Novafact. Les contrôles du module 18 s'appliquent pleinement au front : lockfile et `npm ci`, scripts d'installation désactivés, délai avant d'adopter une nouvelle version, bundle construit par un pipeline de confiance et publié sur un stockage dont l'écriture est restreinte.
+
+<Callout kind="case">
+**chalk, debug et 16 autres paquets (8 septembre 2025)** : un mainteneur piégé par un faux e-mail de mise à jour de la double authentification publie des versions malveillantes de paquets téléchargés des milliards de fois par semaine. La charge visait le **navigateur** : elle s'accrochait à `fetch`, à `XMLHttpRequest` et aux API des portefeuilles de cryptomonnaie pour détourner les transactions. Les versions ont été retirées en quelques heures, mais toute application front construite dans cette fenêtre, sans lockfile figé, embarquait le code dans son bundle. Un délai minimal avant d'adopter une version (le réglage `minimumReleaseAge` de pnpm, depuis la version 10.16, ou l'équivalent dans Renovate) aurait suffi à l'éviter.
+</Callout>
+
+<Callout kind="novafact">
+Le bucket S3 qui sert le front de Novafact était modifiable par le rôle de CI de trois dépôts différents. Un seul dépôt compromis aurait suffi à injecter un skimmer sans toucher au code. Correctif : un seul rôle de déploiement, limité à ce bucket, utilisable seulement depuis la branche principale (M19). Versioning S3 et événements de données CloudTrail activés sur le bucket, invalidation CloudFront ajoutée au runbook.
+</Callout>
+
+<Recap items={[
+  "Rapports CSP, contrôle synthétique et protection côté client se complètent.",
+  "Les habitudes des skimmers dictent les réglages : empreintes plutôt qu'URL, profils variés, surveillance des connexions sortantes.",
+  "Contrôle synthétique horaire, référence produite par le pipeline, résultat dans Elastic.",
+  "Filtrer le bruit des extensions et alerter sur les nouvelles URL bloquées de la page de paiement (règle New Terms).",
+  "Réponse : retirer (et invalider le CDN), délimiter, comprendre l'entrée, notifier ; les traces AWS s'activent avant l'incident.",
+  "Le bundle du front dépend de npm : lockfile, délai avant adoption, pipeline de confiance, écriture restreinte sur le stockage.",
+]} />
+
+<Sources items={[
+  { title: "Sansec : recherche sur les attaques Magecart", url: "https://sansec.io/research" },
+  { title: "MDN : Reporting API", url: "https://developer.mozilla.org/en-US/docs/Web/API/Reporting_API" },
+  { title: "Elastic : règles de type New Terms", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/create-detection-rule" },
+  { title: "AWS : invalider des fichiers dans CloudFront", url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html" },
+  { title: "AWS : événements de données CloudTrail", url: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-data-events-with-cloudtrail.html" },
+  { title: "Aikido : compromission de debug et chalk", url: "https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised" },
+  { title: "pnpm : mitigating supply chain attacks", url: "https://pnpm.io/supply-chain-security" },
+  { title: "OWASP Cheat Sheet : Third Party JavaScript Management", url: "https://cheatsheetseries.owasp.org/cheatsheets/Third_Party_Javascript_Management_Cheat_Sheet.html" },
+]} />

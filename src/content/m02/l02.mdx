@@ -1,314 +1,239 @@
 export const questions = [
   {
-    q: "Pourquoi une validation par schéma (zod) de req.body règle-t-elle l'injection d'opérateurs Mongo ?",
-    options: [
-      "Parce que .strict() rejette les champs inconnus tels que $ne",
-      "Parce qu'il impose le type : un objet est rejeté là où une chaîne est attendue",
-      "Parce que preprocess normalise l'entrée avant qu'elle n'atteigne Mongo",
-      "Parce que zod échappe les caractères spéciaux comme $ dans les chaînes",
-    ],
+    q: "Que renvoie (1.005).toFixed(2) en JavaScript ?",
+    options: ["\"1.01\"", "\"1.00\"", "\"1.005\"", "\"1.0\""],
     answer: 1,
-    explain: "« .strict() rejette les champs inconnus » est le piège : c'est vrai, et c'est utile — mais $ne n'arrive pas comme un champ du corps, il arrive comme le contenu du champ email, sous la forme { \"$ne\": null }. Aucune clé inconnue n'apparaît au premier niveau. Ce qui tue la classe, c'est l'exigence de type : là où le schéma attend une chaîne, un objet est refusé. zod n'échappe rien et ne nettoie rien, il rejette.",
+    explain: "« 1.01 » est la réponse que tout le monde donne, et c'est celle qu'un arrondi décimal exact produirait. Mais 1.005 n'est pas représentable en binaire : le double le plus proche vaut un peu moins, donc toFixed arrondit vers le bas. « 1.005 » supposerait que toFixed ignore le nombre de décimales demandé, « 1.0 » qu'il supprime les zéros de fin — il complète toujours. D'où la règle : jamais de montants en flottants.",
   },
   {
-    q: "Quelle est la protection correcte contre le mass assignment dans une route de mise à jour de profil ?",
+    q: "Comment représenter un montant de facture dans Novafact ?",
     options: [
-      "Supprimer role et tenantId de req.body avant d'appeler la mise à jour",
-      "S'appuyer sur le mode strict de Mongoose, qui ignore les champs hors schéma",
-      "Vérifier que l'utilisateur a le droit de modifier chacun des champs reçus",
-      "Construire la mise à jour à partir d'une liste blanche de champs",
-    ],
-    answer: 3,
-    explain: "Le mode strict de Mongoose est la fausse sécurité la plus répandue : il ignore les champs absents du schéma, or role, plan et tenantId y sont précisément déclarés. Le modèle dit ce qui peut exister, pas ce qu'un utilisateur a le droit de modifier. Retirer role et tenantId est une liste noire, qui oubliera isAdmin ou le prochain champ ajouté. Vérifier chaque champ reçu déplace le travail sur une entrée non bornée.",
-  },
-  {
-    q: "Dans Express 5, quel est le parser de query string par défaut ?",
-    options: [
-      "extended, via la bibliothèque qs",
-      "extended, mais limité à un seul niveau d'imbrication",
-      "simple, via querystring de Node",
-      "aucun : req.query reste une chaîne brute",
-    ],
-    answer: 2,
-    explain: "« extended » est le réflexe, parce que c'était le défaut d'Express 4 et que beaucoup de projets l'ont conservé à la migration. Express 5 bascule sur le parser simple : ?email[$ne]=x ne produit plus d'objet imbriqué, ce qui réduit la surface côté query. Attention au raccourci : le corps JSON, lui, a toujours pu contenir des objets, et ce changement ne le protège en rien.",
-  },
-  {
-    q: "Un middleware de validation écrit pour Express 4 fait req.query = schema.parse(req.query). Que se passe-t-il après la migration vers Express 5 ?",
-    options: [
-      "req.query est un getter : TypeError en mode strict, sans effet sinon",
-      "La query n'étant plus parsée en objets, le schéma rejette les requêtes imbriquées",
-      "Rien ne change : Express 5 accepte encore la réaffectation de req.query",
-      "Le middleware passe, mais req.query reprend sa valeur brute dans le handler",
+      "Un entier en centimes ou un décimal, calculé côté serveur",
+      "Une colonne numeric(12,2) en base, et un Number côté application",
+      "Un Number en centimes, fourni par le client puis vérifié côté serveur",
+      "Un Number en euros, arrondi à deux décimales au moment de l'enregistrement",
     ],
     answer: 0,
-    explain: "Confondre avec l'autre changement d'Express 5 — le parser de query devenu simple — est l'erreur la plus fréquente : celui-ci modifie ce que la query contient, pas la possibilité de la réaffecter. Le cas dangereux n'est d'ailleurs pas la TypeError, qui se voit tout de suite, mais le fichier CommonJS non strict où l'affectation est ignorée en silence et où le handler lit la query brute. D'où la règle : ranger la donnée validée ailleurs, et n'y lire que celle-là.",
+    explain: "La colonne numeric est le distracteur le plus solide : le stockage est correct, mais dès que le code manipule la valeur en Number on retrouve 19.99 * 100 = 1998.9999999999998 — le type de la base ne protège pas les calculs. « Fourni par le client puis vérifié » inverse l'autorité : le serveur recalcule à partir des prix de référence, il ne valide pas un total reçu. Et arrondir un Number à l'enregistrement ne fait que figer l'erreur déjà commise.",
+  },
+  {
+    q: "Pourquoi utiliser Object.hasOwn(obj, key) plutôt que key in obj pour valider une clé fournie par l'utilisateur ?",
+    options: [
+      "in remonte la chaîne de prototypes : 'toString' in {} vaut true",
+      "hasOwn ignore les propriétés non énumérables, contrairement à in",
+      "hasOwn est plus rapide sur les objets à nombreuses propriétés",
+      "in échoue sur un objet créé avec Object.create(null)",
+    ],
+    answer: 0,
+    explain: "L'inversion à connaître : c'est obj.hasOwnProperty() qui casse sur un objet créé par Object.create(null), pas l'opérateur in — et c'est justement une des raisons d'utiliser Object.hasOwn, qui fonctionne dans les deux cas. L'énumérabilité n'entre pas en jeu, ni pour l'un ni pour l'autre. Le vrai motif est la chaîne de prototypes : une clé comme toString ou constructor passerait une vérification naïve.",
+  },
+  {
+    q: "Le calcul d'un avoir produit -2,5 centimes de TVA. Pourquoi Math.round n'est-il pas un bon choix ici ?",
+    options: [
+      "Math.round arrondit toujours les négatifs vers l'entier inférieur",
+      "Math.round tronque vers zéro, ce qui avantage systématiquement le client",
+      "Math.round arrondit les demis vers +∞ : -2,5 donne -2, mais 2,5 donne 3",
+      "Math.round opère sur des flottants et perd de la précision sous le centime",
+    ],
+    answer: 2,
+    explain: "« Toujours vers l'entier inférieur » a le bon soupçon mais le mauvais sens : Math.round(-2.5) vaut -2, donc vers le haut. Et Math.round ne tronque pas, c'est Math.trunc. Le défaut est l'asymétrie autour de zéro : 2,5 devient 3, -2,5 devient -2, donc une facture et l'avoir qui l'annule laissent un centime d'écart. Le mode d'arrondi n'est pas un détail d'implémentation, c'est une règle métier qui s'écrit et se teste.",
   },
 ];
 
 <YouKnow>
-Tu sais contourner une authentification avec `{"$ne": null}`, exploiter un `$where`, ou ajouter `"role": "admin"` dans un corps JSON. On regarde ici pourquoi le code Express le permet, et comment l'empêcher par construction.
+Tu as déjà joué avec les conversions implicites de JavaScript et les nombres négatifs dans un panier. Ici on les regarde comme des classes de bugs à rendre impossibles, dans une application où tout tourne autour de l'argent.
 </YouKnow>
 
-## Le problème commun : la forme des données
+## Les footguns du langage
 
-La plupart des injections dans une API Node ont la même cause racine : **le code fait confiance à la forme des données entrantes**. Un champ qu'on croit être une chaîne peut arriver en objet, en tableau ou en nombre, parce que `express.json()` et le parser de query string construisent ce que le client envoie. TypeScript n'y change rien : `req.body` est typé `any`, et une annotation `as LoginBody` n'est qu'une promesse faite au compilateur, jamais vérifiée à l'exécution.
+Kohnfelder (K8) appelle *footgun* une fonctionnalité qui rend facile de se tirer une balle dans le pied : le code dit une chose, le moteur en fait une autre. JavaScript en a beaucoup, et certains ont un impact de sécurité direct.
 
-Kohnfelder (K10) insiste sur ce point : une entrée non fiable doit être **validée contre une définition explicite de ce qui est valide**, le plus tôt possible, avant toute utilisation. Il pose aussi une question que les équipes tranchent rarement explicitement : face à une entrée invalide, faut-il **rejeter ou corriger** ?
-
-- **Rejeter** est le choix par défaut pour tout ce qui touche à la sécurité : une requête qui ne respecte pas le contrat reçoit une 400, et le code métier ne la voit jamais.
-- **Corriger** (retirer des caractères, tronquer, « nettoyer ») crée une deuxième interprétation de la donnée : celle que le client a envoyée et celle que le serveur a retenue. Ces écarts sont exactement ce qu'exploitent les contournements de filtres.
-- La seule correction acceptable est une **normalisation canonique** (supprimer les espaces en bordure, mettre un e-mail en minuscules, normaliser l'Unicode), faite **avant** la validation, pour que ce qui est validé soit exactement ce qui est utilisé.
-
-## Définir la validité, y compris en Unicode
-
-Un schéma utile dit plus que « c'est une chaîne ». Il fixe le type, la longueur, le format, l'intervalle des nombres et l'ensemble des champs admis. Deux subtilités propres à JavaScript méritent d'être connues.
-
-**La longueur n'est pas celle que tu crois.** `.length` compte des unités de code UTF-16 : `'😀'.length` vaut 2, et `'é'` peut valoir 1 ou 2 selon qu'il est précomposé ou écrit « e + accent combinant ». PostgreSQL, lui, compte des caractères dans un `varchar(n)`. Une borne cohérente de bout en bout se choisit en connaissance de cause.
-
-**La normalisation peut changer la donnée.** NFKC transforme les caractères de compatibilité en leur forme simple : un « Ｊ » pleine chasse devient « J », la ligature « ﬁ » devient « fi ». C'est ce qui empêche deux comptes `Ｊohn` et `John` de coexister. Mais certains caractères s'étendent fortement (le caractère U+FDFA produit 18 caractères en NFKC) : on normalise d'abord, puis on vérifie la longueur.
-
-<Code file="apps/api/src/schemas/common.ts">
-
-```ts
-import { z } from 'zod';
-
-const canonical = (v: unknown) => (typeof v === 'string' ? v.normalize('NFKC').trim() : v);
-
-export const Email = z.preprocess(
-  (v) => (typeof v === 'string' ? v.normalize('NFKC').trim().toLowerCase() : v),
-  z.string().email().max(254),
-);
-export const DisplayName = z.preprocess(canonical, z.string().min(1).max(100));
-export const ObjectIdStr = z.string().regex(/^[a-f0-9]{24}$/);
-```
-
-</Code>
-
-Le `preprocess` ne touche que les chaînes : un objet reste un objet, et il sera rejeté par `z.string()`. La normalisation ne doit jamais servir à « réparer » un type inattendu.
-
-## Rendre la validation impossible à oublier
-
-Un schéma qui existe mais qu'une route oublie d'appeler ne protège rien. Le contrôle de classe consiste à brancher la validation dans le framework, puis à faire en sorte que les handlers **ne puissent lire que la donnée validée**. Express 5 impose au passage un détail : `req.query` est désormais un getter, on ne peut plus le réaffecter. Un middleware hérité d'Express 4 qui faisait `req.query = schema.parse(req.query)` lève une `TypeError` dans un module en mode strict (ESM, TypeScript compilé) ; dans un vieux fichier CommonJS non strict, l'affectation est ignorée en silence et le handler lit la query brute sans que personne ne s'en aperçoive. Le second cas est le plus dangereux.
-
-<Code file="apps/api/src/middleware/validate.ts" hl="10-13">
-
-```ts
-import type { RequestHandler } from 'express';
-import type { ZodType } from 'zod';
-
-type Shapes = { body?: ZodType; query?: ZodType; params?: ZodType };
-
-declare module 'express-serve-static-core' {
-  interface Request { valid?: Record<string, unknown> }
-}
-
-export const validate = (shapes: Shapes): RequestHandler => (req, _res, next) => {
-  // Express 5 : req.query est un getter, on range la version validée à part.
-  req.valid = Object.fromEntries(
-    Object.entries(shapes).map(([k, schema]) => [k, (schema as ZodType).parse(req[k as keyof Shapes])]),
-  );
-  next();
-};
-```
-
-</Code>
-
-Une `ZodError` levée ici part vers le middleware d'erreur, qui la traduit en 400 (leçon 5). La leçon 8 va plus loin avec un `defineRoute` qui rend le schéma obligatoire à la compilation et une règle de lint qui interdit de lire `req.body` directement dans un handler.
-
-## Injection NoSQL
-
-<Diff file="apps/api/src/routes/auth.ts" hlBefore="3" hlAfter="3-6,9">
-
-```ts
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const user = await users.findOne({ email, password: hash(password) });
-  if (!user) return res.status(401).end();
-  res.json(issueToken(user));
-});
-```
-
-```ts
-import { z } from 'zod';
-
-const Login = z.object({
-  email: z.string().email().max(254),
-  password: z.string().min(1).max(200),
-}).strict();
-
-router.post('/login', async (req, res) => {
-  const { email, password } = Login.parse(req.body);
-  const user = await users.findOne({ email });
-  if (!user || !(await verify(user.passwordHash, password))) return res.status(401).end();
-  res.json(issueToken(user));
-});
-```
-
-</Diff>
-
-Le schéma impose des **types**, des **longueurs** et interdit les **champs inconnus** (`.strict()`). Un objet `{"$ne": null}` à la place d'une chaîne est rejeté avant d'atteindre Mongo. Remarque aussi le second correctif, discret : le mot de passe n'est plus comparé dans la requête, mais vérifié après coup contre un hash lent. Le filtre Mongo ne porte plus que sur une donnée d'identification.
-
-En défense en profondeur, trois couches complémentaires :
-
-- l'option `sanitizeFilter` de Mongoose (globale via `mongoose.set('sanitizeFilter', true)`) qui enveloppe dans un `$eq` tout objet imbriqué d'un filtre portant une clé commençant par `$` (`trusted()` sert à marquer les rares opérateurs légitimes) ;
-- `mongo-sanitize`, qui retire ces clés d'un objet (attention aux middlewares qui réécrivent `req.query` : ils ne fonctionnent plus tels quels en Express 5) ;
-- côté serveur MongoDB, `security.javascriptEnabled: false` dans la configuration de `mongod` si tu n'utilises ni `$where` ni `$function` : la classe « JavaScript côté serveur » disparaît.
-
-<Callout kind="info">
-Express 5 utilise désormais par défaut le parser de query string **simple**, qui ne construit pas d'objets imbriqués. C'est une réduction de surface bienvenue : `?email[$ne]=x` ne produit plus un objet. Si une équipe réactive `extended` pour un besoin fonctionnel, la validation par schéma redevient indispensable côté query. Le corps JSON, lui, a toujours pu contenir des objets : cette évolution ne le protège en rien.
-</Callout>
-
-## Injection SQL malgré l'ORM
-
-Les ORM et query builders paramètrent par défaut, mais tous offrent une échappatoire vers le SQL brut : `knex.raw`, `sequelize.literal`, `sequelize.query`, `$queryRawUnsafe` de Prisma. C'est là que se logent les injections dans les bases de code modernes, souvent pour un tri ou un filtre dynamique.
-
-<Diff file="apps/api/src/routes/invoices.ts" hlBefore="2" hlAfter="1,3" stack>
-
-```ts
-const sort = req.query.sort ?? 'created_at';
-const rows = await prisma.$queryRawUnsafe(`SELECT * FROM invoice WHERE tenant_id = $1 ORDER BY ${sort}`, tenantId);
-```
-
-```ts
-const SORTS = { date: 'createdAt', amount: 'amount' } as const;
-const sort = SORTS[req.query.sort as keyof typeof SORTS] ?? 'createdAt';
-const rows = await prisma.invoice.findMany({ where: { tenantId }, orderBy: { [sort]: 'desc' } });
-```
-
-</Diff>
-
-Un nom de colonne ou un sens de tri ne se paramètre pas : on le choisit dans une **liste blanche**. Et on surveille les échappatoires : une règle de lint ou de SAST qui interdit `$queryRawUnsafe` en dehors d'un module revu est un excellent contrôle de classe (M13).
-
-Chaque outil a une forme sûre et une forme dangereuse qui se ressemblent beaucoup. C'est ce qui rend la revue difficile :
-
-| Outil | Forme paramétrée | Forme à surveiller |
+| Expression | Résultat | Risque |
 | --- | --- | --- |
-| Prisma | `` prisma.$queryRaw`… ${v}` `` (template étiqueté), `Prisma.sql`, `Prisma.join` | `$queryRawUnsafe`, `$executeRawUnsafe`, `Prisma.raw` |
-| knex | `knex.raw('… where id = ?', [v])`, `??` pour un identifiant | `knex.raw` avec une chaîne construite par concaténation |
-| Sequelize | `sequelize.query(sql, { replacements })` ou `bind` | `sequelize.literal`, `sequelize.query` avec interpolation |
+| `0 == ''` | `true` | Comparaisons laxistes dans une vérification |
+| `Number('')`, `Number(' ')` | `0` | Un champ vide devient un montant nul valide |
+| `parseInt('12abc')` | `12` | Une entrée invalide est acceptée silencieusement |
+| `parseInt(0.0000005)` | `5` | Le nombre est d'abord converti en chaîne (`'5e-7'`) |
+| `null >= 0` | `true` | Un garde `amount >= 0` laisse passer `null` |
+| `[10, 9, 1].sort()` | `[1, 10, 9]` | Tri lexicographique par défaut |
+| `'toString' in {}` | `true` | Vérification de clé qui voit les propriétés héritées |
+| `typeof null` | `'object'` | Garde de type qui laisse passer `null` |
+| `String(['send'])` | `'send'` | Un tableau se fait passer pour une chaîne |
+| `req.query.email.toLowerCase()` | Exception si `email` est un tableau | Plantage de la route (A10), voire du processus |
 
-<Callout kind="warn">
-Le piège Prisma le plus fréquent en revue : `` $queryRaw`…` `` est sûr **parce que** c'est un template étiqueté, qui reçoit les valeurs séparément du texte. Le jour où quelqu'un construit la requête dans une variable pour la rendre « plus lisible », puis la passe à `$queryRawUnsafe`, les mêmes `${…}` deviennent de la concaténation. Même syntaxe à l'œil, sémantique opposée.
-</Callout>
+La réponse n'est pas de mémoriser la liste, mais de **fermer les portes** : `===` imposé par le lint, validation par schéma qui fixe les types (M7 leçon 1), `Object.hasOwn` pour les clés, TypeScript strict.
 
-## Mass assignment
+Ce dernier point mérite une précision. TypeScript ne voit que ce qu'on lui déclare : si `req.body` est typé à la main, le compilateur fait confiance à la déclaration. Sa valeur vient des options et des règles qui ferment des footguns précis, **à condition que les types viennent d'un schéma validé** :
 
-<Diff file="apps/api/src/routes/profile.ts" hlBefore="2" hlAfter="1,4" stack>
+| Option ou règle | Ce qu'elle ferme |
+| --- | --- |
+| `strict` (dont `strictNullChecks`) | L'oubli de `null` et `undefined` |
+| `noUncheckedIndexedAccess` | `obj[key]` supposé défini alors qu'il peut manquer |
+| ESLint `eqeqeq` | Les comparaisons laxistes |
+| `@typescript-eslint/restrict-plus-operands` | `'10' + 5` qui donne `'105'` |
+| `@typescript-eslint/require-array-sort-compare` | Le tri sans comparateur |
 
-```ts
-router.patch('/me', async (req, res) => {
-  const user = await User.findByIdAndUpdate(req.user.id, req.body, { new: true });
-  res.json(user);
-});
-```
+## Les dates, un footgun à part entière
 
-```ts
-const ProfileUpdate = z.object({ name: z.string().max(100), locale: z.enum(['fr', 'en']) }).partial().strict();
+Une application de facturation manipule des échéances, des périodes et des dates d'émission. L'objet `Date` cumule les pièges :
 
-router.patch('/me', async (req, res) => {
-  const patch = ProfileUpdate.parse(req.body);
-  const user = await User.findByIdAndUpdate(req.user.id, patch, { new: true });
-  res.json(toPublicUser(user));
-});
-```
+- **Il ne rejette pas les dates impossibles.** Dans V8 (donc Node et Chrome), `new Date('2024-02-30')` donne le 1er mars, sans erreur. Une date d'échéance saisie au 30 février devient silencieusement une autre date.
+- **Il déborde en silence.** Ajouter un mois au 31 janvier avec `setUTCMonth(getUTCMonth() + 1)` donne le 3 mars (en 2026). Une échéance « à un mois » calculée ainsi saute février.
+- **Le fuseau dépend du format.** `'2026-01-15'` (date seule) est lu en UTC, `'2026-01-15T00:00'` (sans décalage) en heure locale du serveur. La même facture peut changer de jour selon la machine qui la traite.
+- **Les autres formats dépendent du moteur.** Hors du format ISO, l'analyse est laissée à l'implémentation.
 
-</Diff>
+Les règles pour Novafact : n'accepter en entrée que des dates ISO validées par schéma (`z.string().date()` en zod 3, `z.iso.date()` en zod 4), vérifier l'aller-retour (la date reformatée doit être identique à la chaîne reçue), stocker en UTC, et confier l'arithmétique calendaire (fins de mois, jours ouvrés) à une bibliothèque dédiée plutôt qu'à `Date`.
 
-Deux corrections en une : la **liste blanche** des champs modifiables en entrée, et une fonction de **sérialisation explicite** (`toPublicUser`) en sortie, pour ne pas renvoyer `passwordHash`, `mfaSecret` ou `tenantId` (API3, exposition excessive).
+## Les nombres
 
-Une idée reçue à désamorcer : le mode `strict` de Mongoose, actif par défaut, ignore les champs **absents du schéma**. Il ne protège pas contre `role`, `plan` ou `tenantId`, qui sont justement dans le schéma. Le modèle de données dit ce qui peut exister, pas ce qu'un utilisateur a le droit de modifier : ce sont deux décisions différentes, et la seconde appartient à la route.
+Un `Number` JavaScript est un flottant double précision. Deux conséquences.
 
-Côté sortie, rends l'oubli difficile au niveau du modèle : `select: false` sur les champs sensibles d'un schéma Mongoose, et l'option `omit` globale de Prisma Client (disponible en GA depuis Prisma 6.2.0) pour que `passwordHash` ne sorte d'aucune requête sans le demander explicitement.
+**Les entiers au-delà de 2⁵³ perdent en précision.** `Number.MAX_SAFE_INTEGER` vaut 9 007 199 254 740 991. Un identifiant numérique plus grand, reçu en JSON, est silencieusement arrondi : `JSON.parse('{"id": 9007199254740993}').id` vaut `9007199254740992`, et deux objets différents peuvent obtenir le même identifiant côté client. Transporte les grands identifiants en chaîne, ou utilise `BigInt` côté serveur.
 
-```ts
-export const prisma = new PrismaClient({
-  omit: { user: { passwordHash: true, mfaSecret: true } },
-});
-```
+`BigInt` a ses propres pièges : `JSON.stringify` lève une `TypeError` sur un `BigInt` (une colonne `BigInt` de Prisma renvoyée telle quelle fait planter la sérialisation de la réponse), on ne peut pas mélanger `BigInt` et `Number` dans une opération, et la division tronque vers zéro (`-7n / 2n` vaut `-3n`).
 
-## BOLA et BFLA
+**Les décimaux ne sont pas exacts.** `0.1 + 0.2` vaut `0.30000000000000004`, et `(1.005).toFixed(2)` vaut `"1.00"`. Plus sournois : `19.99 * 100` vaut `1998.9999999999998`. Convertir un prix saisi en euros vers des centimes par une multiplication, puis tronquer, fait perdre un centime. Dans une application de facturation, ces écarts deviennent des centimes qui manquent, des totaux qui ne correspondent pas aux lignes, ou des arrondis exploitables en répétant une opération.
 
-Une route qui fait `Invoice.findById(req.params.id)` sans filtrer par tenant est vulnérable, quelle que soit la qualité du reste. Le contrôle de classe consiste à **ne jamais requêter sans le périmètre de l'utilisateur** : un repository qui exige le `tenantId`, ou la sécurité au niveau des lignes de PostgreSQL. On y revient en détail en M8 (autorisation) et M12 (revue orientée autorisation).
+La conversion sûre part de la **chaîne** et ne passe jamais par un flottant :
 
-<Diff file="apps/api/src/repositories/invoices.ts" hlBefore="1" hlAfter="1-2">
-
-```ts
-export const getInvoice = (id: string) => Invoice.findById(id);
-```
+<Code file="apps/api/src/billing/parse.ts">
 
 ```ts
-export const getInvoice = (ctx: TenantContext, id: string) =>
-  Invoice.findOne({ _id: id, tenantId: ctx.tenantId });
-```
-
-</Diff>
-
-La BFLA est la variante « fonction » : l'utilisateur n'accède pas à l'objet d'un autre, il appelle une action qui ne lui est pas destinée (`POST /tenants/:id/users/:uid/role` accessible à un simple comptable). Elle naît souvent d'un routeur d'administration monté sans le middleware de rôle, ou d'une route ajoutée plus tard au mauvais endroit. Le contrôle : une permission déclarée sur **chaque** route, refus par défaut si elle manque.
-
-Ces deux classes se prêtent très bien aux tests automatisés, parce que l'oracle est simple : l'utilisateur du tenant B ne doit **jamais** obtenir la ressource du tenant A. Un 404 plutôt qu'un 403 évite en plus de confirmer que l'identifiant existe.
-
-<Code file="apps/api/test/authz.cross-tenant.test.ts">
-
-```ts
-import request from 'supertest';
-import { describe, it, expect } from 'vitest';
-import { app } from '../src/app';
-import { seedTwoTenants } from './fixtures';
-
-describe('isolation entre tenants', () => {
-  it('refuse la facture d’un autre tenant', async () => {
-    const { acme, globex } = await seedTwoTenants();
-    const res = await request(app)
-      .get(`/invoices/${acme.invoiceId}`)
-      .set('Authorization', `Bearer ${globex.accountantToken}`);
-    expect(res.status).toBe(404);
-  });
-
-  it('refuse le changement de rôle à un comptable', async () => {
-    const { acme } = await seedTwoTenants();
-    const res = await request(app)
-      .post(`/tenants/${acme.id}/users/${acme.adminId}/role`)
-      .set('Authorization', `Bearer ${acme.accountantToken}`)
-      .send({ role: 'owner' });
-    expect(res.status).toBe(403);
-  });
-});
+// "19.99" -> 1999, "19,9" -> 1990, "-0.5" -> -50. Rejette tout le reste.
+export function parseEurosToCents(input: string): number {
+  const m = /^(-?)(\d{1,9})(?:[.,](\d{1,2}))?$/.exec(input.trim());
+  if (!m) throw new RangeError('Montant invalide');
+  const cents = Number(m[2]) * 100 + Number((m[3] ?? '').padEnd(2, '0'));
+  return m[1] ? -cents : cents;
+}
 ```
 
 </Code>
 
-<Callout kind="novafact">
-Inventaire de l'API Novafact (chiffres fictifs) : 184 routes, dont 41 sans schéma d'entrée, 9 qui utilisent le SQL brut et 3 qui passent `req.body` directement à Mongoose. Plutôt que 53 tickets, l'équipe AppSec livre le middleware `validate`, la règle de lint qui interdit `$queryRawUnsafe` hors du dossier `db/raw/`, et un test d'isolation générique qui rejoue chaque route `GET /:id` avec un jeton d'un autre tenant. Les équipes corrigent ensuite ce que le lint et les tests signalent.
-</Callout>
+## L'argent chez Novafact
 
-## Checklist de revue d'une route Express
+<Diff file="apps/api/src/billing/total.ts" hlBefore="2-3" hlAfter="2-6">
+
+```ts
+export function invoiceTotal(lines: { price: number; qty: number }[], vatRate: number) {
+  const ht = lines.reduce((s, l) => s + l.price * l.qty, 0);
+  return +(ht * (1 + vatRate)).toFixed(2);
+}
+```
+
+```ts
+// Montants en centimes (entiers), taux en points de base (2000 = 20 %).
+export function invoiceTotalCents(lines: { unitCents: number; qty: number }[], vatBps: number) {
+  const ht = lines.reduce((s, l) => s + l.unitCents * l.qty, 0);
+  const vat = mulDivRound(ht, vatBps);
+  if (!Number.isSafeInteger(ht + vat)) throw new RangeError('Montant hors limites');
+  return { ht, vat, ttc: ht + vat };
+}
+```
+
+</Diff>
+
+Les points de base ne sont pas un caprice : les taux de TVA français incluent 5,5 % et 2,1 %, qui s'écrivent 550 et 210 en entiers. Reste l'arrondi. `Math.round` arrondit les demis vers +∞ : `Math.round(2.5)` vaut 3 mais `Math.round(-2.5)` vaut -2. Une facture et l'avoir qui l'annule ne se compensent plus exactement. Le mode d'arrondi est une **règle métier**, et elle s'écrit :
+
+<Code file="apps/api/src/billing/round.ts">
+
+```ts
+// amount × bps / 10 000, arrondi au plus proche, demi s'éloignant de zéro, en arithmétique entière.
+export function mulDivRound(amountCents: number, bps: number): number {
+  const num = amountCents * bps;
+  if (!Number.isSafeInteger(num)) throw new RangeError('Dépassement');
+  const abs = Math.abs(num);
+  const q = Math.floor(abs / 10_000);
+  const r = abs - q * 10_000;
+  return Math.sign(num) * (r * 2 >= 10_000 ? q + 1 : q);
+}
+```
+
+</Code>
+
+Deuxième décision à écrire : arrondit-on la TVA **par ligne** ou **sur le total** ? Trois lignes à 0,99 € HT à 5,5 % donnent 5 centimes de TVA chacune (15 au total) si on arrondit ligne par ligne, mais 16 centimes si on arrondit le total (297 × 5,5 % = 16,335). Aucun des deux n'est « faux » ; ce qui est faux, c'est que la facture, le PDF et l'export comptable n'appliquent pas la même règle. Une seule fonction, testée, utilisée partout.
+
+Trois règles à imposer :
 
 <Steps items={[
-  { title: "Entrée", text: "Body, query et params passent-ils par un schéma strict, et le handler ne lit-il que la version validée ?" },
-  { title: "Requête", text: "Aucune interpolation dans du SQL brut ; les colonnes et sens de tri viennent d'une liste blanche." },
-  { title: "Périmètre", text: "Chaque lecture et écriture est filtrée par le tenant issu de la session, jamais du corps de la requête." },
-  { title: "Fonction", text: "La route déclare une permission, et le refus est le comportement par défaut." },
-  { title: "Sortie", text: "La réponse passe par une sérialisation explicite ; les champs sensibles sont exclus au niveau du modèle." },
+  { title: "Représentation", text: "Entiers en centimes, ou une bibliothèque décimale (decimal.js, big.js) quand les taux l'exigent. Côté base, une colonne entière ou numeric (Prisma renvoie alors un Prisma.Decimal), jamais un float. Jamais de float pour l'argent." },
+  { title: "Autorité", text: "Le serveur recalcule tout à partir des prix de référence. Un prix ou un total envoyé par le client est ignoré." },
+  { title: "Invariants", text: "Quantités entières et positives, remises bornées, totaux cohérents. Le schéma les impose à l'entrée (z.number().int().positive().max(…)), avec une borne métier explicite." },
 ]} />
+
+<Callout kind="warn">
+`.int()` ne suffit pas comme borne. Selon la version de zod, un entier comme `1e300` peut passer la validation, et `quantité × prix unitaire` dépasse alors 2⁵³ sans que personne ne le voie. Fixe toujours un `.max()` métier (par exemple 1 000 000 unités par ligne), et garde la vérification `Number.isSafeInteger` sur le résultat : c'est elle qui transforme un dépassement silencieux en erreur visible.
+</Callout>
+
+Les quantités fractionnaires (1,5 jour de prestation) suivent la même logique : on les stocke en millièmes entiers et on les convertit une seule fois, au calcul, avec la même fonction d'arrondi.
+
+<Callout kind="novafact">
+Un audit de Novafact révèle qu'un avoir peut porter une quantité négative, ce qui transforme un remboursement en paiement. Ce n'est pas une faille « technique » : c'est un invariant métier manquant. Le module 15 revient sur ces invariants, et le module 9 sur ce qui se passe quand deux requêtes arrivent en même temps.
+</Callout>
+
+## Tester les invariants plutôt que des exemples
+
+Des tests unitaires avec trois montants choisis à la main ne trouvent pas les cas limites de l'arithmétique. Les **tests de propriétés** génèrent des centaines d'entrées et vérifient qu'une propriété tient toujours. Avec fast-check :
+
+<Code file="apps/api/test/billing.property.test.ts">
+
+```ts
+import fc from 'fast-check';
+import { test } from 'vitest';
+import { mulDivRound } from '../src/billing/round';
+
+const cents = fc.integer({ min: 0, max: 10_000_000_00 });
+const rates = fc.constantFrom(2000, 1000, 550, 210);
+
+test('un avoir annule exactement la facture', () => {
+  fc.assert(fc.property(cents, rates, (ht, bps) => mulDivRound(ht, bps) + mulDivRound(-ht, bps) === 0));
+});
+
+test('la TVA ne dépasse jamais le montant HT', () => {
+  fc.assert(fc.property(cents, rates, (ht, bps) => mulDivRound(ht, bps) <= ht));
+});
+```
+
+</Code>
+
+La première propriété aurait échoué immédiatement avec `Math.round`. C'est le bon réflexe pour tout code qui manipule de l'argent : énoncer les invariants (symétrie, bornes, somme des lignes égale au total) et laisser l'outil chercher le contre-exemple. Le module 17 approfondit le fuzzing et les tests de propriétés.
+
+## Clés dynamiques
+
+Accéder à `config[req.query.key]` ou `handlers[req.body.action]()` avec une clé fournie par le client ouvre la porte à `__proto__`, `constructor` ou `toString`. Deux protections simples : une `Map` plutôt qu'un objet pour les tables indexées par une entrée externe, et une liste blanche des clés acceptées.
+
+```ts
+const ACTIONS = new Map([
+  ['send', sendInvoice],
+  ['archive', archiveInvoice],
+]);
+const { action } = z.object({ action: z.enum(['send', 'archive']) }).parse(req.body);
+const run = ACTIONS.get(action);
+if (!run) return res.status(400).json({ error: 'action inconnue' });
+```
+
+Le schéma évite au passage un piège discret : un `String(req.body.action)` naïf accepterait `["send"]`, puisqu'un tableau d'un élément se convertit en sa seule valeur.
+
+<Callout kind="debate">
+Centimes entiers ou bibliothèque décimale ? Les entiers sont rapides, sans dépendance, et suffisent pour une seule devise à deux décimales. Mais dès qu'arrivent des devises à zéro ou trois décimales, des prix unitaires à quatre décimales (énergie, API facturées à l'appel) ou des taux de change, les entiers obligent à gérer une échelle par champ, et c'est là que les bugs reviennent. Beaucoup d'équipes choisissent les entiers pour les montants stockés et une bibliothèque décimale pour les calculs intermédiaires, avec une seule fonction de conversion entre les deux.
+</Callout>
 
 <Recap items={[
-  "La cause racine commune : le code fait confiance à la forme des données entrantes, et TypeScript ne vérifie rien à l'exécution.",
-  "Rejeter plutôt que corriger ; seule une normalisation canonique, faite avant la validation, est acceptable.",
-  "Un schéma strict (types, longueurs, champs connus) à l'entrée de chaque route élimine l'injection d'opérateurs ; en Express 5, la donnée validée se range à part.",
-  "Les injections SQL modernes se logent dans les échappatoires vers le SQL brut : liste blanche et règle de lint.",
-  "Mass assignment : liste blanche en entrée, sérialisation explicite en sortie ; le mode strict de Mongoose ne suffit pas.",
-  "BOLA et BFLA : aucune requête sans le périmètre du tenant, une permission par route, et des tests inter-tenants automatisés.",
+  "Un footgun est une fonctionnalité où le code dit une chose et le moteur en fait une autre.",
+  "On ferme les portes plutôt que de mémoriser : ===, schémas typés, Object.hasOwn, TypeScript strict et règles typescript-eslint.",
+  "Date accepte le 30 février et déborde en silence : dates ISO validées, UTC, bibliothèque pour le calendaire.",
+  "Au-delà de 2⁵³, les entiers perdent en précision : grands identifiants en chaîne ou BigInt, qui ne se sérialise pas en JSON.",
+  "L'argent se calcule en entiers (centimes) ou en décimal, côté serveur, avec un mode d'arrondi écrit et une seule fonction partout.",
+  "Les tests de propriétés trouvent les cas limites de l'arithmétique que les exemples manquent.",
+  "Les tables indexées par une entrée externe sont des Map avec une liste blanche.",
 ]} />
 
-<Lab id="ps-nosql" />
-<Lab id="ps-access-control" />
-
 <Sources items={[
-  { title: "OWASP Cheat Sheet : Injection Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Injection_Prevention_Cheat_Sheet.html" },
-  { title: "OWASP Cheat Sheet : Mass Assignment", url: "https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html" },
-  { title: "OWASP Cheat Sheet : Input Validation", url: "https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html" },
-  { title: "Express 5 : guide de migration", url: "https://expressjs.com/en/guide/migrating-5.html" },
-  { title: "Prisma : raw queries et risques d'injection", url: "https://www.prisma.io/docs/orm/prisma-client/using-raw-sql/raw-queries" },
-  { title: "Prisma ORM 6.2.0 : l'API omit passe en GA", url: "https://www.prisma.io/changelog/2025-01-09" },
-  { title: "Mongoose : option sanitizeFilter", url: "https://mongoosejs.com/docs/api/mongoose.html#Mongoose.prototype.set()" },
+  { title: "MDN : Number.MAX_SAFE_INTEGER", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER" },
+  { title: "MDN : Object.hasOwn()", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn" },
+  { title: "MDN : Math.round()", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/round" },
+  { title: "MDN : Date, formats de date et fuseaux", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date" },
+  { title: "typescript-eslint : require-array-sort-compare", url: "https://typescript-eslint.io/rules/require-array-sort-compare/" },
+  { title: "fast-check", url: "https://fast-check.dev/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 8 et 9" },
 ]} />

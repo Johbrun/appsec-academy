@@ -181,7 +181,7 @@ export const reviewDocs: ReviewDoc[] = [
       { statementId: 'e2', objection: 'Les experts-comptables gèrent plusieurs clients. Si on lit le tenant dans la session, on les bloque.',
         replies: [
           { text: 'Créons un compte séparé par client pour chaque expert-comptable : une session, un tenant, et le paramètre disparaît de l’API.', points: 1, why: 'Sûr, mais l’expert jongle entre dix comptes : il finira par partager ses mots de passe ou par réclamer le paramètre.' },
-          { text: 'Le besoin est légitime : modélisons la relation entre l’expert-comptable et ses clients, vérifiée côté serveur. Le paramètre choisit, il n’autorise jamais.', points: 2, why: 'Tu gardes le besoin et tu déplaces la décision au bon endroit (ReBAC, M8).' },
+          { text: 'Le besoin est légitime : modélisons la relation entre l’expert-comptable et ses clients, vérifiée côté serveur. Le paramètre choisit, il n’autorise jamais.', points: 2, why: 'Tu gardes le besoin et tu déplaces la décision au bon endroit (ReBAC, M14).' },
           { text: 'Gardons le paramètre, mais masquons-le dans l’interface et remplaçons les identifiants de tenant par des UUID aléatoires, impossibles à deviner ou à énumérer.', points: 0, why: 'Un identifiant difficile à deviner n’est pas une autorisation : il fuit dans les URL et les logs, et l’API l’accepte toujours de n’importe qui.' },
         ] },
       { statementId: 'e7', objection: 'Le bucket public simplifie tout, et les noms de fichiers sont aléatoires : personne ne les devinera.',

@@ -24,7 +24,7 @@ export default function Exams() {
         Les examens tirent leurs questions de toutes les leçons du parcours, à chaque tentative. Ton meilleur score est conservé ; la réussite débloque des badges et le certificat.
       </PageHead>
 
-      <Block eyebrow="Par bloc" title="Quatre examens de bloc" lead="Vingt questions, quinze minutes, 75 % pour valider.">
+      <Block eyebrow="Par bloc" title="Un examen par bloc" lead="Vingt questions, quinze minutes, 75 % pour valider.">
         <div className="grid g2">
           {exams.filter((e) => e.kind === 'block').map((e) => <ExamCard key={e.id} e={e} best={progress.scores[e.id]} />)}
         </div>

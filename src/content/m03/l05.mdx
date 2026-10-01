@@ -139,7 +139,7 @@ Le `Connection: close` n'est pas décoratif : après une requête dont on n'est 
 
 ## Détecter
 
-L'ALB classe chaque requête non conforme (`Acceptable`, `Ambiguous`, `Severe`) et écrit cette classification dans ses **journaux d'accès**, avec un code de raison (`BothTeClPresent`, `MultipleContentLength`, `SuspiciousHeader`…). La métrique CloudWatch `DesyncMitigationMode_NonCompliant_Request_Count` donne la tendance. Envoie les journaux dans Elastic (M18), où l'intégration AWS les range dans `aws.elb.classification` et `aws.elb.classification_reason` :
+L'ALB classe chaque requête non conforme (`Acceptable`, `Ambiguous`, `Severe`) et écrit cette classification dans ses **journaux d'accès**, avec un code de raison (`BothTeClPresent`, `MultipleContentLength`, `SuspiciousHeader`…). La métrique CloudWatch `DesyncMitigationMode_NonCompliant_Request_Count` donne la tendance. Envoie les journaux dans Elastic (M23), où l'intégration AWS les range dans `aws.elb.classification` et `aws.elb.classification_reason` :
 
 <Code file="detections/alb-desync-probing.esql">
 

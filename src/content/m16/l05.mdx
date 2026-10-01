@@ -58,18 +58,18 @@ Cet écart s’appelle la **dérive** (*drift*). Une infrastructure scannée par
 ]} />
 
 <Callout kind="novafact">
-Chez Novafact, un workflow nocturne lance `terraform plan -detailed-exitcode` sur chaque environnement et ouvre une alerte si le code de sortie vaut 2. En parallèle, Prowler tourne chaque semaine sur les trois comptes (prod, staging, sandbox) et pousse ses résultats dans la même file de triage que le SAST (M5), avec l’étiquette « cloud ».
+Chez Novafact, un workflow nocturne lance `terraform plan -detailed-exitcode` sur chaque environnement et ouvre une alerte si le code de sortie vaut 2. En parallèle, Prowler tourne chaque semaine sur les trois comptes (prod, staging, sandbox) et pousse ses résultats dans la même file de triage que le SAST (M26), avec l’étiquette « cloud ».
 </Callout>
 
 ## Préventif contre détectif
 
-C’est la distinction structurante de la sécurité cloud, et elle recoupe la défense en profondeur de Kohnfelder (M8) :
+C’est la distinction structurante de la sécurité cloud, et elle recoupe la défense en profondeur de Kohnfelder (M13) :
 
 | | Préventif | Détectif |
 | --- | --- | --- |
 | **But** | Empêcher la ressource non conforme d’exister | Signaler celle qui existe déjà |
 | **Exemples IaC** | Policy as code bloquant en CI (leçon 3), hook `terraform plan` | `terraform plan` nightly, revue |
-| **Exemples cloud** | **SCP** et **RCP** (M15), Block Public Access au niveau du compte, VPC sans passerelle Internet | **AWS Config rules**, GuardDuty, Security Hub, CSPM |
+| **Exemples cloud** | **SCP** et **RCP** (M19), Block Public Access au niveau du compte, VPC sans passerelle Internet | **AWS Config rules**, GuardDuty, Security Hub, CSPM |
 | **Force** | Rien de non conforme ne passe | Attrape ce que le préventif a manqué et la dérive |
 | **Limite** | Ne couvre que ce qui passe par le chemin contrôlé | La ressource existe déjà quand l’alerte tombe |
 
@@ -114,7 +114,7 @@ Détecter la dérive ne suffit pas : il faut la **résorber au bon endroit**. De
 - **la dérive est une erreur** : on rétablit l’état du code (`terraform apply`), après avoir compris pourquoi elle est apparue ;
 - **la dérive est un besoin légitime** : on **modifie le code** pour l’intégrer, puis on applique. Jamais l’inverse.
 
-Corriger dans la console entretient un écart permanent : au prochain `apply`, Terraform rétablit le code et efface la correction manuelle, ou un collègue la réintroduit. La **source de vérité reste le code**, ce qui suppose que personne n’ait les droits d’écriture directs en production hors du pipeline (M16, leçon 4, et IAM en M15).
+Corriger dans la console entretient un écart permanent : au prochain `apply`, Terraform rétablit le code et efface la correction manuelle, ou un collègue la réintroduit. La **source de vérité reste le code**, ce qui suppose que personne n’ait les droits d’écriture directs en production hors du pipeline (M20, leçon 4, et IAM en M19).
 
 ## CSPM et la vue d’ensemble
 

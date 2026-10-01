@@ -1,0 +1,192 @@
+export const questions = [
+  {
+    q: "Qu'apporte DPoP (RFC 9449) ?",
+    options: [
+      "Un jeton lié à une clé détenue par le client, inutilisable sans elle",
+      "Un jeton chiffré dont seule l'API destinataire possède la clé de déchiffrement",
+      "Une liaison du jeton au certificat TLS client, vérifiée à chaque requête",
+      "Une signature du corps de la requête, qui en garantit l'intégrité de bout en bout",
+    ],
+    answer: 0,
+    explain: "Le client génère une paire de clés, le jeton porte l'empreinte de la publique (cnf.jkt), et chaque requête est accompagnée d'une preuve signée : un jeton volé seul ne sert plus à rien. La liaison au certificat TLS client existe aussi et remplit le même rôle (RFC 8705), mais elle suppose une PKI côté client — DPoP a justement été conçu pour s'en passer, au niveau applicatif. DPoP ne chiffre rien et ne signe pas le corps de la requête.",
+  },
+  {
+    q: "À quoi sert PAR (Pushed Authorization Requests, RFC 9126) ?",
+    options: [
+      "À signer la demande d'autorisation pour que le serveur en vérifie l'intégrité",
+      "À obtenir un jeton d'accès sans passer par le navigateur de l'utilisateur",
+      "À pousser vers le client les mises à jour du consentement de l'utilisateur",
+      "À envoyer les paramètres d'autorisation au serveur en dehors du navigateur",
+    ],
+    answer: 3,
+    explain: "Le client poste ses paramètres directement au serveur, sur un canal authentifié, et reçoit une request_uri opaque qu'il place dans l'URL du navigateur : les paramètres ne peuvent plus être ni lus ni modifiés en chemin. La confusion classique est avec JAR (RFC 9101), qui signe la demande : l'intégrité est alors garantie, mais les paramètres restent visibles dans l'URL. PAR ne supprime pas la redirection : l'utilisateur passe toujours par son navigateur pour consentir.",
+  },
+  {
+    q: "Une API reçoit un access token DPoP et sa preuve. Quelle vérification relie la preuve au jeton ?",
+    options: [
+      "La preuve reprend le jti du jeton d'accès, ce qui interdit de la rejouer ailleurs",
+      "La preuve est signée avec la clé privée du serveur d'autorisation, que l'API connaît",
+      "La claim ath vaut le hash du jeton, et l'empreinte de la clé correspond au cnf.jkt",
+      "La preuve porte la même date d'expiration que le jeton, ce qui les lie dans le temps",
+    ],
+    answer: 2,
+    explain: "Deux liens se croisent : ath (access token hash) attache la preuve à ce jeton précis, et cnf.jkt attache le jeton à cette clé publique. S'y ajoutent htm et htu (méthode et URL de la requête), un iat récent et un jti jamais vu. La preuve n'est jamais signée par le serveur d'autorisation : c'est le client qui signe, avec sa clé — sinon le jeton ne serait lié à personne en particulier.",
+  },
+  {
+    q: "L'assistant IA de Novafact doit appeler l'API des factures pour le compte d'un utilisateur. Quelle approche suit l'état de l'art ?",
+    options: [
+      "Relayer tel quel le jeton reçu par l'assistant, puisqu'il identifie l'utilisateur",
+      "Échanger le jeton (RFC 8693) contre un jeton d'audience et de scopes réduits",
+      "Utiliser un compte de service, en journalisant l'utilisateur pour lequel il agit",
+      "Demander à l'utilisateur d'autoriser l'assistant par un flux OAuth distinct",
+    ],
+    answer: 1,
+    explain: "Le token exchange garde l'identité de l'utilisateur (sub), trace l'acteur qui agit pour lui (act) et réduit audience et droits à ce que l'appel exige : c'est la réponse au confused deputy dans une chaîne de services ou d'agents. Relayer le jeton d'origine est la solution la plus simple et la plus courante — elle fonctionne, mais l'API des factures reçoit un jeton dont elle n'est pas l'audience, avec tous les scopes de l'assistant, et sans trace de qui a réellement agi. Le compte de service journalisé, lui, ne fait que documenter le problème après coup.",
+  },
+];
+
+<YouKnow>
+Les jetons bearer ont un défaut connu de tout pentester : qui les détient les utilise. Cette leçon passe en revue l'état de l'art qui corrige ce défaut, et ce qu'il faut regarder pour les agents IA.
+</YouKnow>
+
+## RFC 9700 : l'état de l'art
+
+Publiée en janvier 2025, la **RFC 9700** (*OAuth 2.0 Security Best Current Practice*) met à jour le modèle de menaces d'OAuth et fixe les exigences actuelles. Elle ajoute à l'attaquant réseau classique des attaquants plus réalistes : celui qui lit les réponses d'autorisation (logs, Referer, historique), celui qui lit les requêtes d'autorisation, celui qui obtient un access token. L'essentiel, avec la force de chaque exigence :
+
+| Exigence | Force |
+| --- | --- |
+| Pas de flux mot de passe (ROPC) | MUST NOT |
+| Pas de flux implicite ni de jeton dans la réponse d'autorisation | SHOULD NOT |
+| PKCE pour les clients publics ; le serveur refuse un `code_verifier` sans `code_challenge` initial | MUST |
+| Méthode PKCE qui n'expose pas le verifier (aujourd'hui `S256`) | SHOULD |
+| Comparaison exacte des redirect_uri (sauf port `localhost` des applications natives) | MUST |
+| Protection contre le mix-up (`iss`, RFC 9207) pour les clients multi-serveurs | MUST |
+| Refresh tokens des clients publics liés à l'émetteur ou soumis à rotation | MUST |
+| Access tokens restreints en audience | SHOULD |
+
+Le fil conducteur : réduire ce que vaut un secret volé. Un code sans verifier, un refresh token déjà tourné, un access token restreint à une API ou lié à une clé valent beaucoup moins qu'un jeton bearer universel.
+
+## Des jetons liés à leur détenteur
+
+| Mécanisme | Principe | Usage |
+| --- | --- | --- |
+| **DPoP** (RFC 9449) | Le client signe une preuve à chaque requête avec une clé privée ; le jeton est lié à la clé publique | Clients navigateur et mobiles, sans infrastructure de certificats |
+| **mTLS** (RFC 8705) | Le jeton est lié au certificat client de la connexion TLS | Communications entre services, secteur financier |
+
+Dans les deux cas, un jeton exfiltré (logs, XSS, fuite) ne sert à rien sans la clé.
+
+### DPoP en détail
+
+Le client génère une paire de clés (dans un navigateur, une clé WebCrypto non extractible). À chaque requête, il signe une **preuve** : un petit JWT de type `dpop+jwt`, dont l'en-tête porte sa clé publique (`jwk`), et qui contient la méthode (`htm`), l'URL sans paramètres (`htu`), la date (`iat`), un identifiant unique (`jti`) et, vers une API, le hash de l'access token (`ath`). Le serveur d'autorisation inscrit dans le jeton l'empreinte de la clé (`cnf.jkt`, empreinte JWK SHA-256 de la RFC 7638). L'API reçoit le jeton avec le schéma `Authorization: DPoP …` et la preuve dans l'en-tête `DPoP`.
+
+<Code file="apps/api/src/auth/dpop.ts" hl="6,10,11,12,13">
+
+```ts
+import { jwtVerify, EmbeddedJWK, calculateJwkThumbprint, base64url } from 'jose';
+import { createHash } from 'node:crypto';
+
+export async function verifyDpop(proof: string, accessToken: string, tokenJkt: string, req: { method: string; url: URL }) {
+  const { payload, protectedHeader } = await jwtVerify(proof, EmbeddedJWK, {
+    typ: 'dpop+jwt', algorithms: ['ES256', 'EdDSA'], maxTokenAge: '60s', // asymétrique uniquement, preuve récente
+  });
+  const htu = `${req.url.origin}${req.url.pathname}`;
+  if (payload.htm !== req.method || payload.htu !== htu) throw new Error('preuve pour une autre requête');
+  const ath = base64url.encode(createHash('sha256').update(accessToken).digest());
+  if (payload.ath !== ath) throw new Error('preuve pour un autre jeton');
+  if ((await calculateJwkThumbprint(protectedHeader.jwk!)) !== tokenJkt) throw new Error('clé non liée au jeton');
+  if (!(await replayCache.addIfAbsent(String(payload.jti), 60))) throw new Error('preuve rejouée');
+}
+```
+
+</Code>
+
+Ce code montre les vérifications ; en production, préfère une bibliothèque maintenue et testée pour ce rôle. Le serveur peut en plus imposer un `nonce` fourni par l'en-tête `DPoP-Nonce`, pour qu'une preuve fabriquée à l'avance (par une XSS, par exemple) expire vite. Et DPoP ne protège pas contre ce qui s'exécute **dans** le client : un script injecté peut demander à la page de signer des preuves (leçon 4).
+
+### mTLS : la liaison par certificat
+
+Avec la RFC 8705, le jeton porte l'empreinte du certificat client (`cnf` avec `x5t#S256`), et l'API la compare au certificat présenté sur la connexion TLS. Il n'y a pas de preuve à signer par requête : c'est la poignée de main TLS qui prouve la détention de la clé. Le piège est architectural : quand TLS se termine sur un équilibreur de charge, l'application reçoit le certificat client dans un en-tête ajouté par l'équilibreur. Cet en-tête ne doit pouvoir venir **que** de lui (en-tête supprimé s'il arrive du client, application injoignable autrement), sinon la liaison devient déclarative.
+
+<Callout kind="debate">
+**DPoP, ou des jetons bearer très courts ?** Des access tokens de 5 minutes réduisent déjà beaucoup la valeur d'un vol, pour un coût nul côté client. DPoP ajoute une signature par requête, un cache anti-rejeu côté serveur et une gestion de clés dans le client. Pour une SPA derrière un BFF comme Novafact, les jetons ne quittent pas le serveur et DPoP apporte peu ; pour une application mobile ou un partenaire qui appelle l'API directement, il ferme la fenêtre qu'une expiration courte laisse ouverte.
+</Callout>
+
+## Durcir la demande d'autorisation
+
+- **PAR** (RFC 9126) : le client pousse les paramètres de la demande au serveur par un canal authentifié et reçoit une `request_uri` opaque. Rien à lire ni à modifier dans le navigateur, et le serveur peut valider la demande (redirect_uri, scopes) avant même que l'utilisateur la voie.
+- **RAR** (RFC 9396, *Rich Authorization Requests*) : décrire précisément l'autorisation demandée au lieu d'un scope générique, dans un paramètre `authorization_details` structuré en JSON.
+- **FAPI 2.0** : le profil de sécurité de l'OpenID Foundation pour les API sensibles (banque ouverte, santé), **final depuis février 2025**. Il combine PAR, PKCE, jetons liés (DPoP ou mTLS) et authentification forte des clients.
+
+Pour le paiement d'une facture par un logiciel tiers, un scope `payments:write` autoriserait n'importe quel virement. Avec RAR, le consentement porte sur **cette** opération :
+
+<Code file="docs/examples/rar-invoice-payment.json">
+
+```json
+[
+  {
+    "type": "novafact_invoice_payment",
+    "actions": ["initiate"],
+    "locations": ["https://api.novafact.example"],
+    "invoiceId": "inv_7f3c2a",
+    "instructedAmount": { "currency": "EUR", "amount": "1200.00" }
+  }
+]
+```
+
+</Code>
+
+Le serveur d'autorisation affiche ces détails à l'écran de consentement, les recopie dans le jeton, et l'API vérifie que l'opération demandée correspond exactement.
+
+## Entre services : token exchange
+
+La **RFC 8693** (*Token Exchange*) permet à un service d'échanger le jeton reçu contre un nouveau jeton, destiné au service suivant, avec une audience et des droits réduits, tout en conservant l'identité de l'utilisateur d'origine. La requête présente le jeton de l'utilisateur (`subject_token`) et, en cas de délégation, celui de l'acteur (`actor_token`) ; le jeton obtenu porte alors une claim `act` qui dit **qui agit pour qui**. C'est la réponse propre au *confused deputy* (M13) dans une chaîne de microservices… et d'agents IA.
+
+<Code file="docs/examples/token-exchange.http">
+
+```text
+POST /oauth2/token HTTP/1.1
+Host: auth.internal.novafact.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&subject_token=<access token de l'utilisateur>
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&actor_token=<jeton de l'assistant IA>
+&actor_token_type=urn:ietf:params:oauth:token-type:jwt
+&audience=invoices-api
+&scope=invoices:read
+```
+
+</Code>
+
+Chez Novafact, c'est l'émetteur de jetons internes (M13, leçon 5) qui assure cet échange. Sa politique décide quels échanges sont permis : l'assistant peut obtenir un jeton de lecture des factures pour l'utilisateur, jamais un jeton d'envoi ou de paiement sans confirmation explicite.
+
+## L'autorisation des agents et de MCP
+
+La spécification du **Model Context Protocol** (MCP, version 2026-07-28) s'appuie sur OAuth 2.1 pour autoriser l'accès aux serveurs MCP distants (transport HTTP). Ses exigences principales :
+
+- le serveur MCP **doit** publier ses métadonnées de ressource protégée (RFC 9728), qui indiquent au client quel serveur d'autorisation utiliser ;
+- le client **doit** envoyer le paramètre `resource` (RFC 8707) avec l'URI canonique du serveur MCP, pour que chaque jeton soit émis pour un serveur précis, et utiliser PKCE ;
+- le serveur MCP **doit** vérifier que le jeton lui est destiné (audience), et **ne doit ni accepter ni relayer** d'autres jetons : pas de *token passthrough* vers une API en aval ;
+- le client vérifie le paramètre `iss` de la réponse (RFC 9207) contre l'émetteur enregistré ;
+- pour l'enregistrement des clients, les documents de métadonnées de client (*Client ID Metadata Documents*) sont recommandés, l'enregistrement dynamique (RFC 7591) est désormais déprécié et conservé pour compatibilité.
+
+Le module 29 y revient en détail.
+
+<Recap items={[
+  "RFC 9700 (janvier 2025) fixe l'état de l'art : ROPC interdit, PKCE S256, redirect_uri exact, mix-up, refresh tokens liés ou tournés, audience restreinte.",
+  "DPoP et mTLS lient le jeton à une clé : preuve signée par requête (htm, htu, iat, jti, ath) et empreinte cnf.jkt.",
+  "PAR sort les paramètres d'autorisation du navigateur ; RAR décrit précisément l'opération autorisée.",
+  "FAPI 2.0, final depuis février 2025, combine ces mécanismes pour les API sensibles.",
+  "Token exchange (RFC 8693) et indicateurs de ressource cadrent les chaînes de services et les agents MCP, sans relais de jetons.",
+]} />
+
+<Sources items={[
+  { title: "RFC 9700", url: "https://www.rfc-editor.org/rfc/rfc9700" },
+  { title: "RFC 9449 : DPoP", url: "https://www.rfc-editor.org/rfc/rfc9449" },
+  { title: "RFC 9126 : PAR", url: "https://www.rfc-editor.org/rfc/rfc9126" },
+  { title: "RFC 9396 : Rich Authorization Requests", url: "https://www.rfc-editor.org/rfc/rfc9396" },
+  { title: "RFC 8693 : Token Exchange", url: "https://www.rfc-editor.org/rfc/rfc8693" },
+  { title: "RFC 9728 : Protected Resource Metadata", url: "https://www.rfc-editor.org/rfc/rfc9728" },
+  { title: "OpenID Foundation : FAPI 2.0 final", url: "https://openid.net/fapi-2-security-profile-attacker-model-final-specifications-approved/" },
+  { title: "MCP : Authorization", url: "https://modelcontextprotocol.io/specification/latest/basic/authorization" },
+]} />

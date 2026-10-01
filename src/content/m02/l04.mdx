@@ -1,256 +1,273 @@
 export const questions = [
   {
-    q: "Pourquoi une regex vulnérable au ReDoS est-elle plus grave dans une API Node que dans un serveur multi-thread ?",
+    q: "Dans Express 4, une route async lève une exception sur une entrée inattendue et rien ne l'attrape. Sur Node récent, que se passe-t-il par défaut ?",
     options: [
-      "Parce que les regex JavaScript n'ont pas de délai d'expiration",
-      "Parce que V8 recompile la regex à chaque appel dans un handler",
-      "Parce qu'Express ne borne pas la taille des paramètres de query",
-      "Parce qu'une requête qui bloque la boucle d'événements les bloque toutes",
-    ],
-    answer: 3,
-    explain: "L'absence de délai d'expiration sur les regex JavaScript est exacte, et c'est le distracteur à écarter avec soin : elle rend le ReDoS possible, mais elle le serait tout autant dans un serveur multi-thread. Ce qui change l'échelle ici, c'est le modèle d'exécution — le JavaScript d'un processus Node tourne sur un seul thread, donc une requête partie en retour arrière catastrophique gèle toutes les autres, sondes de santé comprises.",
-  },
-  {
-    q: "Quelle vérification protège correctement une lecture de fichier à partir d'un nom fourni par l'utilisateur ?",
-    options: [
-      "path.normalize(name), puis path.join(BASE, name) pour la lecture",
-      "path.resolve(BASE, name), puis vérifier qu'on reste sous BASE + path.sep",
-      "path.resolve(BASE, name), puis vérifier que le chemin obtenu commence par BASE",
-      "Retirer récursivement les séquences ../ du nom avant de l'utiliser",
-    ],
-    answer: 1,
-    explain: "La variante sans path.sep est le piège, et il est très courant en revue : /srv/uploads-old/secret commence bien par /srv/uploads et passe le test. path.normalize ne supprime pas un ../ de tête, et path.join ne ramène pas sous la racine. Retirer les ../ est une réparation, donc une deuxième interprétation de l'entrée : il reste les variantes encodées. Après la vérification de racine, un realpath ferme le lien symbolique déposé dans le dossier.",
-  },
-  {
-    q: "Que dit la documentation de Node à propos du module node:vm ?",
-    options: [
-      "C'est un bac à sable, à condition de figer les intrinsèques du contexte",
-      "Il isole correctement, mais vm2 reste préférable pour du code non fiable",
-      "Ce n'est pas un mécanisme de sécurité, et n'isole pas du code non fiable",
-      "C'est un bac à sable sûr dès qu'on le combine au modèle de permissions",
-    ],
-    answer: 2,
-    explain: "Les trois autres cherchent la condition qui rendrait vm sûr ; il n'y en a pas, et la documentation de Node le dit en toutes lettres. Le modèle de permissions y est décrit comme une ceinture de sécurité contre les erreurs du code de confiance, pas comme un bac à sable contre du code malveillant. Quant à vm2, il a accumulé les évasions, a été abandonné, puis a encore reçu une CVE critique en janvier 2026.",
-  },
-  {
-    q: "Le filtre anti-SSRF de Novafact résout le nom de domaine, vérifie l'adresse obtenue, puis appelle fetch(url). Comment fermer la fenêtre entre la vérification et la connexion ?",
-    options: [
-      "Vérifier l'adresse dans la fonction lookup du dispatcher utilisé par fetch",
-      "Mettre en cache la résolution DNS du filtre pendant quelques secondes",
-      "Réduire le TTL accepté et refaire la vérification juste avant l'appel",
-      "Remplacer le nom de domaine par l'adresse résolue dans l'URL appelée",
+      "La promesse rejetée n'est pas gérée : Node arrête le processus",
+      "Express renvoie une 500 via son gestionnaire d'erreur par défaut",
+      "Node journalise un avertissement et poursuit l'exécution normalement",
+      "La requête reste en attente jusqu'au délai d'expiration du client",
     ],
     answer: 0,
-    explain: "Réécrire l'URL avec l'adresse résolue est la solution la plus tentante, et celle qu'on rencontre le plus : elle ferme bien la fenêtre, mais casse au passage la validation du certificat TLS et l'en-tête Host, qu'il faut alors rétablir à la main. Le cache et le TTL ne font que rétrécir la fenêtre, puisque undici résout de son côté. Le contrôle doit porter sur l'adresse réellement utilisée pour la connexion — d'où le lookup du dispatcher.",
+    explain: "L'avertissement suivi d'une poursuite était le comportement de Node avant la version 15 ; depuis, le défaut est l'arrêt du processus, et c'est ce qui transforme une entrée inattendue en déni de service. La 500 automatique, elle, est bien réelle pour une exception synchrone en Express 4 — mais le middleware d'erreur ne voit pas une promesse rejetée. Express 5 corrige ce point, uniquement pour la promesse renvoyée par le handler.",
+  },
+  {
+    q: "Quel code illustre un « fail open » ?",
+    options: [
+      "Un middleware qui journalise l'erreur puis renvoie 500 sans continuer",
+      "Un contrôle d'autorisation dont l'exception est attrapée, puis next()",
+      "Un délai d'expiration sur le service de politique, qui renvoie alors 503",
+      "Une transaction annulée dès qu'une étape échoue, sans effet partiel",
+    ],
+    answer: 1,
+    explain: "Les trois autres échouent tous fermé, et c'est précisément ce qu'on cherche : la 500, le 503 sur délai dépassé et l'annulation de transaction refusent ou ne laissent aucun effet. Le timeout est le plus instructif, parce qu'il transforme une dépendance lente en refus explicite plutôt qu'en attente indéfinie. Le fail open attrape l'exception d'un contrôle et laisse la requête continuer : ne pas pouvoir vérifier devient une autorisation.",
+  },
+  {
+    q: "Pourquoi comparer un HMAC reçu avec crypto.timingSafeEqual plutôt qu'avec === ?",
+    options: [
+      "Parce que === compare deux Buffers par référence, pas par contenu",
+      "Parce que timingSafeEqual vérifie aussi que les longueurs concordent",
+      "Pour que la durée ne révèle pas la longueur du préfixe correct",
+      "Parce que === sur une chaîne hexadécimale est sensible à la casse",
+    ],
+    answer: 2,
+    explain: "« timingSafeEqual vérifie aussi les longueurs » inverse la réalité : il lève une exception quand les deux Buffers n'ont pas la même taille, c'est à toi de comparer les longueurs avant de l'appeler. La comparaison par référence est exacte entre deux Buffers, mais pas entre deux chaînes hexadécimales, où === compare bien le contenu. Le motif réel est le temps : une comparaison classique s'arrête au premier octet différent, et cette durée se mesure.",
+  },
+  {
+    q: "Une route Express 5 appelle sendInvoiceEmail(invoice) sans await ni catch, « pour répondre plus vite ». Le serveur SMTP tombe. Que se passe-t-il ?",
+    options: [
+      "Express 5 la transmet au middleware d'erreur, qui journalise après coup",
+      "Node journalise le rejet ; la requête déjà répondue n'est pas affectée",
+      "Le handler est terminé, donc la promesse est abandonnée par le moteur",
+      "La promesse n'est rattachée à rien : rejet non géré, le processus s'arrête",
+    ],
+    answer: 3,
+    explain: "Surestimer Express 5 est l'erreur la plus fréquente : il ne gère que la promesse renvoyée par le handler, pas une promesse lancée et oubliée à côté. Une promesse ne s'abandonne pas non plus quand le handler se termine, elle vit jusqu'à son rejet. Et ce rejet arrête le processus depuis Node 15 : la réponse est certes déjà partie, mais toutes les autres requêtes en cours tombent avec. La règle no-floating-promises le détecte ; la bonne conception est une file d'attente.",
   },
 ];
 
 <YouKnow>
-Tu as déjà exploité une prototype pollution, un path traversal ou une SSRF sur une application Node. On regarde ici pourquoi l'écosystème les favorise, et comment les rendre impossibles.
+Tu as déjà obtenu des traces de pile, fait planter un service avec une entrée inattendue ou profité d'une vérification qui échouait « en ouvert ». C'est précisément ce que vise la nouvelle catégorie A10 du Top 10:2025.
 </YouKnow>
 
-## Le modèle de menaces de Node.js
+## A10 : Mishandling of Exceptional Conditions
 
-Le fichier `SECURITY.md` du projet Node décrit ce que le runtime considère comme fiable ou non. En résumé : Node traite comme **non fiables les données qui arrivent par ses API réseau** (connexions entrantes comme sortantes), et fait **confiance au code qu'on lui demande d'exécuter**, dépendances comprises, ainsi qu'au système d'exploitation et au système de fichiers. Conséquence directe : une dépendance malveillante ou une injection de code dans ton application n'est pas « une faille de Node », c'est ton problème.
+La nouvelle catégorie du Top 10:2025 regroupe ce qui se passe quand le code rencontre une situation imprévue : entrée d'un type inattendu, dépendance qui échoue, délai dépassé, exception au milieu d'une opération. Trois conséquences classiques : **l'indisponibilité** (le processus s'arrête), **la fuite d'informations** (traces de pile, requêtes SQL dans les messages) et **l'échec en ouvert** (le contrôle de sécurité saute). Parmi les CWE rattachées, trois résument bien le sujet : CWE-209 (message d'erreur contenant des informations sensibles), CWE-636 (ne pas échouer de façon sûre) et CWE-755 (mauvaise gestion des conditions exceptionnelles).
 
-Le document le dit sans détour pour plusieurs cas que tu pourrais croire couverts :
+L'intérêt de cette catégorie pour un développeur Node est qu'elle nomme un défaut que les autres listes dispersaient. Une injection se voit dans une ligne de code ; une mauvaise gestion d'erreur se voit dans l'**absence** de code, ou dans un `catch` trop large. C'est pour ça qu'on la traite par des conventions et des outils plutôt que par la vigilance.
 
-| Situation | Position du projet Node |
-| --- | --- |
-| Un module tiers malveillant | Le code est de confiance : pas une vulnérabilité de Node |
-| Une prototype pollution | Node fait confiance aux entrées que lui passe l'application : à elle de les assainir |
-| Un chemin de fichier manipulé | Les fonctions de chemin font confiance à leur entrée |
-| Du code de confiance qui contourne le modèle de permissions | Le modèle n'est pas un bac à sable contre un usage malveillant |
+## Les promesses non gérées
 
-Même logique pour le **modèle de permissions** (`--permission`, stable depuis Node 22.13 et 23.5) : il restreint l'accès au système de fichiers (`--allow-fs-read`, `--allow-fs-write`), aux processus enfants, aux workers ou aux modules natifs, et Node 25 y ajoute le réseau (`--allow-net`, encore en développement actif). La documentation le décrit comme une **ceinture de sécurité** contre les erreurs du code de confiance, sans garantie face à du code malveillant. Elle signale aussi des limites concrètes : les liens symboliques sont suivis même hors des chemins autorisés, et un descripteur de fichier déjà ouvert contourne le contrôle.
+Dans Express 4, une route `async` qui lève une exception n'est pas attrapée par le middleware d'erreur. Depuis Node 15, un rejet de promesse non géré **arrête le processus** par défaut. Une simple entrée inattendue devient un déni de service, surtout si le service tourne avec peu d'instances.
 
-<Callout kind="tip">
-Pour Novafact, la ceinture reste utile : le service de génération de PDF n'a besoin que de lire ses gabarits et d'écrire dans un dossier temporaire. Le démarrer avec `--permission --allow-fs-read=/app --allow-fs-write=/tmp/pdf` transforme un path traversal en écriture en `ERR_ACCESS_DENIED` plutôt qu'en fichier écrasé. Depuis Node 25.8, le mode `--permission-audit` permet de journaliser les accès refusés avant de bloquer.
-</Callout>
+**Express 5** corrige ce point : une promesse rejetée dans un handler est transmise au middleware d'erreur. Si Novafact est encore en Express 4, un wrapper `asyncHandler` sur toutes les routes, ou la migration, s'impose.
 
-## Prototype pollution
+Express 5 ne règle pas tout pour autant. Il ne voit que la promesse **renvoyée** par le handler. Une promesse lancée sans `await` (« pour répondre plus vite ») n'est rattachée à rien : si elle échoue, c'est de nouveau un rejet non géré. Même chose pour un callback d'événement ou un `setTimeout` qui lève une exception. Deux règles typescript-eslint ferment la classe : `no-floating-promises` (toute promesse doit être attendue, renvoyée ou explicitement gérée) et `no-misused-promises` (pas de fonction `async` là où un callback synchrone est attendu).
 
-En JavaScript, presque tous les objets héritent de `Object.prototype`. Une fonction qui fusionne récursivement des objets en suivant les clés fournies par le client peut écrire dans ce prototype commun via la clé `__proto__` (ou `constructor.prototype`). Toute l'application hérite alors de la propriété injectée, ce qui peut transformer une option par défaut en élévation de privilèges ou en exécution de code via des « gadgets ».
+Et si malgré tout une exception remonte jusqu'au processus ? La documentation de Node est claire : reprendre le fonctionnement normal après `uncaughtException` n'est pas sûr, l'état de l'application est inconnu. On journalise, on arrête proprement, et on laisse l'orchestrateur (ECS chez Novafact) redémarrer une tâche saine.
 
-Une précision qui évite des faux positifs en revue : `JSON.parse` seul ne pollue rien. Il crée une propriété **propre** nommée `__proto__`, sans toucher au prototype. Le danger apparaît à l'étape suivante, quand ce qui a été parsé est copié par une fonction qui passe par l'accesseur : fusion récursive maison, `Object.assign`, ou des versions anciennes de bibliothèques comme lodash (CVE-2019-10744 sur `defaultsDeep`).
-
-<Diff file="apps/api/src/lib/merge.ts" hlBefore="3-4" hlAfter="1,4">
+<Code file="apps/api/src/server.ts">
 
 ```ts
-export function deepMerge(target: any, source: any) {
-  for (const key of Object.keys(source)) {
-    if (typeof source[key] === 'object') target[key] = deepMerge(target[key] ?? {}, source[key]);
-    else target[key] = source[key];
-  }
-  return target;
+const server = app.listen(PORT);
+
+function crash(kind: string, err: unknown) {
+  logger.fatal({ err, kind }, 'process crash');
+  server.close(() => process.exit(1));        // termine les requêtes en cours
+  setTimeout(() => process.exit(1), 10_000).unref();
 }
+process.on('uncaughtException', (err) => crash('uncaughtException', err));
+process.on('unhandledRejection', (err) => crash('unhandledRejection', err));
+```
+
+</Code>
+
+Un crash n'est acceptable que si le service a **plusieurs instances** et que le redémarrage est rapide. Sinon, la moindre entrée pathologique rejouée en boucle maintient le service à terre : c'est aussi pour ça que chaque crash doit remonter en alerte (M24).
+
+## Les délais sont des conditions exceptionnelles
+
+Une dépendance lente est plus dangereuse qu'une dépendance en panne : sans délai, les requêtes s'accumulent, la mémoire monte, et c'est l'API entière qui tombe. Les délais par défaut du `fetch` de Node se comptent en minutes, bien trop pour une API : chaque appel sortant porte son propre délai, et chaque timeout aboutit à une décision explicite (réessayer, dégrader, refuser).
+
+```ts
+const res = await fetch(`${PAYMENTS_URL}/status/${paymentId}`, { signal: AbortSignal.timeout(3_000) });
+```
+
+## Des erreurs qui ne fuient pas
+
+<Diff file="apps/api/src/middleware/errors.ts" hlBefore="2" hlAfter="3-5">
+
+```ts
+app.use((err, req, res, next) => {
+  res.status(500).json({ error: err.message, stack: err.stack });
+});
 ```
 
 ```ts
-const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
-export function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>) {
-  for (const key of Object.keys(source)) {
-    if (FORBIDDEN.has(key)) continue;
-    const value = source[key];
-    target[key] = value && typeof value === 'object' && !Array.isArray(value)
-      ? deepMerge((target[key] as Record<string, unknown>) ?? Object.create(null), value as Record<string, unknown>)
-      : value;
-  }
-  return target;
-}
+app.use((err, req, res, next) => {
+  const status = err instanceof ZodError ? 400 : err.status ?? 500;
+  req.log.error({ err, requestId: req.id }, 'request failed');
+  res.status(status).json({ error: status === 400 ? 'Requête invalide' : 'Erreur interne', requestId: req.id });
+});
 ```
 
 </Diff>
 
-Le vrai contrôle de classe est en amont : **ne pas fusionner d'objets arbitraires**. Un schéma strict (`.strict()` avec zod) n'accepte que les clés prévues. En défense en profondeur : `Object.create(null)` ou `Map` pour les dictionnaires, et l'option `--disable-proto=delete` de Node qui supprime l'accesseur `__proto__`.
+Le détail va dans les **logs** (M23), l'utilisateur reçoit un message générique et un **identifiant de requête** pour le support. Vérifie aussi que `NODE_ENV=production` est bien positionné : le gestionnaire d'erreur par défaut d'Express affiche la pile en développement.
 
-Pourquoi traiter une « simple » pollution comme critique ? Parce que l'impact dépend des **gadgets**, c'est-à-dire du code légitime qui lit une option absente et tombe sur la valeur héritée. Les travaux *Silent Spring* (USENIX Security 2023) ont identifié onze gadgets universels dans le code source de Node lui-même et démontré des exécutions de code à distance dans npm CLI, Parse Server et Rocket.Chat. Les moteurs de templates sont des gadgets classiques : la CVE-2022-29078 d'EJS 3.1.6 transformait une option de rendu contrôlable en exécution de code, et devenait exploitable dès qu'une pollution existait ailleurs. Tu ne peux pas inventorier tous les gadgets de tes dépendances ; tu peux fermer la pollution.
+Le message générique a un défaut : il n'aide pas l'utilisateur légitime. La solution n'est pas de renvoyer `err.message`, qui peut contenir n'importe quoi (une requête SQL, un chemin, le contenu d'un champ), mais de distinguer deux familles d'erreurs. Les erreurs **prévues** portent un code et un message rédigés pour le client ; toutes les autres sont des erreurs internes, dont rien ne sort. Le mot-clé `cause` d'ES2022 permet de garder la chaîne complète dans les logs sans l'exposer.
 
-<Callout kind="debate">
-Faut-il geler `Object.prototype` au démarrage (`Object.freeze(Object.prototype)`, ou le drapeau expérimental `--frozen-intrinsics`) ? Pour : la classe disparaît pour tout le processus, gadgets compris. Contre : certaines bibliothèques modifient encore les prototypes intégrés et cassent, parfois de façon subtile. Une approche pragmatique : activer le gel dans la suite de tests et en préproduction pour découvrir ce qui casse, puis décider service par service.
-</Callout>
-
-## ReDoS et boucle d'événements
-
-Une regex avec des quantificateurs imbriqués (`/^(a+)+$/`) peut prendre un temps exponentiel sur certaines entrées. Dans Node, le code JavaScript d'un processus s'exécute sur un seul thread : une seule requête qui déclenche ce retour arrière catastrophique **gèle toutes les autres**. Et une regex JavaScript n'a pas de délai d'expiration.
-
-<Steps items={[
-  { title: "Limiter la taille", text: "Borne la longueur de l'entrée avant toute regex (le schéma le fait : .max(254))." },
-  { title: "Simplifier", text: "Évite les quantificateurs imbriqués et les alternatives qui se chevauchent ; vérifie avec un analyseur (recheck, eslint-plugin-regexp et sa règle no-super-linear-backtracking)." },
-  { title: "Changer de moteur", text: "Pour des motifs fournis par l'utilisateur ou complexes, le paquet re2 garantit un temps linéaire." },
-]} />
-
-La regex n'est qu'un cas particulier. Tout calcul synchrone proportionnel à l'entrée a le même effet :
-
-| Source de blocage | Contrôle |
-| --- | --- |
-| `JSON.parse` d'un corps énorme | Limite de `express.json()` (100 ko par défaut : ne la remonte pas globalement, seulement sur la route qui en a besoin) |
-| Fonctions `*Sync` (`pbkdf2Sync`, `readFileSync`) dans un handler | Versions asynchrones, qui s'exécutent dans le pool de threads de libuv |
-| Génération de PDF, parsing d'un gros CSV | Worker thread ou service séparé, avec file d'attente |
-| Tri ou boucle sur une liste sans pagination | Pagination imposée et bornée par le schéma |
-
-Pour le voir en production, mesure le retard de la boucle d'événements (`monitorEventLoopDelay` de `node:perf_hooks`) et alerte dessus : une hausse soudaine du p99 sur un seul pod est souvent le premier signe d'une entrée pathologique.
-
-## Chemins de fichiers
-
-`path.join(UPLOADS, name)` n'empêche pas `name = '../../etc/passwd'` de sortir du dossier. Et `path.resolve` a son propre piège : un second argument absolu remplace la base (`path.resolve('/srv/uploads', '/etc/passwd')` donne `/etc/passwd`). La vérification correcte résout le chemin absolu et contrôle qu'il reste sous la racine :
+<Code file="apps/api/src/lib/errors.ts">
 
 ```ts
-const base = path.resolve(UPLOADS);
-const target = path.resolve(base, name);
-if (!target.startsWith(base + path.sep)) throw new Error('Chemin interdit');
-const real = await fs.promises.realpath(target);          // suit les liens symboliques
-if (!real.startsWith(base + path.sep)) throw new Error('Chemin interdit');
+export class AppError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,          // stable, documenté : 'INVOICE_ALREADY_SENT'
+    readonly publicMessage: string, // rédigé pour le client
+    options?: { cause?: unknown },
+  ) {
+    super(code, options);
+  }
+}
+
+// Dans un service :
+throw new AppError(409, 'INVOICE_ALREADY_SENT', 'Cette facture a déjà été envoyée.', { cause: err });
 ```
 
-Le `+ path.sep` n'est pas décoratif : sans lui, `/srv/uploads-old/x` passerait le test `startsWith('/srv/uploads')`. Et le `realpath` couvre le lien symbolique déposé dans le dossier, qui pointerait ailleurs. Pour servir des fichiers, `res.sendFile(name, { root: UPLOADS })` d'Express fait déjà la vérification de racine : préfère-le à une lecture manuelle.
+</Code>
 
-Mieux encore : ne jamais utiliser de nom de fichier fourni par le client. Stocke les fichiers sous un identifiant généré, et garde le nom d'origine comme simple métadonnée. Chez Novafact, les pièces jointes vont dans S3 sous une clé `tenantId/uuid`, ce qui supprime la classe côté disque.
+Le middleware d'erreur ne renvoie `publicMessage` que pour une `AppError` ; pour tout le reste, « Erreur interne ». Une fuite devient alors impossible par oubli.
 
-## SSRF
+## Échouer de façon sûre
 
-Novafact récupère des logos à partir d'une URL et envoie des webhooks : deux fonctionnalités qui font émettre des requêtes au serveur vers une destination choisie par le client. Le risque : atteindre des services internes ou les identifiants du cloud. Sur une instance EC2, c'est l'endpoint de métadonnées `169.254.169.254` (celui qui a coûté très cher à Capital One en 2019) ; sur ECS Fargate, où tourne l'API de Novafact, les identifiants du rôle de tâche sont servis par `169.254.170.2`. Les deux sont dans la plage de lien local `169.254.0.0/16`, qu'un filtre doit bloquer en entier.
+Kohnfelder (K4) range *Fail Securely* parmi les patterns de minimisation de l'exposition : en cas de doute, refuser. L'anti-pattern le plus courant en Node :
 
-- Liste blanche de domaines quand c'est possible.
-- Sinon, **résoudre le nom, refuser les plages privées et de lien local, puis se connecter à l'adresse résolue** (sinon un DNS qui change de réponse entre la vérification et la connexion contourne le filtre). Des agents HTTP comme `request-filtering-agent` le font pour les clients basés sur `http.Agent` (axios, got, node-fetch).
-- Côté infrastructure : IMDSv2 obligatoire (M15) et un proxy de sortie.
-
-<Callout kind="warn">
-Le `fetch` natif de Node ne passe pas par `http.Agent` : `request-filtering-agent` ne le protège pas. Il repose sur undici, et le contrôle se branche via un `dispatcher`. Autre piège : une URL qui contient directement une adresse IP ne déclenche aucune résolution DNS, donc aucun appel à `lookup`. Il faut la vérifier à part.
-</Callout>
-
-<Code file="apps/api/src/lib/egress.ts" hl="12-20,26-27">
+<Diff file="apps/api/src/middleware/authz.ts" hlBefore="4-6" hlAfter="4-7">
 
 ```ts
-import dns from 'node:dns';
-import net from 'node:net';
-import { Agent, fetch } from 'undici';
-
-const blocked = new net.BlockList();
-for (const [a, p] of [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8],
-  ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.168.0.0', 16]] as const) blocked.addSubnet(a, p, 'ipv4');
-for (const [a, p] of [['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10]] as const) blocked.addSubnet(a, p, 'ipv6');
-const isBlocked = (ip: string) => blocked.check(ip, net.isIPv6(ip) ? 'ipv6' : 'ipv4');
-
-// Vérifie les adresses au moment de la connexion : pas de fenêtre entre contrôle et usage.
-const safeLookup: net.LookupFunction = (hostname, options, callback) => {
-  dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
-    if (err) return callback(err, '', 0);
-    const bad = addresses.find((a) => isBlocked(a.address));
-    if (bad) return callback(new Error(`Destination interdite : ${bad.address}`), '', 0);
-    if (options.all) return (callback as any)(null, addresses);
-    callback(null, addresses[0].address, addresses[0].family);
-  });
+export const canAccessInvoice = async (req, res, next) => {
+  try {
+    await policy.assert(req.user, 'invoice:read', req.params.id);
+  } catch (e) {
+    req.log.warn(e); // le service de politique est lent, on laisse passer
+  }
+  next();
 };
-const egress = new Agent({ connect: { lookup: safeLookup, timeout: 5_000 }, headersTimeout: 5_000, bodyTimeout: 5_000 });
+```
 
-export async function fetchExternal(raw: string) {
-  const url = new URL(raw);
-  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Schéma interdit');
-  const host = url.hostname.replace(/^\[|\]$/g, '');
-  if (net.isIP(host) && isBlocked(host)) throw new Error(`Destination interdite : ${host}`);
-  return fetch(url, { dispatcher: egress, redirect: 'manual' });
+```ts
+export const canAccessInvoice = async (req, res, next) => {
+  try {
+    await policy.assert(req.user, 'invoice:read', req.params.id);
+    next();
+  } catch (e) {
+    req.log.warn({ err: e }, 'authz denied or failed');
+    res.status(403).json({ error: 'Accès refusé' });
+  }
+};
+```
+
+</Diff>
+
+L'échec en ouvert prend des formes moins visibles qu'un `catch` vide. À chercher en revue :
+
+| Forme | Exemple | Version sûre |
+| --- | --- | --- |
+| Valeur par défaut permissive | `switch (role)` dont le `default` autorise | `default` qui refuse, et TypeScript qui exige l'exhaustivité |
+| Liste noire de rôles | `if (role !== 'viewer') allow()` | Liste blanche : `if (['owner', 'accountant'].includes(role))` |
+| Dépendance indisponible | Service anti-fraude en panne, le paiement passe | Décision métier écrite : refuser, ou mettre en attente de revue |
+| Erreur convertie en booléen | `isValid = await verify(sig).catch(() => true)` | `.catch(() => false)` et un log |
+| Configuration absente | `if (process.env.AUTH_ENABLED !== 'false')` inversé | Démarrage refusé si la configuration de sécurité manque |
+
+<Callout kind="debate">
+Échouer fermé a un coût : si le service de politique tombe, plus personne ne consulte ses factures. Certaines équipes acceptent un échec ouvert **borné** pour des lectures peu sensibles (un cache de décisions récentes, valable quelques minutes). La position défendable : jamais d'échec ouvert sur une écriture ou une donnée d'un autre tenant, et toute exception à cette règle est une décision de risque documentée (M10 leçon 6), pas une ligne de code dans un `catch`.
+</Callout>
+
+## État incohérent et atomicité
+
+Une opération en plusieurs étapes (débiter un crédit, créer la facture, envoyer l'e-mail) qui échoue au milieu laisse des données incohérentes. Les **transactions** de la base garantissent le tout ou rien ; pour ce qui sort de la base (e-mail, webhook), on écrit l'intention dans la transaction et un processus séparé l'exécute (pattern *outbox*).
+
+<Code file="apps/api/src/billing/issue.ts" hl="2,9">
+
+```ts
+export async function issueInvoice(ctx: TenantContext, draftId: string) {
+  return prisma.$transaction(async (tx) => {
+    const draft = await tx.invoice.findFirstOrThrow({ where: { id: draftId, tenantId: ctx.tenantId, status: 'DRAFT' } });
+    const number = await nextInvoiceNumber(tx, ctx.tenantId);
+    const invoice = await tx.invoice.update({ where: { id: draft.id }, data: { status: 'ISSUED', number } });
+    await tx.outbox.create({ data: { type: 'invoice.email', payload: { invoiceId: invoice.id } } });
+    return invoice;
+  });
+  // Une exception à n'importe quelle ligne annule tout : pas de numéro consommé, pas d'e-mail en attente.
 }
 ```
 
 </Code>
 
-`BlockList` de `node:net` reconnaît les adresses IPv4 écrites sous forme IPv6 (`::ffff:…`), ce qui ferme une variante courante. `redirect: 'manual'` évite de suivre une redirection sans la revalider. Ce module devient le **seul** client HTTP sortant autorisé, et une règle `no-restricted-imports` interdit les autres (leçon 8).
+Avec MongoDB, les transactions multi-documents existent aussi, mais exigent un replica set : un environnement de développement en instance unique ne les exerce pas, et le bug n'apparaît qu'en production.
 
-## Templates côté serveur
+Kohnfelder (K8) insiste sur l'**atomicité** et sur la fenêtre entre une vérification et une action (TOCTOU). En Node, deux exemples courants :
 
-L'injection de template côté serveur (SSTI) en Node a deux formes. La première est classique : un gabarit construit à partir d'une entrée utilisateur. La seconde est propre à Express : passer un objet de requête entier comme données de rendu (`res.render('invoice', req.query)`), ce qui permet au client de fournir aussi des **options** du moteur. La règle : les gabarits sont des fichiers du dépôt, jamais des données, et les variables de rendu sont un objet construit explicitement. Pour les gabarits que les clients personnalisent (le pied de page des factures Novafact), un moteur sans logique et un jeu de variables fermé.
+- `fs.existsSync(p)` puis `fs.writeFileSync(p)` : entre les deux, un autre acteur peut créer le fichier. Utilise le drapeau `wx` qui crée et échoue de façon atomique.
+- « l'e-mail n'existe pas » puis « insérer l'utilisateur » : deux requêtes simultanées passent la vérification. Seule une **contrainte d'unicité** en base garantit l'invariant. Le module 9 approfondit ces race conditions.
 
-## Processus enfants et bacs à sable
+Le même outil protège contre le double paiement, l'un des scénarios cités par A10 : le client envoie une **clé d'idempotence** avec chaque paiement, stockée sous contrainte d'unicité. Une nouvelle tentative après un délai dépassé tombe sur la contrainte (code `P2002` chez Prisma) et renvoie le résultat du premier essai au lieu de payer deux fois.
 
-`child_process.exec` passe une chaîne à un shell : toute interpolation d'entrée est une injection de commande. Utilise `execFile` ou `spawn` avec un **tableau d'arguments**, sans `shell: true`, et termine les options par `--` quand un argument vient de l'utilisateur, pour éviter qu'il soit interprété comme une option.
+## Comparaisons à temps constant
 
-<Diff file="apps/pdf/src/linearize.ts" hlBefore="2" hlAfter="1,3-4" stack>
+Comparer un secret (signature de webhook, jeton) avec `===` s'arrête au premier caractère différent : la durée peut révéler la longueur du préfixe correct. `crypto.timingSafeEqual` compare en temps constant, mais exige deux Buffers de **même longueur** (sinon il lève une exception). Comparer deux condensats HMAC règle ce problème.
 
-```ts
-export const linearize = (fileName: string) =>
-  execAsync(`qpdf --linearize uploads/${fileName} out/${fileName}`);
-```
+<Code file="apps/api/src/webhooks/verify.ts" hl="6-7,10">
 
 ```ts
-export const linearize = async (id: InvoiceFileId) => {
-  const input = path.join(UPLOADS, `${id}.pdf`), output = path.join(OUT, `${id}.pdf`);
-  await execFileAsync('qpdf', ['--linearize', input, output], { timeout: 30_000 });
-};
+import crypto from 'node:crypto';
+
+// Monté avec express.raw({ type: 'application/json' }) : on signe les octets reçus, pas un JSON re-sérialisé.
+export function verifyWebhook(rawBody: Buffer, header: string | undefined, secret: string): boolean {
+  const [ts, sig] = (header ?? '').split(',');                   // format : "<timestamp>,<hex>"
+  const t = Number(ts);
+  if (!sig || !Number.isInteger(t) || Math.abs(Date.now() / 1000 - t) > 300) return false;  // anti-rejeu : 5 min
+  const expected = crypto.createHmac('sha256', secret).update(`${t}.`).update(rawBody).digest();
+  const received = Buffer.from(sig, 'hex');
+  return received.length === expected.length && crypto.timingSafeEqual(received, expected);
+}
 ```
 
-</Diff>
+</Code>
 
-Ici, les deux corrections se combinent : plus de shell, et plus aucun argument contrôlé par le client, puisque les chemins sont construits à partir d'un identifiant généré. Sous Windows, les fichiers `.bat` et `.cmd` passent toujours par l'interpréteur de commandes : c'est l'objet de la CVE-2024-27980, après laquelle Node refuse de les lancer via `spawn` sans `shell: true`.
+Trois détails qui comptent : signer le **corps brut** (un `JSON.stringify` de `req.body` ne redonne pas forcément les mêmes octets), inclure un **horodatage** dans la signature pour empêcher le rejeu, et retourner `false` dans tous les cas douteux plutôt que de lever une exception. Note aussi le `Number.isInteger` : sans lui, un horodatage illisible donne `NaN`, et `Math.abs(NaN) > 300` vaut `false`. Le contrôle d'anti-rejeu passerait en silence : un échec en ouvert de plus, logé dans une comparaison.
 
-Enfin, `node:vm` n'est **pas** un bac à sable : la documentation le dit explicitement. La bibliothèque `vm2`, longtemps utilisée pour ça, a été déclarée abandonnée de juillet 2023 à octobre 2025 après une série d'évasions, puis reprise ; une nouvelle évasion critique (CVE-2026-22709, CVSS 9.8) a été publiée en janvier 2026, et son propre README prévient que d'autres seront probablement découvertes. Du code non fiable s'exécute dans un processus ou un conteneur isolé, jamais dans le processus de l'API.
+Le temps de réponse fuit aussi ailleurs que dans les comparaisons. Sur une route de connexion, si l'utilisateur n'existe pas, le code répond immédiatement ; s'il existe, il calcule un hash de mot de passe volontairement lent. La différence de durée suffit à énumérer les comptes. La parade : vérifier un hash factice quand l'utilisateur est introuvable, pour que les deux chemins coûtent autant. Et pour les jetons d'API, stocke un condensat SHA-256 et cherche par condensat : la recherche en base ne compare alors jamais le secret lui-même.
 
-<Callout kind="info">
-L'ancienne API `url.parse()` de Node est dépréciée et interprète certaines URL différemment de l'API standard `new URL()`. Ces écarts d'interprétation entre deux parsers sont une source classique de contournements de filtres, qu'on approfondit en M3. Règle simple : le filtre et le client HTTP doivent lire l'URL avec le **même** parser, et c'est l'objet `URL` qui est transmis, pas la chaîne d'origine.
-</Callout>
+## Sérialisation
 
-<Recap items={[
-  "Node fait confiance au code qu'il exécute, dépendances comprises ; les données réseau sont non fiables ; le modèle de permissions est une ceinture, pas un bac à sable.",
-  "Prototype pollution : ne pas fusionner d'objets arbitraires, schémas stricts, Map ou Object.create(null) ; l'impact dépend de gadgets que tu ne peux pas inventorier.",
-  "ReDoS et calculs synchrones : une requête peut geler tout le processus ; limiter la taille, simplifier, re2, et surveiller le retard de la boucle.",
-  "Chemins : resolve, vérification de la racine avec path.sep, realpath, ou mieux des identifiants générés.",
-  "SSRF : filtrer au moment de la connexion, vérifier aussi les IP littérales, bloquer 169.254.0.0/16 ; le fetch natif demande un dispatcher undici.",
-  "execFile avec tableau d'arguments et sans entrée client ; vm n'est pas un bac à sable, et vm2 non plus.",
+`JSON.parse` est sûr : il ne produit que des données. Les dangers viennent des formats qui **reconstruisent des types ou du code** : `node-serialize` (qui évalue des fonctions), les anciennes versions de `js-yaml` avec des types JavaScript (retirés du schéma par défaut depuis la version 4), ou toute désérialisation qui instancie des classes arbitraires. La règle : des formats de données purs, puis une validation par schéma.
+
+## En pratique chez toi
+
+<Steps items={[
+  { title: "Lint", text: "Active no-floating-promises et no-misused-promises en erreur ; interdis les catch vides (no-empty)." },
+  { title: "Middleware d'erreur unique", text: "Une classe AppError pour les erreurs prévues, « Erreur interne » pour tout le reste, un identifiant de requête partout." },
+  { title: "Processus", text: "Journaliser et redémarrer sur exception non gérée, avec au moins deux instances et une alerte sur chaque crash." },
+  { title: "Délais", text: "Un timeout explicite sur chaque appel sortant, et une décision écrite quand il expire." },
+  { title: "Revue", text: "Chercher les échecs en ouvert : catch qui continue, défauts permissifs, dépendances optionnelles dans un contrôle." },
 ]} />
 
-<Lab id="ps-prototype-pollution" />
-<Lab id="ps-ssrf" />
-<Lab id="dvna" />
+<Recap items={[
+  "A10:2025 couvre l'indisponibilité, la fuite d'informations et l'échec en ouvert face aux situations imprévues.",
+  "Promesses non gérées : Express 5 ou un wrapper, plus no-floating-promises pour les promesses oubliées ; après uncaughtException, on redémarre.",
+  "Détails dans les logs, message générique ou message prévu (AppError) pour l'utilisateur, identifiant de requête.",
+  "Un contrôle de sécurité qui échoue refuse ; les défauts permissifs et les listes noires sont des échecs en ouvert déguisés.",
+  "Transactions, outbox, drapeau wx, contraintes d'unicité et clés d'idempotence pour l'atomicité.",
+  "timingSafeEqual sur des condensats de même longueur, corps brut et horodatage pour les webhooks, chemins de même durée à la connexion.",
+  "Des formats de données purs, jamais de désérialisation qui reconstruit du code.",
+]} />
 
 <Sources items={[
-  { title: "Node.js : SECURITY.md et modèle de menaces", url: "https://github.com/nodejs/node/blob/main/SECURITY.md" },
-  { title: "Node.js : Permission Model", url: "https://nodejs.org/api/permissions.html" },
-  { title: "Node.js : node:vm", url: "https://nodejs.org/api/vm.html" },
-  { title: "Node.js : net.BlockList", url: "https://nodejs.org/api/net.html#class-netblocklist" },
-  { title: "Silent Spring : Prototype Pollution Leads to Remote Code Execution in Node.js (USENIX Security 2023)", url: "https://www.usenix.org/conference/usenixsecurity23/presentation/shcherbakov" },
-  { title: "request-filtering-agent", url: "https://github.com/azu/request-filtering-agent" },
-  { title: "Endor Labs : CVE-2026-22709 dans vm2", url: "https://www.endorlabs.com/learn/cve-2026-22709-critical-sandbox-escape-in-vm2-enables-arbitrary-code-execution" },
-  { title: "Node.js : avril 2024, CVE-2024-27980", url: "https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2" },
-  { title: "OWASP Cheat Sheet : Prototype Pollution Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html" },
-  { title: "OWASP Cheat Sheet : Node.js Security", url: "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html" },
+  { title: "OWASP Top 10:2025, A10 Mishandling of Exceptional Conditions", url: "https://top10.owasp.org/2025/A10_2025-Mishandling_of_Exceptional_Conditions/" },
+  { title: "Express : gestion des erreurs", url: "https://expressjs.com/en/guide/error-handling.html" },
+  { title: "Node.js : événement uncaughtException", url: "https://nodejs.org/api/process.html#event-uncaughtexception" },
+  { title: "typescript-eslint : no-floating-promises", url: "https://typescript-eslint.io/rules/no-floating-promises/" },
+  { title: "Prisma : transactions interactives", url: "https://www.prisma.io/docs/orm/prisma-client/queries/transactions" },
+  { title: "Node.js : crypto.timingSafeEqual", url: "https://nodejs.org/api/crypto.html#cryptotimingsafeequala-b" },
+  { title: "OWASP Cheat Sheet : Error Handling", url: "https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet.html" },
 ]} />

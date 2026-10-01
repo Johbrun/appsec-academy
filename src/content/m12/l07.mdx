@@ -92,7 +92,7 @@ Tiens aussi une **carte de couverture** : quels fichiers ont été lus en entier
 
 ## Le rapport
 
-Organise le rapport comme une revue de conception (M8) : par **changement recommandé**, priorisé, avec pour chaque constat le lieu, la reproduction, la correction proposée et le test de régression (M6). Donne à chaque constat deux axes distincts : la **gravité** (l'impact si c'est exploité) et la **difficulté** d'exploitation (ce qu'il faut à l'attaquant : un compte, une position réseau, du temps). Les rapports publics de Trail of Bits suivent ce modèle et valent la lecture pour s'en inspirer.
+Organise le rapport comme une revue de conception (M13) : par **changement recommandé**, priorisé, avec pour chaque constat le lieu, la reproduction, la correction proposée et le test de régression (M30). Donne à chaque constat deux axes distincts : la **gravité** (l'impact si c'est exploité) et la **difficulté** d'exploitation (ce qu'il faut à l'attaquant : un compte, une position réseau, du temps). Les rapports publics de Trail of Bits suivent ce modèle et valent la lecture pour s'en inspirer.
 
 ```text
 NF-07  Lecture des pièces jointes sans filtre de tenant
@@ -116,7 +116,7 @@ Le plus important vient après le rapport :
 | Une vulnérabilité ponctuelle | Un test de régression dans la CI |
 | Une faiblesse de conception | Une décision d'architecture (ADR) et une mise à jour du paved road |
 | Une zone fragile | Une entrée dans CODEOWNERS pour que l'AppSec la relise |
-| Un angle mort de l'outillage | Un model CodeQL ou une règle de taint pour un helper maison (M13, leçon 4) |
+| Un angle mort de l'outillage | Un model CodeQL ou une règle de taint pour un helper maison (M17, leçon 4) |
 
 <Callout kind="novafact">
 Le dernier audit fictif de Novafact (deux jours, API Express, commit figé) a produit 9 constats, dont 4 BOLA sur des routes secondaires. Un mois plus tard, il en reste : 1 règle Semgrep bloquante qui aurait trouvé les 4 BOLA, 6 tests de régression, 1 ADR (« les pièces jointes passent par des URL présignées de 5 minutes, émises après contrôle d'appartenance »), 2 lignes de plus dans CODEOWNERS, et une carte du code qui a servi deux fois depuis.
@@ -138,7 +138,7 @@ rg -l --no-ignore "eval\(|new Function\(|Buffer\.from\([^)]*'base64'\)" node_mod
 ```
 
 <Callout kind="case">
-En 2018, un nouveau mainteneur du paquet npm event-stream (des millions de téléchargements hebdomadaires) y a ajouté une dépendance, flatmap-stream, dont une version contenait une charge chiffrée. La clé de déchiffrement était la description du paquet racine : la charge ne s'activait que dans l'application de portefeuille Bitcoin Copay, pour voler des clés de portefeuilles bien garnis. Partout ailleurs, le code ne faisait rien de visible. Le module 13 y revient avec le cas xz utils.
+En 2018, un nouveau mainteneur du paquet npm event-stream (des millions de téléchargements hebdomadaires) y a ajouté une dépendance, flatmap-stream, dont une version contenait une charge chiffrée. La clé de déchiffrement était la description du paquet racine : la charge ne s'activait que dans l'application de portefeuille Bitcoin Copay, pour voler des clés de portefeuilles bien garnis. Partout ailleurs, le code ne faisait rien de visible. Le module 17 y revient avec le cas xz utils.
 </Callout>
 
 <Recap items={[

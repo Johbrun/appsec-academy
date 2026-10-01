@@ -51,7 +51,7 @@ Tu as sans doute fuzzé des binaires ou des paramètres HTTP. Côté développem
 
 ## Pourquoi fuzzer du JavaScript
 
-JavaScript est sûr en mémoire : pas de débordement de tampon à chercher. Le fuzzing reste utile, pour d'autres défauts. Une exception non rattrapée dans un parseur fait tomber le processus Node, et avec lui toutes les requêtes en cours. Une boucle ou une regex qui s'emballe bloque la boucle d'événements (M2). Une fusion d'objets mal écrite pollue le prototype. Et surtout, un parseur ou une fonction de normalisation se comporte bizarrement sur des entrées que personne n'a imaginées : c'est exactement ce que le fuzzing génère.
+JavaScript est sûr en mémoire : pas de débordement de tampon à chercher. Le fuzzing reste utile, pour d'autres défauts. Une exception non rattrapée dans un parseur fait tomber le processus Node, et avec lui toutes les requêtes en cours. Une boucle ou une regex qui s'emballe bloque la boucle d'événements (M7). Une fusion d'objets mal écrite pollue le prototype. Et surtout, un parseur ou une fonction de normalisation se comporte bizarrement sur des entrées que personne n'a imaginées : c'est exactement ce que le fuzzing génère.
 
 ## Le fuzzing guidé par la couverture
 
@@ -121,7 +121,7 @@ test('safeRedirect ne quitte jamais notre origine', () => {
 
 </Code>
 
-Sur la première version, fast-check a trouvé en quelques milliers d'essais le contre-exemple `/.//` : l'analyse de l'URL normalise le chemin en `//`, que la fonction renvoyait tel quel. Or un navigateur lit `//domaine` comme une URL relative au protocole : redirection ouverte (M2).
+Sur la première version, fast-check a trouvé en quelques milliers d'essais le contre-exemple `/.//` : l'analyse de l'URL normalise le chemin en `//`, que la fonction renvoyait tel quel. Or un navigateur lit `//domaine` comme une URL relative au protocole : redirection ouverte (M7).
 
 <Diff file="apps/web/src/lib/safe-redirect.ts" hlBefore="5" hlAfter="5,6">
 

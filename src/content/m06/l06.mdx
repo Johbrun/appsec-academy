@@ -1,205 +1,172 @@
 export const questions = [
   {
-    q: "Quel format de formation au code sécurisé a le plus d'effet sur les développeurs de Novafact ?",
+    q: "Quel type de test apporte le plus de valeur sur l'API de facturation de Novafact, qui gère des données multi-tenant ?",
     options: [
-      "Un e-learning par rôle, suivi d'un quiz noté, une fois tous les douze mois",
-      "Une demi-journée annuelle de CTF interne sur une copie d'un vrai service",
-      "Une présentation trimestrielle sur les nouveautés de l'OWASP Top 10",
-      "Des sessions courtes à partir de vrais bugs de Novafact, avec exercice",
+      "Une boîte noire sans compte, pour reproduire ce que voit un attaquant réel",
+      "Un scan authentifié de l'API, rejoué à chaque déploiement",
+      "Une boîte grise avec un compte unique et la documentation de l'API",
+      "Une boîte grise ou blanche, avec plusieurs tenants et plusieurs rôles",
     ],
     answer: 3,
-    explain: "Trois raisons font échouer le générique : l'écart de contexte, le mauvais moment et l'absence de pratique. Une session courte bâtie sur un bug réel de l'entreprise les traite toutes les trois — le développeur reconnaît ses frameworks, la cause racine est la sienne, et il corrige lui-même un extrait. Le CTF interne engage fort mais coûte cher à préparer : une ou deux fois par an, en complément. L'e-learning annuel satisfait l'exigence PCI 6.2.2 sur le papier, sans rien changer aux findings du trimestre suivant.",
+    explain: "Les failles d'autorisation ne se voient qu'en comparant : un compte du tenant A face à un objet du tenant B, un rôle en lecture seule face à une action d'administration. Un compte unique, ou aucun, rend ces comparaisons impossibles — c'est la limite de la boîte noire, qui ne répond bien qu'à une question : que voit quelqu'un qui ne sait rien. L'accès au code évite en prime de passer des jours à reconstituer routes et rôles.",
   },
   {
-    q: "Comment savoir si une formation a servi ?",
+    q: "Quelle qualification de l'ANSSI atteste de la compétence d'un prestataire d'audit en France ?",
     options: [
-      "À la baisse de la classe de bugs visée dans les findings suivants",
-      "Au score des participants à l'exercice de fin de session",
-      "À la satisfaction déclarée et au taux de participation",
-      "Au nombre de règles SAST écrites ensuite par les participants",
+      "PASSI, délivrée par activité d'audit",
+      "SecNumCloud, qui qualifie les prestataires de confiance",
+      "CREST, reconnue par l'ANSSI pour les tests d'intrusion",
+      "La certification ISO 27001 du prestataire d'audit",
     ],
     answer: 0,
-    explain: "Une session sur la BOLA qui ne fait pas baisser le nombre de BOLA trouvées ensuite n'a pas atteint son objectif : c'est l'effet dans le code qui compte. Le résultat de l'exercice de fin de session est un vrai signal, mais il mesure ce qui a été compris sur le moment, pas ce qu'il en reste trois mois plus tard. La satisfaction sert à ajuster le format ; ce n'est pas l'objectif.",
+    explain: "PASSI (Prestataire d'Audit de la Sécurité des Systèmes d'Information) est la qualification de l'ANSSI, et elle se délivre par activité : audit d'architecture, de configuration, de code source, tests d'intrusion, audit organisationnel et physique — vérifie que la portée qualifiée correspond à ce que tu achètes. SecNumCloud qualifie des services d'informatique en nuage, pas des auditeurs ; CREST joue un rôle proche à l'international, mais c'est une accréditation privée ; et ISO 27001 atteste du système de management du prestataire, pas de la compétence de ses testeurs.",
   },
   {
-    q: "Trois mois après une session sur la BOLA, le nombre de BOLA trouvées en revue a chuté. Dans le même temps, une règle Semgrep sur les lectures sans tenant a été activée. Que peux-tu conclure ?",
+    q: "Le prestataire propose d'inclure dans le périmètre la page de paiement, y compris l'iframe du prestataire de paiement, et un test de charge de l'API sur l'infrastructure AWS. Que réponds-tu ?",
     options: [
-      "Que la formation a produit l'essentiel de l'effet, la règle n'étant qu'un filet",
-      "Que la formation n'a rien apporté, puisque la règle bloque déjà le motif",
-      "Que l'effet est combiné : il faut d'autres signaux pour départager",
-      "Qu'il faut désactiver la règle un trimestre pour isoler l'effet de la formation",
-    ],
-    answer: 2,
-    explain: "Plusieurs contrôles visent la même classe au même trimestre : la baisse est l'effet de l'ensemble, et l'objectif reste que la classe disparaisse, pas de s'en attribuer le mérite. Pour y voir plus clair, on regarde des signaux plus spécifiques — questions posées en conception, qualité des corrections après une alerte, comparaison entre équipes formées et non encore formées. Désactiver la règle pour mesurer proprement reviendrait à rouvrir volontairement une classe de bugs : le coût de l'expérience dépasse de loin la valeur de sa conclusion.",
-  },
-  {
-    q: "Pourquoi le commentaire de revue qui explique le pourquoi, avec un lien, est-il un format de formation si efficace ?",
-    options: [
-      "Parce qu'il est tracé dans la PR et vaut preuve pour un audit PCI",
-      "Parce qu'il arrive au moment où le développeur a son code sous les yeux",
-      "Parce qu'il est plus court qu'une session et coûte moins cher à l'AppSec",
-      "Parce qu'il est relu par toute l'équipe, pas seulement par l'auteur de la PR",
+      "D'accord : la page comme l'iframe sont servies depuis notre propre application",
+      "La page oui ; l'iframe appartient à un tiers, et la charge relève d'AWS",
+      "D'accord pour l'iframe, puisque le prestataire est certifié PCI DSS",
+      "D'accord pour les deux, à condition de tester en préproduction",
     ],
     answer: 1,
-    explain: "L'apprentissage arrive au bon moment, sur son propre code, avec une action immédiate à faire : c'est ce qui le fait tenir, bien mieux qu'une session décontextualisée des semaines plus tôt. Qu'il soit lu par les autres relecteurs est un bonus réel, mais ce n'est pas ce qui le rend efficace ; et son faible coût est une commodité pour toi, pas un mécanisme d'apprentissage. Le même raisonnement justifie de soigner le champ message d'une règle SAST : lu dans la PR, il forme à l'instant exact où il sert.",
+    explain: "Tu n'autorises que ce que tu possèdes : la page de Novafact et ses scripts, oui ; l'iframe et les domaines du prestataire, non, sauf accord explicite de sa part — sa certification PCI n'est pas une autorisation de le tester. Côté charge, la politique de test d'intrusion d'AWS exclut le déni de service et le flooding, qui passent par une demande distincte ; la préproduction n'y change rien, puisqu'elle tourne sur la même infrastructure.",
+  },
+  {
+    q: "Le rapport de pentest liste une BOLA sur l'export comptable. Qu'est-ce qui, au-delà du correctif, doit en sortir ?",
+    options: [
+      "Une règle Semgrep qui interdit désormais le motif fautif dans tout le code",
+      "Un retest du prestataire, pour confirmer que le correctif tient",
+      "L'analyse de l'échappement : pourquoi nos contrôles ne l'ont pas vu",
+      "Un élargissement du prochain périmètre aux traitements asynchrones",
+    ],
+    answer: 2,
+    explain: "Chaque constat d'un pentest est un échappement de tes contrôles, et la question qui porte loin est « pourquoi la DAL, les tests d'autorisation et la revue ne l'ont-ils pas arrêté ? ». Chez Novafact, la réponse tenait au worker, qui lisait le tenant dans le message de la file au lieu de passer par la DAL : d'où un contexte de tenant signé, des tests d'autorisation étendus aux workers et une question ajoutée à la grille de revue. Le retest et la règle SAST sont utiles, mais ce sont des conséquences de cette analyse — sans elle, on ajoute une règle sur le motif d'hier et le prochain pentest retrouve la même classe ailleurs.",
   },
 ];
 
 <YouKnow>
-Tu as sans doute déjà donné des formations « OWASP Top 10 » à des développeurs. Tu as vu les regards vides au bout de vingt minutes, et les mêmes bugs revenir le trimestre suivant.
+Tu as été de l'autre côté pendant des années : tu sais ce qui fait une bonne mission, et à quel point un client mal préparé la gâche. Cette leçon t'en fait bénéficier.
 </YouKnow>
 
-## Pourquoi la formation générique échoue
+## Pentest, bug bounty ou red team ?
 
-Trois raisons expliquent l'échec des formations génériques, et chacune suggère son remède :
+| Approche | Répond à | Quand |
+| --- | --- | --- |
+| **Pentest** | « Que trouve un expert, en profondeur, sur ce périmètre et pendant ce temps ? » | Avant une mise en production majeure, sur demande d'un client, en complément annuel |
+| **Bug bounty** | « Que trouve la diversité des chercheurs, en continu ? » | Une fois les bases solides et la capacité de triage en place (M26) |
+| **Red team** | « Détectons-nous et réagissons-nous face à un adversaire réaliste ? » | Quand la détection et la réponse existent et qu'on veut les éprouver |
 
-- **l'écart de contexte** : une injection SQL en PHP sur une page de login ne ressemble à rien de ce que fait un développeur Express et Prisma. Il faut qu'il reconnaisse *son* code ;
-- **le mauvais moment** : une session en janvier sur un sujet qu'il rencontrera en juin est oubliée d'ici là. Le meilleur moment est celui où il écrit le code concerné ;
-- **l'absence de pratique** : écouter une explication ne crée pas le réflexe. Corriger soi-même un extrait vulnérable, si.
+Ils ne se remplacent pas : un bug bounty ne fait pas de revue de conception, et un pentest ne teste pas la détection.
 
-La formation au code sécurisé n'est donc pas un événement, c'est un **système** : un peu de contenu, beaucoup de pratique, et des rappels au moment où ils servent.
+Quelques précisions que l'on découvre souvent trop tard :
 
-## Partir des vrais bugs
+- **le bug bounty paie les trouvailles, pas le temps**. Les chercheurs vont donc là où les bugs se trouvent vite : les surfaces exposées et connues. Les fonctionnalités profondes qui demandent des comptes particuliers (un rôle d'administrateur de tenant, le SSO SAML d'un client entreprise) restent peu explorées, sauf si tu fournis ces comptes ;
+- **un programme public mal préparé submerge l'équipe** : doublons, rapports de scanner, hors-périmètre. Commence par une politique de divulgation (VDP, M26), puis un programme **privé** avec quelques chercheurs invités, et n'ouvre qu'une fois le triage rodé ;
+- **une red team sans détection n'apprend rien** : si personne ne regarde les alertes, l'exercice prouve seulement que tu n'as pas de SOC. Commence par des exercices ciblés (purple team) sur tes règles Elastic (M24).
 
-Le contenu le plus efficace est celui qui vient **de l'entreprise elle-même** : une vulnérabilité trouvée dans le code de l'équipe, anonymisée si besoin, présentée avec son histoire, sa cause racine, son correctif et le contrôle de classe qui l'empêche désormais. Les développeurs reconnaissent leur contexte, leurs frameworks, leurs conventions.
-
-Les findings de l'année sont ta matière première. Dans DefectDojo ou ton gestionnaire de tickets (M5), regroupe-les par classe de bugs (CWE, ou tes propres catégories) : les deux ou trois classes les plus fréquentes, ou les plus graves, sont tes premiers sujets.
+## Cadrer un pentest
 
 <Steps items={[
-  { title: "Choisir la classe", text: "À partir des données : fréquence dans les findings, gravité, équipes concernées." },
-  { title: "Raconter sans accuser", text: "L'histoire du bug, sans nom ni équipe pointée du doigt. Le sujet est le mécanisme, pas la personne ; la personne concernée est souvent la meilleure pour raconter, si elle le veut." },
-  { title: "Expliquer la cause racine", text: "Pourquoi le code paraissait correct, et quelle hypothèse était fausse." },
-  { title: "Montrer le correctif et le contrôle de classe", text: "Le correctif ponctuel, puis ce qui empêche désormais toute la classe (DAL, règle, test)." },
-  { title: "Faire pratiquer", text: "Un exercice de 15 minutes sur un extrait réaliste." },
-  { title: "Suivre", text: "Noter la classe et la date, pour mesurer l'effet dans les mois suivants." },
+  { title: "L'objectif", text: "Ce qu'on veut savoir : l'isolation entre tenants tient-elle ? L'assistant IA peut-il être détourné pour agir sur les données d'un autre client ?" },
+  { title: "Le périmètre", text: "Applications, API, environnements, exclusions. Un environnement de préproduction représentatif, avec des données fictives." },
+  { title: "La boîte", text: "Grise ou blanche : des comptes de plusieurs tenants et de plusieurs rôles, la documentation, et si possible l'accès au code. Le temps passé à deviner ce qu'on pourrait lire est du temps perdu." },
+  { title: "Les règles", text: "Horaires, contacts d'urgence, comportement en cas de découverte critique (prévenir immédiatement), données à ne pas extraire." },
 ]} />
 
-## Un exercice type
+Un objectif formulé comme une **question** change la qualité du rapport. « Pentest de l'application » produit une liste de constats hétérogènes ; « un utilisateur d'un tenant peut-il lire, modifier ou faire exporter des données d'un autre tenant, par l'API, le back-office ou l'assistant IA ? » produit une réponse argumentée, y compris quand elle est « non, et voici ce qui a été essayé ».
 
-L'exercice le plus utile ressemble à une revue de PR : un extrait réaliste, une consigne courte (« cette PR ajoute la page de détail d'un utilisateur dans le back-office ; trouve le problème et propose le correctif »), puis la correction commentée.
+La boîte blanche se justifie par un calcul simple : sur une mission de dix jours, un testeur en boîte noire passe une part importante de son temps à reconstituer ce que la documentation et le code disent en quelques heures (les routes, les rôles, les règles d'autorisation). Chaque jour de devinette est un jour de moins sur les vraies questions. La boîte noire garde un intérêt pour une seule question : que voit un attaquant qui ne sait rien ?
 
-<Diff file="apps/backoffice/app/users/[id]/page.tsx" hlBefore="4" hlAfter="4,5,6,7" stack>
+## Ce qui ne t'appartient pas
 
-```tsx
-export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const session = await requireSession();
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) notFound();
-  return <UserDetails user={user} />;
-}
-```
+Tu ne peux autoriser un test que sur ce que tu possèdes ou contrôles. Chez Novafact, trois limites s'imposent :
 
-```tsx
-export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const session = await requireSession();
-  // La lecture est bornée au tenant de la session : un id d'un autre tenant donne 404.
-  const user = await prisma.user.findFirst({
-    where: { id, tenantId: session.tenantId },
-  });
-  if (!user) notFound();
-  return <UserDetails user={user} />;
-}
-```
+- **l'iframe du prestataire de paiement** et ses domaines appartiennent au prestataire : on teste la page de Novafact qui l'intègre (ses scripts, sa CSP, M8), pas l'iframe elle-même, sauf accord explicite du prestataire ;
+- **les SaaS tiers** (tag manager, widget de chat, fournisseur d'e-mails) ont leurs propres conditions, souvent leur propre programme de divulgation ;
+- **AWS** publie une politique de test d'intrusion : elle liste les services testables sans autorisation préalable (dont EC2, ECS et Fargate, Lambda, RDS et Aurora, CloudFront, API Gateway, les load balancers et WAF) et interdit notamment le déni de service, le flooding et la prise de contrôle de buckets S3 ou de sous-domaines. Les tests de déni de service simulé et les autres événements simulés (red team, phishing) passent par une demande préalable distincte.
 
-</Diff>
+## Les règles d'engagement, par écrit
 
-La correction commentée compte autant que l'exercice : pourquoi `requireSession()` ne suffit pas (il authentifie, il n'autorise pas l'accès à *cet* objet), pourquoi on répond 404 plutôt que 403, et pourquoi le vrai correctif de classe est de passer par la DAL multi-tenant plutôt que de se souvenir d'ajouter `tenantId` à chaque requête (M2, leçon 8).
+Tout ce qui précède tient dans un document court, signé avant le début, que le prestataire et l'équipe d'exploitation ont sous les yeux :
 
-## Des formats courts
-
-| Format | Durée | Usage |
-| --- | --- | --- |
-| Session « un bug, un correctif » | 30 min | Une classe de bugs, un exemple réel, un exercice |
-| Revue de code en groupe | 45 min | Une vraie PR relue ensemble, avec la grille de M12 |
-| Threat model en direct | 1 h | Une fonctionnalité en cours de conception, animée par un champion |
-| CTF interne | Une demi-journée | Juice Shop ou une version volontairement vulnérable d'un service interne |
-| Rappel au bon moment | Quelques minutes | Un lien vers la leçon ou la règle, directement dans le commentaire de PR |
-
-Le dernier format est le plus sous-estimé : un commentaire de revue qui explique **pourquoi**, avec un lien, forme au moment exact où le développeur en a besoin.
-
-## Former au moment où ça sert
-
-Les outils de la CI peuvent porter ce rappel automatiquement. Une règle Semgrep interne a un champ `message` : c'est le texte que le développeur lira dans sa PR. Écris-le comme une micro-leçon, avec le lien vers la session correspondante :
-
-<Code file=".semgrep/novafact-bola.yml" hl="6,7,8,9">
+<Code file="security/pentests/2026-q4-rules-of-engagement.yml">
 
 ```yaml
-rules:
-  - id: novafact-prisma-read-by-id-outside-dal
-    languages: [typescript]
-    severity: WARNING
-    message: >-
-      Lecture Prisma par identifiant seul : rien ne garantit que l'objet
-      appartient au tenant de la session (BOLA). Passe par la DAL, par exemple
-      dal.users.get(session.tenantId, id). Explication et exemple réel :
-      https://wiki.novafact.example/secu/bola
-    pattern: prisma.$MODEL.findUnique({ where: { id: $ID } })
-    paths:
-      exclude:
-        - "apps/*/src/dal/**"
-    metadata:
-      cwe: "CWE-639"
+mission: Pentest API et back-office, isolation multi-tenant et assistant IA
+fenetre: 2026-11-03 au 2026-11-14, 9 h à 19 h (heure de Paris)
+environnement: preprod.novafact.example (données fictives uniquement)
+perimetre:
+  inclus:
+    - https://api.preprod.novafact.example
+    - https://admin.preprod.novafact.example
+    - Assistant « Ask Novafact » en préproduction et son serveur MCP
+    - Page de paiement de Novafact (hors iframe du prestataire)
+  exclus:
+    - Domaines et iframe du prestataire de paiement
+    - Services tiers (chat, analytics, fournisseur d'e-mails)
+    - Tout test de déni de service ou de charge
+comptes_fournis:
+  - 3 tenants (A, B, C) avec les rôles owner, admin, comptable, lecture seule
+  - 1 tenant entreprise avec SSO SAML de test
+acces: code source (lecture), design docs, collection d'API, threat model
+critique: appel immédiat au contact d'astreinte, sans attendre le rapport
+contacts:
+  appsec: appsec@novafact.example
+  astreinte: numéro dans le document signé, pas dans le dépôt
+donnees: aucune extraction au-delà de la preuve minimale ; purge en fin de mission
 ```
 
 </Code>
 
-Un message qui dit seulement « Insecure direct object reference detected » produit un `// nosemgrep`. Un message qui explique le risque dans le vocabulaire de l'équipe et donne la ligne à écrire produit un correctif, et un développeur qui a appris quelque chose.
+Préviens aussi l'équipe de détection : une mission non annoncée génère des alertes qui mobilisent inutilement la réponse à incident, ou, pire, habituent l'équipe à ignorer des alertes réelles pendant deux semaines. Donne-lui les adresses IP sources du prestataire et la fenêtre de test.
 
-## Pratiquer
+## Choisir un prestataire
 
-La théorie seule ne tient pas. Chaque session contient une partie pratique : corriger un extrait vulnérable, écrire le test de régression, relire une PR. Les labs reconnus sont une bonne base, complétés par des exemples tirés du code de l'entreprise :
+- **Qualifications** : en France, la qualification **PASSI** de l'ANSSI atteste de la compétence et des pratiques d'un prestataire d'audit ; elle se délivre par activité (audit d'architecture, de configuration, de code source, tests d'intrusion, audit organisationnel et physique). Vérifie que la portée qualifiée correspond à ce que tu achètes. À l'international, les accréditations **CREST** jouent un rôle proche.
+- **Pertinence** : expérience des applications Node/React, des API multi-tenant, d'AWS, et désormais des applications à base de LLM.
+- **Livrable** : demande un exemple de rapport anonymisé. Tu sais reconnaître un rapport de scanner habillé.
+- **Les personnes** : qui fera réellement la mission, et avec quelle expérience. Le nom sur la proposition commerciale n'est pas toujours celui qui teste.
+- **Retest** : inclus dans la prestation, pour vérifier les correctifs.
 
-- **Juice Shop** propose, depuis sa version 12.9.0, des *coding challenges* en deux temps pour une partie de ses défis : « Find It » (désigner les lignes vulnérables dans le vrai code de l'application) puis « Fix It » (choisir le meilleur correctif parmi plusieurs propositions). C'est un excellent support pour des développeurs, parce que l'exercice porte sur la lecture et la correction plutôt que sur l'exploitation ;
-- **Snyk Learn** propose de courtes leçons par langage, dont JavaScript ;
-- un **CTF interne** construit sur une copie volontairement vulnérable d'un service de l'entreprise crée un engagement que les labs génériques n'obtiennent pas, mais demande du temps de préparation : réserve-le à une ou deux fois par an.
+## Lire le rapport
 
-<Callout kind="debate">
-PCI DSS 4.0.1 (exigence 6.2.2) impose que le personnel de développement de logiciels sur mesure soit formé au moins une fois tous les douze mois à la sécurité logicielle adaptée à son rôle et à ses langages, conception sécurisée et techniques de codage sécurisé comprises, et à l'usage des outils de détection s'il y en a. Faut-il en déduire une formation annuelle ? Le risque est de réduire l'exigence à un e-learning coché une fois par an. L'exigence n'impose pas de format : un programme de sessions courtes, d'exercices et de revues, avec une trace de qui a suivi quoi et quand, la satisfait et produit un effet réel. Garde la trace, pas le format.
-</Callout>
+Ton expérience de rédacteur de rapports te donne un avantage : tu sais où regarder. Les signaux d'un bon rapport :
 
-## Mesurer l'effet
-
-Une formation se juge à ce qu'elle change : la **classe de bugs** qu'elle couvre apparaît-elle moins souvent dans les findings des mois suivants ? Les corrections sont-elles plus rapides ? Les développeurs sollicitent-ils l'AppSec plus tôt, en conception ? La satisfaction est un signal utile, pas un objectif.
-
-Reste honnête sur l'attribution. Si une règle Semgrep, une DAL et une session de formation visent la même classe au même trimestre, la baisse est l'effet de l'ensemble. Ce n'est pas un problème (l'objectif est que la classe disparaisse), mais ne présente pas la formation comme seule cause. Quelques signaux plus spécifiques aident à voir ce qu'elle apporte :
-
-| Signal | Ce qu'il indique |
+| Signal positif | Signal d'alerte |
 | --- | --- |
-| Résultat de l'exercice en début puis en fin de session | Ce qui a été compris sur le moment |
-| Qualité des corrections après une alerte (correctif de classe ou contournement) | Si le raisonnement a été retenu |
-| Questions posées en conception sur le sujet | Si le réflexe s'installe avant le code |
-| Même classe de bugs dans les équipes formées et non encore formées | Un effet propre de la formation, si le reste est comparable |
+| Chaque constat a une reproduction que ton équipe peut rejouer | Des captures d'outil sans étapes |
+| La gravité tient compte du contexte (multi-tenant, exposition, données) | Des scores CVSS de base recopiés, souvent gonflés |
+| Une section « ce qui a été testé et n'a rien donné » | Seulement des constats, sans couverture |
+| Des recommandations qui citent le code ou la configuration | « Mettre en place un contrôle d'accès robuste » |
+| Des constats d'architecture ou de conception | Uniquement des en-têtes HTTP manquants et des versions de bannières |
+
+La section sur **ce qui a été testé sans succès** est la plus sous-estimée : elle te dit quelles hypothèses ont été éprouvées, et donc où ta confiance est justifiée.
+
+## Exploiter le rapport
+
+Un rapport de pentest ne se range pas dans un dossier. Chaque constat passe dans le **cycle de vie des vulnérabilités** (M26) : dédoublonnage avec l'existant, triage, ticket rédigé pour l'équipe (leçon 1), correctif, retest. Et surtout : chaque constat pose la question du **taux d'échappement** (M31). Pourquoi nos contrôles ne l'ont-ils pas trouvé avant ? Une règle, un test ou un point de revue de conception doit en sortir.
 
 <Callout kind="novafact">
-La première session chez Novafact porte sur la BOLA : trois exemples réels de l'API de facturation, la DAL multi-tenant comme correctif de classe, et un exercice de 15 minutes pour trouver une BOLA dans une PR. Trois mois plus tard, aucune nouvelle BOLA dans les PR revues. L'AppSec note aussi que la règle Semgrep, activée le même mois, a produit deux alertes, toutes deux corrigées via la DAL et non par un `nosemgrep` : le signe que le message a été compris.
+Pentest de novembre, constat principal : l'export comptable asynchrone accepte un identifiant de tenant dans le message placé dans la file, et le worker ne le vérifie pas. La DAL multi-tenant existe, mais le worker ne passe pas par elle : il lit le tenant depuis le message, pas depuis une session. Trois sorties, au-delà du correctif : le worker reçoit un contexte de tenant signé par l'API, un test d'autorisation couvre désormais les workers, et la grille de revue de conception gagne une question (« d'où le traitement asynchrone tient-il son tenant ? »).
 </Callout>
 
-## En pratique chez toi
-
-- Extrais les findings des douze derniers mois et classe-les : ta première session sort de la classe la plus fréquente.
-- Réécris le `message` de tes trois règles SAST les plus déclenchées pour qu'il explique le risque et donne le correctif.
-- Ajoute un module « sécurité » au parcours d'arrivée des nouveaux développeurs : la DAL, les règles de la CI, qui contacter.
-- Garde une trace simple (qui, quoi, quand) : elle sert aux audits et à la mesure.
+<Callout kind="tip">
+Ce que tu aurais aimé trouver en arrivant chez un client : un périmètre clair, des comptes prêts pour chaque rôle, un environnement stable, une personne joignable, et l'accès au code. Fournis-le.
+</Callout>
 
 <Recap items={[
-  "La formation générique échoue par écart de contexte, mauvais moment et absence de pratique.",
-  "Le meilleur contenu vient des vrais bugs de l'entreprise, racontés sans accuser, avec cause racine, correctif et contrôle.",
-  "Des formats courts et pratiques ; un exercice ressemble à une revue de PR.",
-  "Le message d'une règle SAST est une micro-leçon au moment où elle sert.",
-  "PCI DSS 6.2.2 impose une formation annuelle tracée, pas un format.",
-  "On mesure l'effet sur la classe de bugs, en restant honnête sur l'attribution.",
+  "Pentest, bug bounty et red team répondent à des questions différentes, et chacun a ses prérequis.",
+  "Un bon cadrage : un objectif formulé comme une question, un périmètre, une boîte grise ou blanche, des règles d'engagement écrites.",
+  "On n'autorise que ce qu'on possède : tiers exclus, politique de test d'AWS respectée, équipe de détection prévenue.",
+  "PASSI (ANSSI, par activité) et CREST attestent de la compétence des prestataires ; regarde aussi les personnes.",
+  "Un bon rapport se rejoue, contextualise la gravité et dit ce qui a été testé sans succès.",
+  "Chaque constat entre dans le cycle de vie, avec retest, et doit produire un contrôle.",
 ]} />
 
-<Lab id="juice-shop" note="Les coding challenges de Juice Shop (Find It, puis Fix It) sont un excellent support de session." />
-<Lab id="snyk-learn" />
-<Lab id="semgrep-academy" note="Pour apprendre à écrire des règles dont le message forme." />
-
 <Sources items={[
-  { title: "OWASP SAMM : Education & Guidance", url: "https://owaspsamm.org/model/governance/education-and-guidance/" },
-  { title: "OWASP Juice Shop", url: "https://owasp.org/www-project-juice-shop/" },
-  { title: "Pwning OWASP Juice Shop : Coding challenges", url: "https://pwning.owasp-juice.shop/companion-guide/latest/part5/code-snippets.html" },
-  { title: "Semgrep : syntaxe des règles", url: "https://semgrep.dev/docs/writing-rules/rule-syntax" },
-  { title: "PCI Security Standards Council : document library", url: "https://www.pcisecuritystandards.org/document_library/" },
+  { title: "ANSSI : produits et services qualifiés (PASSI)", url: "https://cyber.gouv.fr/produits-services-qualifies" },
+  { title: "CREST", url: "https://www.crest-approved.org/" },
+  { title: "AWS : politique de test d'intrusion", url: "https://aws.amazon.com/security/penetration-testing/" },
+  { title: "OWASP Web Security Testing Guide", url: "https://owasp.org/www-project-web-security-testing-guide/" },
 ]} />

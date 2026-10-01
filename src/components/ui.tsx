@@ -3,6 +3,7 @@ import {
   Compass, Crosshair, FileCode, Fingerprint, Flag, FlaskConical, Footprints, Gamepad2, GitBranch, Globe, GraduationCap, Handshake, KeyRound,
   Layers, Library, Link as LinkIcon, ListChecks, Map, Microscope, PenTool, Puzzle, Radar, Rocket, RotateCcw, ScanSearch, ScrollText, Search,
   Shapes, ShieldAlert, ShieldCheck, Siren, Sparkles, Star, Swords, Target, Timer, Trophy, Waypoints, Workflow, XCircle,
+  Bot, Eye, Gauge, Grid3x3, Network, Newspaper, Plug, Scale, Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
@@ -14,7 +15,7 @@ const icons: Record<string, React.ComponentType<LucideProps>> = {
   Award, BadgeCheck, Blocks, BookOpen, Brain, BrainCircuit, Bug, CheckCircle2, CircleCheck, ClipboardList, Compass, Crosshair, FileCode,
   Fingerprint, Flag, FlaskConical, Footprints, Gamepad2, GitBranch, Globe, GraduationCap, Handshake, KeyRound, Layers, Library, Link: LinkIcon,
   ListChecks, Map, Microscope, PenTool, Puzzle, Radar, Rocket, ScanSearch, ScrollText, Search, Shapes, ShieldAlert, ShieldCheck, Siren,
-  Sparkles, Star, Swords, Target, Timer, Trophy, Waypoints, Workflow,
+  Sparkles, Star, Swords, Target, Timer, Trophy, Waypoints, Workflow, Bot, Eye, Gauge, Grid3x3, Network, Newspaper, Plug, Scale, Users,
 };
 
 export function Icon({ name, ...props }: { name: string } & LucideProps) {
@@ -50,12 +51,14 @@ export function Orb({ palette, className = '', style, children, xs, still }: {
   return <span className={cls} style={style} aria-hidden={children ? undefined : true}>{children}</span>;
 }
 
-export function PageHead({ eyebrow, title, children, aside }: { eyebrow: ReactNode; title: ReactNode; children?: ReactNode; aside?: ReactNode }) {
+export function PageHead({ eyebrow, title, children, aside, below }: { eyebrow: ReactNode; title: ReactNode; children?: ReactNode; aside?: ReactNode; below?: ReactNode }) {
   return (
     <section className="block page-head">
       <div className="eyebrow">{eyebrow}</div>
       <div className="split">
-        <h1 className="split-main">{title}</h1>
+        {below
+          ? <div className="split-main"><h1>{title}</h1>{below}</div>
+          : <h1 className="split-main">{title}</h1>}
         {(children || aside) && (
           <div className="split-side">
             {children && <p className="lead muted">{children}</p>}
@@ -96,19 +99,19 @@ export function Block({ eyebrow, title, lead, action, children, className = '' }
 export function Difficulty({ level, label = true, prefix = false }: { level: Level; label?: boolean; prefix?: boolean }) {
   const name = `${prefix ? `N${level} · ` : ''}${levelNames[level]}`;
   return (
-    <span className="diff" title={`Niveau : ${levelNames[level]}`}>
+    <span className={`diff lv-${level}`} title={`Niveau : ${levelNames[level]}`}>
       <span className="bars" aria-hidden="true">
         {[1, 2, 3].map((k) => <i key={k} className={k <= level ? 'on' : ''} />)}
       </span>
-      {label ? name : <span className="sr-only">{name}</span>}
+      {label ? <span className="diff-name">{name}</span> : <span className="sr-only">{name}</span>}
     </span>
   );
 }
 
 export function CsslpTags({ domains }: { domains: Csslp[] }) {
   return (
-    <span className="row" style={{ gap: 6, display: 'inline-flex' }}>
-      {domains.map((d) => <span key={d} className="tag mono" title={`Domaine CSSLP ${d}`}>CSSLP {d}</span>)}
+    <span className="row" style={{ gap: 12, display: 'inline-flex' }}>
+      {domains.map((d) => <span key={d} className="ref" title={`Domaine CSSLP ${d}`}>CSSLP {d}</span>)}
     </span>
   );
 }

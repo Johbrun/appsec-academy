@@ -68,7 +68,7 @@ Kohnfelder (K5 et K11) résume l'enjeu : un certificat lie une clé publique à 
 
 ## Dans Node : un défaut sûr qu'on désactive pour « dépanner »
 
-Dans `tls` et `https`, `rejectUnauthorized` vaut `true` par défaut, et la vérification du nom passe par `checkServerIdentity`, qui contrôle les SAN. Le code qui les affaiblit se reconnaît à trois formes, que tu chercheras en revue de code (module 12) :
+Dans `tls` et `https`, `rejectUnauthorized` vaut `true` par défaut, et la vérification du nom passe par `checkServerIdentity`, qui contrôle les SAN. Le code qui les affaiblit se reconnaît à trois formes, que tu chercheras en revue de code (module 16) :
 
 - `rejectUnauthorized: false` dans les options d'une requête, d'un `https.Agent` ou d'un client de base de données ;
 - `NODE_TLS_REJECT_UNAUTHORIZED=0`, une variable d'environnement qui désactive la vérification pour tout le processus (la documentation de Node la réserve aux tests) ;
@@ -103,14 +103,14 @@ export const partner = axios.create({ baseURL: 'https://api.partner.example', ht
 Le bon correctif répond à la vraie question : *quelle autorité devrait-on croire pour ce serveur ?* Pour une autorité interne, on la donne à l'option `ca` d'un agent dédié (elle remplace les autorités publiques pour cet agent, ce qui est justement voulu), ou on étend le magasin du processus avec `NODE_EXTRA_CA_CERTS`, qui ajoute sans rien retirer. Le payload qui casse le mauvais correctif existe : un proxy qui présente un certificat auto-signé pour `api.partner.example` passe si la vérification est coupée. Un test d'intégration le prouve en quelques lignes : démarrer un serveur TLS local avec un certificat qui ne correspond pas au nom, et vérifier que le client **refuse**.
 
 <Callout kind="warn">
-Une règle ESLint ou Semgrep qui interdit `rejectUnauthorized: false` et `NODE_TLS_REJECT_UNAUTHORIZED` attrape la classe entière à la source (leçon 8 du module 2, « Éliminer une classe entière »). Cherche aussi dans les `Dockerfile`, les fichiers `docker-compose` et les variables d'environnement des tâches ECS : la variable s'y cache plus souvent que dans le code.
+Une règle ESLint ou Semgrep qui interdit `rejectUnauthorized: false` et `NODE_TLS_REJECT_UNAUTHORIZED` attrape la classe entière à la source (leçon 9 du module 7, « Éliminer une classe entière »). Cherche aussi dans les `Dockerfile`, les fichiers `docker-compose` et les variables d'environnement des tâches ECS : la variable s'y cache plus souvent que dans le code.
 </Callout>
 
 ## Négocier des clés qui ne se rejouent pas
 
-Quand un attaquant enregistre le trafic aujourd'hui et obtient la clé privée du serveur plus tard (une fuite comme Heartbleed, vue en leçon 1 de ce module, une sauvegarde mal protégée, une compromission d'hôte), tout dépend de la manière dont la clé de session a été négociée. Avec un échange RSA statique, elle voyageait chiffrée pour le serveur : la clé privée déchiffre tout le passé. Avec un échange Diffie-Hellman éphémère (**ECDHE**), chaque connexion dérive sa clé de valeurs jetées après usage ; la clé privée ne fait que signer l'échange. C'est la **confidentialité persistante** (*forward secrecy*).
+Quand un attaquant enregistre le trafic aujourd'hui et obtient la clé privée du serveur plus tard (une fuite comme Heartbleed, vue en leçon 2 de M13 de ce module, une sauvegarde mal protégée, une compromission d'hôte), tout dépend de la manière dont la clé de session a été négociée. Avec un échange RSA statique, elle voyageait chiffrée pour le serveur : la clé privée déchiffre tout le passé. Avec un échange Diffie-Hellman éphémère (**ECDHE**), chaque connexion dérive sa clé de valeurs jetées après usage ; la clé privée ne fait que signer l'échange. C'est la **confidentialité persistante** (*forward secrecy*).
 
-Il n'y a presque rien à faire côté Node pour l'obtenir, à condition de ne pas s'y opposer. TLS 1.3 n'offre que des suites de ce type, et le RFC 9325 (BCP 195, le guide actuel des bonnes pratiques TLS) demande de supporter TLS 1.2, de préférer TLS 1.3 quand il est disponible et, en TLS 1.2, de préférer les suites avec confidentialité persistante et chiffrement authentifié (ECDHE avec AES-GCM, par exemple). Concrètement, chez Novafact : `minVersion: 'TLSv1.2'` explicite sur tout agent ou serveur créé à la main, et pour tout ce qui est devant (CloudFront, ALB), choisir une politique de sécurité récente plutôt que celle par défaut conservée depuis la création de la ressource (module 17).
+Il n'y a presque rien à faire côté Node pour l'obtenir, à condition de ne pas s'y opposer. TLS 1.3 n'offre que des suites de ce type, et le RFC 9325 (BCP 195, le guide actuel des bonnes pratiques TLS) demande de supporter TLS 1.2, de préférer TLS 1.3 quand il est disponible et, en TLS 1.2, de préférer les suites avec confidentialité persistante et chiffrement authentifié (ECDHE avec AES-GCM, par exemple). Concrètement, chez Novafact : `minVersion: 'TLSv1.2'` explicite sur tout agent ou serveur créé à la main, et pour tout ce qui est devant (CloudFront, ALB), choisir une politique de sécurité récente plutôt que celle par défaut conservée depuis la création de la ressource (module 21).
 
 ## Savoir quand une autorité se trompe
 
@@ -123,7 +123,7 @@ Pour une équipe AppSec, la règle de détection tient en une ligne : toute émi
 
 ## Des certificats qui expirent vite
 
-Le calendrier du CA/Browser Forum (ballot SC-081v3 : 200 jours en mars 2026, 100 en 2027, 47 en 2029) et le renouvellement automatique par ACM sont détaillés dans la leçon sur le déploiement (module 17). Ce qui relève de la conception, c'est le risque qui se déplace : ACM renouvelle seul les certificats de ses ressources, mais tout ce qui est copié à la main (un certificat chargé dans un conteneur, une empreinte épinglée chez un partenaire) devient une panne programmée. Le bon réflexe est l'inventaire, comme pour la crypto plus haut dans ce module : où vit chaque certificat, qui le renouvelle, qui est alerté si le renouvellement échoue.
+Le calendrier du CA/Browser Forum (ballot SC-081v3 : 200 jours en mars 2026, 100 en 2027, 47 en 2029) et le renouvellement automatique par ACM sont détaillés dans la leçon sur le déploiement (module 21). Ce qui relève de la conception, c'est le risque qui se déplace : ACM renouvelle seul les certificats de ses ressources, mais tout ce qui est copié à la main (un certificat chargé dans un conteneur, une empreinte épinglée chez un partenaire) devient une panne programmée. Le bon réflexe est l'inventaire, comme pour la crypto plus haut dans ce module : où vit chaque certificat, qui le renouvelle, qui est alerté si le renouvellement échoue.
 
 <Callout kind="debate">
 Faut-il **épingler** le certificat d'un partenaire dans le code ? Pour un client mobile qui parle à un seul serveur, c'est une option défendable. Pour un service qui dépend de renouvellements fréquents, l'épinglage d'une empreinte transforme chaque rotation en panne planifiée. Un compromis courant : épingler l'autorité émettrice, pas le certificat, et tenir un plan de secours.

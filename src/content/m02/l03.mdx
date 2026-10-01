@@ -1,239 +1,256 @@
 export const questions = [
   {
-    q: "Que renvoie (1.005).toFixed(2) en JavaScript ?",
-    options: ["\"1.01\"", "\"1.00\"", "\"1.005\"", "\"1.0\""],
+    q: "Pourquoi une regex vulnérable au ReDoS est-elle plus grave dans une API Node que dans un serveur multi-thread ?",
+    options: [
+      "Parce que les regex JavaScript n'ont pas de délai d'expiration",
+      "Parce que V8 recompile la regex à chaque appel dans un handler",
+      "Parce qu'Express ne borne pas la taille des paramètres de query",
+      "Parce qu'une requête qui bloque la boucle d'événements les bloque toutes",
+    ],
+    answer: 3,
+    explain: "L'absence de délai d'expiration sur les regex JavaScript est exacte, et c'est le distracteur à écarter avec soin : elle rend le ReDoS possible, mais elle le serait tout autant dans un serveur multi-thread. Ce qui change l'échelle ici, c'est le modèle d'exécution — le JavaScript d'un processus Node tourne sur un seul thread, donc une requête partie en retour arrière catastrophique gèle toutes les autres, sondes de santé comprises.",
+  },
+  {
+    q: "Quelle vérification protège correctement une lecture de fichier à partir d'un nom fourni par l'utilisateur ?",
+    options: [
+      "path.normalize(name), puis path.join(BASE, name) pour la lecture",
+      "path.resolve(BASE, name), puis vérifier qu'on reste sous BASE + path.sep",
+      "path.resolve(BASE, name), puis vérifier que le chemin obtenu commence par BASE",
+      "Retirer récursivement les séquences ../ du nom avant de l'utiliser",
+    ],
     answer: 1,
-    explain: "« 1.01 » est la réponse que tout le monde donne, et c'est celle qu'un arrondi décimal exact produirait. Mais 1.005 n'est pas représentable en binaire : le double le plus proche vaut un peu moins, donc toFixed arrondit vers le bas. « 1.005 » supposerait que toFixed ignore le nombre de décimales demandé, « 1.0 » qu'il supprime les zéros de fin — il complète toujours. D'où la règle : jamais de montants en flottants.",
+    explain: "La variante sans path.sep est le piège, et il est très courant en revue : /srv/uploads-old/secret commence bien par /srv/uploads et passe le test. path.normalize ne supprime pas un ../ de tête, et path.join ne ramène pas sous la racine. Retirer les ../ est une réparation, donc une deuxième interprétation de l'entrée : il reste les variantes encodées. Après la vérification de racine, un realpath ferme le lien symbolique déposé dans le dossier.",
   },
   {
-    q: "Comment représenter un montant de facture dans Novafact ?",
+    q: "Que dit la documentation de Node à propos du module node:vm ?",
     options: [
-      "Un entier en centimes ou un décimal, calculé côté serveur",
-      "Une colonne numeric(12,2) en base, et un Number côté application",
-      "Un Number en centimes, fourni par le client puis vérifié côté serveur",
-      "Un Number en euros, arrondi à deux décimales au moment de l'enregistrement",
-    ],
-    answer: 0,
-    explain: "La colonne numeric est le distracteur le plus solide : le stockage est correct, mais dès que le code manipule la valeur en Number on retrouve 19.99 * 100 = 1998.9999999999998 — le type de la base ne protège pas les calculs. « Fourni par le client puis vérifié » inverse l'autorité : le serveur recalcule à partir des prix de référence, il ne valide pas un total reçu. Et arrondir un Number à l'enregistrement ne fait que figer l'erreur déjà commise.",
-  },
-  {
-    q: "Pourquoi utiliser Object.hasOwn(obj, key) plutôt que key in obj pour valider une clé fournie par l'utilisateur ?",
-    options: [
-      "in remonte la chaîne de prototypes : 'toString' in {} vaut true",
-      "hasOwn ignore les propriétés non énumérables, contrairement à in",
-      "hasOwn est plus rapide sur les objets à nombreuses propriétés",
-      "in échoue sur un objet créé avec Object.create(null)",
-    ],
-    answer: 0,
-    explain: "L'inversion à connaître : c'est obj.hasOwnProperty() qui casse sur un objet créé par Object.create(null), pas l'opérateur in — et c'est justement une des raisons d'utiliser Object.hasOwn, qui fonctionne dans les deux cas. L'énumérabilité n'entre pas en jeu, ni pour l'un ni pour l'autre. Le vrai motif est la chaîne de prototypes : une clé comme toString ou constructor passerait une vérification naïve.",
-  },
-  {
-    q: "Le calcul d'un avoir produit -2,5 centimes de TVA. Pourquoi Math.round n'est-il pas un bon choix ici ?",
-    options: [
-      "Math.round arrondit toujours les négatifs vers l'entier inférieur",
-      "Math.round tronque vers zéro, ce qui avantage systématiquement le client",
-      "Math.round arrondit les demis vers +∞ : -2,5 donne -2, mais 2,5 donne 3",
-      "Math.round opère sur des flottants et perd de la précision sous le centime",
+      "C'est un bac à sable, à condition de figer les intrinsèques du contexte",
+      "Il isole correctement, mais vm2 reste préférable pour du code non fiable",
+      "Ce n'est pas un mécanisme de sécurité, et n'isole pas du code non fiable",
+      "C'est un bac à sable sûr dès qu'on le combine au modèle de permissions",
     ],
     answer: 2,
-    explain: "« Toujours vers l'entier inférieur » a le bon soupçon mais le mauvais sens : Math.round(-2.5) vaut -2, donc vers le haut. Et Math.round ne tronque pas, c'est Math.trunc. Le défaut est l'asymétrie autour de zéro : 2,5 devient 3, -2,5 devient -2, donc une facture et l'avoir qui l'annule laissent un centime d'écart. Le mode d'arrondi n'est pas un détail d'implémentation, c'est une règle métier qui s'écrit et se teste.",
+    explain: "Les trois autres cherchent la condition qui rendrait vm sûr ; il n'y en a pas, et la documentation de Node le dit en toutes lettres. Le modèle de permissions y est décrit comme une ceinture de sécurité contre les erreurs du code de confiance, pas comme un bac à sable contre du code malveillant. Quant à vm2, il a accumulé les évasions, a été abandonné, puis a encore reçu une CVE critique en janvier 2026.",
+  },
+  {
+    q: "Le filtre anti-SSRF de Novafact résout le nom de domaine, vérifie l'adresse obtenue, puis appelle fetch(url). Comment fermer la fenêtre entre la vérification et la connexion ?",
+    options: [
+      "Vérifier l'adresse dans la fonction lookup du dispatcher utilisé par fetch",
+      "Mettre en cache la résolution DNS du filtre pendant quelques secondes",
+      "Réduire le TTL accepté et refaire la vérification juste avant l'appel",
+      "Remplacer le nom de domaine par l'adresse résolue dans l'URL appelée",
+    ],
+    answer: 0,
+    explain: "Réécrire l'URL avec l'adresse résolue est la solution la plus tentante, et celle qu'on rencontre le plus : elle ferme bien la fenêtre, mais casse au passage la validation du certificat TLS et l'en-tête Host, qu'il faut alors rétablir à la main. Le cache et le TTL ne font que rétrécir la fenêtre, puisque undici résout de son côté. Le contrôle doit porter sur l'adresse réellement utilisée pour la connexion — d'où le lookup du dispatcher.",
   },
 ];
 
 <YouKnow>
-Tu as déjà joué avec les conversions implicites de JavaScript et les nombres négatifs dans un panier. Ici on les regarde comme des classes de bugs à rendre impossibles, dans une application où tout tourne autour de l'argent.
+Tu as déjà exploité une prototype pollution, un path traversal ou une SSRF sur une application Node. On regarde ici pourquoi l'écosystème les favorise, et comment les rendre impossibles.
 </YouKnow>
 
-## Les footguns du langage
+## Le modèle de menaces de Node.js
 
-Kohnfelder (K8) appelle *footgun* une fonctionnalité qui rend facile de se tirer une balle dans le pied : le code dit une chose, le moteur en fait une autre. JavaScript en a beaucoup, et certains ont un impact de sécurité direct.
+Le fichier `SECURITY.md` du projet Node décrit ce que le runtime considère comme fiable ou non. En résumé : Node traite comme **non fiables les données qui arrivent par ses API réseau** (connexions entrantes comme sortantes), et fait **confiance au code qu'on lui demande d'exécuter**, dépendances comprises, ainsi qu'au système d'exploitation et au système de fichiers. Conséquence directe : une dépendance malveillante ou une injection de code dans ton application n'est pas « une faille de Node », c'est ton problème.
 
-| Expression | Résultat | Risque |
-| --- | --- | --- |
-| `0 == ''` | `true` | Comparaisons laxistes dans une vérification |
-| `Number('')`, `Number(' ')` | `0` | Un champ vide devient un montant nul valide |
-| `parseInt('12abc')` | `12` | Une entrée invalide est acceptée silencieusement |
-| `parseInt(0.0000005)` | `5` | Le nombre est d'abord converti en chaîne (`'5e-7'`) |
-| `null >= 0` | `true` | Un garde `amount >= 0` laisse passer `null` |
-| `[10, 9, 1].sort()` | `[1, 10, 9]` | Tri lexicographique par défaut |
-| `'toString' in {}` | `true` | Vérification de clé qui voit les propriétés héritées |
-| `typeof null` | `'object'` | Garde de type qui laisse passer `null` |
-| `String(['send'])` | `'send'` | Un tableau se fait passer pour une chaîne |
-| `req.query.email.toLowerCase()` | Exception si `email` est un tableau | Plantage de la route (A10), voire du processus |
+Le document le dit sans détour pour plusieurs cas que tu pourrais croire couverts :
 
-La réponse n'est pas de mémoriser la liste, mais de **fermer les portes** : `===` imposé par le lint, validation par schéma qui fixe les types (M2 leçon 2), `Object.hasOwn` pour les clés, TypeScript strict.
-
-Ce dernier point mérite une précision. TypeScript ne voit que ce qu'on lui déclare : si `req.body` est typé à la main, le compilateur fait confiance à la déclaration. Sa valeur vient des options et des règles qui ferment des footguns précis, **à condition que les types viennent d'un schéma validé** :
-
-| Option ou règle | Ce qu'elle ferme |
+| Situation | Position du projet Node |
 | --- | --- |
-| `strict` (dont `strictNullChecks`) | L'oubli de `null` et `undefined` |
-| `noUncheckedIndexedAccess` | `obj[key]` supposé défini alors qu'il peut manquer |
-| ESLint `eqeqeq` | Les comparaisons laxistes |
-| `@typescript-eslint/restrict-plus-operands` | `'10' + 5` qui donne `'105'` |
-| `@typescript-eslint/require-array-sort-compare` | Le tri sans comparateur |
+| Un module tiers malveillant | Le code est de confiance : pas une vulnérabilité de Node |
+| Une prototype pollution | Node fait confiance aux entrées que lui passe l'application : à elle de les assainir |
+| Un chemin de fichier manipulé | Les fonctions de chemin font confiance à leur entrée |
+| Du code de confiance qui contourne le modèle de permissions | Le modèle n'est pas un bac à sable contre un usage malveillant |
 
-## Les dates, un footgun à part entière
+Même logique pour le **modèle de permissions** (`--permission`, stable depuis Node 22.13 et 23.5) : il restreint l'accès au système de fichiers (`--allow-fs-read`, `--allow-fs-write`), aux processus enfants, aux workers ou aux modules natifs, et Node 25 y ajoute le réseau (`--allow-net`, encore en développement actif). La documentation le décrit comme une **ceinture de sécurité** contre les erreurs du code de confiance, sans garantie face à du code malveillant. Elle signale aussi des limites concrètes : les liens symboliques sont suivis même hors des chemins autorisés, et un descripteur de fichier déjà ouvert contourne le contrôle.
 
-Une application de facturation manipule des échéances, des périodes et des dates d'émission. L'objet `Date` cumule les pièges :
+<Callout kind="tip">
+Pour Novafact, la ceinture reste utile : le service de génération de PDF n'a besoin que de lire ses gabarits et d'écrire dans un dossier temporaire. Le démarrer avec `--permission --allow-fs-read=/app --allow-fs-write=/tmp/pdf` transforme un path traversal en écriture en `ERR_ACCESS_DENIED` plutôt qu'en fichier écrasé. Depuis Node 25.8, le mode `--permission-audit` permet de journaliser les accès refusés avant de bloquer.
+</Callout>
 
-- **Il ne rejette pas les dates impossibles.** Dans V8 (donc Node et Chrome), `new Date('2024-02-30')` donne le 1er mars, sans erreur. Une date d'échéance saisie au 30 février devient silencieusement une autre date.
-- **Il déborde en silence.** Ajouter un mois au 31 janvier avec `setUTCMonth(getUTCMonth() + 1)` donne le 3 mars (en 2026). Une échéance « à un mois » calculée ainsi saute février.
-- **Le fuseau dépend du format.** `'2026-01-15'` (date seule) est lu en UTC, `'2026-01-15T00:00'` (sans décalage) en heure locale du serveur. La même facture peut changer de jour selon la machine qui la traite.
-- **Les autres formats dépendent du moteur.** Hors du format ISO, l'analyse est laissée à l'implémentation.
+## Prototype pollution
 
-Les règles pour Novafact : n'accepter en entrée que des dates ISO validées par schéma (`z.string().date()` en zod 3, `z.iso.date()` en zod 4), vérifier l'aller-retour (la date reformatée doit être identique à la chaîne reçue), stocker en UTC, et confier l'arithmétique calendaire (fins de mois, jours ouvrés) à une bibliothèque dédiée plutôt qu'à `Date`.
+En JavaScript, presque tous les objets héritent de `Object.prototype`. Une fonction qui fusionne récursivement des objets en suivant les clés fournies par le client peut écrire dans ce prototype commun via la clé `__proto__` (ou `constructor.prototype`). Toute l'application hérite alors de la propriété injectée, ce qui peut transformer une option par défaut en élévation de privilèges ou en exécution de code via des « gadgets ».
 
-## Les nombres
+Une précision qui évite des faux positifs en revue : `JSON.parse` seul ne pollue rien. Il crée une propriété **propre** nommée `__proto__`, sans toucher au prototype. Le danger apparaît à l'étape suivante, quand ce qui a été parsé est copié par une fonction qui passe par l'accesseur : fusion récursive maison, `Object.assign`, ou des versions anciennes de bibliothèques comme lodash (CVE-2019-10744 sur `defaultsDeep`).
 
-Un `Number` JavaScript est un flottant double précision. Deux conséquences.
-
-**Les entiers au-delà de 2⁵³ perdent en précision.** `Number.MAX_SAFE_INTEGER` vaut 9 007 199 254 740 991. Un identifiant numérique plus grand, reçu en JSON, est silencieusement arrondi : `JSON.parse('{"id": 9007199254740993}').id` vaut `9007199254740992`, et deux objets différents peuvent obtenir le même identifiant côté client. Transporte les grands identifiants en chaîne, ou utilise `BigInt` côté serveur.
-
-`BigInt` a ses propres pièges : `JSON.stringify` lève une `TypeError` sur un `BigInt` (une colonne `BigInt` de Prisma renvoyée telle quelle fait planter la sérialisation de la réponse), on ne peut pas mélanger `BigInt` et `Number` dans une opération, et la division tronque vers zéro (`-7n / 2n` vaut `-3n`).
-
-**Les décimaux ne sont pas exacts.** `0.1 + 0.2` vaut `0.30000000000000004`, et `(1.005).toFixed(2)` vaut `"1.00"`. Plus sournois : `19.99 * 100` vaut `1998.9999999999998`. Convertir un prix saisi en euros vers des centimes par une multiplication, puis tronquer, fait perdre un centime. Dans une application de facturation, ces écarts deviennent des centimes qui manquent, des totaux qui ne correspondent pas aux lignes, ou des arrondis exploitables en répétant une opération.
-
-La conversion sûre part de la **chaîne** et ne passe jamais par un flottant :
-
-<Code file="apps/api/src/billing/parse.ts">
+<Diff file="apps/api/src/lib/merge.ts" hlBefore="3-4" hlAfter="1,4">
 
 ```ts
-// "19.99" -> 1999, "19,9" -> 1990, "-0.5" -> -50. Rejette tout le reste.
-export function parseEurosToCents(input: string): number {
-  const m = /^(-?)(\d{1,9})(?:[.,](\d{1,2}))?$/.exec(input.trim());
-  if (!m) throw new RangeError('Montant invalide');
-  const cents = Number(m[2]) * 100 + Number((m[3] ?? '').padEnd(2, '0'));
-  return m[1] ? -cents : cents;
-}
-```
-
-</Code>
-
-## L'argent chez Novafact
-
-<Diff file="apps/api/src/billing/total.ts" hlBefore="2-3" hlAfter="2-6">
-
-```ts
-export function invoiceTotal(lines: { price: number; qty: number }[], vatRate: number) {
-  const ht = lines.reduce((s, l) => s + l.price * l.qty, 0);
-  return +(ht * (1 + vatRate)).toFixed(2);
+export function deepMerge(target: any, source: any) {
+  for (const key of Object.keys(source)) {
+    if (typeof source[key] === 'object') target[key] = deepMerge(target[key] ?? {}, source[key]);
+    else target[key] = source[key];
+  }
+  return target;
 }
 ```
 
 ```ts
-// Montants en centimes (entiers), taux en points de base (2000 = 20 %).
-export function invoiceTotalCents(lines: { unitCents: number; qty: number }[], vatBps: number) {
-  const ht = lines.reduce((s, l) => s + l.unitCents * l.qty, 0);
-  const vat = mulDivRound(ht, vatBps);
-  if (!Number.isSafeInteger(ht + vat)) throw new RangeError('Montant hors limites');
-  return { ht, vat, ttc: ht + vat };
+const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
+export function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>) {
+  for (const key of Object.keys(source)) {
+    if (FORBIDDEN.has(key)) continue;
+    const value = source[key];
+    target[key] = value && typeof value === 'object' && !Array.isArray(value)
+      ? deepMerge((target[key] as Record<string, unknown>) ?? Object.create(null), value as Record<string, unknown>)
+      : value;
+  }
+  return target;
 }
 ```
 
 </Diff>
 
-Les points de base ne sont pas un caprice : les taux de TVA français incluent 5,5 % et 2,1 %, qui s'écrivent 550 et 210 en entiers. Reste l'arrondi. `Math.round` arrondit les demis vers +∞ : `Math.round(2.5)` vaut 3 mais `Math.round(-2.5)` vaut -2. Une facture et l'avoir qui l'annule ne se compensent plus exactement. Le mode d'arrondi est une **règle métier**, et elle s'écrit :
+Le vrai contrôle de classe est en amont : **ne pas fusionner d'objets arbitraires**. Un schéma strict (`.strict()` avec zod) n'accepte que les clés prévues. En défense en profondeur : `Object.create(null)` ou `Map` pour les dictionnaires, et l'option `--disable-proto=delete` de Node qui supprime l'accesseur `__proto__`.
 
-<Code file="apps/api/src/billing/round.ts">
+Pourquoi traiter une « simple » pollution comme critique ? Parce que l'impact dépend des **gadgets**, c'est-à-dire du code légitime qui lit une option absente et tombe sur la valeur héritée. Les travaux *Silent Spring* (USENIX Security 2023) ont identifié onze gadgets universels dans le code source de Node lui-même et démontré des exécutions de code à distance dans npm CLI, Parse Server et Rocket.Chat. Les moteurs de templates sont des gadgets classiques : la CVE-2022-29078 d'EJS 3.1.6 transformait une option de rendu contrôlable en exécution de code, et devenait exploitable dès qu'une pollution existait ailleurs. Tu ne peux pas inventorier tous les gadgets de tes dépendances ; tu peux fermer la pollution.
+
+<Callout kind="debate">
+Faut-il geler `Object.prototype` au démarrage (`Object.freeze(Object.prototype)`, ou le drapeau expérimental `--frozen-intrinsics`) ? Pour : la classe disparaît pour tout le processus, gadgets compris. Contre : certaines bibliothèques modifient encore les prototypes intégrés et cassent, parfois de façon subtile. Une approche pragmatique : activer le gel dans la suite de tests et en préproduction pour découvrir ce qui casse, puis décider service par service.
+</Callout>
+
+## ReDoS et boucle d'événements
+
+Une regex avec des quantificateurs imbriqués (`/^(a+)+$/`) peut prendre un temps exponentiel sur certaines entrées. Dans Node, le code JavaScript d'un processus s'exécute sur un seul thread : une seule requête qui déclenche ce retour arrière catastrophique **gèle toutes les autres**. Et une regex JavaScript n'a pas de délai d'expiration.
+
+<Steps items={[
+  { title: "Limiter la taille", text: "Borne la longueur de l'entrée avant toute regex (le schéma le fait : .max(254))." },
+  { title: "Simplifier", text: "Évite les quantificateurs imbriqués et les alternatives qui se chevauchent ; vérifie avec un analyseur (recheck, eslint-plugin-regexp et sa règle no-super-linear-backtracking)." },
+  { title: "Changer de moteur", text: "Pour des motifs fournis par l'utilisateur ou complexes, le paquet re2 garantit un temps linéaire." },
+]} />
+
+La regex n'est qu'un cas particulier. Tout calcul synchrone proportionnel à l'entrée a le même effet :
+
+| Source de blocage | Contrôle |
+| --- | --- |
+| `JSON.parse` d'un corps énorme | Limite de `express.json()` (100 ko par défaut : ne la remonte pas globalement, seulement sur la route qui en a besoin) |
+| Fonctions `*Sync` (`pbkdf2Sync`, `readFileSync`) dans un handler | Versions asynchrones, qui s'exécutent dans le pool de threads de libuv |
+| Génération de PDF, parsing d'un gros CSV | Worker thread ou service séparé, avec file d'attente |
+| Tri ou boucle sur une liste sans pagination | Pagination imposée et bornée par le schéma |
+
+Pour le voir en production, mesure le retard de la boucle d'événements (`monitorEventLoopDelay` de `node:perf_hooks`) et alerte dessus : une hausse soudaine du p99 sur un seul pod est souvent le premier signe d'une entrée pathologique.
+
+## Chemins de fichiers
+
+`path.join(UPLOADS, name)` n'empêche pas `name = '../../etc/passwd'` de sortir du dossier. Et `path.resolve` a son propre piège : un second argument absolu remplace la base (`path.resolve('/srv/uploads', '/etc/passwd')` donne `/etc/passwd`). La vérification correcte résout le chemin absolu et contrôle qu'il reste sous la racine :
 
 ```ts
-// amount × bps / 10 000, arrondi au plus proche, demi s'éloignant de zéro, en arithmétique entière.
-export function mulDivRound(amountCents: number, bps: number): number {
-  const num = amountCents * bps;
-  if (!Number.isSafeInteger(num)) throw new RangeError('Dépassement');
-  const abs = Math.abs(num);
-  const q = Math.floor(abs / 10_000);
-  const r = abs - q * 10_000;
-  return Math.sign(num) * (r * 2 >= 10_000 ? q + 1 : q);
+const base = path.resolve(UPLOADS);
+const target = path.resolve(base, name);
+if (!target.startsWith(base + path.sep)) throw new Error('Chemin interdit');
+const real = await fs.promises.realpath(target);          // suit les liens symboliques
+if (!real.startsWith(base + path.sep)) throw new Error('Chemin interdit');
+```
+
+Le `+ path.sep` n'est pas décoratif : sans lui, `/srv/uploads-old/x` passerait le test `startsWith('/srv/uploads')`. Et le `realpath` couvre le lien symbolique déposé dans le dossier, qui pointerait ailleurs. Pour servir des fichiers, `res.sendFile(name, { root: UPLOADS })` d'Express fait déjà la vérification de racine : préfère-le à une lecture manuelle.
+
+Mieux encore : ne jamais utiliser de nom de fichier fourni par le client. Stocke les fichiers sous un identifiant généré, et garde le nom d'origine comme simple métadonnée. Chez Novafact, les pièces jointes vont dans S3 sous une clé `tenantId/uuid`, ce qui supprime la classe côté disque.
+
+## SSRF
+
+Novafact récupère des logos à partir d'une URL et envoie des webhooks : deux fonctionnalités qui font émettre des requêtes au serveur vers une destination choisie par le client. Le risque : atteindre des services internes ou les identifiants du cloud. Sur une instance EC2, c'est l'endpoint de métadonnées `169.254.169.254` (celui qui a coûté très cher à Capital One en 2019) ; sur ECS Fargate, où tourne l'API de Novafact, les identifiants du rôle de tâche sont servis par `169.254.170.2`. Les deux sont dans la plage de lien local `169.254.0.0/16`, qu'un filtre doit bloquer en entier.
+
+- Liste blanche de domaines quand c'est possible.
+- Sinon, **résoudre le nom, refuser les plages privées et de lien local, puis se connecter à l'adresse résolue** (sinon un DNS qui change de réponse entre la vérification et la connexion contourne le filtre). Des agents HTTP comme `request-filtering-agent` le font pour les clients basés sur `http.Agent` (axios, got, node-fetch).
+- Côté infrastructure : IMDSv2 obligatoire (M19) et un proxy de sortie.
+
+<Callout kind="warn">
+Le `fetch` natif de Node ne passe pas par `http.Agent` : `request-filtering-agent` ne le protège pas. Il repose sur undici, et le contrôle se branche via un `dispatcher`. Autre piège : une URL qui contient directement une adresse IP ne déclenche aucune résolution DNS, donc aucun appel à `lookup`. Il faut la vérifier à part.
+</Callout>
+
+<Code file="apps/api/src/lib/egress.ts" hl="12-20,26-27">
+
+```ts
+import dns from 'node:dns';
+import net from 'node:net';
+import { Agent, fetch } from 'undici';
+
+const blocked = new net.BlockList();
+for (const [a, p] of [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8],
+  ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.168.0.0', 16]] as const) blocked.addSubnet(a, p, 'ipv4');
+for (const [a, p] of [['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10]] as const) blocked.addSubnet(a, p, 'ipv6');
+const isBlocked = (ip: string) => blocked.check(ip, net.isIPv6(ip) ? 'ipv6' : 'ipv4');
+
+// Vérifie les adresses au moment de la connexion : pas de fenêtre entre contrôle et usage.
+const safeLookup: net.LookupFunction = (hostname, options, callback) => {
+  dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
+    if (err) return callback(err, '', 0);
+    const bad = addresses.find((a) => isBlocked(a.address));
+    if (bad) return callback(new Error(`Destination interdite : ${bad.address}`), '', 0);
+    if (options.all) return (callback as any)(null, addresses);
+    callback(null, addresses[0].address, addresses[0].family);
+  });
+};
+const egress = new Agent({ connect: { lookup: safeLookup, timeout: 5_000 }, headersTimeout: 5_000, bodyTimeout: 5_000 });
+
+export async function fetchExternal(raw: string) {
+  const url = new URL(raw);
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Schéma interdit');
+  const host = url.hostname.replace(/^\[|\]$/g, '');
+  if (net.isIP(host) && isBlocked(host)) throw new Error(`Destination interdite : ${host}`);
+  return fetch(url, { dispatcher: egress, redirect: 'manual' });
 }
 ```
 
 </Code>
 
-Deuxième décision à écrire : arrondit-on la TVA **par ligne** ou **sur le total** ? Trois lignes à 0,99 € HT à 5,5 % donnent 5 centimes de TVA chacune (15 au total) si on arrondit ligne par ligne, mais 16 centimes si on arrondit le total (297 × 5,5 % = 16,335). Aucun des deux n'est « faux » ; ce qui est faux, c'est que la facture, le PDF et l'export comptable n'appliquent pas la même règle. Une seule fonction, testée, utilisée partout.
+`BlockList` de `node:net` reconnaît les adresses IPv4 écrites sous forme IPv6 (`::ffff:…`), ce qui ferme une variante courante. `redirect: 'manual'` évite de suivre une redirection sans la revalider. Ce module devient le **seul** client HTTP sortant autorisé, et une règle `no-restricted-imports` interdit les autres (leçon 9).
 
-Trois règles à imposer :
+## Templates côté serveur
 
-<Steps items={[
-  { title: "Représentation", text: "Entiers en centimes, ou une bibliothèque décimale (decimal.js, big.js) quand les taux l'exigent. Côté base, une colonne entière ou numeric (Prisma renvoie alors un Prisma.Decimal), jamais un float. Jamais de float pour l'argent." },
-  { title: "Autorité", text: "Le serveur recalcule tout à partir des prix de référence. Un prix ou un total envoyé par le client est ignoré." },
-  { title: "Invariants", text: "Quantités entières et positives, remises bornées, totaux cohérents. Le schéma les impose à l'entrée (z.number().int().positive().max(…)), avec une borne métier explicite." },
-]} />
+L'injection de template côté serveur (SSTI) en Node a deux formes. La première est classique : un gabarit construit à partir d'une entrée utilisateur. La seconde est propre à Express : passer un objet de requête entier comme données de rendu (`res.render('invoice', req.query)`), ce qui permet au client de fournir aussi des **options** du moteur. La règle : les gabarits sont des fichiers du dépôt, jamais des données, et les variables de rendu sont un objet construit explicitement. Pour les gabarits que les clients personnalisent (le pied de page des factures Novafact), un moteur sans logique et un jeu de variables fermé.
 
-<Callout kind="warn">
-`.int()` ne suffit pas comme borne. Selon la version de zod, un entier comme `1e300` peut passer la validation, et `quantité × prix unitaire` dépasse alors 2⁵³ sans que personne ne le voie. Fixe toujours un `.max()` métier (par exemple 1 000 000 unités par ligne), et garde la vérification `Number.isSafeInteger` sur le résultat : c'est elle qui transforme un dépassement silencieux en erreur visible.
-</Callout>
+## Processus enfants et bacs à sable
 
-Les quantités fractionnaires (1,5 jour de prestation) suivent la même logique : on les stocke en millièmes entiers et on les convertit une seule fois, au calcul, avec la même fonction d'arrondi.
+`child_process.exec` passe une chaîne à un shell : toute interpolation d'entrée est une injection de commande. Utilise `execFile` ou `spawn` avec un **tableau d'arguments**, sans `shell: true`, et termine les options par `--` quand un argument vient de l'utilisateur, pour éviter qu'il soit interprété comme une option.
 
-<Callout kind="novafact">
-Un audit de Novafact révèle qu'un avoir peut porter une quantité négative, ce qui transforme un remboursement en paiement. Ce n'est pas une faille « technique » : c'est un invariant métier manquant. Le module 10 revient sur ces invariants, et le module 3 sur ce qui se passe quand deux requêtes arrivent en même temps.
-</Callout>
-
-## Tester les invariants plutôt que des exemples
-
-Des tests unitaires avec trois montants choisis à la main ne trouvent pas les cas limites de l'arithmétique. Les **tests de propriétés** génèrent des centaines d'entrées et vérifient qu'une propriété tient toujours. Avec fast-check :
-
-<Code file="apps/api/test/billing.property.test.ts">
+<Diff file="apps/pdf/src/linearize.ts" hlBefore="2" hlAfter="1,3-4" stack>
 
 ```ts
-import fc from 'fast-check';
-import { test } from 'vitest';
-import { mulDivRound } from '../src/billing/round';
-
-const cents = fc.integer({ min: 0, max: 10_000_000_00 });
-const rates = fc.constantFrom(2000, 1000, 550, 210);
-
-test('un avoir annule exactement la facture', () => {
-  fc.assert(fc.property(cents, rates, (ht, bps) => mulDivRound(ht, bps) + mulDivRound(-ht, bps) === 0));
-});
-
-test('la TVA ne dépasse jamais le montant HT', () => {
-  fc.assert(fc.property(cents, rates, (ht, bps) => mulDivRound(ht, bps) <= ht));
-});
+export const linearize = (fileName: string) =>
+  execAsync(`qpdf --linearize uploads/${fileName} out/${fileName}`);
 ```
-
-</Code>
-
-La première propriété aurait échoué immédiatement avec `Math.round`. C'est le bon réflexe pour tout code qui manipule de l'argent : énoncer les invariants (symétrie, bornes, somme des lignes égale au total) et laisser l'outil chercher le contre-exemple. Le module 13 approfondit le fuzzing et les tests de propriétés.
-
-## Clés dynamiques
-
-Accéder à `config[req.query.key]` ou `handlers[req.body.action]()` avec une clé fournie par le client ouvre la porte à `__proto__`, `constructor` ou `toString`. Deux protections simples : une `Map` plutôt qu'un objet pour les tables indexées par une entrée externe, et une liste blanche des clés acceptées.
 
 ```ts
-const ACTIONS = new Map([
-  ['send', sendInvoice],
-  ['archive', archiveInvoice],
-]);
-const { action } = z.object({ action: z.enum(['send', 'archive']) }).parse(req.body);
-const run = ACTIONS.get(action);
-if (!run) return res.status(400).json({ error: 'action inconnue' });
+export const linearize = async (id: InvoiceFileId) => {
+  const input = path.join(UPLOADS, `${id}.pdf`), output = path.join(OUT, `${id}.pdf`);
+  await execFileAsync('qpdf', ['--linearize', input, output], { timeout: 30_000 });
+};
 ```
 
-Le schéma évite au passage un piège discret : un `String(req.body.action)` naïf accepterait `["send"]`, puisqu'un tableau d'un élément se convertit en sa seule valeur.
+</Diff>
 
-<Callout kind="debate">
-Centimes entiers ou bibliothèque décimale ? Les entiers sont rapides, sans dépendance, et suffisent pour une seule devise à deux décimales. Mais dès qu'arrivent des devises à zéro ou trois décimales, des prix unitaires à quatre décimales (énergie, API facturées à l'appel) ou des taux de change, les entiers obligent à gérer une échelle par champ, et c'est là que les bugs reviennent. Beaucoup d'équipes choisissent les entiers pour les montants stockés et une bibliothèque décimale pour les calculs intermédiaires, avec une seule fonction de conversion entre les deux.
+Ici, les deux corrections se combinent : plus de shell, et plus aucun argument contrôlé par le client, puisque les chemins sont construits à partir d'un identifiant généré. Sous Windows, les fichiers `.bat` et `.cmd` passent toujours par l'interpréteur de commandes : c'est l'objet de la CVE-2024-27980, après laquelle Node refuse de les lancer via `spawn` sans `shell: true`.
+
+Enfin, `node:vm` n'est **pas** un bac à sable : la documentation le dit explicitement. La bibliothèque `vm2`, longtemps utilisée pour ça, a été déclarée abandonnée de juillet 2023 à octobre 2025 après une série d'évasions, puis reprise ; une nouvelle évasion critique (CVE-2026-22709, CVSS 9.8) a été publiée en janvier 2026, et son propre README prévient que d'autres seront probablement découvertes. Du code non fiable s'exécute dans un processus ou un conteneur isolé, jamais dans le processus de l'API.
+
+<Callout kind="info">
+L'ancienne API `url.parse()` de Node est dépréciée et interprète certaines URL différemment de l'API standard `new URL()`. Ces écarts d'interprétation entre deux parsers sont une source classique de contournements de filtres, qu'on approfondit en M9. Règle simple : le filtre et le client HTTP doivent lire l'URL avec le **même** parser, et c'est l'objet `URL` qui est transmis, pas la chaîne d'origine.
 </Callout>
 
 <Recap items={[
-  "Un footgun est une fonctionnalité où le code dit une chose et le moteur en fait une autre.",
-  "On ferme les portes plutôt que de mémoriser : ===, schémas typés, Object.hasOwn, TypeScript strict et règles typescript-eslint.",
-  "Date accepte le 30 février et déborde en silence : dates ISO validées, UTC, bibliothèque pour le calendaire.",
-  "Au-delà de 2⁵³, les entiers perdent en précision : grands identifiants en chaîne ou BigInt, qui ne se sérialise pas en JSON.",
-  "L'argent se calcule en entiers (centimes) ou en décimal, côté serveur, avec un mode d'arrondi écrit et une seule fonction partout.",
-  "Les tests de propriétés trouvent les cas limites de l'arithmétique que les exemples manquent.",
-  "Les tables indexées par une entrée externe sont des Map avec une liste blanche.",
+  "Node fait confiance au code qu'il exécute, dépendances comprises ; les données réseau sont non fiables ; le modèle de permissions est une ceinture, pas un bac à sable.",
+  "Prototype pollution : ne pas fusionner d'objets arbitraires, schémas stricts, Map ou Object.create(null) ; l'impact dépend de gadgets que tu ne peux pas inventorier.",
+  "ReDoS et calculs synchrones : une requête peut geler tout le processus ; limiter la taille, simplifier, re2, et surveiller le retard de la boucle.",
+  "Chemins : resolve, vérification de la racine avec path.sep, realpath, ou mieux des identifiants générés.",
+  "SSRF : filtrer au moment de la connexion, vérifier aussi les IP littérales, bloquer 169.254.0.0/16 ; le fetch natif demande un dispatcher undici.",
+  "execFile avec tableau d'arguments et sans entrée client ; vm n'est pas un bac à sable, et vm2 non plus.",
 ]} />
 
+<Lab id="ps-prototype-pollution" />
+<Lab id="ps-ssrf" />
+<Lab id="dvna" />
+
 <Sources items={[
-  { title: "MDN : Number.MAX_SAFE_INTEGER", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER" },
-  { title: "MDN : Object.hasOwn()", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn" },
-  { title: "MDN : Math.round()", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/round" },
-  { title: "MDN : Date, formats de date et fuseaux", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date" },
-  { title: "typescript-eslint : require-array-sort-compare", url: "https://typescript-eslint.io/rules/require-array-sort-compare/" },
-  { title: "fast-check", url: "https://fast-check.dev/" },
-  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 8 et 9" },
+  { title: "Node.js : SECURITY.md et modèle de menaces", url: "https://github.com/nodejs/node/blob/main/SECURITY.md" },
+  { title: "Node.js : Permission Model", url: "https://nodejs.org/api/permissions.html" },
+  { title: "Node.js : node:vm", url: "https://nodejs.org/api/vm.html" },
+  { title: "Node.js : net.BlockList", url: "https://nodejs.org/api/net.html#class-netblocklist" },
+  { title: "Silent Spring : Prototype Pollution Leads to Remote Code Execution in Node.js (USENIX Security 2023)", url: "https://www.usenix.org/conference/usenixsecurity23/presentation/shcherbakov" },
+  { title: "request-filtering-agent", url: "https://github.com/azu/request-filtering-agent" },
+  { title: "Endor Labs : CVE-2026-22709 dans vm2", url: "https://www.endorlabs.com/learn/cve-2026-22709-critical-sandbox-escape-in-vm2-enables-arbitrary-code-execution" },
+  { title: "Node.js : avril 2024, CVE-2024-27980", url: "https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2" },
+  { title: "OWASP Cheat Sheet : Prototype Pollution Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Node.js Security", url: "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html" },
 ]} />

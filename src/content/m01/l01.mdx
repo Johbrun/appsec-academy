@@ -108,7 +108,7 @@ router.post('/login', validateBody(LoginBody), async (req, res) => {
 
 </Diff>
 
-Le correctif de la route ne suffit pas : ce qui élimine la classe, c'est que `validateBody` soit **obligatoire**. Chez Novafact, ça veut dire un routeur maison qui refuse d'enregistrer une route mutante sans schéma, un test qui parcourt la table de routage d'Express et échoue si une route n'en déclare pas, et une règle Semgrep qui signale un accès à `req.body` dans un handler non validé. Le module 2 détaille ce motif ; retiens ici la forme du raisonnement.
+Le correctif de la route ne suffit pas : ce qui élimine la classe, c'est que `validateBody` soit **obligatoire**. Chez Novafact, ça veut dire un routeur maison qui refuse d'enregistrer une route mutante sans schéma, un test qui parcourt la table de routage d'Express et échoue si une route n'en déclare pas, et une règle Semgrep qui signale un accès à `req.body` dans un handler non validé. Le module 7 détaille ce motif ; retiens ici la forme du raisonnement.
 
 <Callout kind="case">
 Les variantes ne sont pas une vue de l'esprit. Dans sa revue des 0-days exploités en 2022, Google (Project Zero et TAG) compte 17 vulnérabilités sur 41 qui étaient des variantes de failles déjà publiées, soit plus de 40 %. Plusieurs auraient pu être évitées par un correctif qui traitait la cause racine plutôt que l'instance, et par des tests de régression plus complets.
@@ -124,7 +124,7 @@ Dans un rapport de mars 2024 (*Secure by Design: Google's Perspective on Memory 
 
 Côté pentest, tu es évalué sur ce que tu trouves. Côté AppSec, tu es évalué sur **ce qui n'arrive plus en production**. Ça implique de travailler avec les équipes plutôt que de les auditer : proposer le correctif dans leur code, négocier les délais, outiller leur pipeline. Kohnfelder le résume dans la postface de *Designing Secure Software* : la sécurité est l'affaire de tous, et le rôle de l'expert est de rendre les autres capables.
 
-Son argument est pragmatique. Un expert extérieur ne comprend jamais complètement le logiciel dans son contexte (ses exigences, sa culture d'équipe, ses utilisateurs). La sécurité fonctionne mieux quand elle accompagne tout le cycle de vie, ce qu'aucun consultant ne peut faire durablement. Et les experts sont rares et chers. Conclusion : les équipes assurent un socle raisonnable, l'expert se concentre sur ce qui demande vraiment son savoir-faire. Le module 6 est entièrement consacré à ce volet humain.
+Son argument est pragmatique. Un expert extérieur ne comprend jamais complètement le logiciel dans son contexte (ses exigences, sa culture d'équipe, ses utilisateurs). La sécurité fonctionne mieux quand elle accompagne tout le cycle de vie, ce qu'aucun consultant ne peut faire durablement. Et les experts sont rares et chers. Conclusion : les équipes assurent un socle raisonnable, l'expert se concentre sur ce qui demande vraiment son savoir-faire. Le module 30 est entièrement consacré à ce volet humain.
 
 <Callout kind="debate">
 Ton expérience offensive reste un atout majeur : tu sais ce qui est réellement exploitable, tu sais prioriser, et tu sais trouver les variantes. Ce que tu dois apprendre, c'est à transformer ce savoir en contrôles, en règles et en conversations.
@@ -162,17 +162,17 @@ Premier usage concret chez Novafact : un client grand compte envoie un questionn
 
 ## Ce que tu vas construire
 
-Au fil des vingt modules, tu vas monter le programme AppSec de Novafact : un référentiel d'exigences, des revues de conception, des règles d'analyse maison, un pipeline durci, un IAM au moindre privilège, des détections dans Elastic, et un plan pour faire adopter tout ça. Le capstone rassemble ces livrables en une revue de sécurité complète.
+Au fil du parcours, tu vas monter le programme AppSec de Novafact : une analyse de risques, un référentiel d'exigences, des revues de conception, des règles d'analyse maison, un pipeline durci, un IAM au moindre privilège, des détections dans Elastic, et un plan pour faire adopter tout ça. Le capstone rassemble ces livrables en une revue de sécurité complète.
 
 ## La carte du parcours
 
-Le parcours suit l'ordre dans lequel les questions se posent réellement dans un poste, et pas l'ordre d'un sommaire de manuel. On commence par **le métier** — parce qu'on arrive presque toujours par un rapport de pentest, et qu'il faut d'abord savoir lire ce qu'on a sous les yeux. On passe ensuite à **la conception**, là où les défauts coûtent le moins cher à supprimer. Puis à **la vérification**, qui n'a de sens qu'une fois qu'on sait ce qu'on cherche. Puis au **cloud et à la production**, où le code finit par vivre. Le bloc **continu** existe parce que la sécurité de l'IA bouge trop vite pour tenir dans un module figé.
+Le parcours suit le cycle de développement sécurisé, après deux blocs de socle. **Le métier** (A) pose le décor : la menace, le vocabulaire d'ATT&CK, ce qu'est l'AppSec, ses métiers et la maturité d'une organisation. **Le web** (B) reprend ce que tu sais du navigateur et des vulnérabilités, cette fois du côté de celui qui les fait disparaître. Viennent ensuite les phases du cycle, dans l'ordre où elles se posent : **concevoir** (C), là où les défauts coûtent le moins cher à supprimer, en partant de l'analyse de risques ; **construire et vérifier** (D) ; **déployer** (E) ; puis **opérer et répondre** (F). **La sécurité de l'IA** (G) est un bloc vivant, parce qu'elle bouge trop vite pour tenir dans un module figé. **Piloter** (H) vient en dernier : on ne bâtit un programme qu'une fois les pratiques connues.
 
-Une remarque sur la façon de lire cette carte : les blocs ne sont pas des étanchéités. Le threat modeling (M11) sert autant à préparer une revue de code (M12) qu'à cadrer une conception (M8) ; la chaîne d'approvisionnement (M14) se défend dans le pipeline autant que dans les dépendances qu'on choisit (M5). Les renvois croisés dans les leçons sont là pour ça — suis-les quand ils apparaissent, ils valent mieux qu'une lecture strictement linéaire.
+Une remarque sur la façon de lire cette carte : les blocs ne sont pas des étanchéités. Le threat modeling (M11) sert autant à préparer une revue de code (M16) qu'à cadrer une conception (M13) ; la chaîne d'approvisionnement (M18) se défend dans le pipeline autant que dans les dépendances qu'on choisit (M26). Les renvois croisés dans les leçons sont là pour ça — suis-les quand ils apparaissent, ils valent mieux qu'une lecture strictement linéaire.
 
 <CarteDuParcours ici="m01" />
 
-Deux blocs méritent un mot de plus. **Le bloc C** est celui qu'on saute le plus souvent, parce que « faire de la revue de code » semble être quelque chose qu'on sait déjà faire : c'est pourtant là que se joue la différence entre trouver un bug et supprimer une classe de bugs. Et **le capstone** n'est pas un examen final : c'est la seule partie du parcours où l'on doit arbitrer entre des travaux qui se disputent le même temps, ce qui est l'essentiel du métier.
+Deux blocs méritent un mot de plus. **Le bloc D** est celui qu'on saute le plus souvent, parce que « faire de la revue de code » semble être quelque chose qu'on sait déjà faire : c'est pourtant là que se joue la différence entre trouver un bug et supprimer une classe de bugs. Et **le capstone** n'est pas un examen final : c'est la seule partie du parcours où l'on doit arbitrer entre des travaux qui se disputent le même temps, ce qui est l'essentiel du métier.
 
 ## En pratique chez toi
 

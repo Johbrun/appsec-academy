@@ -1,4 +1,4 @@
-// M13 · Tests & analyse de code — challenges spécifiés.
+// m13 · Tests & analyse de code — challenges spécifiés.
 //
 // Notes d'implémentation, vérifiées en exécution :
 //   · **Semgrep** n'est pas sur npm (le paquet publié est un fantôme) mais
@@ -28,7 +28,7 @@ export const m13: ExerciseDef[] = [
   P('regression-pair', 'm13', 'Le test qui prouve qu’un contrôle refuse', 1, 'artifact', 'CWE-1059', ['D6'],
     'Les tests existants vérifient tous que la fonctionnalité marche. Aucun ne vérifie qu’un contrôle refuse.',
     'Écrire, pour trois challenges déjà corrigés, le couple de tests qui manque.',
-    'verify/', ['m13/l02', 'm06/l02'],
+    'verify/', ['m13/l02', 'm06/l01'],
     'Double passage, plus une contrainte structurelle : chaque suite doit contenir au moins un cas qui refuse et un cas qui autorise. Un test qui ne vérifie que le chemin heureux est rejeté — ce qui est exactement la leçon de l’exercice K12 de Kohnfelder.'),
 
   P('semgrep-taint', 'm13', 'La même règle, en mode taint', 2, 'artifact', 'CWE-1059', ['D5', 'D6'],
@@ -40,19 +40,19 @@ export const m13: ExerciseDef[] = [
   P('property-test', 'm13', 'La propriété qui trouve le bug d’argent', 2, 'artifact', 'CWE-1059', ['D6'],
     'Les tests de calcul de total passent : ils portent tous sur des cas que le développeur avait en tête.',
     'Écrire la propriété qui doit tenir sur tout total de facture, et la laisser chercher le contre-exemple.',
-    'verify/money.property.test.ts', ['m13/l05', 'm02/l03'],
+    'verify/money.property.test.ts', ['m13/l05', 'm02/l02'],
     'Graine fixée, donc reproductible : la propriété doit échouer contre le code livré et passer contre le corrigé. Le harnais exige de surcroît que l’espace exploré couvre les quantités négatives et les flottants — sinon la propriété est trop faible pour trouver quoi que ce soit.'),
 
   P('fuzz-target', 'm13', 'Le fuzz qui casse le parseur', 2, 'artifact', 'CWE-1333', ['D6'],
     'La validation de référence de facture n’a jamais vu autre chose que des références de facture.',
     'Écrire la cible de fuzz, trouver l’entrée qui fait exploser le temps de calcul, et la figer en régression.',
-    'fuzz/invoice-ref.fuzz.ts', ['m13/l05', 'm02/l04'],
+    'fuzz/invoice-ref.fuzz.ts', ['m13/l05', 'm02/l03'],
     'Le harnais rejoue le corpus trouvé en mode régression — pas en mode recherche, c’est ce qui rend le résultat déterministe — et exige qu’au moins une entrée dépasse le seuil contre le code livré et aucune contre le corrigé. Le budget de temps est le verdict.'),
 
   P('dast-in-ci', 'm13', 'Le DAST sur environnement éphémère', 2, 'artifact', 'CWE-1059', ['D6'],
     'Le scanner dynamique tourne une fois par trimestre, sur un environnement qui ne ressemble plus à la production.',
     'Le brancher en CI sur une instance éphémère, authentifié, avec le périmètre et le seuil de blocage.',
-    '.github/workflows/dast.yml', ['m13/l07', 'm01/l05'],
+    '.github/workflows/dast.yml', ['m13/l07', 'm32/l03'],
     'Le harnais lance le lab, exécute le scan et vérifie qu’il trouve les défauts connus sans dépasser le budget de temps. Un DAST non authentifié ne voit qu’une page de connexion : l’authentification est ce qui fait la différence entre un scan et une figure de style.'),
 
   P('secrets-scan', 'm13', 'Secrets dans le dépôt', 1, 'fix', 'CWE-798', ['D6', 'D7'],

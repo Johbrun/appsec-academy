@@ -86,7 +86,7 @@ L'équipe reste **auteure** du modèle ; l'AppSec relit. C'est la réponse direc
 
 <Steps items={[
   { title: "Quinze minutes de DFD", text: "Juste la partie concernée, avec ses frontières." },
-  { title: "Trente minutes de STRIDE", text: "En équipe, avec le champion de sécurité (M6)." },
+  { title: "Trente minutes de STRIDE", text: "En équipe, avec le champion de sécurité (M4)." },
   { title: "Quinze minutes de décisions", text: "Mitigations retenues, risques acceptés, tickets créés." },
   { title: "Dans le dépôt", text: "Le modèle vit à côté du code (dossier threat-model/), revu en PR comme le reste." },
 ]} />
@@ -154,7 +154,7 @@ jobs:
   dfd:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4          # à épingler par SHA (M14)
+      - uses: actions/checkout@v4          # à épingler par SHA (M18)
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -183,12 +183,12 @@ Un threat model n'a de valeur que par ses **effets**. Quelques indicateurs suffi
 | Part des design docs à fort enjeu qui ont un modèle | Le déclenchement fonctionne-t-il ? |
 | Menaces retenues ayant donné lieu à une mitigation livrée | Le modèle produit-il des changements, ou des documents ? |
 | Délai entre la séance et la fermeture des tickets | Les décisions sont-elles suivies ? |
-| Taux d'échappement : vulnérabilités trouvées en pentest ou en production qui auraient dû apparaître dans le modèle (M1) | La méthode voit-elle les bonnes choses ? |
+| Taux d'échappement : vulnérabilités trouvées en pentest ou en production qui auraient dû apparaître dans le modèle (M31) | La méthode voit-elle les bonnes choses ? |
 
 Le taux d'échappement est le plus instructif. Chaque échappement donne lieu à une question simple en rétrospective : qu'est-ce qui, dans la séance, aurait permis de le voir ? La réponse améliore la méthode (une carte de plus, une question dans le gabarit), pas seulement le code.
 
 <Callout kind="novafact">
-Chez Novafact, chaque design doc (M8) contient désormais une section « threat model » générée avec Threat Composer. Le champion de l'équipe anime la séance, l'AppSec relit les modèles des fonctionnalités à fort enjeu, déclenchée par CODEOWNERS. Les `.tc.json` vivent dans `threat-model/`, à côté du code qu'ils décrivent.
+Chez Novafact, chaque design doc (M13) contient désormais une section « threat model » générée avec Threat Composer. Le champion de l'équipe anime la séance, l'AppSec relit les modèles des fonctionnalités à fort enjeu, déclenchée par CODEOWNERS. Les `.tc.json` vivent dans `threat-model/`, à côté du code qu'ils décrivent.
 </Callout>
 
 <Recap items={[

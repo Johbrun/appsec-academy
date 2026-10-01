@@ -1,213 +1,170 @@
 export const questions = [
   {
-    q: "Une API reçoit un ID token OIDC en guise de jeton d'accès. Que doit-elle faire ?",
+    q: "Quels flux OAuth 2.1 supprime-t-il par rapport à OAuth 2.0 ?",
     options: [
-      "L'accepter si la signature et la date d'expiration sont valides",
-      "Le refuser : son audience est le client, pas l'API qui le reçoit",
-      "L'accepter si sa claim azp correspond au client autorisé par l'API",
-      "L'échanger auprès du fournisseur contre un access token équivalent",
+      "Implicit et Device Authorization Grant",
+      "Implicit et Resource Owner Password Credentials",
+      "Resource Owner Password Credentials et Client Credentials",
+      "Refresh Token sans rotation et Authorization Code sans PKCE",
     ],
     answer: 1,
-    explain: "L'ID token dit au client qui est l'utilisateur : son aud vaut le client_id, et l'API n'en est pas le destinataire. Vérifier azp ne change rien — cette claim nomme le client autorisé, pas la ressource visée, et laisserait entrer n'importe quel client du même fournisseur. L'API doit exiger un access token dont l'audience est elle-même.",
+    explain: "Le flux implicite (jetons renvoyés dans le fragment d'URL) et le flux par mot de passe (le client voit les identifiants de l'utilisateur) disparaissent ; Authorization Code avec PKCE devient le flux de référence. Le Device Authorization Grant, lui, est conservé et intégré à la spécification. Quant aux refresh tokens, 2.1 ne les supprime pas : il exige qu'ils soient liés au client ou tournés à chaque usage.",
   },
   {
-    q: "Pourquoi vérifier la claim aud d'un access token ?",
+    q: "À quoi sert PKCE ?",
     options: [
-      "Pour refuser un jeton émis pour un autre service du même fournisseur",
-      "Pour vérifier que le jeton n'a pas été émis par un fournisseur usurpé",
-      "Pour s'assurer que l'utilisateur a bien consenti aux scopes demandés",
-      "Pour associer le jeton au client qui l'a demandé et tracer son usage",
+      "À lier le code d'autorisation au client qui a démarré le flux",
+      "À éviter de stocker un secret client dans une application publique",
+      "À prouver au serveur que l'utilisateur a consenti sur la bonne page",
+      "À remplacer le paramètre state pour la protection contre le CSRF",
     ],
     answer: 0,
-    explain: "Un même fournisseur signe des jetons pour de nombreux services : sans contrôle d'audience, un jeton obtenu pour un service peu sensible ouvre un service critique. La confusion la plus fréquente est avec iss, qui dit d'où vient le jeton — et une signature valide le garantit déjà. Le rôle d'aud est de dire pour qui il a été émis, et c'est cette question-là que l'API doit poser.",
+    explain: "Le client envoie l'empreinte d'un secret éphémère au départ (code_challenge), puis le secret lui-même à l'échange (code_verifier) : un code intercepté sans le verifier ne s'échange pas. PKCE ne remplace pas le secret client — une application publique n'en a pas et n'en aura pas davantage avec PKCE, il protège le code, pas l'identité du client. Sur le CSRF, il peut effectivement se substituer à state, mais c'est un effet de bord, et seulement si le serveur applique vraiment PKCE.",
   },
   {
-    q: "Pourquoi fixer algorithms: ['RS256'] dans jwtVerify protège-t-il de la confusion d'algorithme ?",
+    q: "Selon la RFC 9700, à quelle condition un client peut-il s'appuyer sur PKCE plutôt que sur state pour se protéger du CSRF sur le callback ?",
     options: [
-      "Parce que la bibliothèque cesse alors de lire l'en-tête du jeton",
-      "Parce que RS256 est le seul algorithme asymétrique qui empêche de modifier le payload",
-      "Parce que le vérificateur refuse un jeton HS256 signé avec la clé publique, et alg: none",
-      "Parce que la clé publique n'est plus exposée sur l'endpoint JWKS du fournisseur",
+      "Jamais : le paramètre state reste obligatoire dans tous les cas",
+      "S'il s'est assuré que le serveur d'autorisation applique bien PKCE",
+      "Si le client est une application publique, où state n'est pas vérifiable",
+      "Si le redirect_uri est enregistré en comparaison exacte et servi en HTTPS",
     ],
-    answer: 2,
-    explain: "C'est le serveur qui décide de l'algorithme attendu, jamais le jeton : sans liste, un attaquant présente un jeton HS256 signé en prenant la clé publique RSA comme secret HMAC, ou un jeton alg: none. La bibliothèque continue bien sûr de lire l'en-tête, elle le compare simplement à ce que tu autorises. jose refuse par ailleurs d'utiliser une clé RSA pour du HMAC, mais la liste explicite rend l'intention lisible en revue.",
+    answer: 1,
+    explain: "Le code_verifier est lié à la session du client : un code injecté par un attaquant échoue à l'échange, ce qui couvre le CSRF du callback — mais seulement si le serveur applique réellement PKCE, sinon la protection est imaginaire. La comparaison exacte du redirect_uri protège d'autre chose, la fuite du code vers un chemin contrôlé, pas du code injecté. En OIDC, le nonce joue le même rôle ; state reste utile et ne coûte rien.",
   },
   {
-    q: "Les access tokens Cognito de Novafact contiennent-ils une claim aud ?",
+    q: "Le serveur d'autorisation accepte tout redirect_uri qui commence par https://app.novafact.example/. Pourquoi est-ce dangereux ?",
     options: [
-      "Toujours, avec pour valeur l'URL du user pool qui les a émis",
-      "Jamais : l'access token Cognito ne porte que client_id et scope",
-      "Seulement si le client a demandé une liaison de ressource (RFC 8707)",
-      "Toujours, avec pour valeur le client_id, exactement comme l'ID token",
+      "Parce qu'un chemin quelconque du domaine peut recevoir le code d'autorisation",
+      "Parce que le préfixe n'empêche pas d'ajouter un paramètre de requête arbitraire",
+      "Parce que le sous-domaine n'est pas vérifié et qu'un attaquant peut le revendiquer",
+      "Parce qu'un redirect_uri dynamique est incompatible avec l'usage de PKCE",
     ],
-    answer: 2,
-    explain: "Sans paramètre resource, l'access token Cognito porte client_id et scope mais pas de claim aud : on vérifie alors client_id, iss et les scopes. L'erreur habituelle est de transposer l'ID token, où aud vaut bien le client_id — ce qui conduit à écrire une vérification d'audience qui échouera en production. Novafact demande resource=https://api.novafact.example pour que l'API ait une vraie audience à contrôler.",
+    answer: 0,
+    explain: "Il suffit d'un open redirect, d'une page qui reflète son URL ou d'un contenu déposé par un utilisateur sous ce domaine pour capter le code. La RFC 9700 impose donc la comparaison exacte des chaînes, avec une seule exception : le port des URI localhost des applications natives. Le paramètre de requête arbitraire est un symptôme du même défaut, mais il ne suffit pas à détourner le code : c'est la liberté sur le chemin qui le permet.",
   },
 ];
 
 <YouKnow>
-Tu as forgé des JWT, testé alg none et la confusion d'algorithme (M3). Cette leçon écrit la vérification que tu aimerais trouver dans chaque API Express.
+Tu as joué avec des redirect_uri, des codes interceptés et des flux implicites sur des dizaines d'applications. Ce module part du flux sûr et remonte vers les pièges, avec les RFC récentes.
 </YouKnow>
 
-## La vérification complète
+## OAuth 2.1 : faire le ménage
 
-<Code file="apps/api/src/auth/verifyAccessToken.ts" hl="9,10,11,12,16">
+OAuth 2.0 (RFC 6749, 2012) a accumulé les options dangereuses. **OAuth 2.1**, encore à l'état de draft à l'IETF (version 16, septembre 2026), consolide plus de dix ans de bonnes pratiques, dont celles de la RFC 9700 (leçon 7) :
 
-```ts
-import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
-
-export const ISSUER = 'https://cognito-idp.eu-west-3.amazonaws.com/eu-west-3_Nova';
-export const AUDIENCE = 'https://api.novafact.example'; // demandé par le BFF via resource= (RFC 8707)
-const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`)); // mis en cache, rafraîchi à la rotation
-
-export const makeVerifier = (keys: JWTVerifyGetKey) => async (token: string) => {
-  const { payload } = await jwtVerify(token, keys, {
-    algorithms: ['RS256'],          // le serveur choisit l'algorithme
-    issuer: ISSUER,                 // le bon fournisseur
-    audience: AUDIENCE,             // émis pour cette API
-    requiredClaims: ['exp', 'sub', 'client_id'],
-    clockTolerance: 30,             // secondes de tolérance d'horloge
-  });
-  if (payload.token_use !== 'access') throw new Error('Pas un access token');
-  if (payload.client_id !== 'novafact-bff-client-id') throw new Error('Client inattendu');
-  return { sub: payload.sub!, scopes: String(payload.scope ?? '').split(' ') };
-};
-
-export const verifyAccessToken = makeVerifier(JWKS);
-```
-
-</Code>
-
-| Contrôle | Contre quoi |
+| Supprimé ou imposé | Pourquoi |
 | --- | --- |
-| Algorithme fixé | `alg: none`, confusion RS256/HS256 |
-| JWKS de confiance, `jwk`/`jku`/`x5u` ignorés | Clés fournies par l'attaquant |
-| `iss` | Jetons d'un autre fournisseur |
-| `aud` | Jetons émis pour un autre service |
-| `exp`, `nbf` | Jetons expirés ou pas encore valides |
-| Type de jeton | ID token utilisé comme access token (RFC 9068 définit le type `at+jwt` ; Cognito utilise la claim `token_use`) |
-| Client émetteur | Jeton obtenu par une autre application du même pool |
+| **Implicit** supprimé | Le jeton voyageait dans l'URL : historique, Referer, logs |
+| **Password** (ROPC) supprimé | Le client voyait les identifiants de l'utilisateur, et le flux interdit toute MFA moderne |
+| **PKCE** obligatoire pour tous les clients | Un code intercepté devient inutilisable |
+| **redirect_uri** comparé exactement | Plus de préfixe ni de joker |
+| Jetons **jamais dans l'URL** | Pas de `access_token` en paramètre de requête |
+| **Refresh tokens** liés à l'émetteur ou à usage unique pour les clients publics | Un refresh token volé ne sert qu'une fois |
 
-La RFC 8725 (*JWT Best Current Practices*) rassemble ces règles.
+Le flux implicite n'avait pas qu'un problème de fuite : le jeton arrivait directement dans le navigateur sans que le client puisse prouver qu'il l'avait demandé, ce qui ouvrait la porte à l'injection de jetons. Le flux par mot de passe, lui, habituait les utilisateurs à saisir leur mot de passe dans une application tierce, exactement le réflexe que le phishing exploite, et rendait impossibles les passkeys, la MFA du fournisseur et la fédération.
 
-<Callout kind="warn">
-**L'audience chez Cognito.** Un access token Cognito ne contient une claim `aud` que si le client a demandé une **liaison de ressource** : le paramètre `resource` (RFC 8707) dans la requête d'autorisation, disponible avec la connexion gérée par Cognito. L'audience devient alors l'URL demandée. Sans ce paramètre, le jeton porte seulement `client_id`, et un `audience` configuré dans `jwtVerify` rejette tous les jetons, ce qui pousse parfois des équipes pressées à retirer la vérification. Novafact demande `resource=https://api.novafact.example` et vérifie **aussi** `client_id`. La bibliothèque `aws-jwt-verify` (AWS Labs) encapsule ces particularités de Cognito, avec `tokenUse` et `clientId`.
-</Callout>
+On distingue deux types de clients. Un client **confidentiel** peut garder un secret (un serveur, comme le BFF de Novafact) et s'authentifie auprès du serveur d'autorisation. Un client **public** ne le peut pas (une SPA, une application mobile) : tout secret embarqué est extractible. PKCE protège les deux, mais c'est pour les clients publics qu'il est vital.
 
-## Pourquoi chaque ligne compte
+## Authorization Code + PKCE, pas à pas
 
-La **confusion d'algorithme** tient à ce que l'en-tête `alg` est choisi par l'émetteur du jeton, donc par l'attaquant quand il forge. Une bibliothèque qui choisit sa vérification d'après l'en-tête peut accepter un jeton `HS256` signé avec la **clé publique** RSA employée comme secret HMAC, ou un jeton `alg: none`. La liste `algorithms` retourne la décision au serveur. La même logique vaut pour les en-têtes `jwk`, `jku` et `x5u` : ils proposent une clé ou l'URL d'une clé, que le vérificateur doit ignorer. Le `kid`, lui, sert seulement à **choisir** parmi les clés de confiance du JWKS ; dans du code maison, il ne doit jamais atterrir dans un chemin de fichier ou une requête SQL.
-
-Le **JWKS** évolue : le fournisseur fait tourner ses clés et publie la nouvelle avant de l'utiliser. `createRemoteJWKSet` met les clés en cache (10 minutes par défaut) et, face à un `kid` inconnu, recharge le JWKS, au plus une fois toutes les 30 secondes par défaut : un attaquant qui envoie des `kid` aléatoires ne peut pas transformer l'API en générateur de requêtes vers le fournisseur. Si l'API accepte plusieurs émetteurs (le Cognito de Novafact et un fournisseur partenaire), la correspondance émetteur → URL du JWKS est une **liste fixe** dans la configuration, jamais une URL déduite de la claim `iss` du jeton.
-
-Enfin, l'ordre compte : aucune claim n'est lue avant que la signature soit vérifiée. Décoder un jeton pour « regarder le tenant » avant de le vérifier est un classique des revues de code.
-
-## Ce que retenir de la RFC 8725
-
-La RFC 8725 liste douze recommandations. Celles qui changent le plus le code d'une API Node :
-
-- **Vérifier l'algorithme** et n'utiliser que des algorithmes appropriés ; le `none` n'est jamais acceptable pour un jeton qui porte une autorisation.
-- **Des clés d'entropie suffisante** : un jeton HS256 signé avec un secret mémorisable (`novafact-secret`) se casse hors ligne, sans aucune requête au serveur. Un secret HMAC est une valeur aléatoire d'au moins 256 bits.
-- **Ne pas faire confiance aux claims reçues** avant vérification, y compris celles de l'en-tête (`kid`, `jku`, `x5u`).
-- **Utiliser et valider l'audience**, ainsi que l'émetteur et le sujet.
-- **Typer explicitement** les jetons (`typ`), et appliquer des **règles de validation mutuellement exclusives** à des jetons de nature différente : un jeton de réinitialisation de mot de passe, un ID token et un access token signés par la même clé ne doivent jamais pouvoir passer l'un pour l'autre.
-
-Ce dernier point est souvent violé dans les applications qui signent tout avec une seule clé HS256 : le jeton de lien « confirmer mon e-mail » devient un jeton de session si les deux vérifications ne diffèrent que par une claim facultative. Avec jose, l'option `typ` de `jwtVerify` impose le type attendu dans l'en-tête (par exemple `at+jwt` pour les access tokens au format RFC 9068).
-
-## Le middleware Express
-
-<Code file="apps/api/src/auth/requireAuth.ts">
-
-```ts
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const match = /^Bearer ([A-Za-z0-9._~+/-]+=*)$/.exec(req.get('authorization') ?? '');
-  if (!match) {
-    res.set('WWW-Authenticate', 'Bearer');
-    return res.sendStatus(401);
-  }
-  try {
-    req.auth = await verifyAccessToken(match[1]);
-    return next();
-  } catch {
-    res.set('WWW-Authenticate', 'Bearer error="invalid_token"'); // pas de détail sur la raison exacte
-    return res.sendStatus(401);
-  }
-}
-```
-
-</Code>
-
-Le middleware ne dit pas **pourquoi** le jeton est refusé (expiré, mauvaise audience, signature) : ce détail va dans les logs, pas dans la réponse.
-
-## Tester les cas négatifs
-
-Un vérificateur se teste surtout sur ce qu'il **refuse**. Avec `jose`, on génère une paire de clés de test et un JWKS local, puis on signe des jetons volontairement défectueux :
-
-<Code file="apps/api/test/verifyAccessToken.test.ts">
-
-```ts
-import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from 'jose';
-import { makeVerifier, ISSUER, AUDIENCE } from '../src/auth/verifyAccessToken';
-
-const { publicKey, privateKey } = await generateKeyPair('RS256');
-const verify = makeVerifier(createLocalJWKSet({ keys: [{ ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256' }] }));
-
-const sign = (claims: Record<string, unknown>, aud = AUDIENCE) =>
-  new SignJWT({ token_use: 'access', client_id: 'novafact-bff-client-id', ...claims })
-    .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
-    .setIssuer(ISSUER).setAudience(aud).setSubject('user-1').setIssuedAt().setExpirationTime('5m')
-    .sign(privateKey);
-
-it('refuse un jeton émis pour un autre service', async () => {
-  await expect(verify(await sign({}, 'https://pdf.internal.novafact.example'))).rejects.toThrow();
-});
-it('refuse un ID token', async () => {
-  await expect(verify(await sign({ token_use: 'id' }))).rejects.toThrow();
-});
-```
-
-</Code>
-
-La même suite ajoute un jeton expiré, un `alg: none`, un jeton signé par une autre clé et un `client_id` inattendu : chaque ligne du tableau de contrôles a son test.
-
-## Access token, ID token, refresh token
-
-| Jeton | Destinataire | Usage |
-| --- | --- | --- |
-| **ID token** | Le **client** | Savoir qui est l'utilisateur. Jamais envoyé à une API |
-| **Access token** | L'**API** (resource server) | Autoriser un appel, avec des scopes |
-| **Refresh token** | Le **serveur d'autorisation** | Obtenir de nouveaux access tokens |
-
-## Jeton autoportant ou opaque ?
-
-Un JWT se vérifie localement, mais il reste valide jusqu'à son expiration même si la session est révoquée. Un **jeton opaque** oblige l'API à interroger le serveur d'autorisation (**introspection**, RFC 7662), ce qui permet une révocation immédiate au prix d'un appel. Compromis courant : JWT de **quelques minutes** pour les appels fréquents, et révocation des refresh tokens côté serveur. Si l'on met en cache les réponses d'introspection pour réduire la charge, la durée du cache redevient la fenêtre pendant laquelle un jeton révoqué passe encore.
-
-Chez Cognito, révoquer un refresh token invalide aussi les access tokens émis à partir de lui (ils partagent la claim `origin_jti`), mais seuls les services de Cognito le savent. Une API qui vérifie les JWT localement continue de les accepter jusqu'à leur expiration : c'est pourquoi la durée de vie de l'access token (réglable de 5 minutes à 1 jour) est une décision de sécurité, pas un paramètre de confort.
-
-<Callout kind="debate">
-**Des JWT pour les sessions ?** Beaucoup de praticiens déconseillent les JWT comme cookie de session d'application web : pas de révocation, taille, et une bibliothèque de plus à configurer correctement, pour un bénéfice (l'absence d'état côté serveur) rarement nécessaire. D'autres les défendent pour des architectures très distribuées. Le compromis de Novafact suit la ligne de partage la plus courante : session opaque entre le navigateur et le BFF, JWT courts entre le BFF et les API.
-</Callout>
-
-## Les scopes ne sont pas des permissions métier
-
-Un scope `invoices:read` dit que le client **peut** lire des factures, pas **lesquelles**. L'API vérifie toujours, en plus, que la facture appartient au tenant de l'utilisateur (M8). Beaucoup de BOLA naissent de la confusion entre scope et autorisation.
-
-<Recap items={[
-  "Vérifier algorithme, clés de confiance, iss, aud, exp, nbf, type de jeton et client émetteur ; aucune claim lue avant la signature.",
-  "Chez Cognito, l'aud d'un access token n'existe qu'avec une liaison de ressource (RFC 8707) ; sinon, client_id.",
-  "JWKS en cache avec rechargement borné ; émetteurs et URL de JWKS dans une liste fixe.",
-  "L'ID token est pour le client, l'access token pour l'API, le refresh token pour le serveur d'autorisation ; chaque refus a son test.",
-  "Un scope autorise une catégorie d'action ; l'autorisation sur l'objet reste à vérifier.",
+<Steps items={[
+  { title: "Préparer", text: "Le client génère un code_verifier aléatoire, calcule code_challenge = BASE64URL(SHA-256(code_verifier)), et un state (et un nonce pour OIDC)." },
+  { title: "Rediriger", text: "Vers le serveur d'autorisation avec client_id, redirect_uri exact, scope, state, code_challenge et code_challenge_method=S256." },
+  { title: "Authentifier", text: "L'utilisateur se connecte et consent chez le fournisseur d'identité (Cognito pour Novafact)." },
+  { title: "Revenir", text: "Le navigateur revient sur le redirect_uri avec code et state. Le client vérifie que state correspond à celui qu'il a émis." },
+  { title: "Échanger", text: "Le client envoie code et code_verifier au point de terminaison token, côté serveur. Il reçoit access token, refresh token et, en OIDC, un ID token." },
+  { title: "Vérifier", text: "En OIDC, le client valide l'ID token : signature, iss, aud, exp, et nonce." },
 ]} />
 
-<Lab id="ps-jwt" />
+Dans le BFF de Novafact, la bibliothèque `openid-client` (panva) fait ces vérifications ; le code applicatif se limite à conserver les valeurs de l'aller dans la session et à les fournir au retour.
+
+<Code file="apps/bff/src/auth/oidc.ts" hl="6,7,8,9,24,25,28,29,30">
+
+```ts
+import * as client from 'openid-client';
+
+const config = await client.discovery(new URL(env.COGNITO_ISSUER), env.CLIENT_ID, env.CLIENT_SECRET);
+
+router.get('/auth/login', async (req, res) => {
+  const codeVerifier = client.randomPKCECodeVerifier();
+  const state = client.randomState();
+  const nonce = client.randomNonce();
+  req.session.oauth = { ...req.session.oauth, [state]: { codeVerifier, nonce, exp: Date.now() + 600_000 } }; // un flux par onglet
+  const url = client.buildAuthorizationUrl(config, {
+    redirect_uri: `${env.APP_URL}/auth/callback`,    // depuis la configuration, pas depuis Host
+    scope: 'openid email',
+    code_challenge: await client.calculatePKCECodeChallenge(codeVerifier),
+    code_challenge_method: 'S256',
+    state,
+    nonce,
+  });
+  res.redirect(url.href);
+});
+
+router.get('/auth/callback', async (req, res) => {
+  const currentUrl = new URL(req.originalUrl, env.APP_URL);
+  const state = currentUrl.searchParams.get('state') ?? '';
+  const pending = req.session.oauth?.[state];          // seul un state émis pour CETTE session est retrouvé
+  if (req.session.oauth) delete req.session.oauth[state]; // usage unique, même en cas d'échec
+  if (!pending || pending.exp < Date.now()) return res.sendStatus(400);
+  const tokens = await client.authorizationCodeGrant(config, currentUrl, {
+    pkceCodeVerifier: pending.codeVerifier,
+    expectedState: state,
+    expectedNonce: pending.nonce,
+  });
+  const claims = tokens.claims()!;                     // ID token déjà vérifié par la bibliothèque
+  await establishSession(req, { iss: claims.iss, sub: claims.sub }, tokens); // M14, leçon 1
+  res.redirect('/');
+});
+```
+
+</Code>
+
+<Callout kind="warn">
+Trois erreurs d'implémentation reviennent en revue de code. **Un seul flux en attente par session** : si l'utilisateur ouvre deux onglets de connexion, le second écrase les valeurs du premier, qui échoue ; les équipes « corrigent » alors en désactivant la vérification de state. Mieux vaut indexer les flux en attente par `state`, avec une expiration de quelques minutes. **Des valeurs réutilisables** : le verifier, le state et le nonce sont supprimés dès le retour, même en cas d'échec. **Des valeurs exposées** : dans une SPA sans BFF, le code_verifier finit souvent dans `localStorage`, où la moindre XSS le lit (leçon 4).
+</Callout>
+
+## Les trois paramètres qui comptent
+
+- **state** : protège contre le CSRF de connexion (un attaquant qui ferait se connecter la victime avec **son** compte). Imprévisible, lié à la session, vérifié au retour.
+- **nonce** (OIDC) : lie l'ID token à la demande, contre le rejeu.
+- **code_verifier** (PKCE) : lie le code au client.
+
+Les trois sont des valeurs **imprévisibles** (CSPRNG, M13), à usage unique, conservées côté serveur. Leurs rôles se recouvrent en partie : la RFC 9700 admet qu'un client qui s'est assuré que le serveur d'autorisation applique PKCE s'appuie sur lui contre le CSRF, et qu'en OIDC le nonce joue ce rôle. Novafact garde les trois : ils ne coûtent rien et couvrent des erreurs de configuration différentes.
+
+Deux détails de PKCE que les revues oublient. La méthode `plain` envoie le verifier lui-même dans la demande d'autorisation : quiconque lit cette URL (logs, historique) peut échanger le code. Seule `S256` ne l'expose pas. Et le serveur d'autorisation doit refuser un `code_verifier` à l'échange si aucun `code_challenge` n'a été envoyé au départ : sinon, un attaquant qui démarre un flux sans PKCE neutralise la protection (attaque par **rétrogradation** de PKCE).
+
+## Le redirect_uri, au caractère près
+
+La RFC 9700 impose la **comparaison exacte des chaînes** entre le `redirect_uri` reçu et une URL enregistrée, avec une seule exception : le numéro de port des URI `localhost` pour les applications natives, qui ouvrent un port éphémère. Tout le reste (préfixe, joker de sous-domaine, normalisation « intelligente ») donne à l'attaquant une chance de faire atterrir le code sur une page qu'il influence : une page avec redirection ouverte, un sous-domaine abandonné, un chemin qui sert du contenu utilisateur (leçon 6).
+
+Côté Novafact, la liste des URL de callback enregistrées dans Cognito fait partie de l'infrastructure versionnée : une URL de préproduction ou de test ne doit jamais figurer sur le client de production.
+
+## OpenID Connect, identité fédérée et SSO
+
+**OAuth** délègue une **autorisation** : il dit à une API ce qu'un client a le droit de faire. **OpenID Connect** ajoute l'**authentification** : l'ID token dit **qui** est l'utilisateur, à destination du client. OIDC apporte aussi un point de découverte (`/.well-known/openid-configuration`) qui publie les points de terminaison et l'URL des clés, et un point `userinfo`. Confondre OAuth et OIDC est à l'origine de nombreuses failles (leçon 5).
+
+L'**identité fédérée** consiste à confier l'authentification à un fournisseur d'identité externe. Chez Novafact, Cognito sert de courtier : il authentifie les utilisateurs locaux, et fédère ceux qui arrivent par Google ou par le SSO de leur entreprise (OIDC ou SAML, leçon 8). Le **SSO** apporte beaucoup à la sécurité : MFA et politiques centralisées chez le client, et surtout un départ d'employé qui coupe l'accès partout à la fois. Il concentre aussi le risque : faire confiance à un fournisseur d'identité, c'est accepter tout ce qu'il affirme. Deux conséquences de conception :
+
+- un fournisseur d'identité d'entreprise ne peut connecter que les comptes **du tenant** qui l'a configuré ;
+- un utilisateur fédéré est identifié par le couple **(`iss`, `sub`)**, jamais par son adresse e-mail seule (leçon 6).
+
+<Recap items={[
+  "OAuth 2.1 (draft 16, septembre 2026) supprime Implicit et ROPC, impose PKCE et la comparaison exacte des redirect_uri.",
+  "Authorization Code + PKCE (S256) est le flux de référence ; le serveur refuse un code_verifier sans code_challenge initial.",
+  "state contre le CSRF de connexion, nonce contre le rejeu de l'ID token, code_verifier contre l'interception du code : tous conservés côté serveur, à usage unique.",
+  "Le redirect_uri se compare au caractère près ; seule exception, le port localhost des applications natives.",
+  "OAuth autorise l'accès à une API ; OpenID Connect authentifie l'utilisateur auprès du client ; la fédération se borne au tenant et identifie par (iss, sub).",
+]} />
+
+<Lab id="ps-oauth" />
 
 <Sources items={[
-  { title: "RFC 8725 : JWT Best Current Practices", url: "https://www.rfc-editor.org/rfc/rfc8725" },
-  { title: "RFC 9068 : JWT Profile for OAuth 2.0 Access Tokens", url: "https://www.rfc-editor.org/rfc/rfc9068" },
-  { title: "RFC 7662 : Token Introspection", url: "https://www.rfc-editor.org/rfc/rfc7662" },
-  { title: "jose (panva)", url: "https://github.com/panva/jose" },
-  { title: "Amazon Cognito : l'access token", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html" },
-  { title: "Amazon Cognito : liaison de ressource", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html" },
-  { title: "aws-jwt-verify (AWS Labs)", url: "https://github.com/awslabs/aws-jwt-verify" },
+  { title: "OAuth 2.1 (draft IETF)", url: "https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/" },
+  { title: "oauth.net : OAuth 2.1", url: "https://oauth.net/2.1/" },
+  { title: "RFC 7636 : PKCE", url: "https://www.rfc-editor.org/rfc/rfc7636" },
+  { title: "RFC 9700 : OAuth 2.0 Security Best Current Practice", url: "https://www.rfc-editor.org/rfc/rfc9700" },
+  { title: "OpenID Connect Core", url: "https://openid.net/specs/openid-connect-core-1_0.html" },
+  { title: "openid-client (panva)", url: "https://github.com/panva/openid-client" },
 ]} />

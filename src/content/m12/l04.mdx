@@ -77,12 +77,12 @@ Le quatrième temps n'est pas théorique. En 2021, Project Zero a analysé les 0
 | CVE | Cause racine | Motif à chercher chez toi |
 | --- | --- | --- |
 | **CVE-2025-29927** (Next.js) | Un en-tête interne contrôlable par le client décidait de sauter le middleware | Une décision de sécurité fondée sur un en-tête que le client peut envoyer |
-| **CVE-2025-29775** et **CVE-2025-29774** (xml-crypto) | La valeur vérifiée et la valeur utilisée pouvaient différer (commentaire XML glissé dans la valeur de condensat, plusieurs éléments SignedInfo) | Vérifier une représentation, en utiliser une autre (M3, parser differentials) |
+| **CVE-2025-29775** et **CVE-2025-29774** (xml-crypto) | La valeur vérifiée et la valeur utilisée pouvaient différer (commentaire XML glissé dans la valeur de condensat, plusieurs éléments SignedInfo) | Vérifier une représentation, en utiliser une autre (M9, parser differentials) |
 | **CVE-2024-34351** (Next.js) | Une redirection de Server Action construisait une URL absolue à partir de l'en-tête Host | Des URL absolues dérivées de la requête |
-| **CVE-2024-45590** (body-parser) | Profondeur de récursion non bornée lors du parsing « extended » des corps URL-encodés | Un parseur sans limite de profondeur ou de taille (M13, leçon 5) |
+| **CVE-2024-45590** (body-parser) | Profondeur de récursion non bornée lors du parsing « extended » des corps URL-encodés | Un parseur sans limite de profondeur ou de taille (M17, leçon 5) |
 | **CVE-2022-29078** (EJS) | Des options du moteur contrôlables via l'objet passé au rendu | Un objet de requête passé tel quel à une bibliothèque |
 
-Chaque ligne donne une **règle Semgrep** potentielle pour le code de Novafact (M13).
+Chaque ligne donne une **règle Semgrep** potentielle pour le code de Novafact (M17).
 
 ## Un exemple complet : du correctif de Next.js au code de Novafact
 
@@ -105,7 +105,7 @@ export function requireSession(req: Request, res: Response, next: NextFunction) 
 ```ts
 export function requireSession(req: Request, res: Response, next: NextFunction) {
   // Plus de passe-droit par en-tête : le worker s'authentifie avec un jeton de service
-  // (client credentials Cognito, M9) vérifié par requireServiceToken sur ses propres routes.
+  // (client credentials Cognito, M14) vérifié par requireServiceToken sur ses propres routes.
   if (!req.session?.userId) return res.status(401).end();
   next();
 }
@@ -139,7 +139,7 @@ rules:
 
 </Code>
 
-Et côté back-office Next.js, la leçon de conception demeure : le middleware (ou `proxy.ts`) n'est qu'un premier filtre. L'autorisation se vérifie aussi dans la couche d'accès aux données, pour qu'un contournement du middleware ne suffise pas (M8).
+Et côté back-office Next.js, la leçon de conception demeure : le middleware (ou `proxy.ts`) n'est qu'un premier filtre. L'autorisation se vérifie aussi dans la couche d'accès aux données, pour qu'un contournement du middleware ne suffise pas (M14).
 
 <Callout kind="case">
 Le 3 décembre 2025, React a publié CVE-2025-55182 (« React2Shell ») : une exécution de code à distance sans authentification, due au décodage des requêtes envoyées aux Server Functions. Une semaine plus tard, l'équipe annonçait deux nouvelles vulnérabilités, un déni de service (CVE-2025-55184) et une exposition du code source des Server Functions (CVE-2025-55183), trouvées par des chercheurs **en tentant de contourner le correctif**. Le premier correctif du déni de service s'est ensuite révélé incomplet (CVE-2025-67779), et d'autres cas de déni de service ont été publiés le 26 janvier 2026 (CVE-2026-23864). Quatre séries de mises à jour pour une même zone de code : c'est la variant analysis faite en public, par d'autres.

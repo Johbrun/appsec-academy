@@ -1,4 +1,4 @@
-// PR du jeu « Diff Review » (M12). Chaque ligne de diff commence par '+', '-' ou ' '.
+// PR du jeu « Diff Review » (M16). Chaque ligne de diff commence par '+', '-' ou ' '.
 // Un problème est rattaché aux lignes qui contiennent l'une de ses chaînes `match`.
 //
 // Le jeu demande de commenter les lignes à risque, de qualifier chaque

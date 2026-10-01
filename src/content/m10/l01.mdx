@@ -86,7 +86,7 @@ Une taxonomie sert d'abord à **parler la même langue**. Le support voit « des
 L'exemple type est la paire OAT-007 et OAT-008. Le *cracking* concentre beaucoup d'essais sur peu de comptes : une limite par compte l'arrête. Le *stuffing* fait l'inverse, deux ou trois essais par compte sur des milliers de comptes, avec des identifiants souvent **valides** : la limite par compte ne se déclenche presque jamais, et il faut d'autres couches (leçon 2). Confondre les deux, c'est déployer un contrôle qui ne voit pas l'attaque.
 
 <Callout kind="warn">
-Tous les automates ne sont pas hostiles. OAT-020 décrit des agrégateurs qui se connectent **avec les identifiants de tes clients**, souvent à leur demande (un outil de gestion de notes de frais, par exemple). Les bloquer casse un usage réel ; les tolérer entraîne des mots de passe stockés chez un tiers et un trafic indiscernable d'une prise de contrôle. La bonne réponse est une décision produit : proposer une API avec délégation OAuth (M9), puis fermer la porte au scraping avec identifiants.
+Tous les automates ne sont pas hostiles. OAT-020 décrit des agrégateurs qui se connectent **avec les identifiants de tes clients**, souvent à leur demande (un outil de gestion de notes de frais, par exemple). Les bloquer casse un usage réel ; les tolérer entraîne des mots de passe stockés chez un tiers et un trafic indiscernable d'une prise de contrôle. La bonne réponse est une décision produit : proposer une API avec délégation OAuth (M14), puis fermer la porte au scraping avec identifiants.
 </Callout>
 
 ## API6 : les flux métier sensibles
@@ -140,7 +140,7 @@ import { logger } from '../logger';
 
 type FlowId = 'invoice.send' | 'team.invite' | 'referral.claim' | 'invoices.export';
 
-// Une seule source de vérité, relue en revue de conception (M8).
+// Une seule source de vérité, relue en revue de conception (M13).
 export const FLOWS: Record<FlowId, { oat: string[]; perTenantPerDay: number; newTenantPerDay: number }> = {
   'invoice.send':    { oat: ['OAT-017'], perTenantPerDay: 500, newTenantPerDay: 10 },
   'team.invite':     { oat: ['OAT-017'], perTenantPerDay: 20,  newTenantPerDay: 3 },
@@ -169,7 +169,7 @@ L'intérêt dépasse le quota : chaque flux produit un événement structuré (u
 </Callout>
 
 <Callout kind="tip">
-Pendant les revues de conception (M8), ajoute une question systématique : « que se passe-t-il si quelqu'un fait ça dix mille fois ? ». Et sa jumelle : « que se passe-t-il si quelqu'un le fait trois fois, avec une mauvaise intention, depuis un compte créé ce matin ? ». Ce sont ces deux questions qui font apparaître les abuse cases (M7) de ce module.
+Pendant les revues de conception (M13), ajoute une question systématique : « que se passe-t-il si quelqu'un fait ça dix mille fois ? ». Et sa jumelle : « que se passe-t-il si quelqu'un le fait trois fois, avec une mauvaise intention, depuis un compte créé ce matin ? ». Ce sont ces deux questions qui font apparaître les abuse cases (M12) de ce module.
 </Callout>
 
 ## En pratique chez toi

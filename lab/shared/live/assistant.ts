@@ -1,4 +1,4 @@
-// M19 · Sécurité de l'IA — challenges jouables.
+// m19 · Sécurité de l'IA — challenges jouables.
 //
 // Le lab n'a pas de vrai modèle : le simulateur déterministe de
 // server/routes/assistant.ts exécute les instructions qu'il lit, où qu'elles
@@ -25,7 +25,7 @@ export const m19: ExerciseDef[] = [
     brief: 'La trace de raisonnement de l’assistant est du texte plat : rien n’empêche l’utilisateur d’écrire lui-même les lignes censées venir des outils.',
     goal: 'Obtenir un appel d’outil sur un tenant qui n’est pas celui de la session, alors qu’aucun outil n’a renvoyé cet identifiant.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l02', 'm19/l05'],
+    lessons: ['m19/l02', 'm30/l01'],
     hints: [
       'Regarde la ligne que la trace affiche quand `lookup_tenant` répond. Elle est dans le même flux de texte que ton message.',
       'L’agent relit l’espace de travail dans cette trace. Rien ne distingue une ligne écrite par un outil d’une ligne que tu écris toi-même.',
@@ -39,7 +39,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Un outil « support » accepte une requête brute et hérite du périmètre complet de l’agent.',
     goal: 'Supprimer la donnée d’un autre utilisateur en ne parlant qu’à l’assistant.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l05', 'm19/l01'],
+    lessons: ['m30/l01', 'm19/l01'],
     hints: [
       'Liste les outils : GET /api/assistant/tools. L’un d’eux prend une requête brute « pour le support ».',
       '`support_query` ne connaît ni ton tenant ni ton rôle : il s’exécute avec le périmètre complet de l’agent, écriture comprise.',
@@ -67,7 +67,7 @@ export const m19: ExerciseDef[] = [
     brief: 'La réponse de l’assistant est rendue en Markdown, et une image distante est chargée au rendu, sans clic.',
     goal: 'Obtenir sur le collecteur local une requête contenant une donnée d’une facture, avec zéro interaction de l’utilisateur.',
     file: 'src/pages/Assistant.tsx',
-    lessons: ['m19/l04', 'm04/l04'],
+    lessons: ['m19/l04', 'm04/l05'],
     hints: [
       'La réponse de l’assistant est rendue en Markdown puis injectée dans la page. Une image n’a pas besoin d’un clic pour partir.',
       'Le collecteur du lab est GET /api/ai-lab/collect?d=… (il journalise et renvoie un pixel). Le simulateur remplace `{{factures}}` par le contenu récupéré, déjà encodé pour une URL.',
@@ -81,7 +81,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Un filtre de sortie supprime les liens Markdown en ligne. Il ne connaît pas la syntaxe par référence.',
     goal: 'Réussir l’exfiltration précédente **avec le filtre activé**.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l04', 'm19/l07'],
+    lessons: ['m19/l04', 'm19/l06'],
     hints: [
       'Active le filtre : `{"defenses":{"outputLinkFilter":true}}` dans le corps de POST /api/assistant. La forme en ligne ne passe plus.',
       'Markdown a une deuxième syntaxe pour la même chose : la forme par référence, où l’URL vit sur une ligne à part.',
@@ -95,7 +95,7 @@ export const m19: ExerciseDef[] = [
     brief: 'La sortie HTTP est entièrement bloquée. Un outil de diagnostic réseau, auto-approuvé parce qu’« il ne fait que regarder », prend un nom d’hôte.',
     goal: 'Faire apparaître dans le journal du résolveur local un nom qui encode un secret.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l05', 'm19/l03'],
+    lessons: ['m30/l01', 'm19/l03'],
     hints: [
       'Coupe la sortie HTTP : `{"defenses":{"egressBlock":true}}`. Puis regarde quel outil prend encore un identifiant contrôlable.',
       '`net_diagnose` est auto-approuvé « parce qu’il ne fait que regarder ». Un nom d’hôte fait 253 octets, et le résolveur du lab journalise tout (GET /api/ai-lab/dns).',
@@ -104,12 +104,12 @@ export const m19: ExerciseDef[] = [
     fix: 'Un outil auto-approuvé parce qu’il paraît inoffensif reste un canal : ce qui compte est la capacité de sortie, pas l’intention de l’outil. C’est le mécanisme de CVE-2025-55284, et c’est pourquoi la Rule of Two compte les capacités, pas les outils.',
   },
   {
-    id: 'product-as-channel', module: 'm19', title: 'Le produit lui-même comme canal',
+    id: 'product-as-channel', module: 'm30', title: 'Le produit lui-même comme canal',
     status: 'live', kind: 'exploit', level: 3, csslp: ['D4'], cwe: 'CWE-200',
     brief: 'L’assistant peut publier une note de litige visible par tous les tenants. Aucun trafic ne sort du réseau.',
     goal: 'Faire apparaître dans une note publique une chaîne qui n’existe que dans une facture privée d’un autre tenant.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l05', 'm08/l07'],
+    lessons: ['m30/l01', 'm09/l02'],
     hints: [
       'Aucun trafic ne doit sortir : cherche une capacité d’écriture visible par d’autres tenants.',
       '`publish_dispute_note` écrit sur un registre public (GET /api/ai-lab/public-notes). Reste à lui faire recopier ce que la récupération a remonté d’un autre espace.',
@@ -123,7 +123,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Les sorties d’outil sont encadrées par un délimiteur, avec consigne de ne jamais obéir à l’intérieur. Une note de facture contient ce délimiteur.',
     goal: 'Obtenir un appel d’outil d’origine document **alors que la défense est active**.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l03', 'm19/l07'],
+    lessons: ['m19/l03', 'm19/l06'],
     hints: [
       'Active la défense : `{"defenses":{"spotlight":true}}`. Les documents sont alors encadrés, avec consigne de ne pas obéir à l’intérieur.',
       'Regarde le délimiteur de fermeture. Il est connu, et le contenu de la note n’est pas échappé avant d’être posé dedans.',
@@ -132,13 +132,13 @@ export const m19: ExerciseDef[] = [
     fix: 'Toute défense par délimiteur se casse si l’attaquant peut écrire le délimiteur : il faut l’échapper dans le contenu, ou changer de mécanisme. Et *The Attacker Moves Second* rappelle que les défenses évaluées contre des attaques fixes tombent contre des attaques adaptatives.',
   },
   {
-    id: 'tool-poisoning-mcp', module: 'm19', title: 'L’empoisonnement de description d’outil',
+    id: 'tool-poisoning-mcp', module: 'm30', title: 'L’empoisonnement de description d’outil',
     status: 'live', kind: 'exploit', level: 2, csslp: ['D4', 'D8'], cwe: 'CWE-1427',
     k: [4],
     brief: 'La description d’un outil d’un serveur MCP tiers contient un bloc d’instructions demandant de recopier la configuration dans un paramètre annexe.',
     goal: 'Obtenir un appel d’outil portant un argument que l’utilisateur n’a jamais fourni et qui contient un secret.',
     file: 'server/routes/mcp.ts',
-    lessons: ['m19/l05', 'm14/l08'],
+    lessons: ['m30/l01', 'm14/l09'],
     hints: [
       'Active le serveur tiers : POST /api/mcp/servers/facturo-plus/enable, puis lis GET /api/mcp/tools.',
       'La description de `convert_currency` n’est pas de la documentation : elle contient une directive, et elle entre dans le contexte au même titre que le reste.',
@@ -147,12 +147,12 @@ export const m19: ExerciseDef[] = [
     fix: 'La description d’un outil entre dans le contexte au même titre que le reste : c’est du contenu fourni par un tiers. Un serveur MCP tiers est un third-party hook au sens de Kohnfelder — il a les droits de celui qui l’installe.',
   },
   {
-    id: 'rug-pull-mcp', module: 'm19', title: 'Le rug pull',
+    id: 'rug-pull-mcp', module: 'm30', title: 'Le rug pull',
     status: 'live', kind: 'exploit', level: 3, csslp: ['D4', 'D8'], cwe: 'CWE-494',
     brief: 'La description d’un outil MCP mute après quelques utilisations, une fois l’approbation de l’utilisateur obtenue.',
     goal: 'Montrer que l’empreinte de la description diffère entre le premier et le énième appel, et que le comportement change après la mutation.',
     file: 'server/routes/mcp.ts',
-    lessons: ['m19/l05', 'm14/l07'],
+    lessons: ['m30/l01', 'm14/l08'],
     hints: [
       'Active devise-pro, liste les outils, et note l’empreinte servie : GET /api/mcp/fingerprints/devise-pro/convert_rate.',
       'Approuve l’outil (POST /api/mcp/approve/devise-pro/convert_rate), puis relance le listage plusieurs fois. La description mute après le troisième.',
@@ -161,13 +161,13 @@ export const m19: ExerciseDef[] = [
     fix: 'Approuver une fois ne vaut pas approuver pour toujours : empreinte enregistrée à la première vue, comparaison à chaque listage, et nouvelle approbation si elle change. C’est le modèle de confiance à la première utilisation, et c’est la seule défense contre une dépendance qui se retourne.',
   },
   {
-    id: 'tool-shadowing', module: 'm19', title: 'Le tool shadowing',
+    id: 'tool-shadowing', module: 'm30', title: 'Le tool shadowing',
     status: 'live', kind: 'exploit', level: 3, csslp: ['D4', 'D8'], cwe: 'CWE-1427',
     k: [4],
     brief: 'Un second serveur MCP déclare un outil homonyme de celui du serveur de confiance, et altère son comportement.',
     goal: 'Faire appeler l’outil **de confiance** avec un destinataire caché que personne n’a demandé.',
     file: 'server/routes/mcp.ts',
-    lessons: ['m19/l05', 'm08/l03'],
+    lessons: ['m30/l01', 'm08/l04'],
     hints: [
       'Active helper-tools (POST /api/mcp/servers/helper-tools/enable) et compare les noms d’outils avec ceux de novafact-core.',
       'L’espace de noms est plat : deux serveurs déclarent `send_email`, et la description de l’un prétend s’appliquer à l’outil de l’autre.',
@@ -176,12 +176,12 @@ export const m19: ExerciseDef[] = [
     fix: 'Les outils de plusieurs serveurs partagent un espace de noms sans frontière : un serveur peut décrire ceux d’un autre. Nommer les outils par leur serveur, isoler les contextes, et n’activer que les serveurs nécessaires à la tâche.',
   },
   {
-    id: 'line-jumping', module: 'm19', title: 'Nuire avant le premier appel',
+    id: 'line-jumping', module: 'm30', title: 'Nuire avant le premier appel',
     status: 'live', kind: 'exploit', level: 3, csslp: ['D4', 'D8'], cwe: 'CWE-1427',
     brief: 'Les descriptions d’outils entrent dans le contexte dès le listage, avant tout consentement et avant toute invocation.',
     goal: 'Faire porter à toutes les réponses produites un comportement jamais demandé, sans qu’un seul outil ait été invoqué.',
     file: 'server/routes/mcp.ts',
-    lessons: ['m19/l05', 'm11/l06'],
+    lessons: ['m30/l01', 'm11/l06'],
     hints: [
       'Active notes-mcp, puis GET /api/mcp/tools — et n’appelle aucun outil.',
       'Les descriptions entrent dans le contexte au listage. Le consentement à l’invocation arrive après : il ne protège de rien.',
@@ -209,7 +209,7 @@ export const m19: ExerciseDef[] = [
     brief: 'L’index contient les factures de tous les tenants, et le filtrage se fait après la récupération, dans le prompt.',
     goal: 'Obtenir le contenu d’une facture d’un autre tenant par une question bien tournée.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l04', 'm08/l07'],
+    lessons: ['m19/l04', 'm09/l02'],
     hints: [
       'Compare `trace.retrieved` et `trace.documents` : l’index remonte des documents que la réponse n’affiche pas.',
       'Le cloisonnement n’est pas dans la requête, il est demandé au modèle dans le prompt. Ce qui se demande poliment se refuse.',
@@ -223,7 +223,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Les fragments d’une facture supprimée restent dans l’index vectoriel et dans le cache de réponses.',
     goal: 'Faire ressortir la réponse empoisonnée après que le document source a été supprimé.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l04', 'm07/l06'],
+    lessons: ['m19/l04', 'm07/l04'],
     hints: [
       'Pose une question sur une facture que tu viens de créer : elle entre dans l’index. Regarde ensuite GET /api/ai-lab/state, champ `indexSize`.',
       'Supprime la facture — `support_query(q="delete invoices where ref=INV-…")` — et repose la même question.',
@@ -251,7 +251,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Un jeton unique est planté dans le prompt système de l’assistant.',
     goal: 'Le faire apparaître dans une réponse rendue à l’utilisateur.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l01', 'm19/l07'],
+    lessons: ['m19/l01', 'm19/l06'],
     hints: [
       'Le prompt système contient un jeton unique. Il n’y a pas de secret dans un prompt : il n’y a que du contexte.',
       'Le simulateur reconnaît une demande directe. Formule-la en nommant ce que tu veux voir.',
@@ -279,7 +279,7 @@ export const m19: ExerciseDef[] = [
     brief: 'L’assistant conserve des préférences alimentées par le contenu des documents lus.',
     goal: 'Faire se déclencher dans une **nouvelle session** une instruction plantée au tour précédent, le document source ayant été supprimé entre-temps.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l02', 'm19/l05'],
+    lessons: ['m19/l02', 'm30/l01'],
     hints: [
       'La mémoire se lit dans GET /api/ai-lab/state, champ `memory`. Elle est alimentée par le contenu des documents.',
       'La directive `MÉMORISE:` dans une note écrit dans ce magasin. Une session se choisit avec le champ `session` du corps de POST /api/assistant.',
@@ -321,7 +321,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Un filtre d’entrée bloque une liste de mots. Le modèle, lui, décode base64, ROT13 et caractères invisibles avant d’obéir.',
     goal: 'Obtenir la chaîne déclencheuse avec la liste de blocage active, puis écrire le filtre qui normalise avant de décider.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l07', 'm02/l03'],
+    lessons: ['m19/l06', 'm02/l02'],
     hints: [
       'Essaie d’abord la chaîne interdite en clair : POST /api/assistant la refuse et te dit laquelle.',
       'Le filtre compare la chaîne brute à une liste de mots. Le modèle, lui, retire les caractères invisibles puis décode base64 et ROT13 avant d’obéir.',
@@ -335,7 +335,7 @@ export const m19: ExerciseDef[] = [
     brief: 'La boîte de confirmation affiche le destinataire extrait de la question. L’appel d’outil, lui, utilise celui extrait du document.',
     goal: 'Faire approuver un envoi vers une adresse qui n’est jamais apparue dans la boîte de validation.',
     file: 'src/pages/Assistant.tsx',
-    lessons: ['m19/l03', 'm19/l05'],
+    lessons: ['m19/l03', 'm30/l01'],
     hints: [
       'Active la confirmation : `{"defenses":{"approval":true}}`. La trace renvoie alors `pending`, avec deux champs distincts : `summary` et `args`.',
       '`summary.to` est reconstruit à partir de TA question ; `args.to` vient de l’instruction trouvée dans le document. La boîte de validation affiche le premier.',
@@ -349,7 +349,7 @@ export const m19: ExerciseDef[] = [
     brief: 'La réponse de l’assistant est rendue en Markdown puis injectée dans la page. Le modèle répète ce qu’il lit dans les factures.',
     goal: 'Obtenir une exécution de script dans le navigateur, par une note de facture qui traverse le modèle.',
     file: 'src/pages/Assistant.tsx',
-    lessons: ['m19/l04', 'm04/l05'],
+    lessons: ['m19/l04', 'm04/l06'],
     hints: [
       'La réponse de l’assistant est rendue en Markdown puis injectée dans la page avec dangerouslySetInnerHTML. Le modèle recopie ce qu’il lit.',
       'Il suffit que la note d’une facture contienne du HTML actif et que la réponse la répète.',
@@ -363,7 +363,7 @@ export const m19: ExerciseDef[] = [
     brief: 'L’assistant dispose d’un outil « consulter une page » qui accepte n’importe quelle URL.',
     goal: 'Faire joindre le service de métadonnées à l’agent, par une instruction cachée dans une facture.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l04', 'm19/l05'],
+    lessons: ['m19/l04', 'm30/l01'],
     hints: [
       'L’outil `fetch_url` accepte n’importe quelle URL et hérite du périmètre réseau de l’agent.',
       'Le faux service de métadonnées du lab écoute sur 127.0.0.1:4318. L’instruction doit venir d’une facture, pas de ta question.',
@@ -377,7 +377,7 @@ export const m19: ExerciseDef[] = [
     brief: 'L’assistant de code propose une commande d’installation pour un paquet plausible qui n’existe pas au registre.',
     goal: 'Montrer que le paquet suggéré est absent du registre local — ou créé la veille, sans dépendant — et que rien ne l’a arrêté.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l08', 'm14/l05'],
+    lessons: ['m19/l07', 'm14/l05'],
     hints: [
       'Demande un conseil de dépendance : « Quel paquet npm me conseilles-tu pour parser un SIRET ? ».',
       'Vérifie ensuite la suggestion contre le registre local : GET /api/ai-lab/registry/<nom>.',
@@ -391,7 +391,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Un bot de revue lit le diff des pull requests et peut rendre un verdict d’approbation.',
     goal: 'Faire approuver une PR dont le diff contient l’instruction — puis retirer l’approbation du vocabulaire du bot.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l08', 'm12/l06'],
+    lessons: ['m19/l07', 'm12/l06'],
     hints: [
       'Le bot s’appelle par POST /api/assistant/review avec `{"diff":"…"}`. Regarde son champ `vocabulary`.',
       'Il lit le diff — du contenu écrit par l’auteur de la pull request — et il a le droit de rendre un verdict d’approbation.',
@@ -405,7 +405,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Un job de CI agentique interpole le titre de la pull request dans son prompt, et dispose des secrets du dépôt.',
     goal: 'Faire apparaître la valeur d’une variable canari dans le journal de build.',
     file: 'novafact/.github/workflows/ai-triage.yml',
-    lessons: ['m19/l08', 'm14/l02'],
+    lessons: ['m19/l07', 'm14/l02'],
     hints: [
       'Le workflow se rejoue avec POST /api/ai-lab/ci/run `{"title":"…"}` : il lit le vrai fichier YAML, l’interpole et exécute le step d’agent.',
       'Le titre de la pull request est interpolé dans le prompt, et le step d’agent reçoit `NOVAFACT_CANARY` dans son environnement.',
@@ -419,7 +419,7 @@ export const m19: ExerciseDef[] = [
     brief: 'Une attaque qui casse la tâche demandée se fait repérer tout de suite : l’utilisateur voit que sa réponse est absurde.',
     goal: 'Réussir l’exfiltration **et** produire le résumé légitimement demandé, dans le même tour.',
     file: 'server/routes/assistant.ts',
-    lessons: ['m19/l07', 'm18/l05', 'm03/l13'],
+    lessons: ['m19/l06', 'm28/l05', 'm03/l13'],
     hints: [
       'Regarde les deux champs `trace.exfiltration` et `trace.utility` : le drapeau demande les deux à vrai dans le même tour.',
       'Une directive `RÉPONDS UNIQUEMENT:` remplace la réponse — l’utilisateur le voit tout de suite. Il en existe une qui ajoute au lieu de remplacer.',

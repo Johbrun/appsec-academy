@@ -29,35 +29,35 @@ marche encore. Le corrigé est dans [SOLUTIONS.md](SOLUTIONS.md).
 
 | # | Challenge | Mod. | Niv. | CWE | CSSLP | Leçon de référence |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | [Injection NoSQL dans la connexion](#nosql-auth) | M2 | N1 | CWE-943 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 2 | [Mass assignment sur le profil](#mass-assignment) | M2 | N1 | CWE-915 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 3 | [BOLA : la facture du voisin](#bola-invoice) | M2 | N1 | CWE-639 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 4 | [Prototype pollution côté serveur](#proto-pollution) | M2 | N2 | CWE-1321 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
-| 5 | [Arithmétique de l’argent](#money-float) | M2 | N1 | CWE-681 | D5 | [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) |
-| 6 | [ReDoS sur la référence de facture](#redos) | M2 | N2 | CWE-1333 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
-| 7 | [Traversée de chemin sur les pièces jointes](#path-traversal) | M2 | N2 | CWE-22 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
-| 8 | [SSRF vers le service de métadonnées](#ssrf-imds) | M2 | N2 | CWE-918 | D5, D7 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
+| 1 | [Injection NoSQL dans la connexion](#nosql-auth) | M2 | N1 | CWE-943 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 2 | [Mass assignment sur le profil](#mass-assignment) | M2 | N1 | CWE-915 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 3 | [BOLA : la facture du voisin](#bola-invoice) | M2 | N1 | CWE-639 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 4 | [Prototype pollution côté serveur](#proto-pollution) | M2 | N2 | CWE-1321 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
+| 5 | [Arithmétique de l’argent](#money-float) | M2 | N1 | CWE-681 | D5 | [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) |
+| 6 | [ReDoS sur la référence de facture](#redos) | M2 | N2 | CWE-1333 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
+| 7 | [Traversée de chemin sur les pièces jointes](#path-traversal) | M2 | N2 | CWE-22 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
+| 8 | [SSRF vers le service de métadonnées](#ssrf-imds) | M2 | N2 | CWE-918 | D5, D7 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
 | 9 | [Race condition : l’avoir dépensé deux fois](#race-credit) | M3 | N2 | CWE-362 | D5 | [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) |
 | 10 | [Empoisonnement du lien de réinitialisation](#host-header) | M3 | N2 | CWE-640 | D5 | [En-tête Host](http://127.0.0.1:5173/#/modules/m03/l02) |
-| 11 | [JWT : décoder n’est pas vérifier](#jwt-decode) | M3 | N2 | CWE-347 | D1, D5 | [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l03) |
+| 11 | [JWT : décoder n’est pas vérifier](#jwt-decode) | M3 | N2 | CWE-347 | D1, D5 | [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l05) |
 | 12 | [Empoisonnement du cache par une entrée hors clé](#cache-poison) | M3 | N3 | CWE-444 | D5, D7 | [Cache poisoning et cache deception](http://127.0.0.1:5173/#/modules/m03/l06) |
-| 13 | [XSS stockée dans la note de facture](#dom-xss) | M4 | N1 | CWE-79 | D5 | [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) |
-| 14 | [Script tiers piloté par la configuration](#third-party-script) | M4 | N2 | CWE-829 | D4, D8 | [Scripts tiers](http://127.0.0.1:5173/#/modules/m04/l02) |
+| 13 | [XSS stockée dans la note de facture](#dom-xss) | M4 | N1 | CWE-79 | D5 | [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) |
+| 14 | [Script tiers piloté par la configuration](#third-party-script) | M4 | N2 | CWE-829 | D4, D8 | [Scripts tiers](http://127.0.0.1:5173/#/modules/m04/l03) |
 | 15 | [Credential stuffing sans limite](#no-rate-limit) | M10 | N1 | CWE-307 | D5 | [Credential stuffing et prise de contrôle](http://127.0.0.1:5173/#/modules/m10/l02) |
 | 16 | [Invariant métier : rouvrir une facture payée](#invoice-state) | M10 | N2 | CWE-840 | D4, D5 | [Invariants métier](http://127.0.0.1:5173/#/modules/m10/l06) |
 | 17 | [Injection indirecte dans « Ask Novafact »](#prompt-injection) | M19 | N2 | CWE-1427 | D4 | [Prompt injection et règle de deux](http://127.0.0.1:5173/#/modules/m19/l02) |
 | 18 | [La fausse observation](#synthetic-observation) | M19 | N2 | CWE-1427 | D4 | [Prompt injection et règle de deux](http://127.0.0.1:5173/#/modules/m19/l02) |
-| 19 | [L’outil de débogage branché sur l’assistant](#excessive-agency-tool) | M19 | N2 | CWE-250 | D4, D5 | [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) |
+| 19 | [L’outil de débogage branché sur l’assistant](#excessive-agency-tool) | M19 | N2 | CWE-250 | D4, D5 | [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) |
 | 20 | [L’action qui porte l’identité de la victime](#indirect-victim-session) | M19 | N2 | CWE-1427 | D4 | [Prompt injection et règle de deux](http://127.0.0.1:5173/#/modules/m19/l02) |
 | 21 | [L’image qui part toute seule](#markdown-image-exfil) | M19 | N2 | CWE-200 | D4, D5 | [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) |
 | 22 | [Le filtre de liens et la forme référence](#reference-link-bypass) | M19 | N3 | CWE-200 | D4, D5 | [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) |
-| 23 | [L’outil « sûr » comme canal](#dns-exfil-tool) | M19 | N3 | CWE-200 | D4, D7 | [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) |
-| 24 | [Le produit lui-même comme canal](#product-as-channel) | M19 | N3 | CWE-200 | D4 | [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) |
+| 23 | [L’outil « sûr » comme canal](#dns-exfil-tool) | M19 | N3 | CWE-200 | D4, D7 | [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) |
+| 24 | [Le produit lui-même comme canal](#product-as-channel) | M30 | N3 | CWE-200 | D4 | [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) |
 | 25 | [La défense cassée par son propre délimiteur](#spotlighting-bypass) | M19 | N3 | CWE-1427 | D4 | [Patterns de conception pour agents](http://127.0.0.1:5173/#/modules/m19/l03) |
-| 26 | [L’empoisonnement de description d’outil](#tool-poisoning-mcp) | M19 | N2 | CWE-1427 | D4, D8 | [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) |
-| 27 | [Le rug pull](#rug-pull-mcp) | M19 | N3 | CWE-494 | D4, D8 | [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) |
-| 28 | [Le tool shadowing](#tool-shadowing) | M19 | N3 | CWE-1427 | D4, D8 | [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) |
-| 29 | [Nuire avant le premier appel](#line-jumping) | M19 | N3 | CWE-1427 | D4, D8 | [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) |
+| 26 | [L’empoisonnement de description d’outil](#tool-poisoning-mcp) | M30 | N2 | CWE-1427 | D4, D8 | [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) |
+| 27 | [Le rug pull](#rug-pull-mcp) | M30 | N3 | CWE-494 | D4, D8 | [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) |
+| 28 | [Le tool shadowing](#tool-shadowing) | M30 | N3 | CWE-1427 | D4, D8 | [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) |
+| 29 | [Nuire avant le premier appel](#line-jumping) | M30 | N3 | CWE-1427 | D4, D8 | [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) |
 | 30 | [Combien de documents pour retourner une réponse](#poisoned-rag) | M19 | N2 | CWE-1427 | D4 | [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) |
 | 31 | [RAG sans contrôle d’accès](#rag-acl) | M19 | N2 | CWE-285 | D4, D5 | [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) |
 | 32 | [L’index survit à la suppression](#index-after-deletion) | M19 | N2 | CWE-212 | D3, D4 | [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) |
@@ -67,75 +67,75 @@ marche encore. Le corrigé est dans [SOLUTIONS.md](SOLUTIONS.md).
 | 36 | [La mémoire à effet différé](#memory-poisoning) | M19 | N3 | CWE-1427 | D4 | [Prompt injection et règle de deux](http://127.0.0.1:5173/#/modules/m19/l02) |
 | 37 | [La boucle sous le radar du quota](#tool-loop-quota) | M19 | N2 | CWE-770 | D4, D7 | [OWASP LLM Top 10 2026](http://127.0.0.1:5173/#/modules/m19/l01) |
 | 38 | [Consommation illimitée](#unbounded-consumption) | M19 | N2 | CWE-770 | D4, D7 | [OWASP LLM Top 10 2026](http://127.0.0.1:5173/#/modules/m19/l01) |
-| 39 | [Le décodeur obéissant](#encoded-bypass) | M19 | N2 | CWE-176 | D4 | [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l07) |
+| 39 | [Le décodeur obéissant](#encoded-bypass) | M19 | N2 | CWE-176 | D4 | [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l06) |
 | 40 | [L’approbation humaine trompée](#human-approval-spoof) | M19 | N3 | CWE-451 | D4 | [Patterns de conception pour agents](http://127.0.0.1:5173/#/modules/m19/l03) |
 | 41 | [Sortie du modèle rendue en HTML](#llm-markdown-xss) | M19 | N2 | CWE-79 | D4, D5 | [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) |
 | 42 | [SSRF par un outil de l’agent](#llm-tool-ssrf) | M19 | N2 | CWE-918 | D4, D5 | [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) |
-| 43 | [Le paquet qui n’existe pas](#package-hallucination) | M19 | N2 | CWE-1104 | D5, D8 | [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l08) |
-| 44 | [Le bot de revue qui approuve](#ai-review-bot-approve) | M19 | N2 | CWE-1427 | D5, D8 | [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l08) |
-| 45 | [Le secret de CI dans un titre de PR](#ci-secret-in-pr-title) | M19 | N3 | CWE-1427 | D7, D8 | [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l08) |
-| 46 | [Exfiltrer sans se faire remarquer](#stealth-attack) | M19 | N3 | CWE-1427 | D4, D7 | [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l07) |
-| 47 | [BFLA : la méthode oubliée](#bfla-method) | M2 | N1 | CWE-285 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 48 | [BOLA sur un identifiant imbriqué](#bola-nested) | M2 | N2 | CWE-639 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 49 | [Erreur non gérée et état incohérent](#error-leak) | M2 | N2 | CWE-209 | D5 | [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) |
-| 50 | [Au-delà de 2^53](#max-safe-integer) | M2 | N2 | CWE-190 | D5 | [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) |
-| 51 | [Number() permissif sur les montants](#number-coercion) | M2 | N1 | CWE-1287 | D5 | [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) |
+| 43 | [Le paquet qui n’existe pas](#package-hallucination) | M19 | N2 | CWE-1104 | D5, D8 | [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l07) |
+| 44 | [Le bot de revue qui approuve](#ai-review-bot-approve) | M19 | N2 | CWE-1427 | D5, D8 | [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l07) |
+| 45 | [Le secret de CI dans un titre de PR](#ci-secret-in-pr-title) | M19 | N3 | CWE-1427 | D7, D8 | [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l07) |
+| 46 | [Exfiltrer sans se faire remarquer](#stealth-attack) | M19 | N3 | CWE-1427 | D4, D7 | [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l06) |
+| 47 | [BFLA : la méthode oubliée](#bfla-method) | M2 | N1 | CWE-285 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 48 | [BOLA sur un identifiant imbriqué](#bola-nested) | M2 | N2 | CWE-639 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 49 | [Erreur non gérée et état incohérent](#error-leak) | M2 | N2 | CWE-209 | D5 | [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) |
+| 50 | [Au-delà de 2^53](#max-safe-integer) | M2 | N2 | CWE-190 | D5 | [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) |
+| 51 | [Number() permissif sur les montants](#number-coercion) | M2 | N1 | CWE-1287 | D5 | [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) |
 | 52 | [Fuite par l’ORM sur un filtre](#orm-leak) | M3 | N3 | CWE-200 | D5 | [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) |
 | 53 | [Confusion de type sur la query string](#qs-type-confusion) | M3 | N2 | CWE-843 | D5 | [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) |
 | 54 | [Course entre paiement et annulation](#race-multi-endpoint) | M3 | N2 | CWE-362 | D5 | [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) |
 | 55 | [Envoi de factures détourné](#send-quota) | M10 | N2 | CWE-770 | D3, D4 | [Abus de fonctionnalités](http://127.0.0.1:5173/#/modules/m10/l05) |
-| 56 | [Jeton d’accès passé dans l’URL](#token-in-url) | M9 | N1 | CWE-598 | D5, D7 | [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l02) |
+| 56 | [Jeton d’accès passé dans l’URL](#token-in-url) | M9 | N1 | CWE-598 | D5, D7 | [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l04) |
 | 57 | [Réponse authentifiée mise en cache](#vary-missing) | M3 | N2 | CWE-524 | D5, D7 | [Cache poisoning et cache deception](http://127.0.0.1:5173/#/modules/m03/l06) |
-| 58 | [Autorisation sur une seule étape du flux](#multistep-authz) | M2 | N2 | CWE-841 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 59 | [Endpoint à double usage mal isolé](#dual-use-endpoint) | M2 | N2 | CWE-284 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 60 | [eval dans le calcul des pénalités](#eval-formula) | M2 | N2 | CWE-95 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
-| 61 | [node:vm n’est pas un bac à sable](#vm-escape) | M2 | N3 | CWE-265 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
-| 62 | [Pièce jointe servie sur l’origine de l’application](#attachment-same-origin) | M4 | N2 | CWE-79 | D4, D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 63 | [Logo SVG exécutable](#svg-logo) | M4 | N2 | CWE-79 | D4, D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) |
+| 58 | [Autorisation sur une seule étape du flux](#multistep-authz) | M2 | N2 | CWE-841 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 59 | [Endpoint à double usage mal isolé](#dual-use-endpoint) | M2 | N2 | CWE-284 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 60 | [eval dans le calcul des pénalités](#eval-formula) | M2 | N2 | CWE-95 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
+| 61 | [node:vm n’est pas un bac à sable](#vm-escape) | M2 | N3 | CWE-265 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
+| 62 | [Pièce jointe servie sur l’origine de l’application](#attachment-same-origin) | M4 | N2 | CWE-79 | D4, D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 63 | [Logo SVG exécutable](#svg-logo) | M4 | N2 | CWE-79 | D4, D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) |
 | 64 | [TOCTOU sur le téléversement](#toctou-upload) | M3 | N2 | CWE-367 | D5 | [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) |
-| 65 | [Pipeline d’upload non isolé](#upload-pipeline) | M8 | N2 | CWE-434 | D4, D5 | [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l10) |
+| 65 | [Pipeline d’upload non isolé](#upload-pipeline) | M8 | N2 | CWE-434 | D4, D5 | [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) |
 | 66 | [Cache deception sur le PDF de facture](#cache-deception-pdf) | M3 | N3 | CWE-525 | D5, D7 | [Cache poisoning et cache deception](http://127.0.0.1:5173/#/modules/m03/l06) |
-| 67 | [Injection de commande dans l’export](#cmd-injection) | M2 | N2 | CWE-78 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
-| 68 | [Injection de formule dans l’export CSV](#csv-formula-injection) | M2 | N1 | CWE-1236 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
+| 67 | [Injection de commande dans l’export](#cmd-injection) | M2 | N2 | CWE-78 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
+| 68 | [Injection de formule dans l’export CSV](#csv-formula-injection) | M2 | N1 | CWE-1236 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
 | 69 | [SSRF par le générateur de PDF](#ssrf-pdf-renderer) | M3 | N3 | CWE-918 | D5 | [SSRF avancée](http://127.0.0.1:5173/#/modules/m03/l11) |
 | 70 | [SSTI par les options de rendu](#ssti-render-options) | M3 | N3 | CWE-94 | D5 | [SSTI et injection de code](http://127.0.0.1:5173/#/modules/m03/l08) |
-| 71 | [Expansion d’entités sur le même import](#xml-entity-expansion) | M2 | N2 | CWE-776 | D5, D6 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 72 | [XXE à l’import de facture électronique](#xxe-import) | M2 | N2 | CWE-611 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 73 | [Zip Slip à l’import d’un lot de factures](#zip-slip) | M2 | N2 | CWE-22 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) |
-| 74 | [Clés JSON dupliquées](#json-duplicate-keys) | M2 | N2 | CWE-436 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
+| 71 | [Expansion d’entités sur le même import](#xml-entity-expansion) | M2 | N2 | CWE-776 | D5, D6 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 72 | [XXE à l’import de facture électronique](#xxe-import) | M2 | N2 | CWE-611 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 73 | [Zip Slip à l’import d’un lot de factures](#zip-slip) | M2 | N2 | CWE-22 | D5 | [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) |
+| 74 | [Clés JSON dupliquées](#json-duplicate-keys) | M2 | N2 | CWE-436 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
 | 75 | [Désérialisation de types arbitraires](#deserialization) | M3 | N3 | CWE-502 | D5 | [Désérialisation et prototype pollution avancées](http://127.0.0.1:5173/#/modules/m03/l09) |
 | 76 | [SSTI dans le gabarit de relance](#ssti-email-template) | M3 | N3 | CWE-1336 | D5 | [SSTI et injection de code](http://127.0.0.1:5173/#/modules/m03/l08) |
 | 77 | [Pollution de paramètres côté serveur](#param-pollution) | M3 | N2 | CWE-235 | D5 | [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) |
-| 78 | [Contrôle d’accès par préfixe d’URL](#url-prefix-authz) | M2 | N2 | CWE-289 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
+| 78 | [Contrôle d’accès par préfixe d’URL](#url-prefix-authz) | M2 | N2 | CWE-289 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
 | 79 | [Confusion de Content-Type sur une mutation](#content-type-confusion) | M3 | N2 | CWE-352 | D5 | [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) |
 | 80 | [GraphQL : introspection et coût](#graphql-introspection) | M3 | N2 | CWE-200 | D5 | [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) |
 | 81 | [GraphQL : reconstruire le schéma sans introspection](#graphql-clairvoyance) | M3 | N3 | CWE-209 | D5 | [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) |
 | 82 | [CSRF sur le point d’accès GraphQL](#graphql-csrf) | M3 | N2 | CWE-352 | D5 | [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) |
 | 83 | [SSRF par redirection](#ssrf-redirect-bypass) | M3 | N3 | CWE-918 | D5, D7 | [SSRF avancée](http://127.0.0.1:5173/#/modules/m03/l11) |
 | 84 | [GraphQL : force brute par alias](#graphql-batching) | M3 | N2 | CWE-307 | D5 | [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) |
-| 85 | [URL javascript: rendue par React](#react-javascript-url) | M4 | N1 | CWE-79 | D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) |
-| 86 | [Pollution de prototype côté client](#client-proto-pollution) | M4 | N3 | CWE-1321 | D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) |
-| 87 | [DOM clobbering sur la configuration](#dom-clobbering) | M4 | N3 | CWE-1321 | D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) |
-| 88 | [postMessage sans contrôle d’origine](#postmessage-origin) | M4 | N2 | CWE-346 | D4, D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 89 | [Fuite par l’en-tête Referer](#referrer-leak) | M4 | N1 | CWE-200 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 90 | [Nonce de CSP réutilisé](#csp-nonce-reuse) | M4 | N2 | CWE-330 | D5 | [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04) |
-| 91 | [Gadget dans une origine autorisée](#csp-gadget) | M4 | N3 | CWE-693 | D5 | [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04) |
-| 92 | [Trusted Types en trompe-l’œil](#trusted-types-default) | M4 | N3 | CWE-693 | D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) |
-| 93 | [Clickjacking sur les coordonnées bancaires](#clickjacking-prefilled) | M4 | N2 | CWE-1021 | D4, D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 94 | [SameSite contourné par surcharge de méthode](#samesite-method-override) | M4 | N2 | CWE-352 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 95 | [CORS : origine reflétée avec identifiants](#cors-origin-reflection) | M4 | N1 | CWE-942 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 96 | [CORS : origine null autorisée](#cors-null-origin) | M4 | N2 | CWE-942 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 97 | [XS-Leak par comptage de cadres](#xsleak-frame-count) | M4 | N3 | CWE-200 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 98 | [XS-Leak par événements d’erreur](#xsleak-error-events) | M4 | N3 | CWE-200 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
-| 99 | [Validation de paiement encadrable](#clickjacking) | M4 | N1 | CWE-1021 | D4, D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) |
+| 85 | [URL javascript: rendue par React](#react-javascript-url) | M4 | N1 | CWE-79 | D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) |
+| 86 | [Pollution de prototype côté client](#client-proto-pollution) | M4 | N3 | CWE-1321 | D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) |
+| 87 | [DOM clobbering sur la configuration](#dom-clobbering) | M4 | N3 | CWE-1321 | D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) |
+| 88 | [postMessage sans contrôle d’origine](#postmessage-origin) | M4 | N2 | CWE-346 | D4, D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 89 | [Fuite par l’en-tête Referer](#referrer-leak) | M4 | N1 | CWE-200 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 90 | [Nonce de CSP réutilisé](#csp-nonce-reuse) | M4 | N2 | CWE-330 | D5 | [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05) |
+| 91 | [Gadget dans une origine autorisée](#csp-gadget) | M4 | N3 | CWE-693 | D5 | [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05) |
+| 92 | [Trusted Types en trompe-l’œil](#trusted-types-default) | M4 | N3 | CWE-693 | D5 | [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) |
+| 93 | [Clickjacking sur les coordonnées bancaires](#clickjacking-prefilled) | M4 | N2 | CWE-1021 | D4, D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 94 | [SameSite contourné par surcharge de méthode](#samesite-method-override) | M4 | N2 | CWE-352 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 95 | [CORS : origine reflétée avec identifiants](#cors-origin-reflection) | M4 | N1 | CWE-942 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 96 | [CORS : origine null autorisée](#cors-null-origin) | M4 | N2 | CWE-942 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 97 | [XS-Leak par comptage de cadres](#xsleak-frame-count) | M4 | N3 | CWE-200 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 98 | [XS-Leak par événements d’erreur](#xsleak-error-events) | M4 | N3 | CWE-200 | D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
+| 99 | [Validation de paiement encadrable](#clickjacking) | M4 | N1 | CWE-1021 | D4, D5 | [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) |
 | 100 | [Secret livré dans le bundle](#secret-in-bundle) | M4 | N1 | CWE-615 | D5, D7 | [Le client n’est pas sous ton contrôle](http://127.0.0.1:5173/#/modules/m04/l01) |
 | 101 | [Endpoint de diagnostic laissé ouvert](#debug-endpoint) | M17 | N1 | CWE-489 | D7 | [Configuration de production](http://127.0.0.1:5173/#/modules/m17/l01) |
-| 102 | [Expression de validation non ancrée](#regex-unanchored) | M2 | N1 | CWE-625 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) |
-| 103 | [Normalisation après le contrôle d’unicité](#unicode-normalization) | M2 | N2 | CWE-178 | D5 | [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) |
-| 104 | [Le catch qui échoue ouvert](#try-catch-fail-open) | M2 | N2 | CWE-636 | D5 | [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) |
-| 105 | [Troncature après validation](#input-truncation) | M2 | N2 | CWE-1284 | D5 | [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) |
-| 106 | [Comparaison de jeton à temps variable](#timing-attack) | M2 | N2 | CWE-208 | D5 | [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) |
-| 107 | [Redirection ouverte après connexion](#open-redirect) | M2 | N1 | CWE-601 | D5 | [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) |
+| 102 | [Expression de validation non ancrée](#regex-unanchored) | M2 | N1 | CWE-625 | D5 | [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) |
+| 103 | [Normalisation après le contrôle d’unicité](#unicode-normalization) | M2 | N2 | CWE-178 | D5 | [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) |
+| 104 | [Le catch qui échoue ouvert](#try-catch-fail-open) | M2 | N2 | CWE-636 | D5 | [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) |
+| 105 | [Troncature après validation](#input-truncation) | M2 | N2 | CWE-1284 | D5 | [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) |
+| 106 | [Comparaison de jeton à temps variable](#timing-attack) | M2 | N2 | CWE-208 | D5 | [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) |
+| 107 | [Redirection ouverte après connexion](#open-redirect) | M4 | N1 | CWE-601 | D5 | [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) |
 | 108 | [Course à la construction du compte](#race-partial-construction) | M3 | N3 | CWE-362 | D5 | [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) |
 | 109 | [Jetons de réinitialisation collidants](#reset-token-collision) | M3 | N2 | CWE-330 | D5 | [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) |
 | 110 | [Différentiel d’analyse d’adresse](#email-parsing-differential) | M3 | N3 | CWE-436 | D5 | [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) |
@@ -144,22 +144,22 @@ marche encore. Le corrigé est dans [SOLUTIONS.md](SOLUTIONS.md).
 | 113 | [JWT : jku et jwk honorés](#jwt-jku-jwk) | M3 | N3 | CWE-347 | D1, D5 | [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) |
 | 114 | [Jeton valable d’un tenant à l’autre](#jwt-no-audience) | M3 | N2 | CWE-863 | D1, D5 | [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) |
 | 115 | [Session qu’on ne peut pas révoquer](#session-not-revocable) | M3 | N2 | CWE-613 | D1, D5 | [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) |
-| 116 | [Jeton tiré de Math.random](#weak-random) | M8 | N2 | CWE-338 | D1, D5 | [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) |
-| 117 | [redirect_uri validée par préfixe](#oauth-redirect) | M9 | N2 | CWE-601 | D1, D5 | [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l01) |
-| 118 | [Connexion fédérée sans state](#oauth-state) | M9 | N2 | CWE-352 | D1, D5 | [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l01) |
-| 119 | [nOAuth : e-mail non vérifié](#oauth-email-unverified) | M9 | N2 | CWE-287 | D1, D5 | [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l04) |
-| 120 | [SAML : envelopper la signature](#saml-wrapping) | M9 | N3 | CWE-347 | D1, D4 | [SAML en entreprise](http://127.0.0.1:5173/#/modules/m09/l06) |
+| 116 | [Jeton tiré de Math.random](#weak-random) | M8 | N2 | CWE-338 | D1, D5 | [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) |
+| 117 | [redirect_uri validée par préfixe](#oauth-redirect) | M9 | N2 | CWE-601 | D1, D5 | [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l03) |
+| 118 | [Connexion fédérée sans state](#oauth-state) | M9 | N2 | CWE-352 | D1, D5 | [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l03) |
+| 119 | [nOAuth : e-mail non vérifié](#oauth-email-unverified) | M9 | N2 | CWE-287 | D1, D5 | [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l06) |
+| 120 | [SAML : envelopper la signature](#saml-wrapping) | M9 | N3 | CWE-347 | D1, D4 | [SAML en entreprise](http://127.0.0.1:5173/#/modules/m09/l08) |
 | 121 | [Énumération de comptes](#user-enumeration) | M10 | N1 | CWE-204 | D5 | [Credential stuffing et prise de contrôle](http://127.0.0.1:5173/#/modules/m10/l02) |
 | 122 | [Limitation contournée par X-Forwarded-For](#xff-spoof) | M10 | N2 | CWE-290 | D5, D7 | [Limitation de débit bien conçue](http://127.0.0.1:5173/#/modules/m10/l03) |
 | 123 | [Du finding au backlog](#pentest-to-appsec) | M1 | N1 | CWE-1059 | D2, D6 | [Du pentest à l’AppSec](http://127.0.0.1:5173/#/modules/m01/l01) |
-| 124 | [Le gabarit de route qui naît sûr](#paved-road-template) | M1 | N2 | CWE-1188 | D2, D5 | [Principes DevSecOps](http://127.0.0.1:5173/#/modules/m01/l02) |
-| 125 | [Évaluation SAMM qui se calcule](#samm-assessment) | M1 | N2 | CWE-1059 | D2 | [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m01/l03) |
-| 126 | [La feuille de route dérivée de l’écart](#samm-roadmap) | M1 | N2 | CWE-1059 | D2 | [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m01/l03) |
-| 127 | [La porte qui casse le build](#break-build-gate) | M1 | N2 | CWE-1059 | D2, D6 | [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) |
-| 128 | [L’exception qui expire](#risk-exception) | M1 | N2 | CWE-1059 | D2, D6 | [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) |
-| 129 | [Attestation SSDF adossée au dépôt](#ssdf-attestation) | M1 | N3 | CWE-1059 | D2 | [Risque et acceptation](http://127.0.0.1:5173/#/modules/m01/l07) |
-| 130 | [Le signalement CRA, en test](#cra-notification) | M1 | N3 | CWE-1059 | D2, D8 | [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m01/l08) |
-| 131 | [Se comparer plutôt que se noter](#bsimm-compare) | M1 | N2 | CWE-1059 | D2 | [BSIMM16 : se comparer](http://127.0.0.1:5173/#/modules/m01/l04) |
+| 124 | [Le gabarit de route qui naît sûr](#paved-road-template) | M1 | N2 | CWE-1188 | D2, D5 | [Principes DevSecOps](http://127.0.0.1:5173/#/modules/m01/l05) |
+| 125 | [Évaluation SAMM qui se calcule](#samm-assessment) | M24 | N2 | CWE-1059 | D2 | [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m24/l02) |
+| 126 | [La feuille de route dérivée de l’écart](#samm-roadmap) | M32 | N2 | CWE-1059 | D2 | [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m24/l02) |
+| 127 | [La porte qui casse le build](#break-build-gate) | M32 | N2 | CWE-1059 | D2, D6 | [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) |
+| 128 | [L’exception qui expire](#risk-exception) | M32 | N2 | CWE-1059 | D2, D6 | [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) |
+| 129 | [Attestation SSDF adossée au dépôt](#ssdf-attestation) | M32 | N3 | CWE-1059 | D2 | [Risque et acceptation](http://127.0.0.1:5173/#/modules/m26/l06) |
+| 130 | [Le signalement CRA, en test](#cra-notification) | M32 | N3 | CWE-1059 | D2, D8 | [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m32/l05) |
+| 131 | [Se comparer plutôt que se noter](#bsimm-compare) | M24 | N2 | CWE-1059 | D2 | [BSIMM16 : se comparer](http://127.0.0.1:5173/#/modules/m24/l03) |
 | 132 | [Le doublon qui coûte cher](#finding-dedupe) | M5 | N2 | CWE-1059 | D6 | [Cycle de vie d’une vulnérabilité](http://127.0.0.1:5173/#/modules/m05/l01) |
 | 133 | [Le triage qui va chercher la donnée](#triage-kev-epss) | M5 | N2 | CWE-1059 | D6 | [Prioriser par le risque](http://127.0.0.1:5173/#/modules/m05/l03) |
 | 134 | [L’arbre SSVC, appliqué](#ssvc-decision) | M5 | N2 | CWE-1059 | D6 | [Prioriser par le risque](http://127.0.0.1:5173/#/modules/m05/l03) |
@@ -169,18 +169,18 @@ marche encore. Le corrigé est dans [SOLUTIONS.md](SOLUTIONS.md).
 | 138 | [Le SLA qui se mesure](#sla-policy) | M5 | N2 | CWE-1059 | D6, D7 | [Outillage, SLA et dépendances npm](http://127.0.0.1:5173/#/modules/m05/l05) |
 | 139 | [Le constat qui agrège tout](#findings-aggregate) | M5 | N2 | CWE-1059 | D6 | [Outillage, SLA et dépendances npm](http://127.0.0.1:5173/#/modules/m05/l05) |
 | 140 | [Publier sa politique de divulgation](#disclosure-policy) | M5 | N1 | CWE-1059 | D6, D8 | [Divulgation, bug bounty et CRA](http://127.0.0.1:5173/#/modules/m05/l06) |
-| 141 | [Le finding à la bonne ligne](#finding-sarif) | M6 | N2 | CWE-1059 | D2, D6 | [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l02) |
-| 142 | [Router la revue vers les bonnes personnes](#codeowners-sensitive) | M6 | N1 | CWE-1391 | D2, D7 | [Security Champions](http://127.0.0.1:5173/#/modules/m06/l05) |
-| 143 | [Former à partir d’un vrai bug](#training-from-bug) | M6 | N2 | CWE-1059 | D2, D6 | [Former au code sécurisé](http://127.0.0.1:5173/#/modules/m06/l06) |
-| 144 | [Cadrer un test d’intrusion](#pentest-scope) | M6 | N3 | CWE-1059 | D6, D8 | [Piloter la sécurité offensive](http://127.0.0.1:5173/#/modules/m06/l08) |
-| 145 | [À qui fait-on confiance, au juste](#trust-inventory) | M7 | N1 | CWE-1059 | D1, D3 | [La confiance](http://127.0.0.1:5173/#/modules/m07/l01) |
-| 146 | [Authentifier, autoriser, journaliser](#gold-standard-audit) | M7 | N1 | CWE-778 | D1, D5 | [C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m07/l02) |
-| 147 | [Le sous-ensemble ASVS de Novafact](#asvs-subset) | M7 | N2 | CWE-1059 | D3 | [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l03) |
-| 148 | [La matrice qui ne ment pas](#traceability-matrix) | M7 | N2 | CWE-1059 | D3, D6 | [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l04) |
-| 149 | [La carte des données, confrontée au code](#data-classification) | M7 | N2 | CWE-1059 | D3 | [Classification des données](http://127.0.0.1:5173/#/modules/m07/l05) |
-| 150 | [L’effacement qui efface pour de bon](#erasure-test) | M7 | N2 | CWE-359 | D3, D6 | [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l06) |
-| 151 | [Ce que la conformité impose vraiment](#compliance-matrix) | M7 | N2 | CWE-1059 | D3, D8 | [Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l07) |
-| 152 | [Recertifier les accès](#access-recertification) | M7 | N3 | CWE-1059 | D3, D7 | [Provisionnement des accès](http://127.0.0.1:5173/#/modules/m07/l08) |
+| 141 | [Le finding à la bonne ligne](#finding-sarif) | M6 | N2 | CWE-1059 | D2, D6 | [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l01) |
+| 142 | [Router la revue vers les bonnes personnes](#codeowners-sensitive) | M23 | N1 | CWE-1391 | D2, D7 | [Security Champions](http://127.0.0.1:5173/#/modules/m23/l04) |
+| 143 | [Former à partir d’un vrai bug](#training-from-bug) | M6 | N2 | CWE-1059 | D2, D6 | [Former au code sécurisé](http://127.0.0.1:5173/#/modules/m06/l04) |
+| 144 | [Cadrer un test d’intrusion](#pentest-scope) | M6 | N3 | CWE-1059 | D6, D8 | [Piloter la sécurité offensive](http://127.0.0.1:5173/#/modules/m06/l06) |
+| 145 | [À qui fait-on confiance, au juste](#trust-inventory) | M1 | N1 | CWE-1059 | D1, D3 | [La confiance](http://127.0.0.1:5173/#/modules/m01/l02) |
+| 146 | [Authentifier, autoriser, journaliser](#gold-standard-audit) | M1 | N1 | CWE-778 | D1, D5 | [C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m01/l03) |
+| 147 | [Le sous-ensemble ASVS de Novafact](#asvs-subset) | M7 | N2 | CWE-1059 | D3 | [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l01) |
+| 148 | [La matrice qui ne ment pas](#traceability-matrix) | M7 | N2 | CWE-1059 | D3, D6 | [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l02) |
+| 149 | [La carte des données, confrontée au code](#data-classification) | M7 | N2 | CWE-1059 | D3 | [Classification des données](http://127.0.0.1:5173/#/modules/m07/l03) |
+| 150 | [L’effacement qui efface pour de bon](#erasure-test) | M7 | N2 | CWE-359 | D3, D6 | [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l04) |
+| 151 | [Ce que la conformité impose vraiment](#compliance-matrix) | M7 | N2 | CWE-1059 | D3, D8 | [Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l05) |
+| 152 | [Recertifier les accès](#access-recertification) | M7 | N3 | CWE-1059 | D3, D7 | [Provisionnement des accès](http://127.0.0.1:5173/#/modules/m07/l06) |
 | 153 | [Le DFD qui remonte la bonne menace](#dfd-as-code) | M11 | N2 | CWE-1059 | D4 | [Les 4 questions et la démarche](http://127.0.0.1:5173/#/modules/m11/l01) |
 | 154 | [STRIDE par élément, sans trou](#stride-per-element) | M11 | N1 | CWE-1059 | D4 | [STRIDE par élément](http://127.0.0.1:5173/#/modules/m11/l02) |
 | 155 | [L’arbre d’attaque coupé](#attack-tree) | M11 | N2 | CWE-1059 | D4 | [Choisir sa méthode](http://127.0.0.1:5173/#/modules/m11/l03) |
@@ -209,7 +209,7 @@ marche encore. Le corrigé est dans [SOLUTIONS.md](SOLUTIONS.md).
 | 178 | [npm install en intégration continue](#npm-ci-lockfile) | M14 | N1 | CWE-1104 | D8 | [npm : installer et publier](http://127.0.0.1:5173/#/modules/m14/l05) |
 | 179 | [secrets: inherit vers un workflow réutilisable](#gha-secrets-inherit) | M14 | N2 | CWE-668 | D7, D8 | [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) |
 | 180 | [Empoisonnement du cache Actions](#gha-cache-poisoning) | M14 | N3 | CWE-349 | D7, D8 | [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) |
-| 181 | [Publication sans provenance](#npm-provenance) | M14 | N2 | CWE-345 | D7, D8 | [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) |
+| 181 | [Publication sans provenance](#npm-provenance) | M14 | N2 | CWE-345 | D7, D8 | [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) |
 | 182 | [Condition « acteur bot » usurpable](#gha-bot-condition) | M14 | N2 | CWE-290 | D7, D8 | [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) |
 | 183 | [Runner self-hosted ouvert aux forks](#gha-self-hosted) | M14 | N2 | CWE-668 | D7, D8 | [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) |
 | 184 | [CODEOWNERS qui ne couvre pas la CI](#codeowners-ci) | M14 | N1 | CWE-1391 | D7, D8 | [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) |
@@ -217,8 +217,8 @@ marche encore. Le corrigé est dans [SOLUTIONS.md](SOLUTIONS.md).
 | 186 | [Jeton de publication dans le dépôt](#npm-token-in-repo) | M14 | N1 | CWE-798 | D7, D8 | [npm : installer et publier](http://127.0.0.1:5173/#/modules/m14/l05) |
 | 187 | [Confusion de dépendances sur le scope interne](#dependency-confusion) | M14 | N2 | CWE-427 | D8 | [npm : installer et publier](http://127.0.0.1:5173/#/modules/m14/l05) |
 | 188 | [Lockfile détourné](#lockfile-integrity) | M14 | N2 | CWE-494 | D8 | [npm : installer et publier](http://127.0.0.1:5173/#/modules/m14/l05) |
-| 189 | [Fuite de fichiers dans le paquet publié](#npm-pack-leak) | M14 | N1 | CWE-538 | D8 | [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) |
-| 190 | [L’artefact ne correspond pas au source](#vendor-build-mismatch) | M14 | N3 | CWE-506 | D8 | [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l07) |
+| 189 | [Fuite de fichiers dans le paquet publié](#npm-pack-leak) | M14 | N1 | CWE-538 | D8 | [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) |
+| 190 | [L’artefact ne correspond pas au source](#vendor-build-mismatch) | M14 | N3 | CWE-506 | D8 | [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l08) |
 | 191 | [Politique en joker](#iam-wildcard) | M15 | N1 | CWE-732 | D1, D7 | [Le modèle IAM et la logique d’évaluation](http://127.0.0.1:5173/#/modules/m15/l01) |
 | 192 | [Zéro utilisateur IAM](#iam-no-users) | M15 | N1 | CWE-522 | D1, D7 | [Zéro utilisateur IAM](http://127.0.0.1:5173/#/modules/m15/l02) |
 | 193 | [Le joker sous le mauvais opérateur](#iam-stringequals-wildcard) | M15 | N1 | CWE-183 | D1, D7 | [Le modèle IAM et la logique d’évaluation](http://127.0.0.1:5173/#/modules/m15/l01) |
@@ -258,25 +258,25 @@ marche encore. Le corrigé est dans [SOLUTIONS.md](SOLUTIONS.md).
 | 227 | [Publier en sécurité](#signed-artifacts) | M17 | N2 | CWE-345 | D7, D8 | [Publier en sécurité](http://127.0.0.1:5173/#/modules/m17/l03) |
 | 228 | [Le vocabulaire imposé](#logging-vocabulary) | M18 | N1 | CWE-778 | D5, D7 | [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) |
 | 229 | [Ce qu’il ne faut jamais journaliser](#never-log) | M18 | N1 | CWE-532 | D3, D7 | [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) |
-| 230 | [Les champs qui manquent à la corrélation](#ecs-fields) | M18 | N2 | CWE-778 | D7 | [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l02) |
-| 231 | [Le lint sémantique du schéma](#ecs-lint) | M18 | N2 | CWE-1059 | D7 | [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l02) |
+| 230 | [Les champs qui manquent à la corrélation](#ecs-fields) | M18 | N2 | CWE-778 | D7 | [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l03) |
+| 231 | [Le lint sémantique du schéma](#ecs-lint) | M18 | N2 | CWE-1059 | D7 | [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l03) |
 | 232 | [L’inventaire de journalisation](#logging-inventory) | M18 | N2 | CWE-778 | D3, D7 | [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) |
-| 233 | [Écrire la règle : bourrage d’identifiants](#rule-credential-stuffing) | M18 | N2 | CWE-1059 | D7 | [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l03) |
-| 234 | [Régler le seuil](#rule-threshold) | M18 | N2 | CWE-1059 | D7 | [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) |
-| 235 | [La corrélation temporelle](#rule-temporal-spray) | M18 | N3 | CWE-1059 | D7 | [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l03) |
-| 236 | [Le piège à miel](#honeytoken) | M18 | N2 | CWE-1059 | D7 | [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) |
-| 237 | [Détecter l’injection indirecte](#detect-prompt-injection) | M18 | N3 | CWE-1059 | D4, D7 | [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) |
-| 238 | [La règle qui se tait après le correctif](#rule-silent-after-fix) | M18 | N2 | CWE-1059 | D6, D7 | [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m18/l06) |
-| 239 | [Deux fixtures par règle](#rule-fixtures) | M18 | N1 | CWE-1059 | D6, D7 | [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) |
-| 240 | [Le lint de règle](#rule-lint) | M18 | N2 | CWE-1059 | D6, D7 | [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) |
-| 241 | [L’atomique qui valide la règle](#atomic-test) | M18 | N2 | CWE-1059 | D6, D7 | [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) |
-| 242 | [Les points de détection applicatifs](#appsensor-points) | M18 | N2 | CWE-778 | D5, D7 | [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) |
-| 243 | [La réponse graduée](#graduated-response) | M18 | N2 | CWE-1059 | D5, D7 | [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) |
-| 244 | [La fiche de stratégie de détection](#ads-documentation) | M18 | N2 | CWE-1059 | D7 | [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) |
-| 245 | [La couverture qui se prouve](#detection-coverage) | M18 | N3 | CWE-1059 | D7 | [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) |
-| 246 | [La chronologie de l’incident](#incident-timeline) | M18 | N3 | CWE-1059 | D7 | [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m18/l06) |
+| 233 | [Écrire la règle : bourrage d’identifiants](#rule-credential-stuffing) | M18 | N2 | CWE-1059 | D7 | [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l04) |
+| 234 | [Régler le seuil](#rule-threshold) | M28 | N2 | CWE-1059 | D7 | [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) |
+| 235 | [La corrélation temporelle](#rule-temporal-spray) | M18 | N3 | CWE-1059 | D7 | [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l04) |
+| 236 | [Le piège à miel](#honeytoken) | M28 | N2 | CWE-1059 | D7 | [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) |
+| 237 | [Détecter l’injection indirecte](#detect-prompt-injection) | M28 | N3 | CWE-1059 | D4, D7 | [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) |
+| 238 | [La règle qui se tait après le correctif](#rule-silent-after-fix) | M28 | N2 | CWE-1059 | D6, D7 | [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m28/l06) |
+| 239 | [Deux fixtures par règle](#rule-fixtures) | M28 | N1 | CWE-1059 | D6, D7 | [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) |
+| 240 | [Le lint de règle](#rule-lint) | M28 | N2 | CWE-1059 | D6, D7 | [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) |
+| 241 | [L’atomique qui valide la règle](#atomic-test) | M28 | N2 | CWE-1059 | D6, D7 | [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) |
+| 242 | [Les points de détection applicatifs](#appsensor-points) | M28 | N2 | CWE-778 | D5, D7 | [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) |
+| 243 | [La réponse graduée](#graduated-response) | M28 | N2 | CWE-1059 | D5, D7 | [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) |
+| 244 | [La fiche de stratégie de détection](#ads-documentation) | M28 | N2 | CWE-1059 | D7 | [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) |
+| 245 | [La couverture qui se prouve](#detection-coverage) | M28 | N3 | CWE-1059 | D7 | [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) |
+| 246 | [La chronologie de l’incident](#incident-timeline) | M28 | N3 | CWE-1059 | D7 | [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m28/l06) |
 
-## M1 · Programme AppSec & DevSecOps
+## M3 · Présentation de l’AppSec
 
 <a id="pentest-to-appsec"></a>
 
@@ -292,7 +292,7 @@ Le lab contient un rapport de pentest classique : `fixtures/m01/pentest-report.j
 
 **Dans le cours.**
 - [Du pentest à l’AppSec](http://127.0.0.1:5173/#/modules/m01/l01) · [source](../src/content/m01/l01.mdx)
-- [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l02) · [source](../src/content/m06/l02.mdx)
+- [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l01) · [source](../src/content/m06/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -315,8 +315,8 @@ Chaque nouvelle route de Novafact réimplémente à sa façon l’authentificati
 **Où.** `templates/route.ts`
 
 **Dans le cours.**
-- [Principes DevSecOps](http://127.0.0.1:5173/#/modules/m01/l02) · [source](../src/content/m01/l02.mdx)
-- [Le paved road comme produit](http://127.0.0.1:5173/#/modules/m06/l07) · [source](../src/content/m06/l07.mdx)
+- [Principes DevSecOps](http://127.0.0.1:5173/#/modules/m01/l05) · [source](../src/content/m01/l05.mdx)
+- [Le paved road comme produit](http://127.0.0.1:5173/#/modules/m06/l05) · [source](../src/content/m06/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -326,175 +326,55 @@ Le harnais génère une route neuve depuis le gabarit et lui applique une batter
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/templates/route.ts`](solutions/templates/route.ts)
 </details>
 
-<a id="samm-assessment"></a>
+<a id="trust-inventory"></a>
 
-### Évaluation SAMM qui se calcule
+### À qui fait-on confiance, au juste
 
-**N2** · CWE-1059 · D2 Cycle de vie
+**N1** · CWE-1059 · D1 Concepts · D3 Exigences
 
-Novafact n’a jamais été évaluée. Les avis divergent sur la maturité réelle du programme, faute de grille commune. Le modèle est embarqué : `fixtures/m01/samm-model.yaml`, 5 fonctions, 15 pratiques, 30 flux, 90 activités.
+Novafact fait implicitement confiance à des dizaines de parties : registre npm, CDN, prestataire de paiement, fournisseur d’IA, runner de CI, poste des développeurs. Aucune liste n’existe.
 
-**Objectif.** Remplir l’évaluation de l’équipe — une réponse par activité — et produire les scores par flux, par pratique, par fonction et le score global, cohérents avec les réponses.
+**Objectif.** Établir l’inventaire des composants implicitement fiables, avec ce que chacun pourrait faire s’il se retournait.
 
-**Où.** `program/samm-assessment.yaml`
+**Où.** `requirements/trust.yaml`
 
 **Dans le cours.**
-- [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m01/l03) · [source](../src/content/m01/l03.mdx)
-- [Mesurer un programme](http://127.0.0.1:5173/#/modules/m01/l06) · [source](../src/content/m01/l06.mdx)
+- [La confiance](http://127.0.0.1:5173/#/modules/m01/l02) · [source](../src/content/m01/l02.mdx)
+- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l04) · [source](../src/content/m08/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
 
-Le harnais recalcule tous les scores depuis les seules réponses et vérifie la complétude : chaque identifiant d’activité existe dans le modèle, aucun flux n’est laissé vide, aucune évaluation n’est incohérente. Ce qui est jugé, c’est l’arithmétique et la complétude — pas la sincérité des réponses, qui n’est pas vérifiable et qu’il faut assumer comme telle. C’est aussi pour cela qu’une auto-évaluation se contre-expertise.
+Le harnais confronte l’inventaire au code : chaque origine externe chargée, chaque dépendance directe, chaque action de CI doit y figurer, et rien d’imaginaire. La confiance est un spectre, et le premier geste de conception est de réduire le nombre de parties à qui l’on est obligé de faire confiance.
 
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/program/samm-assessment.yaml`](solutions/program/samm-assessment.yaml)
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/requirements/trust.yaml`](solutions/requirements/trust.yaml)
 </details>
 
-<a id="samm-roadmap"></a>
+<a id="gold-standard-audit"></a>
 
-### La feuille de route dérivée de l’écart
+### Authentifier, autoriser, journaliser
 
-**N2** · CWE-1059 · D2 Cycle de vie
+**N1** · CWE-778 · D1 Concepts · D5 Implémentation
 
-L’évaluation est faite. Reste à en tirer un plan à douze mois qui ne soit ni une liste de vœux ni un copier-coller du modèle.
+Le Gold Standard demande trois choses de chaque opération sensible. Les routes de Novafact en offrent une, deux, ou zéro, sans logique apparente.
 
-**Objectif.** Produire la feuille de route qui fait progresser d’un niveau chaque flux des pratiques sous le seuil de 1,5 — tous, et aucun autre.
+**Objectif.** Établir pour chaque route mutante ce qui est présent et ce qui manque — et faire tomber l’écart à zéro.
 
-**Où.** `program/roadmap.yaml`
+**Où.** `requirements/gold-standard.csv`
 
 **Dans le cours.**
-- [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m01/l03) · [source](../src/content/m01/l03.mdx)
-- [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m01/l08) · [source](../src/content/m01/l08.mdx)
+- [C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m01/l03) · [source](../src/content/m01/l03.mdx)
+- [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) · [source](../src/content/m18/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
 
-Le harnais calcule l’ensemble des pratiques sous le seuil depuis ton évaluation et exige que la feuille de route les couvre exactement, par les activités du niveau immédiatement supérieur. La cohérence avec l’évaluation est objective ; la pertinence pour le métier, l’ordre des trimestres et la faisabilité ne le sont pas et ne sont pas notés.
+Le harnais extrait les routes réellement montées et vérifie ligne à ligne. Le « A » d’audit est celui qu’on oublie — et c’est celui qui permet de répondre après coup à « qui a fait ça ».
 
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/program/roadmap.yaml`](solutions/program/roadmap.yaml)
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/requirements/gold-standard.csv`](solutions/requirements/gold-standard.csv)
 </details>
 
-<a id="break-build-gate"></a>
-
-### La porte qui casse le build
-
-**N2** · CWE-1059 · D2 Cycle de vie · D6 Tests
-
-Aucune porte de contrôle : la CI passe au vert quel que soit le résultat des scanners.
-
-**Objectif.** Écrire la porte qui bloque sur un seuil de sévérité — et seulement là. Le harnais l’exécute contre quatorze rapports d’analyse, dont douze fabriqués à la volée.
-
-**Où.** `scripts/gate.mjs`
-
-**Dans le cours.**
-- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) · [source](../src/content/m01/l05.mdx)
-- [Bâtir la plateforme](http://127.0.0.1:5173/#/modules/m13/l11) · [source](../src/content/m13/l11.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais exécute la porte sur deux rapports de référence — un à bloquer, un à laisser passer — puis sur douze rapports fabriqués à la volée, moitié-moitié. Une porte qui bloque toujours échoue sur les seconds ; un `|| true` échoue sur les premiers. C’est le même couple refuse/autorise que les tests de régression, et c’est ce qui distingue une porte d’un affichage. Le seuil retenu, lui, est un arbitrage : il est donné par l’énoncé, il n’est pas noté.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/scripts/gate.mjs`](solutions/scripts/gate.mjs)
-</details>
-
-<a id="risk-exception"></a>
-
-### L’exception qui expire
-
-**N2** · CWE-1059 · D2 Cycle de vie · D6 Tests
-
-Des vulnérabilités bloquent la CI et ne peuvent pas être corrigées cette semaine — `fixtures/m01/osv-scan.json` dit lesquelles. L’équipe veut « juste désactiver la règle ».
-
-**Objectif.** Déposer les exceptions : motivées, datées, bornées dans le temps, et refusées quand la vulnérabilité est activement exploitée ou quand un correctif existe.
-
-**Où.** `osv-scanner.toml`
-
-**Dans le cours.**
-- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) · [source](../src/content/m01/l05.mdx)
-- [Prioriser par le risque](http://127.0.0.1:5173/#/modules/m05/l03) · [source](../src/content/m05/l03.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais exige pour chaque exception un motif substantiel et propre à elle, une date d’expiration dans le futur et à moins de quatre-vingt-dix jours, et il refuse l’exception dès que l’identifiant figure au catalogue d’exploitation connue ou qu’une version corrigée existe. Il exige aussi la complétude : une vulnérabilité sans correctif laissée sans exception bloque toujours la CI. La pertinence du motif n’est pas jugée — sa présence, sa longueur et son unicité le sont. Une exception sans date n’est pas une exception, c’est un abandon.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/osv-scanner.toml`](solutions/osv-scanner.toml)
-</details>
-
-<a id="ssdf-attestation"></a>
-
-### Attestation SSDF adossée au dépôt
-
-**N3** · CWE-1059 · D2 Cycle de vie
-
-Un client exige l’attestation de conformité au cadre de développement sécurisé du NIST — non plus comme obligation fédérale, rescindée en janvier 2026, mais comme clause de contrat. Le premier réflexe est de cocher les cases.
-
-**Objectif.** Remplir la matrice des vingt-deux tâches de `fixtures/m01/ssdf-tasks.yaml` en citant, pour chaque tâche revendiquée, la preuve qui existe réellement dans le dépôt.
-
-**Où.** `program/ssdf.yaml`
-
-**Dans le cours.**
-- [Risque et acceptation](http://127.0.0.1:5173/#/modules/m01/l07) · [source](../src/content/m01/l07.mdx)
-- [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m01/l08) · [source](../src/content/m01/l08.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais vérifie que chaque chemin cité existe, et pousse plus loin sur un sous-ensemble : la revue est-elle réellement routée, la suite de tests réellement appelée en CI, l’analyse de dépendances réellement lancée. Une preuve inventée est détectée ; une preuve faible mais réelle passe — et c’est exactement la limite d’une attestation, qui se signe sur l’honneur. Il refuse en revanche les deux raccourcis : plus de trois tâches « non applicable », ou moins de six tâches réellement revendiquées. Ce qui a changé en 2026, c’est qui l’exige, pas ce qu’elle vaut.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/program/ssdf.yaml`](solutions/program/ssdf.yaml)
-</details>
-
-<a id="cra-notification"></a>
-
-### Le signalement CRA, en test
-
-**N3** · CWE-1059 · D2 Cycle de vie · D8 Supply chain
-
-Le Cyber Resilience Act impose depuis le 11/09/2026 une alerte sous 24 h et une notification sous 72 h pour une vulnérabilité activement exploitée dans un produit.
-
-**Objectif.** Implémenter le déclencheur qui décide si une vulnérabilité du SBOM déclenche l’obligation, et calcule les deux échéances.
-
-**Où.** `scripts/cra-report.mjs`
-
-**Dans le cours.**
-- [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m01/l08) · [source](../src/content/m01/l08.mdx)
-- [Divulgation, bug bounty et CRA](http://127.0.0.1:5173/#/modules/m05/l06) · [source](../src/content/m05/l06.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Trois SBOM d’essai, trois décisions attendues, puis huit couples SBOM/catalogue tirés au hasard : une fonction pure sur des données passées en argument, donc entièrement déterministe. Le harnais refuse aussi le déclencheur qui rend la même réponse partout. La qualification juridique — ce qui compte comme « produit », ce qui compte comme « connaissance » du fait — n’est pas automatisable et n’est pas jugée ici.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/scripts/cra-report.mjs`](solutions/scripts/cra-report.mjs)
-</details>
-
-<a id="bsimm-compare"></a>
-
-### Se comparer plutôt que se noter
-
-**N2** · CWE-1059 · D2 Cycle de vie
-
-L’évaluation de maturité dit où en est Novafact par rapport au modèle. Elle ne dit pas où en sont les autres. `fixtures/m01/bsimm-observed.yaml` donne, pour trente et une activités, la proportion d’organisations qui les pratiquent réellement.
-
-**Objectif.** Confronter Novafact aux activités réellement observées, calculer l’écart sur celles qui sont très répandues, et nommer les trois qui comptent.
-
-**Où.** `program/bsimm-gap.yaml`
-
-**Dans le cours.**
-- [BSIMM16 : se comparer](http://127.0.0.1:5173/#/modules/m01/l04) · [source](../src/content/m01/l04.mdx)
-- [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m01/l03) · [source](../src/content/m01/l03.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais vérifie que chaque activité citée existe dans l’étude, que chaque preuve existe dans le dépôt, et que l’écart est calculé à partir de tes propres réponses — pas déclaré. Le choix des trois priorités, lui, n’est pas noté : il dépend du contexte métier, et c’est précisément la conversation qu’on veut avoir. Les deux modèles ensemble évitent autant la complaisance que la course au niveau 3.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/program/bsimm-gap.yaml`](solutions/program/bsimm-gap.yaml)
-</details>
-
-## M2 · Vulnérabilités web, écosystème JS
+## M7 · Vulnérabilités côté serveur
 
 <a id="nosql-auth"></a>
 
@@ -509,8 +389,8 @@ Le formulaire de connexion passe `req.body` tel quel au moteur de requêtes des 
 **Où.** `server/routes/auth.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
-- [Éliminer une classe entière](http://127.0.0.1:5173/#/modules/m02/l08) · [source](../src/content/m02/l08.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
+- [Éliminer une classe entière](http://127.0.0.1:5173/#/modules/m02/l09) · [source](../src/content/m02/l09.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -533,7 +413,7 @@ La mise à jour du profil fusionne le corps de la requête dans l’objet utilis
 **Où.** `server/routes/profile.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 - [Revoir une PR en 10 minutes](http://127.0.0.1:5173/#/modules/m12/l03) · [source](../src/content/m12/l03.mdx)
 
 <details>
@@ -557,8 +437,8 @@ GET /api/invoices/:id vérifie que tu es authentifié, puis charge la facture pa
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
-- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
+- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m09/l02) · [source](../src/content/m09/l02.mdx)
 - [Revue orientée autorisation](http://127.0.0.1:5173/#/modules/m12/l05) · [source](../src/content/m12/l05.mdx)
 
 <details>
@@ -582,7 +462,7 @@ Les préférences utilisateur sont fusionnées récursivement dans les réglages
 **Où.** `server/routes/settings.ts`
 
 **Dans le cours.**
-- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
+- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
 - [Désérialisation et prototype pollution avancées](http://127.0.0.1:5173/#/modules/m03/l09) · [source](../src/content/m03/l09.mdx)
 
 <details>
@@ -606,7 +486,7 @@ Les lignes de facture sont calculées en flottants et les quantités ne sont pas
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
 - [Invariants métier](http://127.0.0.1:5173/#/modules/m10/l06) · [source](../src/content/m10/l06.mdx)
 
 <details>
@@ -630,7 +510,7 @@ La recherche de factures valide la référence fournie avec une expression régu
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
+- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
 - [Fuzzing et tests de disponibilité](http://127.0.0.1:5173/#/modules/m13/l05) · [source](../src/content/m13/l05.mdx)
 
 <details>
@@ -654,8 +534,8 @@ Le téléchargement d’une pièce jointe concatène le nom demandé au dossier 
 **Où.** `server/routes/attachments.ts`
 
 **Dans le cours.**
-- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
-- [Mitigations structurelles](http://127.0.0.1:5173/#/modules/m08/l01) · [source](../src/content/m08/l01.mdx)
+- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Mitigations structurelles](http://127.0.0.1:5173/#/modules/m08/l02) · [source](../src/content/m08/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -678,7 +558,7 @@ Le test de webhook récupère l’URL fournie par le client pour montrer la rép
 **Où.** `server/routes/webhooks.ts`
 
 **Dans le cours.**
-- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
+- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
 - [SSRF avancée](http://127.0.0.1:5173/#/modules/m03/l11) · [source](../src/content/m03/l11.mdx)
 - [Workloads Node.js](http://127.0.0.1:5173/#/modules/m15/l03) · [source](../src/content/m15/l03.mdx)
 
@@ -703,8 +583,8 @@ Le contrôle d’appartenance au tenant est monté sur la lecture d’une factur
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
-- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
+- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m09/l02) · [source](../src/content/m09/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -727,8 +607,8 @@ La création de facture vérifie le tenant de l’appelant, mais pas celui du cl
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
-- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
+- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m09/l02) · [source](../src/content/m09/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -751,7 +631,7 @@ Une promesse non gérée dans la création de facture laisse la trace d’exécu
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) · [source](../src/content/m02/l05.mdx)
+- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
 - [Configuration de production](http://127.0.0.1:5173/#/modules/m17/l01) · [source](../src/content/m17/l01.mdx)
 
 <details>
@@ -775,7 +655,7 @@ Le produit quantité × prix est calculé en nombre flottant : passé la limite 
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
 - [Invariants métier](http://127.0.0.1:5173/#/modules/m10/l06) · [source](../src/content/m10/l06.mdx)
 
 <details>
@@ -799,8 +679,8 @@ Le montant est converti par `Number()`, qui accepte la notation exponentielle, l
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
-- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) · [source](../src/content/m02/l05.mdx)
+- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -823,7 +703,7 @@ L’émission d’un avoir se fait en trois requêtes ; seule la première véri
 **Où.** `server/routes/credits.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 - [Invariants métier](http://127.0.0.1:5173/#/modules/m10/l06) · [source](../src/content/m10/l06.mdx)
 
 <details>
@@ -847,8 +727,8 @@ Une même route sert les réglages du tenant et ceux de la plateforme, discrimin
 **Où.** `server/routes/settings.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
-- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l09) · [source](../src/content/m08/l09.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
+- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -871,8 +751,8 @@ La formule de pénalité de retard, configurable par le tenant, est évaluée av
 **Où.** `server/routes/settings.ts`
 
 **Dans le cours.**
-- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
-- [Éliminer une classe entière](http://127.0.0.1:5173/#/modules/m02/l08) · [source](../src/content/m02/l08.mdx)
+- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Éliminer une classe entière](http://127.0.0.1:5173/#/modules/m02/l09) · [source](../src/content/m02/l09.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -895,7 +775,7 @@ La même formule est « isolée » dans `vm.runInNewContext`, dont on s’échap
 **Où.** `server/routes/settings.ts`
 
 **Dans le cours.**
-- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
+- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
 - [SSTI et injection de code](http://127.0.0.1:5173/#/modules/m03/l08) · [source](../src/content/m03/l08.mdx)
 
 <details>
@@ -919,8 +799,8 @@ L’export comptable produit un PDF en appelant un binaire externe, avec un nom 
 **Où.** `server/routes/export.ts`
 
 **Dans le cours.**
-- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
-- [Éliminer une classe entière](http://127.0.0.1:5173/#/modules/m02/l08) · [source](../src/content/m02/l08.mdx)
+- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Éliminer une classe entière](http://127.0.0.1:5173/#/modules/m02/l09) · [source](../src/content/m02/l09.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -943,8 +823,8 @@ Le nom du client est écrit tel quel dans la cellule du CSV comptable, sans neut
 **Où.** `server/routes/export.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
-- [Classification des données](http://127.0.0.1:5173/#/modules/m07/l05) · [source](../src/content/m07/l05.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
+- [Classification des données](http://127.0.0.1:5173/#/modules/m07/l03) · [source](../src/content/m07/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -967,7 +847,7 @@ Aucune limite d’expansion ni de profondeur sur le parseur XML : un document de
 **Où.** `server/routes/import.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 - [Fuzzing et tests de disponibilité](http://127.0.0.1:5173/#/modules/m13/l05) · [source](../src/content/m13/l05.mdx)
 
 <details>
@@ -991,7 +871,7 @@ Le parseur XML des factures entrantes (format Factur-X) a les entités externes 
 **Où.** `server/routes/import.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 - [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) · [source](../src/content/m03/l07.mdx)
 
 <details>
@@ -1015,8 +895,8 @@ L’archive d’import est extraite en concaténant le nom de chaque entrée au 
 **Où.** `server/routes/import.ts`
 
 **Dans le cours.**
-- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
-- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l10) · [source](../src/content/m08/l10.mdx)
+- [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) · [source](../src/content/m08/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1039,7 +919,7 @@ Le schéma valide le corps brut par une passe textuelle, puis l’analyseur JSON
 **Où.** `server/lib/validate.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 - [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) · [source](../src/content/m03/l07.mdx)
 
 <details>
@@ -1063,7 +943,7 @@ La protection des routes d’administration est montée sur un préfixe de chemi
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 - [Revue orientée autorisation](http://127.0.0.1:5173/#/modules/m12/l05) · [source](../src/content/m12/l05.mdx)
 
 <details>
@@ -1087,7 +967,7 @@ La liste blanche de domaines d’inscription teste une expression sans ancres : 
 **Où.** `server/routes/auth.ts`
 
 **Dans le cours.**
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 - [Credential stuffing et prise de contrôle](http://127.0.0.1:5173/#/modules/m10/l02) · [source](../src/content/m10/l02.mdx)
 
 <details>
@@ -1111,7 +991,7 @@ L’adresse est vérifiée comme unique, puis normalisée et mise en minuscules 
 **Où.** `server/routes/auth.ts`
 
 **Dans le cours.**
-- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
 - [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) · [source](../src/content/m03/l07.mdx)
 
 <details>
@@ -1135,7 +1015,7 @@ L’appel au moteur d’autorisation est enveloppé dans un `catch` vide, et l�
 **Où.** `server/lib/auth.ts`
 
 **Dans le cours.**
-- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) · [source](../src/content/m02/l05.mdx)
+- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
 - [Revue orientée autorisation](http://127.0.0.1:5173/#/modules/m12/l05) · [source](../src/content/m12/l05.mdx)
 
 <details>
@@ -1159,8 +1039,8 @@ L’adresse est validée, puis tronquée à la longueur de la colonne — ce qui
 **Où.** `server/routes/auth.ts`
 
 **Dans le cours.**
-- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) · [source](../src/content/m02/l05.mdx)
-- [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l03) · [source](../src/content/m07/l03.mdx)
+- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
+- [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l01) · [source](../src/content/m07/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1183,8 +1063,8 @@ Le jeton de réinitialisation est comparé avec `===`, qui s’arrête au premie
 **Où.** `server/routes/auth.ts`
 
 **Dans le cours.**
-- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) · [source](../src/content/m02/l05.mdx)
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
+- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1194,31 +1074,7 @@ Le jeton de réinitialisation est comparé avec `===`, qui s’arrête au premie
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/auth.ts`](solutions/server/routes/auth.ts)
 </details>
 
-<a id="open-redirect"></a>
-
-### Redirection ouverte après connexion
-
-**N1** · CWE-601 · D5 Implémentation
-
-Le paramètre de retour est suivi tel quel après une connexion réussie.
-
-**Objectif.** Faire rediriger un utilisateur connecté vers un domaine que tu contrôles.
-
-**Où.** `server/routes/auth.ts`
-
-**Dans le cours.**
-- [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) · [source](../src/content/m02/l06.mdx)
-- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l04) · [source](../src/content/m09/l04.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Chemins relatifs seulement, ou liste blanche de destinations. Une redirection ouverte est rarement isolée : elle sert de tremplin au vol de code OAuth et au contournement de filtres SSRF.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/auth.ts`](solutions/server/routes/auth.ts)
-</details>
-
-## M3 · Web avancé
+## M9 · Web avancé
 
 <a id="race-credit"></a>
 
@@ -1234,7 +1090,7 @@ L’application d’un avoir lit le solde, vérifie qu’il est suffisant, puis 
 
 **Dans le cours.**
 - [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) · [source](../src/content/m03/l01.mdx)
-- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) · [source](../src/content/m02/l05.mdx)
+- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1258,7 +1114,7 @@ Le mail de réinitialisation construit son lien absolu à partir de l’en-tête
 
 **Dans le cours.**
 - [En-tête Host](http://127.0.0.1:5173/#/modules/m03/l02) · [source](../src/content/m03/l02.mdx)
-- [Authentification applicative](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
+- [Authentification applicative](http://127.0.0.1:5173/#/modules/m09/l01) · [source](../src/content/m09/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1281,7 +1137,7 @@ Le middleware d’API lit les revendications du jeton avec un décodage sans vé
 **Où.** `server/lib/jwt.ts`
 
 **Dans le cours.**
-- [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l03) · [source](../src/content/m09/l03.mdx)
+- [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l05) · [source](../src/content/m09/l05.mdx)
 - [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) · [source](../src/content/m03/l10.mdx)
 
 <details>
@@ -1330,7 +1186,7 @@ Le filtre de recherche est passé à l’ORM presque tel quel, et les relations 
 
 **Dans le cours.**
 - [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) · [source](../src/content/m03/l07.mdx)
-- [Classification des données](http://127.0.0.1:5173/#/modules/m07/l05) · [source](../src/content/m07/l05.mdx)
+- [Classification des données](http://127.0.0.1:5173/#/modules/m07/l03) · [source](../src/content/m07/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1354,7 +1210,7 @@ La syntaxe de tableau de la query string transforme une chaîne attendue en tabl
 
 **Dans le cours.**
 - [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) · [source](../src/content/m03/l07.mdx)
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1426,7 +1282,7 @@ Le fichier est écrit sur disque et rendu accessible, puis validé et supprimé 
 
 **Dans le cours.**
 - [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) · [source](../src/content/m03/l01.mdx)
-- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l10) · [source](../src/content/m08/l10.mdx)
+- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) · [source](../src/content/m08/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1474,7 +1330,7 @@ Le PDF de facture est rendu depuis du HTML dont le tenant contrôle un bloc, et 
 
 **Dans le cours.**
 - [SSRF avancée](http://127.0.0.1:5173/#/modules/m03/l11) · [source](../src/content/m03/l11.mdx)
-- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l10) · [source](../src/content/m08/l10.mdx)
+- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) · [source](../src/content/m08/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1498,7 +1354,7 @@ Les paramètres de requête sont étalés dans les options de rendu de la vue, c
 
 **Dans le cours.**
 - [SSTI et injection de code](http://127.0.0.1:5173/#/modules/m03/l08) · [source](../src/content/m03/l08.mdx)
-- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
+- [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1546,7 +1402,7 @@ Le gabarit d’e-mail éditable par le tenant est compilé par le moteur de temp
 
 **Dans le cours.**
 - [SSTI et injection de code](http://127.0.0.1:5173/#/modules/m03/l08) · [source](../src/content/m03/l08.mdx)
-- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l09) · [source](../src/content/m08/l09.mdx)
+- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1570,7 +1426,7 @@ La recherche de clients relaie la requête vers une API interne en concaténant 
 
 **Dans le cours.**
 - [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) · [source](../src/content/m03/l03.mdx)
-- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l09) · [source](../src/content/m08/l09.mdx)
+- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1594,7 +1450,7 @@ La route accepte JSON et formulaire encodé, mais la vérification anti-CSRF ne 
 
 **Dans le cours.**
 - [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) · [source](../src/content/m03/l07.mdx)
-- [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) · [source](../src/content/m02/l06.mdx)
+- [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) · [source](../src/content/m04/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1642,7 +1498,7 @@ L’introspection est coupée, mais les suggestions « vouliez-vous dire… » d
 
 **Dans le cours.**
 - [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) · [source](../src/content/m03/l03.mdx)
-- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) · [source](../src/content/m02/l05.mdx)
+- [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1666,7 +1522,7 @@ Le point d’accès GraphQL accepte un formulaire encodé, ce qui rend les mutat
 
 **Dans le cours.**
 - [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) · [source](../src/content/m03/l03.mdx)
-- [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) · [source](../src/content/m02/l06.mdx)
+- [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) · [source](../src/content/m04/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1738,7 +1594,7 @@ Le compte est inséré, puis son empreinte de mot de passe écrite dans un secon
 
 **Dans le cours.**
 - [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) · [source](../src/content/m03/l01.mdx)
-- [Authentification applicative](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
+- [Authentification applicative](http://127.0.0.1:5173/#/modules/m09/l01) · [source](../src/content/m09/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1762,7 +1618,7 @@ Le jeton est dérivé de l’horloge et d’un générateur non cryptographique 
 
 **Dans le cours.**
 - [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) · [source](../src/content/m03/l01.mdx)
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1786,7 +1642,7 @@ L’appartenance au tenant est déduite par un découpage naïf sur l’arobase,
 
 **Dans le cours.**
 - [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) · [source](../src/content/m03/l07.mdx)
-- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l04) · [source](../src/content/m09/l04.mdx)
+- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l06) · [source](../src/content/m09/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1810,7 +1666,7 @@ Les préférences sont un objet sérialisé, signé avec une clé faible, puis d
 
 **Dans le cours.**
 - [Désérialisation et prototype pollution avancées](http://127.0.0.1:5173/#/modules/m03/l09) · [source](../src/content/m03/l09.mdx)
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1834,7 +1690,7 @@ L’en-tête `kid` du jeton désigne le fichier de clé à charger, sans normali
 
 **Dans le cours.**
 - [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) · [source](../src/content/m03/l10.mdx)
-- [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l03) · [source](../src/content/m09/l03.mdx)
+- [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l05) · [source](../src/content/m09/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1858,7 +1714,7 @@ Le vérificateur récupère la clé publique à l’URL indiquée dans le jeton,
 
 **Dans le cours.**
 - [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) · [source](../src/content/m03/l10.mdx)
-- [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l03) · [source](../src/content/m09/l03.mdx)
+- [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l05) · [source](../src/content/m09/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1882,7 +1738,7 @@ Tous les tenants partagent la clé de signature, et le jeton ne porte aucune rev
 
 **Dans le cours.**
 - [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) · [source](../src/content/m03/l10.mdx)
-- [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l03) · [source](../src/content/m09/l03.mdx)
+- [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l05) · [source](../src/content/m09/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1906,7 +1762,7 @@ La déconnexion efface le cookie côté client ; le jeton reste valide, et son e
 
 **Dans le cours.**
 - [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) · [source](../src/content/m03/l10.mdx)
-- [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l02) · [source](../src/content/m09/l02.mdx)
+- [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l04) · [source](../src/content/m09/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1916,7 +1772,7 @@ Un jeton sans état ne se révoque pas : durée de vie courte, rotation du jeton
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/lib/jwt.ts`](solutions/server/lib/jwt.ts)
 </details>
 
-## M4 · Côté client & scripts tiers
+## M8 · Vulnérabilités côté client & scripts tiers
 
 <a id="dom-xss"></a>
 
@@ -1931,9 +1787,9 @@ Les notes de facture acceptent du Markdown, rendu par un convertisseur maison pu
 **Où.** `src/pages/InvoiceDetail.tsx`
 
 **Dans le cours.**
-- [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) · [source](../src/content/m02/l06.mdx)
-- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
-- [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04) · [source](../src/content/m04/l04.mdx)
+- [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) · [source](../src/content/m04/l02.mdx)
+- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1956,10 +1812,10 @@ Le tag manager charge son script depuis une URL stockée dans les réglages du t
 **Où.** `src/pages/Checkout.tsx`
 
 **Dans le cours.**
-- [Scripts tiers](http://127.0.0.1:5173/#/modules/m04/l02) · [source](../src/content/m04/l02.mdx)
-- [Réduire la confiance](http://127.0.0.1:5173/#/modules/m04/l03) · [source](../src/content/m04/l03.mdx)
-- [PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
-- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l03) · [source](../src/content/m08/l03.mdx)
+- [Scripts tiers](http://127.0.0.1:5173/#/modules/m04/l03) · [source](../src/content/m04/l03.mdx)
+- [Réduire la confiance](http://127.0.0.1:5173/#/modules/m04/l04) · [source](../src/content/m04/l04.mdx)
+- [PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l08) · [source](../src/content/m04/l08.mdx)
+- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l04) · [source](../src/content/m08/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1982,8 +1838,8 @@ Les pièces jointes sont servies depuis l’origine de Novafact, sans en-tête d
 **Où.** `server/routes/attachments.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
-- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l10) · [source](../src/content/m08/l10.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
+- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) · [source](../src/content/m08/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2006,8 +1862,8 @@ Le logo du tenant accepte le format SVG et le sert tel quel, avec ses scripts et
 **Où.** `server/routes/attachments.ts`
 
 **Dans le cours.**
-- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
-- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l10) · [source](../src/content/m08/l10.mdx)
+- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) · [source](../src/content/m08/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2030,8 +1886,8 @@ Le lien de paiement d’une facture est rendu dans un attribut `href`. React éc
 **Où.** `src/pages/InvoiceDetail.tsx`
 
 **Dans le cours.**
-- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
-- [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) · [source](../src/content/m02/l06.mdx)
+- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) · [source](../src/content/m04/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2054,7 +1910,7 @@ Les préférences d’affichage lues dans le fragment d’URL sont fusionnées p
 **Où.** `src/api.ts`
 
 **Dans le cours.**
-- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
+- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2078,7 +1934,7 @@ L’assainisseur des notes conserve les attributs `id` et `name`, et le code lit
 **Où.** `src/api.ts`
 
 **Dans le cours.**
-- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
+- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2102,7 +1958,7 @@ Le récepteur de messages de la page de paiement accepte tout message dont la fo
 **Où.** `src/pages/Checkout.tsx`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2126,8 +1982,8 @@ Le lien public de facture porte son jeton dans le chemin, et la page ne déclare
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
-- [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l02) · [source](../src/content/m09/l02.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
+- [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l04) · [source](../src/content/m09/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2150,7 +2006,7 @@ Le nonce est une constante du build au lieu d’être tiré à chaque réponse.
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04) · [source](../src/content/m04/l04.mdx)
+- [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2174,7 +2030,7 @@ La CSP autorise en bloc le répertoire de bibliothèques servi localement, dont 
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04) · [source](../src/content/m04/l04.mdx)
+- [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2198,7 +2054,7 @@ Trusted Types est exigé par la CSP, mais la politique par défaut renvoie la ch
 **Où.** `src/main.tsx`
 
 **Dans le cours.**
-- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
+- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2222,7 +2078,7 @@ La page des coordonnées bancaires est encadrable et accepte des valeurs pré-re
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
 - [Abus de fonctionnalités](http://127.0.0.1:5173/#/modules/m10/l05) · [source](../src/content/m10/l05.mdx)
 
 <details>
@@ -2246,8 +2102,8 @@ Un intergiciel de surcharge de méthode est monté globalement : une navigation 
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
-- [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) · [source](../src/content/m02/l06.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
+- [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) · [source](../src/content/m04/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2270,7 +2126,7 @@ L’en-tête d’origine autorisée est recopié depuis la requête, accompagné
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
 - [En-têtes en production](http://127.0.0.1:5173/#/modules/m17/l05) · [source](../src/content/m17/l05.mdx)
 
 <details>
@@ -2294,7 +2150,7 @@ La liste des origines autorisées contient `null`, « pour laisser passer les ou
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2318,7 +2174,7 @@ La recherche de clients rend un nombre de cadres proportionnel au nombre de rés
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2342,7 +2198,7 @@ L’API répond différemment selon que la ressource existe ou non, sans politiq
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
 - [Client avancé : DOM, CSP et XS-Leaks](http://127.0.0.1:5173/#/modules/m03/l12) · [source](../src/content/m03/l12.mdx)
 
 <details>
@@ -2366,7 +2222,7 @@ Rien n’empêche la page de paiement d’être chargée dans une iframe sur un 
 **Où.** `server/index.ts`
 
 **Dans le cours.**
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
 - [En-têtes en production](http://127.0.0.1:5173/#/modules/m17/l05) · [source](../src/content/m17/l05.mdx)
 
 <details>
@@ -2401,7 +2257,31 @@ Le préfixe `VITE_` ou `NEXT_PUBLIC_` est une déclaration de publication. Ce qu
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/src/api.ts`](solutions/src/api.ts)
 </details>
 
-## M5 · Gestion des vulnérabilités
+<a id="open-redirect"></a>
+
+### Redirection ouverte après connexion
+
+**N1** · CWE-601 · D5 Implémentation
+
+Le paramètre de retour est suivi tel quel après une connexion réussie.
+
+**Objectif.** Faire rediriger un utilisateur connecté vers un domaine que tu contrôles.
+
+**Où.** `server/routes/auth.ts`
+
+**Dans le cours.**
+- [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) · [source](../src/content/m04/l02.mdx)
+- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l06) · [source](../src/content/m09/l06.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Chemins relatifs seulement, ou liste blanche de destinations. Une redirection ouverte est rarement isolée : elle sert de tremplin au vol de code OAuth et au contournement de filtres SSRF.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/auth.ts`](solutions/server/routes/auth.ts)
+</details>
+
+## M26 · Gestion des vulnérabilités
 
 <a id="finding-dedupe"></a>
 
@@ -2561,7 +2441,7 @@ La politique de remédiation existe en diapositives. Personne ne sait qui est ho
 
 **Dans le cours.**
 - [Outillage, SLA et dépendances npm](http://127.0.0.1:5173/#/modules/m05/l05) · [source](../src/content/m05/l05.mdx)
-- [Mesurer un programme](http://127.0.0.1:5173/#/modules/m01/l06) · [source](../src/content/m01/l06.mdx)
+- [Mesurer un programme](http://127.0.0.1:5173/#/modules/m32/l04) · [source](../src/content/m32/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2609,7 +2489,7 @@ Un chercheur trouve une faille dans Novafact et ne sait pas à qui l’envoyer. 
 
 **Dans le cours.**
 - [Divulgation, bug bounty et CRA](http://127.0.0.1:5173/#/modules/m05/l06) · [source](../src/content/m05/l06.mdx)
-- [Piloter la sécurité offensive](http://127.0.0.1:5173/#/modules/m06/l08) · [source](../src/content/m06/l08.mdx)
+- [Piloter la sécurité offensive](http://127.0.0.1:5173/#/modules/m06/l06) · [source](../src/content/m06/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2619,7 +2499,7 @@ Publier la politique coûte une heure et supprime la classe entière des divulga
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/public/.well-known/security.txt`](solutions/public/.well-known/security.txt)
 </details>
 
-## M6 · Faire adopter la sécurité
+## M30 · Faire adopter la sécurité
 
 <a id="finding-sarif"></a>
 
@@ -2634,7 +2514,7 @@ Le rapport annonce « contrôle d’accès insuffisant sur l’API ». L’équi
 **Où.** `findings/bola-invoice.sarif`
 
 **Dans le cours.**
-- [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l02) · [source](../src/content/m06/l02.mdx)
+- [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l01) · [source](../src/content/m06/l01.mdx)
 - [Revoir une PR en 10 minutes](http://127.0.0.1:5173/#/modules/m12/l03) · [source](../src/content/m12/l03.mdx)
 
 <details>
@@ -2643,31 +2523,6 @@ Le rapport annonce « contrôle d’accès insuffisant sur l’API ». L’équi
 Le harnais valide le format, vérifie que l’emplacement désigne le fichier réellement fautif et que la ligne tombe sur le point d’entrée du défaut à deux lignes près, puis **applique le correctif proposé** et relit le résultat. La prose n’est pas notée, et il faut le dire : la persuasion ne s’automatise pas, la précision si. Un finding précis se corrige ; un finding vague se discute.
 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/findings/bola-invoice.sarif`](solutions/findings/bola-invoice.sarif)
-</details>
-
-<a id="codeowners-sensitive"></a>
-
-### Router la revue vers les bonnes personnes
-
-**N1** · CWE-1391 · D2 Cycle de vie · D7 Déploiement & exploitation
-
-Les fichiers d’authentification, de jeton et les workflows se font relire par qui passe. L’AppSec découvre les changements en production.
-
-**Objectif.** Écrire le CODEOWNERS du dépôt pour que les chemins sensibles — et seulement eux — exigent la revue de l’équipe sécurité.
-
-**Où.** `.github/CODEOWNERS`
-
-**Dans le cours.**
-- [Security Champions](http://127.0.0.1:5173/#/modules/m06/l05) · [source](../src/content/m06/l05.mdx)
-- [Le rôle : une équipe qui rend capable](http://127.0.0.1:5173/#/modules/m06/l01) · [source](../src/content/m06/l01.mdx)
-- [Revoir une PR en 10 minutes](http://127.0.0.1:5173/#/modules/m12/l03) · [source](../src/content/m12/l03.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais applique la vraie règle de résolution et vérifie trois choses : les chemins sensibles résolvent vers l’équipe sécurité, un fichier ordinaire ne l’encombre pas, et il a quand même un relecteur. Le double critère empêche la règle paresseuse qui met tout le dépôt sur le dos de l’AppSec — et qui garantit qu’elle ne relira rien. Le découpage entre les autres équipes n’est pas noté : il dépend de l’organisation.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/.github/CODEOWNERS`](solutions/.github/CODEOWNERS)
 </details>
 
 <a id="training-from-bug"></a>
@@ -2683,7 +2538,7 @@ La formation annuelle parle d’injection SQL. L’équipe écrit du TypeScript 
 **Où.** `training/mass-assignment/`
 
 **Dans le cours.**
-- [Former au code sécurisé](http://127.0.0.1:5173/#/modules/m06/l06) · [source](../src/content/m06/l06.mdx)
+- [Former au code sécurisé](http://127.0.0.1:5173/#/modules/m06/l04) · [source](../src/content/m06/l04.mdx)
 - [Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02) · [source](../src/content/m13/l02.mdx)
 
 <details>
@@ -2707,8 +2562,8 @@ Le prestataire arrive lundi. Il n’a ni comptes, ni périmètre écrit, ni envi
 **Où.** `pentest/scope.yaml`
 
 **Dans le cours.**
-- [Piloter la sécurité offensive](http://127.0.0.1:5173/#/modules/m06/l08) · [source](../src/content/m06/l08.mdx)
-- [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l03) · [source](../src/content/m07/l03.mdx)
+- [Piloter la sécurité offensive](http://127.0.0.1:5173/#/modules/m06/l06) · [source](../src/content/m06/l06.mdx)
+- [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l01) · [source](../src/content/m07/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2718,55 +2573,7 @@ Le harnais vérifie la complétude structurelle et la cohérence avec le code : 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/pentest/scope.yaml`](solutions/pentest/scope.yaml)
 </details>
 
-## M7 · Fondations, exigences & vie privée
-
-<a id="trust-inventory"></a>
-
-### À qui fait-on confiance, au juste
-
-**N1** · CWE-1059 · D1 Concepts · D3 Exigences
-
-Novafact fait implicitement confiance à des dizaines de parties : registre npm, CDN, prestataire de paiement, fournisseur d’IA, runner de CI, poste des développeurs. Aucune liste n’existe.
-
-**Objectif.** Établir l’inventaire des composants implicitement fiables, avec ce que chacun pourrait faire s’il se retournait.
-
-**Où.** `requirements/trust.yaml`
-
-**Dans le cours.**
-- [La confiance](http://127.0.0.1:5173/#/modules/m07/l01) · [source](../src/content/m07/l01.mdx)
-- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l03) · [source](../src/content/m08/l03.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais confronte l’inventaire au code : chaque origine externe chargée, chaque dépendance directe, chaque action de CI doit y figurer, et rien d’imaginaire. La confiance est un spectre, et le premier geste de conception est de réduire le nombre de parties à qui l’on est obligé de faire confiance.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/requirements/trust.yaml`](solutions/requirements/trust.yaml)
-</details>
-
-<a id="gold-standard-audit"></a>
-
-### Authentifier, autoriser, journaliser
-
-**N1** · CWE-778 · D1 Concepts · D5 Implémentation
-
-Le Gold Standard demande trois choses de chaque opération sensible. Les routes de Novafact en offrent une, deux, ou zéro, sans logique apparente.
-
-**Objectif.** Établir pour chaque route mutante ce qui est présent et ce qui manque — et faire tomber l’écart à zéro.
-
-**Où.** `requirements/gold-standard.csv`
-
-**Dans le cours.**
-- [C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m07/l02) · [source](../src/content/m07/l02.mdx)
-- [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) · [source](../src/content/m18/l01.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais extrait les routes réellement montées et vérifie ligne à ligne. Le « A » d’audit est celui qu’on oublie — et c’est celui qui permet de répondre après coup à « qui a fait ça ».
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/requirements/gold-standard.csv`](solutions/requirements/gold-standard.csv)
-</details>
+## M12 · Exigences, vie privée & conformité
 
 <a id="asvs-subset"></a>
 
@@ -2781,8 +2588,8 @@ ASVS compte plusieurs centaines d’exigences. Les appliquer toutes est impossib
 **Où.** `requirements/asvs.yaml`
 
 **Dans le cours.**
-- [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l03) · [source](../src/content/m07/l03.mdx)
-- [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l04) · [source](../src/content/m07/l04.mdx)
+- [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l01) · [source](../src/content/m07/l01.mdx)
+- [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l02) · [source](../src/content/m07/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2805,7 +2612,7 @@ Les exigences sont écrites. Rien ne dit lesquelles sont réellement tenues, ni 
 **Où.** `requirements/traceability.csv`
 
 **Dans le cours.**
-- [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l04) · [source](../src/content/m07/l04.mdx)
+- [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l02) · [source](../src/content/m07/l02.mdx)
 - [Stratégie de test de sécurité](http://127.0.0.1:5173/#/modules/m13/l01) · [source](../src/content/m13/l01.mdx)
 
 <details>
@@ -2829,8 +2636,8 @@ Novafact manipule des IBAN, des adresses, des notes internes et des secrets. Auc
 **Où.** `privacy/data-classification.yaml`
 
 **Dans le cours.**
-- [Classification des données](http://127.0.0.1:5173/#/modules/m07/l05) · [source](../src/content/m07/l05.mdx)
-- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l06) · [source](../src/content/m07/l06.mdx)
+- [Classification des données](http://127.0.0.1:5173/#/modules/m07/l03) · [source](../src/content/m07/l03.mdx)
+- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l04) · [source](../src/content/m07/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2853,7 +2660,7 @@ La suppression d’un compte pose un drapeau. Les exports, la boîte d’envoi e
 **Où.** `verify/erasure.test.ts`
 
 **Dans le cours.**
-- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l06) · [source](../src/content/m07/l06.mdx)
+- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l04) · [source](../src/content/m07/l04.mdx)
 - [Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02) · [source](../src/content/m13/l02.mdx)
 
 <details>
@@ -2877,8 +2684,8 @@ PCI DSS, RGPD, NIS2, CRA : quatre textes cités en réunion, aucune trace de ce 
 **Où.** `requirements/compliance.yaml`
 
 **Dans le cours.**
-- [Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l07) · [source](../src/content/m07/l07.mdx)
-- [PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
+- [Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l05) · [source](../src/content/m07/l05.mdx)
+- [PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l08) · [source](../src/content/m04/l08.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2901,7 +2708,7 @@ Des comptes de service et des comptes humains ont des droits que personne n’a 
 **Où.** `requirements/access-review.csv`
 
 **Dans le cours.**
-- [Provisionnement des accès](http://127.0.0.1:5173/#/modules/m07/l08) · [source](../src/content/m07/l08.mdx)
+- [Provisionnement des accès](http://127.0.0.1:5173/#/modules/m07/l06) · [source](../src/content/m07/l06.mdx)
 - [Moindre privilège en pratique](http://127.0.0.1:5173/#/modules/m15/l05) · [source](../src/content/m15/l05.mdx)
 
 <details>
@@ -2912,7 +2719,7 @@ Le harnais croise la liste des comptes avec le journal et connaît la réponse :
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/requirements/access-review.csv`](solutions/requirements/access-review.csv)
 </details>
 
-## M8 · Conception sécurisée & architecture
+## M13 · Spécifier et concevoir
 
 <a id="upload-pipeline"></a>
 
@@ -2927,8 +2734,8 @@ Les pièces jointes sont stockées et servies depuis la même origine que l’ap
 **Où.** `server/routes/attachments.ts`
 
 **Dans le cours.**
-- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l10) · [source](../src/content/m08/l10.mdx)
-- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
+- [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) · [source](../src/content/m08/l05.mdx)
+- [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) · [source](../src/content/m04/l07.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2951,8 +2758,8 @@ Le jeton de réinitialisation vient de `Math.random()`. Le générateur de V8 n�
 **Où.** `server/routes/auth.ts`
 
 **Dans le cours.**
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
-- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2962,7 +2769,7 @@ Le jeton de réinitialisation vient de `Math.random()`. Le générateur de V8 n�
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/auth.ts`](solutions/server/routes/auth.ts)
 </details>
 
-## M9 · OAuth 2.x / OIDC / SAML
+## M14 · Identité : authentification, autorisation, OAuth & SAML
 
 <a id="token-in-url"></a>
 
@@ -2977,7 +2784,7 @@ Le lien de consultation d’une facture porte le jeton d’accès en paramètre 
 **Où.** `server/routes/invoices.ts`
 
 **Dans le cours.**
-- [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l02) · [source](../src/content/m09/l02.mdx)
+- [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l04) · [source](../src/content/m09/l04.mdx)
 - [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) · [source](../src/content/m18/l01.mdx)
 
 <details>
@@ -3001,8 +2808,8 @@ Le serveur d’autorisation du lab accepte toute `redirect_uri` qui commence par
 **Où.** `server/routes/oauth.ts`
 
 **Dans le cours.**
-- [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l01) · [source](../src/content/m09/l01.mdx)
-- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l04) · [source](../src/content/m09/l04.mdx)
+- [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l03) · [source](../src/content/m09/l03.mdx)
+- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l06) · [source](../src/content/m09/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3025,8 +2832,8 @@ Le flux Authorization Code n’émet ni ne vérifie de `state`.
 **Où.** `server/routes/oauth.ts`
 
 **Dans le cours.**
-- [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l01) · [source](../src/content/m09/l01.mdx)
-- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l04) · [source](../src/content/m09/l04.mdx)
+- [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l03) · [source](../src/content/m09/l03.mdx)
+- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l06) · [source](../src/content/m09/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3049,8 +2856,8 @@ Le rapprochement de comptes se fait sur le claim `email` du fournisseur, sans re
 **Où.** `server/routes/oauth.ts`
 
 **Dans le cours.**
-- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l04) · [source](../src/content/m09/l04.mdx)
-- [Authentification applicative](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
+- [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l06) · [source](../src/content/m09/l06.mdx)
+- [Authentification applicative](http://127.0.0.1:5173/#/modules/m09/l01) · [source](../src/content/m09/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3073,7 +2880,7 @@ Le SSO entreprise accepte une assertion SAML dont la signature est valide — ma
 **Où.** `server/routes/saml.ts`
 
 **Dans le cours.**
-- [SAML en entreprise](http://127.0.0.1:5173/#/modules/m09/l06) · [source](../src/content/m09/l06.mdx)
+- [SAML en entreprise](http://127.0.0.1:5173/#/modules/m09/l08) · [source](../src/content/m09/l08.mdx)
 - [Parser differentials et fuites via l’ORM](http://127.0.0.1:5173/#/modules/m03/l07) · [source](../src/content/m03/l07.mdx)
 
 <details>
@@ -3084,7 +2891,7 @@ Vérifier la signature ne suffit pas : il faut vérifier que ce qu’on lit est 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/saml.ts`](solutions/server/routes/saml.ts)
 </details>
 
-## M10 · Anti-abus, ATO & fraude
+## M15 · Anti-abus, ATO & fraude
 
 <a id="no-rate-limit"></a>
 
@@ -3148,7 +2955,7 @@ Un compte fraîchement créé peut envoyer autant de factures qu’il veut, avec
 
 **Dans le cours.**
 - [Abus de fonctionnalités](http://127.0.0.1:5173/#/modules/m10/l05) · [source](../src/content/m10/l05.mdx)
-- [Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l07) · [source](../src/content/m07/l07.mdx)
+- [Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l05) · [source](../src/content/m07/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3172,7 +2979,7 @@ L’inscription, la connexion et la réinitialisation répondent différemment s
 
 **Dans le cours.**
 - [Credential stuffing et prise de contrôle](http://127.0.0.1:5173/#/modules/m10/l02) · [source](../src/content/m10/l02.mdx)
-- [Authentification applicative](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
+- [Authentification applicative](http://127.0.0.1:5173/#/modules/m09/l01) · [source](../src/content/m09/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3246,7 +3053,7 @@ L’atelier de threat modeling a produit onze menaces, toutes sur l’API, aucun
 
 **Dans le cours.**
 - [STRIDE par élément](http://127.0.0.1:5173/#/modules/m11/l02) · [source](../src/content/m11/l02.mdx)
-- [Mitigations structurelles](http://127.0.0.1:5173/#/modules/m08/l01) · [source](../src/content/m08/l01.mdx)
+- [Mitigations structurelles](http://127.0.0.1:5173/#/modules/m08/l02) · [source](../src/content/m08/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3270,7 +3077,7 @@ On sait qu’un locataire ne doit pas lire les factures d’un autre. On ne sait
 
 **Dans le cours.**
 - [Choisir sa méthode](http://127.0.0.1:5173/#/modules/m11/l03) · [source](../src/content/m11/l03.mdx)
-- [Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l05) · [source](../src/content/m08/l05.mdx)
+- [Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l10) · [source](../src/content/m08/l10.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3294,7 +3101,7 @@ Les développeurs parlent CWE, les équipes de détection parlent ATT&CK, et per
 
 **Dans le cours.**
 - [MITRE pour l’AppSec](http://127.0.0.1:5173/#/modules/m11/l04) · [source](../src/content/m11/l04.mdx)
-- [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
+- [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) · [source](../src/content/m28/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3318,7 +3125,7 @@ Le threat model couvre la sécurité. Les menaces sur la vie privée — traçab
 
 **Dans le cours.**
 - [Choisir sa méthode](http://127.0.0.1:5173/#/modules/m11/l03) · [source](../src/content/m11/l03.mdx)
-- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l06) · [source](../src/content/m07/l06.mdx)
+- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l04) · [source](../src/content/m07/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3342,7 +3149,7 @@ Le modèle de menaces a été fait une fois, il y a huit mois. Quinze routes ont
 
 **Dans le cours.**
 - [Threat modeling agile et as code](http://127.0.0.1:5173/#/modules/m11/l05) · [source](../src/content/m11/l05.mdx)
-- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) · [source](../src/content/m01/l05.mdx)
+- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) · [source](../src/content/m32/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3366,7 +3173,7 @@ Trois surfaces n’ont jamais été modélisées : l’assistant et ses outils, 
 
 **Dans le cours.**
 - [Modéliser l’IA, la supply chain et le dev](http://127.0.0.1:5173/#/modules/m11/l06) · [source](../src/content/m11/l06.mdx)
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3376,7 +3183,7 @@ Le harnais vérifie la couverture structurelle et la cohérence avec le dépôt 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/threats/`](solutions/threats/)
 </details>
 
-## M12 · Revue de code sécurité
+## M16 · Revue de code sécurité
 
 <a id="attack-surface-map"></a>
 
@@ -3498,7 +3305,7 @@ Le harnais connaît le classement de référence par impact et note le résultat
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/review/audit-report.yaml`](solutions/review/audit-report.yaml)
 </details>
 
-## M13 · Tests & analyse de code
+## M17 · Tests & analyse de code
 
 <a id="test-strategy"></a>
 
@@ -3514,7 +3321,7 @@ Tout tourne à chaque commit : la CI met dix-huit minutes et l’équipe la cont
 
 **Dans le cours.**
 - [Stratégie de test de sécurité](http://127.0.0.1:5173/#/modules/m13/l01) · [source](../src/content/m13/l01.mdx)
-- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) · [source](../src/content/m01/l05.mdx)
+- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) · [source](../src/content/m32/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3586,7 +3393,7 @@ Le jeu de test a été extrait de la production « pour être réaliste ». Il c
 
 **Dans le cours.**
 - [Données de test](http://127.0.0.1:5173/#/modules/m13/l08) · [source](../src/content/m13/l08.mdx)
-- [Classification des données](http://127.0.0.1:5173/#/modules/m07/l05) · [source](../src/content/m07/l05.mdx)
+- [Classification des données](http://127.0.0.1:5173/#/modules/m07/l03) · [source](../src/content/m07/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3644,7 +3451,7 @@ Ce qu’on mesure au passage, c’est le coût réel de l’outil. Un relecteur 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/review/ai-eval.csv`](solutions/review/ai-eval.csv)
 </details>
 
-## M14 · Pipeline, supply chain & fournisseurs
+## M18 · Pipeline, supply chain & fournisseurs
 
 <a id="gha-permissions"></a>
 
@@ -3708,7 +3515,7 @@ Un workflow `pull_request_target` fait un checkout du commit de la pull request 
 
 **Dans le cours.**
 - [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) · [source](../src/content/m14/l02.mdx)
-- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l07) · [source](../src/content/m14/l07.mdx)
+- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l08) · [source](../src/content/m14/l08.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3732,7 +3539,7 @@ Les actions tierces sont référencées par étiquette mobile, que leur maintene
 
 **Dans le cours.**
 - [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) · [source](../src/content/m14/l02.mdx)
-- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) · [source](../src/content/m14/l09.mdx)
+- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) · [source](../src/content/m14/l10.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3804,7 +3611,7 @@ Une étape de CI télécharge un script et l’exécute directement, sans contr�
 
 **Dans le cours.**
 - [Outils du pipeline](http://127.0.0.1:5173/#/modules/m14/l04) · [source](../src/content/m14/l04.mdx)
-- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l07) · [source](../src/content/m14/l07.mdx)
+- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l08) · [source](../src/content/m14/l08.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3852,7 +3659,7 @@ Un job appelle un workflow réutilisable en lui transmettant tous les secrets du
 
 **Dans le cours.**
 - [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) · [source](../src/content/m14/l02.mdx)
-- [Fournisseurs et tiers](http://127.0.0.1:5173/#/modules/m14/l08) · [source](../src/content/m14/l08.mdx)
+- [Fournisseurs et tiers](http://127.0.0.1:5173/#/modules/m14/l09) · [source](../src/content/m14/l09.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3876,7 +3683,7 @@ La clé du cache contient une valeur contrôlée par l’auteur d’une PR, et c
 
 **Dans le cours.**
 - [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) · [source](../src/content/m14/l02.mdx)
-- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l07) · [source](../src/content/m14/l07.mdx)
+- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l08) · [source](../src/content/m14/l08.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -3899,7 +3706,7 @@ Le job de release publie le SDK avec un jeton de longue durée, sans provenance 
 **Où.** `novafact/.github/workflows/release.yml`
 
 **Dans le cours.**
-- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) · [source](../src/content/m14/l09.mdx)
+- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) · [source](../src/content/m14/l10.mdx)
 - [npm : installer et publier](http://127.0.0.1:5173/#/modules/m14/l05) · [source](../src/content/m14/l05.mdx)
 
 <details>
@@ -4091,7 +3898,7 @@ Le `package.json` ne déclare pas ce qui doit être publié : tests, scripts et 
 **Où.** `novafact/package.json`
 
 **Dans le cours.**
-- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) · [source](../src/content/m14/l09.mdx)
+- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) · [source](../src/content/m14/l10.mdx)
 - [npm : installer et publier](http://127.0.0.1:5173/#/modules/m14/l05) · [source](../src/content/m14/l05.mdx)
 
 <details>
@@ -4115,8 +3922,8 @@ Un paquet vendorisé livre un build « minifié » qui ne correspond pas à ses 
 **Où.** `novafact/vendor/novafact-parser/build/index.min.js`
 
 **Dans le cours.**
-- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l07) · [source](../src/content/m14/l07.mdx)
-- [Répondre à un incident supply chain](http://127.0.0.1:5173/#/modules/m14/l10) · [source](../src/content/m14/l10.mdx)
+- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l08) · [source](../src/content/m14/l08.mdx)
+- [Répondre à un incident supply chain](http://127.0.0.1:5173/#/modules/m14/l11) · [source](../src/content/m14/l11.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -4126,7 +3933,7 @@ C’est la leçon d’xz-utils (CVE-2024-3094) et d’event-stream : le code mal
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/novafact/vendor/novafact-parser/build/index.min.js`](solutions/novafact/vendor/novafact-parser/build/index.min.js)
 </details>
 
-## M15 · IAM AWS
+## M19 · IAM AWS
 
 <a id="iam-wildcard"></a>
 
@@ -4310,7 +4117,7 @@ Un rôle partenaire fait confiance au compte d’un tiers sans condition d’ide
 
 **Dans le cours.**
 - [Multi-comptes et data perimeter](http://127.0.0.1:5173/#/modules/m15/l06) · [source](../src/content/m15/l06.mdx)
-- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l03) · [source](../src/content/m08/l03.mdx)
+- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l04) · [source](../src/content/m08/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -4430,7 +4237,7 @@ La politique de la clé de chiffrement accorde toutes les opérations à un prin
 
 **Dans le cours.**
 - [Le modèle IAM et la logique d’évaluation](http://127.0.0.1:5173/#/modules/m15/l01) · [source](../src/content/m15/l01.mdx)
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -4488,7 +4295,7 @@ Les conditions d’organisation, d’ARN source et de point de terminaison forme
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/novafact/infra/iam/scp.json`](solutions/novafact/infra/iam/scp.json)
 </details>
 
-## M16 · Infrastructure as Code
+## M20 · Infrastructure as Code
 
 <a id="tf-public-bucket"></a>
 
@@ -4648,7 +4455,7 @@ La contrainte de version du provider est ouverte vers le haut, et un module est 
 
 **Dans le cours.**
 - [State, pipeline et supply chain IaC](http://127.0.0.1:5173/#/modules/m16/l04) · [source](../src/content/m16/l04.mdx)
-- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) · [source](../src/content/m14/l09.mdx)
+- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) · [source](../src/content/m14/l10.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -4768,7 +4575,7 @@ L’analyse de conformité n’est pas branchée sur l’application CDK, et plu
 
 **Dans le cours.**
 - [Policy as code](http://127.0.0.1:5173/#/modules/m16/l03) · [source](../src/content/m16/l03.mdx)
-- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) · [source](../src/content/m01/l05.mdx)
+- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) · [source](../src/content/m32/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -4816,7 +4623,7 @@ Ni journaux de flux réseau, ni piste d’audit multi-région avec validation d�
 
 **Dans le cours.**
 - [Dérive et runtime](http://127.0.0.1:5173/#/modules/m16/l05) · [source](../src/content/m16/l05.mdx)
-- [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l02) · [source](../src/content/m18/l02.mdx)
+- [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l03) · [source](../src/content/m18/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -4826,7 +4633,7 @@ Ce qui n’est pas journalisé n’existera pas le jour de l’investigation. La
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/novafact/infra/terraform/logging.tf`](solutions/novafact/infra/terraform/logging.tf)
 </details>
 
-## M17 · Déploiement, exploitation & résilience
+## M21 · Déploiement, exploitation & résilience
 
 <a id="debug-endpoint"></a>
 
@@ -4890,7 +4697,7 @@ L’image de base est référencée par étiquette mobile : deux constructions �
 
 **Dans le cours.**
 - [Conteneurs Node.js](http://127.0.0.1:5173/#/modules/m17/l02) · [source](../src/content/m17/l02.mdx)
-- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) · [source](../src/content/m14/l09.mdx)
+- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) · [source](../src/content/m14/l10.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5034,7 +4841,7 @@ N’importe quelle image portant le bon nom part en production : rien ne vérifi
 
 **Dans le cours.**
 - [Publier en sécurité](http://127.0.0.1:5173/#/modules/m17/l03) · [source](../src/content/m17/l03.mdx)
-- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) · [source](../src/content/m14/l09.mdx)
+- [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) · [source](../src/content/m14/l10.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5044,7 +4851,7 @@ Signature à la construction, vérification à l’admission — sans la seconde
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/novafact/.github/workflows/deploy.yml`](solutions/novafact/.github/workflows/deploy.yml)
 </details>
 
-## M18 · Surveillance, logging & SIEM
+## M23 · Journalisation & SIEM (Elastic)
 
 <a id="logging-vocabulary"></a>
 
@@ -5060,7 +4867,7 @@ Les journaux racontent en texte libre : « échec de connexion pour untel », «
 
 **Dans le cours.**
 - [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) · [source](../src/content/m18/l01.mdx)
-- [C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m07/l02) · [source](../src/content/m07/l02.mdx)
+- [C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m01/l03) · [source](../src/content/m01/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5084,7 +4891,7 @@ Mots de passe, jetons, IBAN et numéros de carte se retrouvent dans les lignes d
 
 **Dans le cours.**
 - [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) · [source](../src/content/m18/l01.mdx)
-- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l06) · [source](../src/content/m07/l06.mdx)
+- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l04) · [source](../src/content/m07/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5107,7 +4914,7 @@ Une règle de détection fournie (`fixtures/m18/ecs-fields/rule.yaml`) a besoin 
 **Où.** `logging/field-mapping.yaml`
 
 **Dans le cours.**
-- [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l02) · [source](../src/content/m18/l02.mdx)
+- [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l03) · [source](../src/content/m18/l03.mdx)
 - [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) · [source](../src/content/m18/l01.mdx)
 
 <details>
@@ -5131,7 +4938,7 @@ Les vingt-quatre lignes de `fixtures/m18/ecs-lint/events.ndjson` portent les bon
 **Où.** `logging/events.ndjson`
 
 **Dans le cours.**
-- [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l02) · [source](../src/content/m18/l02.mdx)
+- [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l03) · [source](../src/content/m18/l03.mdx)
 - [Stratégie de test de sécurité](http://127.0.0.1:5173/#/modules/m13/l01) · [source](../src/content/m13/l01.mdx)
 
 <details>
@@ -5156,7 +4963,7 @@ Personne ne sait ce que l’application journalise. Les exigences demandent un i
 
 **Dans le cours.**
 - [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) · [source](../src/content/m18/l01.mdx)
-- [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l04) · [source](../src/content/m07/l04.mdx)
+- [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l02) · [source](../src/content/m07/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5179,8 +4986,8 @@ Le corpus `fixtures/m18/cs/` contient douze vrais positifs et quarante leurres :
 **Où.** `detections/credential-stuffing.yaml`
 
 **Dans le cours.**
-- [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l03) · [source](../src/content/m18/l03.mdx)
-- [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
+- [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
+- [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) · [source](../src/content/m28/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5188,30 +4995,6 @@ Le corpus `fixtures/m18/cs/` contient douze vrais positifs et quarante leurres :
 Les leurres sont l’exercice : une règle qui attrape tout est facile, une règle qui ne lève jamais l’est aussi. C’est entre les deux que vit le detection engineering. La règle est rejouée sur un second corpus tiré des mêmes générateurs avec une autre graine — énumérer les douze adresses du premier n’y trouve rien.
 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/credential-stuffing.yaml`](solutions/detections/credential-stuffing.yaml)
-</details>
-
-<a id="rule-threshold"></a>
-
-### Régler le seuil
-
-**N2** · CWE-1059 · D7 Déploiement & exploitation
-
-Le corpus `fixtures/m18/cs-hard/` ajoute trois attaques discrètes, juste sous le seuil évident, et un test d’intrusion autorisé qui se comporte exactement comme une attaque. La séparation parfaite n’existe pas. La règle est écrite (`cs-hard/skeleton.yaml`) : seuls la fenêtre et les deux seuils sont à toi.
-
-**Objectif.** Trouver le réglage qui tient les cibles annoncées : 90 % de précision et 85 % de rappel.
-
-**Où.** `detections/thresholds.yaml`
-
-**Dans le cours.**
-- [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
-- [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m18/l06) · [source](../src/content/m18/l06.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais calcule et affiche les deux métriques, et n’accepte la règle qu’au-dessus des deux cibles. Régler un seuil est la partie du métier qu’on n’enseigne jamais, parce qu’elle demande un corpus — le voici. Et accepter un faux positif connu et documenté vaut mieux que fermer les yeux sur trois attaques.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/thresholds.yaml`](solutions/detections/thresholds.yaml)
 </details>
 
 <a id="rule-temporal-spray"></a>
@@ -5227,7 +5010,7 @@ Un seul échec par compte, sur près de deux cents comptes, depuis une même adr
 **Où.** `detections/password-spray.yaml`
 
 **Dans le cours.**
-- [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l03) · [source](../src/content/m18/l03.mdx)
+- [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
 - [Credential stuffing et prise de contrôle](http://127.0.0.1:5173/#/modules/m10/l02) · [source](../src/content/m10/l02.mdx)
 
 <details>
@@ -5238,271 +5021,7 @@ Le pulvérisage est conçu pour passer sous les seuils par compte : il faut chan
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/password-spray.yaml`](solutions/detections/password-spray.yaml)
 </details>
 
-<a id="honeytoken"></a>
-
-### Le piège à miel
-
-**N2** · CWE-1059 · D7 Déploiement & exploitation
-
-Trois leurres n’existent que dans le HTML et le bundle : une route d’export total, une facture qui n’a jamais été émise, et une clé d’API jamais distribuée. Aucun usage légitime ne les atteint. Le corpus `fixtures/m18/honeytoken/` contient quarante parcours légitimes qui passent tout autour.
-
-**Objectif.** Faire lever une alerte à tout accès à l’un des trois leurres, avec exactement zéro faux positif sur le corpus légitime complet.
-
-**Où.** `detections/honeytoken.yaml`
-
-**Dans le cours.**
-- [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) · [source](../src/content/m18/l05.mdx)
-- [Détecter et répondre à la fraude](http://127.0.0.1:5173/#/modules/m10/l07) · [source](../src/content/m10/l07.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Un honeytoken a le meilleur rapport signal sur bruit du métier : il n’a aucune raison d’être touché. C’est aussi ce qui détecte un attaquant **déjà à l’intérieur**, que les règles de périmètre laissent passer — et ce qui rend la détection indépendante de la sophistication de l’attaque.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/honeytoken.yaml`](solutions/detections/honeytoken.yaml)
-</details>
-
-<a id="detect-prompt-injection"></a>
-
-### Détecter l’injection indirecte
-
-**N3** · CWE-1059 · D4 Architecture · D7 Déploiement & exploitation
-
-L’assistant appelle des outils. Le journal porte désormais `novafact.assistant.origin` — l’origine de l’instruction qui a déclenché l’appel. Le corpus `fixtures/m18/assistant/` contient six appels d’origine document visant l’extérieur, et trente usages légitimes.
-
-**Objectif.** Écrire la règle qui attrape les six, sans lever sur les trente.
-
-**Où.** `detections/prompt-injection.yaml`
-
-**Dans le cours.**
-- [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) · [source](../src/content/m18/l05.mdx)
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le vocabulaire OWASP porte désormais des événements dédiés — injection de prompt, empoisonnement d’outil, épuisement de ressource — qui font le pont entre les deux domaines. L’origine de l’instruction est le champ qui rend l’injection indirecte détectable, et l’instrumenter coûte trois lignes dans la couche d’outils.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/prompt-injection.yaml`](solutions/detections/prompt-injection.yaml)
-</details>
-
-<a id="rule-silent-after-fix"></a>
-
-### La règle qui se tait après le correctif
-
-**N2** · CWE-1059 · D6 Tests · D7 Déploiement & exploitation
-
-Le défaut d’autorisation a été corrigé : le sondage d’identifiants d’un autre tenant reçoit maintenant un 403 au lieu d’un 200. La règle qui l’attrapait (`fixtures/m18/silent-before/rule-origine.yaml`) lève encore sur le corpus d’après correctif, et personne ne sait pourquoi.
-
-**Objectif.** Réécrire la règle : muette sur le corpus d’après correctif, et toujours levée sur celui d’avant.
-
-**Où.** `detections/idor-probing.yaml`
-
-**Dans le cours.**
-- [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m18/l06) · [source](../src/content/m18/l06.mdx)
-- [Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02) · [source](../src/content/m13/l02.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-C’est le pendant détection du contrat de `npm run verify` : le contrôle refuse **et** la fonctionnalité marche encore. Une règle qu’on n’a pas retirée après correction est une alerte que l’équipe apprendra à ignorer — et avec elle, les suivantes. Une détection a un cycle de vie, avec une date de revue.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/idor-probing.yaml`](solutions/detections/idor-probing.yaml)
-</details>
-
-<a id="rule-fixtures"></a>
-
-### Deux fixtures par règle
-
-**N1** · CWE-1059 · D6 Tests · D7 Déploiement & exploitation
-
-Cinq règles de la bibliothèque (`fixtures/m18/rules/`) sont livrées sans test. Personne ne sait si elles lèvent encore après un changement de schéma.
-
-**Objectif.** Accompagner chacune d’un événement qu’elle doit attraper et d’un quasi-jumeau qu’elle ne doit pas attraper.
-
-**Où.** `detections/fixtures/`
-
-**Dans le cours.**
-- [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
-- [Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02) · [source](../src/content/m13/l02.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-La CI refuse une règle sans ses deux fixtures, et refuse une règle qui attrape sa propre fixture négative. C’est exactement le contrat du reste du lab — le contrôle refuse, et le légitime passe — appliqué à la détection. C’est aussi ce qui permet de changer une règle sans peur six mois plus tard.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/fixtures/`](solutions/detections/fixtures/)
-</details>
-
-<a id="rule-lint"></a>
-
-### Le lint de règle
-
-**N2** · CWE-1059 · D6 Tests · D7 Déploiement & exploitation
-
-Douze fichiers de règles dans `fixtures/m18/rules/`, cinq cassés : score de risque hors de la plage de sa sévérité, étiquette dupliquée, note sans section de triage, fenêtre d’historique absente.
-
-**Objectif.** Produire la bibliothèque corrigée, et faire passer le lint à zéro échec.
-
-**Où.** `detections/rules/`
-
-**Dans le cours.**
-- [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
-- [Stratégie de test de sécurité](http://127.0.0.1:5173/#/modules/m13/l01) · [source](../src/content/m13/l01.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Les assertions sont celles du dépôt de règles d’Elastic, réimplémentées. Une règle est du code : elle se lint, elle se teste, elle se revoit. C’est ce qui fait la différence entre une bibliothèque de règles et un dossier de requêtes.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/rules/`](solutions/detections/rules/)
-</details>
-
-<a id="atomic-test"></a>
-
-### L’atomique qui valide la règle
-
-**N2** · CWE-1059 · D6 Tests · D7 Déploiement & exploitation
-
-La règle `fixtures/m18/atomic/rule.yaml` a été écrite d’après une hypothèse. Personne n’a vérifié qu’une vraie attaque la déclenche. Le lab fournit un environnement simulé — un annuaire de comptes et une horloge — sur lequel un test d’attaque s’exécute.
-
-**Objectif.** Écrire le test en trois temps — mise en place, détonation, retour arrière — et prouver le cycle complet.
-
-**Où.** `detections/atomics/credential-stuffing.yaml`
-
-**Dans le cours.**
-- [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
-- [Stratégie de test de sécurité](http://127.0.0.1:5173/#/modules/m13/l01) · [source](../src/content/m13/l01.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Avant détonation la règle est muette, après elle lève, après retour arrière l’état est identique à l’initial. Le retour arrière est ce qui rend le test rejouable en continu — et une validation de détection qu’on ne rejoue pas en continu est une validation qui vieillit. C’est le modèle d’Atomic Red Team.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/atomics/credential-stuffing.yaml`](solutions/detections/atomics/credential-stuffing.yaml)
-</details>
-
-<a id="appsensor-points"></a>
-
-### Les points de détection applicatifs
-
-**N2** · CWE-778 · D5 Implémentation · D7 Déploiement & exploitation
-
-L’application ne distingue pas une erreur d’un comportement hostile : un utilisateur qui essaie dix identifiants d’objet à la suite ne déclenche rien. Le corpus `fixtures/m18/appsensor/` contient six trafics hostiles — un par point du catalogue — et un parcours légitime complet.
-
-**Objectif.** Déclarer les six points de détection du catalogue, et vérifier qu’aucun ne se déclenche sur le parcours légitime.
-
-**Où.** `detections/appsensor.yaml`
-
-**Dans le cours.**
-- [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) · [source](../src/content/m18/l05.mdx)
-- [Détecter et répondre à la fraude](http://127.0.0.1:5173/#/modules/m10/l07) · [source](../src/content/m10/l07.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Les points de détection d’AppSensor sont la contribution la plus sous-estimée d’OWASP : l’application sait des choses que le réseau ignore. Elle sait qu’une session a changé d’adresse, et que la chaîne d’intégrité de son propre journal est rompue. Ce qui n’est pas noté : la réponse associée à chaque point — elle fait l’objet du challenge suivant.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/appsensor.yaml`](solutions/detections/appsensor.yaml)
-</details>
-
-<a id="graduated-response"></a>
-
-### La réponse graduée
-
-**N2** · CWE-1059 · D5 Implémentation · D7 Déploiement & exploitation
-
-Une détection ne sait faire qu’une chose : écrire une ligne. Personne ne la lit avant le lendemain. Le corpus `fixtures/m18/graduated/` contient dix-neuf sessions et, à côté, le palier que chacune doit atteindre.
-
-**Objectif.** Écrire la politique qui fait passer le même signal de la trace à l’alerte, puis au ralentissement, puis au verrouillage — sans gêner un compte légitime.
-
-**Où.** `detections/response-policy.yaml`
-
-**Dans le cours.**
-- [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) · [source](../src/content/m18/l05.mdx)
-- [Limitation de débit bien conçue](http://127.0.0.1:5173/#/modules/m10/l03) · [source](../src/content/m10/l03.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Détecter sans répondre, c’est documenter l’incident pendant qu’il se déroule. La graduation est ce qui rend la réponse automatique acceptable : elle laisse une marge avant la mesure qui gêne un vrai client, et elle évite de transformer le verrouillage en arme de déni de service (NIST SP 800-63B).
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/response-policy.yaml`](solutions/detections/response-policy.yaml)
-</details>
-
-<a id="ads-documentation"></a>
-
-### La fiche de stratégie de détection
-
-**N2** · CWE-1059 · D7 Déploiement & exploitation
-
-Les règles existent sans contexte : personne ne sait ce qu’elles couvrent, ce qu’elles ratent, ni quoi faire quand elles lèvent.
-
-**Objectif.** Documenter la règle de bourrage d’identifiants selon les rubriques du cadre ADS, dont une recette de validation que le harnais exécute.
-
-**Où.** `detections/ads/credential-stuffing.md`
-
-**Dans le cours.**
-- [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
-- [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m18/l06) · [source](../src/content/m18/l06.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-La rubrique de validation est celle qui compte : le harnais l’exécute et exige que la règle lève réellement. Les angles morts et les faux positifs attendus sont ce qui permet à l’analyste de trier à trois heures du matin. Ce qui n’est pas noté : la qualité de la prose — le harnais vérifie la présence et la longueur minimale des rubriques, pas leur pertinence.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/ads/credential-stuffing.md`](solutions/detections/ads/credential-stuffing.md)
-</details>
-
-<a id="detection-coverage"></a>
-
-### La couverture qui se prouve
-
-**N3** · CWE-1059 · D7 Déploiement & exploitation
-
-Douze règles, huit scénarios d’attaque, et aucune idée de ce qui est couvert ni de ce qui ne l’est pas.
-
-**Objectif.** Faire déclarer à chaque scénario les règles qu’il déclenche, et à chaque règle sa technique, puis nommer le trou.
-
-**Où.** `detections/coverage.yaml`
-
-**Dans le cours.**
-- [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) · [source](../src/content/m18/l04.mdx)
-- [MITRE pour l’AppSec](http://127.0.0.1:5173/#/modules/m11/l04) · [source](../src/content/m11/l04.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le test échoue si un scénario cite une règle inexistante, si une technique citée est inconnue ou dépréciée, ou si la déclaration ne correspond pas au rejeu. La couverture ATT&CK se mesure alors pour de vrai, au lieu d’être une carte de chaleur décorative que personne n’ose contredire.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/coverage.yaml`](solutions/detections/coverage.yaml)
-</details>
-
-<a id="incident-timeline"></a>
-
-### La chronologie de l’incident
-
-**N3** · CWE-1059 · D7 Déploiement & exploitation
-
-Neuf cent quatorze lignes de journal dans `fixtures/m18/incident/log.ndjson`, un incident de quatorze événements dedans. Il faut dire par où c’est entré, ce qui a été touché, et ce qui est sorti.
-
-**Objectif.** Reconstituer la liste ordonnée des événements de l’incident — aucun manquant, aucun en trop.
-
-**Où.** `incident/timeline.yaml`
-
-**Dans le cours.**
-- [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m18/l06) · [source](../src/content/m18/l06.mdx)
-- [Gérer une critique à J+0](http://127.0.0.1:5173/#/modules/m05/l07) · [source](../src/content/m05/l07.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le harnais connaît la vérité terrain et compare, dans les deux sens. Les identifiants de corrélation sont ce qui rend l’exercice faisable en minutes plutôt qu’en jours — et leur absence est ce qui transforme une investigation en archéologie. C’est pour ça qu’ils sont une exigence de conception, pas un détail d’implémentation.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/incident/timeline.yaml`](solutions/incident/timeline.yaml)
-</details>
-
-## M19 · Sécurité de l’IA
+## M27 · Sécurité des applications LLM
 
 <a id="prompt-injection"></a>
 
@@ -5519,7 +5038,7 @@ L’assistant fait du RAG sur les factures et dispose d’outils (envoyer un mai
 **Dans le cours.**
 - [Prompt injection et règle de deux](http://127.0.0.1:5173/#/modules/m19/l02) · [source](../src/content/m19/l02.mdx)
 - [Patterns de conception pour agents](http://127.0.0.1:5173/#/modules/m19/l03) · [source](../src/content/m19/l03.mdx)
-- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l03) · [source](../src/content/m08/l03.mdx)
+- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l04) · [source](../src/content/m08/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5543,7 +5062,7 @@ La trace de raisonnement de l’assistant est du texte plat : rien n’empêche 
 
 **Dans le cours.**
 - [Prompt injection et règle de deux](http://127.0.0.1:5173/#/modules/m19/l02) · [source](../src/content/m19/l02.mdx)
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5566,7 +5085,7 @@ Un outil « support » accepte une requête brute et hérite du périmètre comp
 **Où.** `server/routes/assistant.ts`
 
 **Dans le cours.**
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
 - [OWASP LLM Top 10 2026](http://127.0.0.1:5173/#/modules/m19/l01) · [source](../src/content/m19/l01.mdx)
 
 <details>
@@ -5615,7 +5134,7 @@ La réponse de l’assistant est rendue en Markdown, et une image distante est c
 
 **Dans le cours.**
 - [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) · [source](../src/content/m19/l04.mdx)
-- [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04) · [source](../src/content/m04/l04.mdx)
+- [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5639,7 +5158,7 @@ Un filtre de sortie supprime les liens Markdown en ligne. Il ne connaît pas la 
 
 **Dans le cours.**
 - [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) · [source](../src/content/m19/l04.mdx)
-- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l07) · [source](../src/content/m19/l07.mdx)
+- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l06) · [source](../src/content/m19/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5662,37 +5181,13 @@ La sortie HTTP est entièrement bloquée. Un outil de diagnostic réseau, auto-a
 **Où.** `server/routes/assistant.ts`
 
 **Dans le cours.**
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
 - [Patterns de conception pour agents](http://127.0.0.1:5173/#/modules/m19/l03) · [source](../src/content/m19/l03.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
 
 Un outil auto-approuvé parce qu’il paraît inoffensif reste un canal : ce qui compte est la capacité de sortie, pas l’intention de l’outil. C’est le mécanisme de CVE-2025-55284, et c’est pourquoi la Rule of Two compte les capacités, pas les outils.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/assistant.ts`](solutions/server/routes/assistant.ts)
-</details>
-
-<a id="product-as-channel"></a>
-
-### Le produit lui-même comme canal
-
-**N3** · CWE-200 · D4 Architecture
-
-L’assistant peut publier une note de litige visible par tous les tenants. Aucun trafic ne sort du réseau.
-
-**Objectif.** Faire apparaître dans une note publique une chaîne qui n’existe que dans une facture privée d’un autre tenant.
-
-**Où.** `server/routes/assistant.ts`
-
-**Dans le cours.**
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
-- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Les défenses réseau sont aveugles : l’exfiltration passe par une fonctionnalité légitime du produit. Toute capacité d’écriture visible par d’autres est un canal de sortie — c’est le mécanisme de l’exploit GitHub MCP.
 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/assistant.ts`](solutions/server/routes/assistant.ts)
 </details>
@@ -5711,7 +5206,7 @@ Les sorties d’outil sont encadrées par un délimiteur, avec consigne de ne ja
 
 **Dans le cours.**
 - [Patterns de conception pour agents](http://127.0.0.1:5173/#/modules/m19/l03) · [source](../src/content/m19/l03.mdx)
-- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l07) · [source](../src/content/m19/l07.mdx)
+- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l06) · [source](../src/content/m19/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5719,102 +5214,6 @@ Les sorties d’outil sont encadrées par un délimiteur, avec consigne de ne ja
 Toute défense par délimiteur se casse si l’attaquant peut écrire le délimiteur : il faut l’échapper dans le contenu, ou changer de mécanisme. Et *The Attacker Moves Second* rappelle que les défenses évaluées contre des attaques fixes tombent contre des attaques adaptatives.
 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/assistant.ts`](solutions/server/routes/assistant.ts)
-</details>
-
-<a id="tool-poisoning-mcp"></a>
-
-### L’empoisonnement de description d’outil
-
-**N2** · CWE-1427 · D4 Architecture · D8 Supply chain · Kohnfelder K4
-
-La description d’un outil d’un serveur MCP tiers contient un bloc d’instructions demandant de recopier la configuration dans un paramètre annexe.
-
-**Objectif.** Obtenir un appel d’outil portant un argument que l’utilisateur n’a jamais fourni et qui contient un secret.
-
-**Où.** `server/routes/mcp.ts`
-
-**Dans le cours.**
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
-- [Fournisseurs et tiers](http://127.0.0.1:5173/#/modules/m14/l08) · [source](../src/content/m14/l08.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-La description d’un outil entre dans le contexte au même titre que le reste : c’est du contenu fourni par un tiers. Un serveur MCP tiers est un third-party hook au sens de Kohnfelder — il a les droits de celui qui l’installe.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/mcp.ts`](solutions/server/routes/mcp.ts)
-</details>
-
-<a id="rug-pull-mcp"></a>
-
-### Le rug pull
-
-**N3** · CWE-494 · D4 Architecture · D8 Supply chain
-
-La description d’un outil MCP mute après quelques utilisations, une fois l’approbation de l’utilisateur obtenue.
-
-**Objectif.** Montrer que l’empreinte de la description diffère entre le premier et le énième appel, et que le comportement change après la mutation.
-
-**Où.** `server/routes/mcp.ts`
-
-**Dans le cours.**
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
-- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l07) · [source](../src/content/m14/l07.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Approuver une fois ne vaut pas approuver pour toujours : empreinte enregistrée à la première vue, comparaison à chaque listage, et nouvelle approbation si elle change. C’est le modèle de confiance à la première utilisation, et c’est la seule défense contre une dépendance qui se retourne.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/mcp.ts`](solutions/server/routes/mcp.ts)
-</details>
-
-<a id="tool-shadowing"></a>
-
-### Le tool shadowing
-
-**N3** · CWE-1427 · D4 Architecture · D8 Supply chain · Kohnfelder K4
-
-Un second serveur MCP déclare un outil homonyme de celui du serveur de confiance, et altère son comportement.
-
-**Objectif.** Faire appeler l’outil **de confiance** avec un destinataire caché que personne n’a demandé.
-
-**Où.** `server/routes/mcp.ts`
-
-**Dans le cours.**
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
-- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l03) · [source](../src/content/m08/l03.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Les outils de plusieurs serveurs partagent un espace de noms sans frontière : un serveur peut décrire ceux d’un autre. Nommer les outils par leur serveur, isoler les contextes, et n’activer que les serveurs nécessaires à la tâche.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/mcp.ts`](solutions/server/routes/mcp.ts)
-</details>
-
-<a id="line-jumping"></a>
-
-### Nuire avant le premier appel
-
-**N3** · CWE-1427 · D4 Architecture · D8 Supply chain
-
-Les descriptions d’outils entrent dans le contexte dès le listage, avant tout consentement et avant toute invocation.
-
-**Objectif.** Faire porter à toutes les réponses produites un comportement jamais demandé, sans qu’un seul outil ait été invoqué.
-
-**Où.** `server/routes/mcp.ts`
-
-**Dans le cours.**
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
-- [Modéliser l’IA, la supply chain et le dev](http://127.0.0.1:5173/#/modules/m11/l06) · [source](../src/content/m11/l06.mdx)
-
-<details>
-<summary>La classe de bugs à éliminer (spoiler)</summary>
-
-Le consentement à l’invocation arrive trop tard : le mal est fait au listage. Il faut valider les descriptions avant de les charger, et traiter l’ajout d’un serveur MCP comme l’ajout d’une dépendance — avec revue.
-
-Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/mcp.ts`](solutions/server/routes/mcp.ts)
 </details>
 
 <a id="poisoned-rag"></a>
@@ -5855,7 +5254,7 @@ L’index contient les factures de tous les tenants, et le filtrage se fait apr�
 
 **Dans le cours.**
 - [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) · [source](../src/content/m19/l04.mdx)
-- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m09/l02) · [source](../src/content/m09/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5879,7 +5278,7 @@ Les fragments d’une facture supprimée restent dans l’index vectoriel et dan
 
 **Dans le cours.**
 - [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) · [source](../src/content/m19/l04.mdx)
-- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l06) · [source](../src/content/m07/l06.mdx)
+- [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l04) · [source](../src/content/m07/l04.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5927,7 +5326,7 @@ Un jeton unique est planté dans le prompt système de l’assistant.
 
 **Dans le cours.**
 - [OWASP LLM Top 10 2026](http://127.0.0.1:5173/#/modules/m19/l01) · [source](../src/content/m19/l01.mdx)
-- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l07) · [source](../src/content/m19/l07.mdx)
+- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l06) · [source](../src/content/m19/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -5975,7 +5374,7 @@ L’assistant conserve des préférences alimentées par le contenu des document
 
 **Dans le cours.**
 - [Prompt injection et règle de deux](http://127.0.0.1:5173/#/modules/m19/l02) · [source](../src/content/m19/l02.mdx)
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -6046,8 +5445,8 @@ Un filtre d’entrée bloque une liste de mots. Le modèle, lui, décode base64,
 **Où.** `server/routes/assistant.ts`
 
 **Dans le cours.**
-- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l07) · [source](../src/content/m19/l07.mdx)
-- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) · [source](../src/content/m02/l03.mdx)
+- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l06) · [source](../src/content/m19/l06.mdx)
+- [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -6071,7 +5470,7 @@ La boîte de confirmation affiche le destinataire extrait de la question. L’ap
 
 **Dans le cours.**
 - [Patterns de conception pour agents](http://127.0.0.1:5173/#/modules/m19/l03) · [source](../src/content/m19/l03.mdx)
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -6095,7 +5494,7 @@ La réponse de l’assistant est rendue en Markdown puis injectée dans la page.
 
 **Dans le cours.**
 - [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) · [source](../src/content/m19/l04.mdx)
-- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) · [source](../src/content/m04/l05.mdx)
+- [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) · [source](../src/content/m04/l06.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -6119,7 +5518,7 @@ L’assistant dispose d’un outil « consulter une page » qui accepte n’impo
 
 **Dans le cours.**
 - [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) · [source](../src/content/m19/l04.mdx)
-- [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) · [source](../src/content/m19/l05.mdx)
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -6142,7 +5541,7 @@ L’assistant de code propose une commande d’installation pour un paquet plaus
 **Où.** `server/routes/assistant.ts`
 
 **Dans le cours.**
-- [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l08) · [source](../src/content/m19/l08.mdx)
+- [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l07) · [source](../src/content/m19/l07.mdx)
 - [npm : installer et publier](http://127.0.0.1:5173/#/modules/m14/l05) · [source](../src/content/m14/l05.mdx)
 
 <details>
@@ -6166,7 +5565,7 @@ Un bot de revue lit le diff des pull requests et peut rendre un verdict d’appr
 **Où.** `server/routes/assistant.ts`
 
 **Dans le cours.**
-- [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l08) · [source](../src/content/m19/l08.mdx)
+- [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l07) · [source](../src/content/m19/l07.mdx)
 - [Revoir du code généré par IA](http://127.0.0.1:5173/#/modules/m12/l06) · [source](../src/content/m12/l06.mdx)
 
 <details>
@@ -6190,7 +5589,7 @@ Un job de CI agentique interpole le titre de la pull request dans son prompt, et
 **Où.** `novafact/.github/workflows/ai-triage.yml`
 
 **Dans le cours.**
-- [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l08) · [source](../src/content/m19/l08.mdx)
+- [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l07) · [source](../src/content/m19/l07.mdx)
 - [Durcir GitHub Actions](http://127.0.0.1:5173/#/modules/m14/l02) · [source](../src/content/m14/l02.mdx)
 
 <details>
@@ -6214,8 +5613,8 @@ Une attaque qui casse la tâche demandée se fait repérer tout de suite : l’u
 **Où.** `server/routes/assistant.ts`
 
 **Dans le cours.**
-- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l07) · [source](../src/content/m19/l07.mdx)
-- [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) · [source](../src/content/m18/l05.mdx)
+- [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l06) · [source](../src/content/m19/l06.mdx)
+- [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) · [source](../src/content/m28/l05.mdx)
 - [Web LLM attacks et recherche assistée par IA](http://127.0.0.1:5173/#/modules/m03/l13) · [source](../src/content/m03/l13.mdx)
 
 <details>
@@ -6224,6 +5623,617 @@ Une attaque qui casse la tâche demandée se fait repérer tout de suite : l’u
 C’est le double critère d’AgentDojo — utilité et sécurité mesurées ensemble — et c’est ce qui rend les évaluations réalistes : une attaque qui dégrade le service est détectée par l’usage, pas par la sécurité. Côté défense, cela veut dire que l’absence de plainte utilisateur ne prouve rien.
 
 Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/assistant.ts`](solutions/server/routes/assistant.ts)
+</details>
+
+## M4 · Les métiers de l’AppSec
+
+<a id="codeowners-sensitive"></a>
+
+### Router la revue vers les bonnes personnes
+
+**N1** · CWE-1391 · D2 Cycle de vie · D7 Déploiement & exploitation
+
+Les fichiers d’authentification, de jeton et les workflows se font relire par qui passe. L’AppSec découvre les changements en production.
+
+**Objectif.** Écrire le CODEOWNERS du dépôt pour que les chemins sensibles — et seulement eux — exigent la revue de l’équipe sécurité.
+
+**Où.** `.github/CODEOWNERS`
+
+**Dans le cours.**
+- [Security Champions](http://127.0.0.1:5173/#/modules/m23/l04) · [source](../src/content/m23/l04.mdx)
+- [Le rôle : une équipe qui rend capable](http://127.0.0.1:5173/#/modules/m23/l01) · [source](../src/content/m23/l01.mdx)
+- [Revoir une PR en 10 minutes](http://127.0.0.1:5173/#/modules/m12/l03) · [source](../src/content/m12/l03.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais applique la vraie règle de résolution et vérifie trois choses : les chemins sensibles résolvent vers l’équipe sécurité, un fichier ordinaire ne l’encombre pas, et il a quand même un relecteur. Le double critère empêche la règle paresseuse qui met tout le dépôt sur le dos de l’AppSec — et qui garantit qu’elle ne relira rien. Le découpage entre les autres équipes n’est pas noté : il dépend de l’organisation.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/.github/CODEOWNERS`](solutions/.github/CODEOWNERS)
+</details>
+
+## M5 · Maturité et posture de sécurité
+
+<a id="samm-assessment"></a>
+
+### Évaluation SAMM qui se calcule
+
+**N2** · CWE-1059 · D2 Cycle de vie
+
+Novafact n’a jamais été évaluée. Les avis divergent sur la maturité réelle du programme, faute de grille commune. Le modèle est embarqué : `fixtures/m01/samm-model.yaml`, 5 fonctions, 15 pratiques, 30 flux, 90 activités.
+
+**Objectif.** Remplir l’évaluation de l’équipe — une réponse par activité — et produire les scores par flux, par pratique, par fonction et le score global, cohérents avec les réponses.
+
+**Où.** `program/samm-assessment.yaml`
+
+**Dans le cours.**
+- [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m24/l02) · [source](../src/content/m24/l02.mdx)
+- [Mesurer un programme](http://127.0.0.1:5173/#/modules/m32/l04) · [source](../src/content/m32/l04.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais recalcule tous les scores depuis les seules réponses et vérifie la complétude : chaque identifiant d’activité existe dans le modèle, aucun flux n’est laissé vide, aucune évaluation n’est incohérente. Ce qui est jugé, c’est l’arithmétique et la complétude — pas la sincérité des réponses, qui n’est pas vérifiable et qu’il faut assumer comme telle. C’est aussi pour cela qu’une auto-évaluation se contre-expertise.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/program/samm-assessment.yaml`](solutions/program/samm-assessment.yaml)
+</details>
+
+<a id="bsimm-compare"></a>
+
+### Se comparer plutôt que se noter
+
+**N2** · CWE-1059 · D2 Cycle de vie
+
+L’évaluation de maturité dit où en est Novafact par rapport au modèle. Elle ne dit pas où en sont les autres. `fixtures/m01/bsimm-observed.yaml` donne, pour trente et une activités, la proportion d’organisations qui les pratiquent réellement.
+
+**Objectif.** Confronter Novafact aux activités réellement observées, calculer l’écart sur celles qui sont très répandues, et nommer les trois qui comptent.
+
+**Où.** `program/bsimm-gap.yaml`
+
+**Dans le cours.**
+- [BSIMM16 : se comparer](http://127.0.0.1:5173/#/modules/m24/l03) · [source](../src/content/m24/l03.mdx)
+- [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m24/l02) · [source](../src/content/m24/l02.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais vérifie que chaque activité citée existe dans l’étude, que chaque preuve existe dans le dépôt, et que l’écart est calculé à partir de tes propres réponses — pas déclaré. Le choix des trois priorités, lui, n’est pas noté : il dépend du contexte métier, et c’est précisément la conversation qu’on veut avoir. Les deux modèles ensemble évitent autant la complaisance que la course au niveau 3.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/program/bsimm-gap.yaml`](solutions/program/bsimm-gap.yaml)
+</details>
+
+## M24 · Detection engineering
+
+<a id="rule-threshold"></a>
+
+### Régler le seuil
+
+**N2** · CWE-1059 · D7 Déploiement & exploitation
+
+Le corpus `fixtures/m18/cs-hard/` ajoute trois attaques discrètes, juste sous le seuil évident, et un test d’intrusion autorisé qui se comporte exactement comme une attaque. La séparation parfaite n’existe pas. La règle est écrite (`cs-hard/skeleton.yaml`) : seuls la fenêtre et les deux seuils sont à toi.
+
+**Objectif.** Trouver le réglage qui tient les cibles annoncées : 90 % de précision et 85 % de rappel.
+
+**Où.** `detections/thresholds.yaml`
+
+**Dans le cours.**
+- [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) · [source](../src/content/m28/l03.mdx)
+- [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m28/l06) · [source](../src/content/m28/l06.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais calcule et affiche les deux métriques, et n’accepte la règle qu’au-dessus des deux cibles. Régler un seuil est la partie du métier qu’on n’enseigne jamais, parce qu’elle demande un corpus — le voici. Et accepter un faux positif connu et documenté vaut mieux que fermer les yeux sur trois attaques.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/thresholds.yaml`](solutions/detections/thresholds.yaml)
+</details>
+
+<a id="honeytoken"></a>
+
+### Le piège à miel
+
+**N2** · CWE-1059 · D7 Déploiement & exploitation
+
+Trois leurres n’existent que dans le HTML et le bundle : une route d’export total, une facture qui n’a jamais été émise, et une clé d’API jamais distribuée. Aucun usage légitime ne les atteint. Le corpus `fixtures/m18/honeytoken/` contient quarante parcours légitimes qui passent tout autour.
+
+**Objectif.** Faire lever une alerte à tout accès à l’un des trois leurres, avec exactement zéro faux positif sur le corpus légitime complet.
+
+**Où.** `detections/honeytoken.yaml`
+
+**Dans le cours.**
+- [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) · [source](../src/content/m28/l05.mdx)
+- [Détecter et répondre à la fraude](http://127.0.0.1:5173/#/modules/m10/l07) · [source](../src/content/m10/l07.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Un honeytoken a le meilleur rapport signal sur bruit du métier : il n’a aucune raison d’être touché. C’est aussi ce qui détecte un attaquant **déjà à l’intérieur**, que les règles de périmètre laissent passer — et ce qui rend la détection indépendante de la sophistication de l’attaque.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/honeytoken.yaml`](solutions/detections/honeytoken.yaml)
+</details>
+
+<a id="detect-prompt-injection"></a>
+
+### Détecter l’injection indirecte
+
+**N3** · CWE-1059 · D4 Architecture · D7 Déploiement & exploitation
+
+L’assistant appelle des outils. Le journal porte désormais `novafact.assistant.origin` — l’origine de l’instruction qui a déclenché l’appel. Le corpus `fixtures/m18/assistant/` contient six appels d’origine document visant l’extérieur, et trente usages légitimes.
+
+**Objectif.** Écrire la règle qui attrape les six, sans lever sur les trente.
+
+**Où.** `detections/prompt-injection.yaml`
+
+**Dans le cours.**
+- [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) · [source](../src/content/m28/l05.mdx)
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le vocabulaire OWASP porte désormais des événements dédiés — injection de prompt, empoisonnement d’outil, épuisement de ressource — qui font le pont entre les deux domaines. L’origine de l’instruction est le champ qui rend l’injection indirecte détectable, et l’instrumenter coûte trois lignes dans la couche d’outils.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/prompt-injection.yaml`](solutions/detections/prompt-injection.yaml)
+</details>
+
+<a id="rule-silent-after-fix"></a>
+
+### La règle qui se tait après le correctif
+
+**N2** · CWE-1059 · D6 Tests · D7 Déploiement & exploitation
+
+Le défaut d’autorisation a été corrigé : le sondage d’identifiants d’un autre tenant reçoit maintenant un 403 au lieu d’un 200. La règle qui l’attrapait (`fixtures/m18/silent-before/rule-origine.yaml`) lève encore sur le corpus d’après correctif, et personne ne sait pourquoi.
+
+**Objectif.** Réécrire la règle : muette sur le corpus d’après correctif, et toujours levée sur celui d’avant.
+
+**Où.** `detections/idor-probing.yaml`
+
+**Dans le cours.**
+- [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m28/l06) · [source](../src/content/m28/l06.mdx)
+- [Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02) · [source](../src/content/m13/l02.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+C’est le pendant détection du contrat de `npm run verify` : le contrôle refuse **et** la fonctionnalité marche encore. Une règle qu’on n’a pas retirée après correction est une alerte que l’équipe apprendra à ignorer — et avec elle, les suivantes. Une détection a un cycle de vie, avec une date de revue.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/idor-probing.yaml`](solutions/detections/idor-probing.yaml)
+</details>
+
+<a id="rule-fixtures"></a>
+
+### Deux fixtures par règle
+
+**N1** · CWE-1059 · D6 Tests · D7 Déploiement & exploitation
+
+Cinq règles de la bibliothèque (`fixtures/m18/rules/`) sont livrées sans test. Personne ne sait si elles lèvent encore après un changement de schéma.
+
+**Objectif.** Accompagner chacune d’un événement qu’elle doit attraper et d’un quasi-jumeau qu’elle ne doit pas attraper.
+
+**Où.** `detections/fixtures/`
+
+**Dans le cours.**
+- [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) · [source](../src/content/m28/l03.mdx)
+- [Tests de sécurité écrits par les devs](http://127.0.0.1:5173/#/modules/m13/l02) · [source](../src/content/m13/l02.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+La CI refuse une règle sans ses deux fixtures, et refuse une règle qui attrape sa propre fixture négative. C’est exactement le contrat du reste du lab — le contrôle refuse, et le légitime passe — appliqué à la détection. C’est aussi ce qui permet de changer une règle sans peur six mois plus tard.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/fixtures/`](solutions/detections/fixtures/)
+</details>
+
+<a id="rule-lint"></a>
+
+### Le lint de règle
+
+**N2** · CWE-1059 · D6 Tests · D7 Déploiement & exploitation
+
+Douze fichiers de règles dans `fixtures/m18/rules/`, cinq cassés : score de risque hors de la plage de sa sévérité, étiquette dupliquée, note sans section de triage, fenêtre d’historique absente.
+
+**Objectif.** Produire la bibliothèque corrigée, et faire passer le lint à zéro échec.
+
+**Où.** `detections/rules/`
+
+**Dans le cours.**
+- [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) · [source](../src/content/m28/l03.mdx)
+- [Stratégie de test de sécurité](http://127.0.0.1:5173/#/modules/m13/l01) · [source](../src/content/m13/l01.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Les assertions sont celles du dépôt de règles d’Elastic, réimplémentées. Une règle est du code : elle se lint, elle se teste, elle se revoit. C’est ce qui fait la différence entre une bibliothèque de règles et un dossier de requêtes.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/rules/`](solutions/detections/rules/)
+</details>
+
+<a id="atomic-test"></a>
+
+### L’atomique qui valide la règle
+
+**N2** · CWE-1059 · D6 Tests · D7 Déploiement & exploitation
+
+La règle `fixtures/m18/atomic/rule.yaml` a été écrite d’après une hypothèse. Personne n’a vérifié qu’une vraie attaque la déclenche. Le lab fournit un environnement simulé — un annuaire de comptes et une horloge — sur lequel un test d’attaque s’exécute.
+
+**Objectif.** Écrire le test en trois temps — mise en place, détonation, retour arrière — et prouver le cycle complet.
+
+**Où.** `detections/atomics/credential-stuffing.yaml`
+
+**Dans le cours.**
+- [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) · [source](../src/content/m28/l03.mdx)
+- [Stratégie de test de sécurité](http://127.0.0.1:5173/#/modules/m13/l01) · [source](../src/content/m13/l01.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Avant détonation la règle est muette, après elle lève, après retour arrière l’état est identique à l’initial. Le retour arrière est ce qui rend le test rejouable en continu — et une validation de détection qu’on ne rejoue pas en continu est une validation qui vieillit. C’est le modèle d’Atomic Red Team.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/atomics/credential-stuffing.yaml`](solutions/detections/atomics/credential-stuffing.yaml)
+</details>
+
+<a id="appsensor-points"></a>
+
+### Les points de détection applicatifs
+
+**N2** · CWE-778 · D5 Implémentation · D7 Déploiement & exploitation
+
+L’application ne distingue pas une erreur d’un comportement hostile : un utilisateur qui essaie dix identifiants d’objet à la suite ne déclenche rien. Le corpus `fixtures/m18/appsensor/` contient six trafics hostiles — un par point du catalogue — et un parcours légitime complet.
+
+**Objectif.** Déclarer les six points de détection du catalogue, et vérifier qu’aucun ne se déclenche sur le parcours légitime.
+
+**Où.** `detections/appsensor.yaml`
+
+**Dans le cours.**
+- [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) · [source](../src/content/m28/l05.mdx)
+- [Détecter et répondre à la fraude](http://127.0.0.1:5173/#/modules/m10/l07) · [source](../src/content/m10/l07.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Les points de détection d’AppSensor sont la contribution la plus sous-estimée d’OWASP : l’application sait des choses que le réseau ignore. Elle sait qu’une session a changé d’adresse, et que la chaîne d’intégrité de son propre journal est rompue. Ce qui n’est pas noté : la réponse associée à chaque point — elle fait l’objet du challenge suivant.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/appsensor.yaml`](solutions/detections/appsensor.yaml)
+</details>
+
+<a id="graduated-response"></a>
+
+### La réponse graduée
+
+**N2** · CWE-1059 · D5 Implémentation · D7 Déploiement & exploitation
+
+Une détection ne sait faire qu’une chose : écrire une ligne. Personne ne la lit avant le lendemain. Le corpus `fixtures/m18/graduated/` contient dix-neuf sessions et, à côté, le palier que chacune doit atteindre.
+
+**Objectif.** Écrire la politique qui fait passer le même signal de la trace à l’alerte, puis au ralentissement, puis au verrouillage — sans gêner un compte légitime.
+
+**Où.** `detections/response-policy.yaml`
+
+**Dans le cours.**
+- [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) · [source](../src/content/m28/l05.mdx)
+- [Limitation de débit bien conçue](http://127.0.0.1:5173/#/modules/m10/l03) · [source](../src/content/m10/l03.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Détecter sans répondre, c’est documenter l’incident pendant qu’il se déroule. La graduation est ce qui rend la réponse automatique acceptable : elle laisse une marge avant la mesure qui gêne un vrai client, et elle évite de transformer le verrouillage en arme de déni de service (NIST SP 800-63B).
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/response-policy.yaml`](solutions/detections/response-policy.yaml)
+</details>
+
+<a id="ads-documentation"></a>
+
+### La fiche de stratégie de détection
+
+**N2** · CWE-1059 · D7 Déploiement & exploitation
+
+Les règles existent sans contexte : personne ne sait ce qu’elles couvrent, ce qu’elles ratent, ni quoi faire quand elles lèvent.
+
+**Objectif.** Documenter la règle de bourrage d’identifiants selon les rubriques du cadre ADS, dont une recette de validation que le harnais exécute.
+
+**Où.** `detections/ads/credential-stuffing.md`
+
+**Dans le cours.**
+- [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) · [source](../src/content/m28/l03.mdx)
+- [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m28/l06) · [source](../src/content/m28/l06.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+La rubrique de validation est celle qui compte : le harnais l’exécute et exige que la règle lève réellement. Les angles morts et les faux positifs attendus sont ce qui permet à l’analyste de trier à trois heures du matin. Ce qui n’est pas noté : la qualité de la prose — le harnais vérifie la présence et la longueur minimale des rubriques, pas leur pertinence.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/ads/credential-stuffing.md`](solutions/detections/ads/credential-stuffing.md)
+</details>
+
+<a id="detection-coverage"></a>
+
+### La couverture qui se prouve
+
+**N3** · CWE-1059 · D7 Déploiement & exploitation
+
+Douze règles, huit scénarios d’attaque, et aucune idée de ce qui est couvert ni de ce qui ne l’est pas.
+
+**Objectif.** Faire déclarer à chaque scénario les règles qu’il déclenche, et à chaque règle sa technique, puis nommer le trou.
+
+**Où.** `detections/coverage.yaml`
+
+**Dans le cours.**
+- [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) · [source](../src/content/m28/l03.mdx)
+- [MITRE pour l’AppSec](http://127.0.0.1:5173/#/modules/m11/l04) · [source](../src/content/m11/l04.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le test échoue si un scénario cite une règle inexistante, si une technique citée est inconnue ou dépréciée, ou si la déclaration ne correspond pas au rejeu. La couverture ATT&CK se mesure alors pour de vrai, au lieu d’être une carte de chaleur décorative que personne n’ose contredire.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/detections/coverage.yaml`](solutions/detections/coverage.yaml)
+</details>
+
+<a id="incident-timeline"></a>
+
+### La chronologie de l’incident
+
+**N3** · CWE-1059 · D7 Déploiement & exploitation
+
+Neuf cent quatorze lignes de journal dans `fixtures/m18/incident/log.ndjson`, un incident de quatorze événements dedans. Il faut dire par où c’est entré, ce qui a été touché, et ce qui est sorti.
+
+**Objectif.** Reconstituer la liste ordonnée des événements de l’incident — aucun manquant, aucun en trop.
+
+**Où.** `incident/timeline.yaml`
+
+**Dans le cours.**
+- [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m28/l06) · [source](../src/content/m28/l06.mdx)
+- [Gérer une critique à J+0](http://127.0.0.1:5173/#/modules/m05/l07) · [source](../src/content/m05/l07.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais connaît la vérité terrain et compare, dans les deux sens. Les identifiants de corrélation sont ce qui rend l’exercice faisable en minutes plutôt qu’en jours — et leur absence est ce qui transforme une investigation en archéologie. C’est pour ça qu’ils sont une exigence de conception, pas un détail d’implémentation.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/incident/timeline.yaml`](solutions/incident/timeline.yaml)
+</details>
+
+## M28 · Agents & MCP
+
+<a id="product-as-channel"></a>
+
+### Le produit lui-même comme canal
+
+**N3** · CWE-200 · D4 Architecture
+
+L’assistant peut publier une note de litige visible par tous les tenants. Aucun trafic ne sort du réseau.
+
+**Objectif.** Faire apparaître dans une note publique une chaîne qui n’existe que dans une facture privée d’un autre tenant.
+
+**Où.** `server/routes/assistant.ts`
+
+**Dans le cours.**
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
+- [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m09/l02) · [source](../src/content/m09/l02.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Les défenses réseau sont aveugles : l’exfiltration passe par une fonctionnalité légitime du produit. Toute capacité d’écriture visible par d’autres est un canal de sortie — c’est le mécanisme de l’exploit GitHub MCP.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/assistant.ts`](solutions/server/routes/assistant.ts)
+</details>
+
+<a id="tool-poisoning-mcp"></a>
+
+### L’empoisonnement de description d’outil
+
+**N2** · CWE-1427 · D4 Architecture · D8 Supply chain · Kohnfelder K4
+
+La description d’un outil d’un serveur MCP tiers contient un bloc d’instructions demandant de recopier la configuration dans un paramètre annexe.
+
+**Objectif.** Obtenir un appel d’outil portant un argument que l’utilisateur n’a jamais fourni et qui contient un secret.
+
+**Où.** `server/routes/mcp.ts`
+
+**Dans le cours.**
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
+- [Fournisseurs et tiers](http://127.0.0.1:5173/#/modules/m14/l09) · [source](../src/content/m14/l09.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+La description d’un outil entre dans le contexte au même titre que le reste : c’est du contenu fourni par un tiers. Un serveur MCP tiers est un third-party hook au sens de Kohnfelder — il a les droits de celui qui l’installe.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/mcp.ts`](solutions/server/routes/mcp.ts)
+</details>
+
+<a id="rug-pull-mcp"></a>
+
+### Le rug pull
+
+**N3** · CWE-494 · D4 Architecture · D8 Supply chain
+
+La description d’un outil MCP mute après quelques utilisations, une fois l’approbation de l’utilisateur obtenue.
+
+**Objectif.** Montrer que l’empreinte de la description diffère entre le premier et le énième appel, et que le comportement change après la mutation.
+
+**Où.** `server/routes/mcp.ts`
+
+**Dans le cours.**
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
+- [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l08) · [source](../src/content/m14/l08.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Approuver une fois ne vaut pas approuver pour toujours : empreinte enregistrée à la première vue, comparaison à chaque listage, et nouvelle approbation si elle change. C’est le modèle de confiance à la première utilisation, et c’est la seule défense contre une dépendance qui se retourne.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/mcp.ts`](solutions/server/routes/mcp.ts)
+</details>
+
+<a id="tool-shadowing"></a>
+
+### Le tool shadowing
+
+**N3** · CWE-1427 · D4 Architecture · D8 Supply chain · Kohnfelder K4
+
+Un second serveur MCP déclare un outil homonyme de celui du serveur de confiance, et altère son comportement.
+
+**Objectif.** Faire appeler l’outil **de confiance** avec un destinataire caché que personne n’a demandé.
+
+**Où.** `server/routes/mcp.ts`
+
+**Dans le cours.**
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
+- [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l04) · [source](../src/content/m08/l04.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Les outils de plusieurs serveurs partagent un espace de noms sans frontière : un serveur peut décrire ceux d’un autre. Nommer les outils par leur serveur, isoler les contextes, et n’activer que les serveurs nécessaires à la tâche.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/mcp.ts`](solutions/server/routes/mcp.ts)
+</details>
+
+<a id="line-jumping"></a>
+
+### Nuire avant le premier appel
+
+**N3** · CWE-1427 · D4 Architecture · D8 Supply chain
+
+Les descriptions d’outils entrent dans le contexte dès le listage, avant tout consentement et avant toute invocation.
+
+**Objectif.** Faire porter à toutes les réponses produites un comportement jamais demandé, sans qu’un seul outil ait été invoqué.
+
+**Où.** `server/routes/mcp.ts`
+
+**Dans le cours.**
+- [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) · [source](../src/content/m30/l01.mdx)
+- [Modéliser l’IA, la supply chain et le dev](http://127.0.0.1:5173/#/modules/m11/l06) · [source](../src/content/m11/l06.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le consentement à l’invocation arrive trop tard : le mal est fait au listage. Il faut valider les descriptions avant de les charger, et traiter l’ajout d’un serveur MCP comme l’ajout d’une dépendance — avec revue.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/routes/mcp.ts`](solutions/server/routes/mcp.ts)
+</details>
+
+## M31 · Le programme AppSec
+
+<a id="samm-roadmap"></a>
+
+### La feuille de route dérivée de l’écart
+
+**N2** · CWE-1059 · D2 Cycle de vie
+
+L’évaluation est faite. Reste à en tirer un plan à douze mois qui ne soit ni une liste de vœux ni un copier-coller du modèle.
+
+**Objectif.** Produire la feuille de route qui fait progresser d’un niveau chaque flux des pratiques sous le seuil de 1,5 — tous, et aucun autre.
+
+**Où.** `program/roadmap.yaml`
+
+**Dans le cours.**
+- [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m24/l02) · [source](../src/content/m24/l02.mdx)
+- [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m32/l05) · [source](../src/content/m32/l05.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais calcule l’ensemble des pratiques sous le seuil depuis ton évaluation et exige que la feuille de route les couvre exactement, par les activités du niveau immédiatement supérieur. La cohérence avec l’évaluation est objective ; la pertinence pour le métier, l’ordre des trimestres et la faisabilité ne le sont pas et ne sont pas notés.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/program/roadmap.yaml`](solutions/program/roadmap.yaml)
+</details>
+
+<a id="break-build-gate"></a>
+
+### La porte qui casse le build
+
+**N2** · CWE-1059 · D2 Cycle de vie · D6 Tests
+
+Aucune porte de contrôle : la CI passe au vert quel que soit le résultat des scanners.
+
+**Objectif.** Écrire la porte qui bloque sur un seuil de sévérité — et seulement là. Le harnais l’exécute contre quatorze rapports d’analyse, dont douze fabriqués à la volée.
+
+**Où.** `scripts/gate.mjs`
+
+**Dans le cours.**
+- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) · [source](../src/content/m32/l03.mdx)
+- [Bâtir la plateforme](http://127.0.0.1:5173/#/modules/m13/l11) · [source](../src/content/m13/l11.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais exécute la porte sur deux rapports de référence — un à bloquer, un à laisser passer — puis sur douze rapports fabriqués à la volée, moitié-moitié. Une porte qui bloque toujours échoue sur les seconds ; un `|| true` échoue sur les premiers. C’est le même couple refuse/autorise que les tests de régression, et c’est ce qui distingue une porte d’un affichage. Le seuil retenu, lui, est un arbitrage : il est donné par l’énoncé, il n’est pas noté.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/scripts/gate.mjs`](solutions/scripts/gate.mjs)
+</details>
+
+<a id="risk-exception"></a>
+
+### L’exception qui expire
+
+**N2** · CWE-1059 · D2 Cycle de vie · D6 Tests
+
+Des vulnérabilités bloquent la CI et ne peuvent pas être corrigées cette semaine — `fixtures/m01/osv-scan.json` dit lesquelles. L’équipe veut « juste désactiver la règle ».
+
+**Objectif.** Déposer les exceptions : motivées, datées, bornées dans le temps, et refusées quand la vulnérabilité est activement exploitée ou quand un correctif existe.
+
+**Où.** `osv-scanner.toml`
+
+**Dans le cours.**
+- [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) · [source](../src/content/m32/l03.mdx)
+- [Prioriser par le risque](http://127.0.0.1:5173/#/modules/m05/l03) · [source](../src/content/m05/l03.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais exige pour chaque exception un motif substantiel et propre à elle, une date d’expiration dans le futur et à moins de quatre-vingt-dix jours, et il refuse l’exception dès que l’identifiant figure au catalogue d’exploitation connue ou qu’une version corrigée existe. Il exige aussi la complétude : une vulnérabilité sans correctif laissée sans exception bloque toujours la CI. La pertinence du motif n’est pas jugée — sa présence, sa longueur et son unicité le sont. Une exception sans date n’est pas une exception, c’est un abandon.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/osv-scanner.toml`](solutions/osv-scanner.toml)
+</details>
+
+<a id="ssdf-attestation"></a>
+
+### Attestation SSDF adossée au dépôt
+
+**N3** · CWE-1059 · D2 Cycle de vie
+
+Un client exige l’attestation de conformité au cadre de développement sécurisé du NIST — non plus comme obligation fédérale, rescindée en janvier 2026, mais comme clause de contrat. Le premier réflexe est de cocher les cases.
+
+**Objectif.** Remplir la matrice des vingt-deux tâches de `fixtures/m01/ssdf-tasks.yaml` en citant, pour chaque tâche revendiquée, la preuve qui existe réellement dans le dépôt.
+
+**Où.** `program/ssdf.yaml`
+
+**Dans le cours.**
+- [Risque et acceptation](http://127.0.0.1:5173/#/modules/m26/l06) · [source](../src/content/m26/l06.mdx)
+- [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m32/l05) · [source](../src/content/m32/l05.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Le harnais vérifie que chaque chemin cité existe, et pousse plus loin sur un sous-ensemble : la revue est-elle réellement routée, la suite de tests réellement appelée en CI, l’analyse de dépendances réellement lancée. Une preuve inventée est détectée ; une preuve faible mais réelle passe — et c’est exactement la limite d’une attestation, qui se signe sur l’honneur. Il refuse en revanche les deux raccourcis : plus de trois tâches « non applicable », ou moins de six tâches réellement revendiquées. Ce qui a changé en 2026, c’est qui l’exige, pas ce qu’elle vaut.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/program/ssdf.yaml`](solutions/program/ssdf.yaml)
+</details>
+
+<a id="cra-notification"></a>
+
+### Le signalement CRA, en test
+
+**N3** · CWE-1059 · D2 Cycle de vie · D8 Supply chain
+
+Le Cyber Resilience Act impose depuis le 11/09/2026 une alerte sous 24 h et une notification sous 72 h pour une vulnérabilité activement exploitée dans un produit.
+
+**Objectif.** Implémenter le déclencheur qui décide si une vulnérabilité du SBOM déclenche l’obligation, et calcule les deux échéances.
+
+**Où.** `scripts/cra-report.mjs`
+
+**Dans le cours.**
+- [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m32/l05) · [source](../src/content/m32/l05.mdx)
+- [Divulgation, bug bounty et CRA](http://127.0.0.1:5173/#/modules/m05/l06) · [source](../src/content/m05/l06.mdx)
+
+<details>
+<summary>La classe de bugs à éliminer (spoiler)</summary>
+
+Trois SBOM d’essai, trois décisions attendues, puis huit couples SBOM/catalogue tirés au hasard : une fonction pure sur des données passées en argument, donc entièrement déterministe. Le harnais refuse aussi le déclencheur qui rend la même réponse partout. La qualification juridique — ce qui compte comme « produit », ce qui compte comme « connaissance » du fait — n’est pas automatisable et n’est pas jugée ici.
+
+Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/scripts/cra-report.mjs`](solutions/scripts/cra-report.mjs)
 </details>
 
 ## Couverture
@@ -6245,26 +6255,31 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 
 | Module | Jouables | À venir |
 | --- | --- | --- |
-| M1 · Programme AppSec & DevSecOps | 9 | — |
-| M2 · Vulnérabilités web, écosystème JS | 30 | 2 |
-| M3 · Web avancé | 29 | 1 |
-| M4 · Côté client & scripts tiers | 20 | 5 |
-| M5 · Gestion des vulnérabilités | 9 | 2 |
-| M6 · Faire adopter la sécurité | 4 | 1 |
-| M7 · Fondations, exigences & vie privée | 8 | 1 |
-| M8 · Conception sécurisée & architecture | 2 | 4 |
-| M9 · OAuth 2.x / OIDC / SAML | 5 | 1 |
-| M10 · Anti-abus, ATO & fraude | 5 | 2 |
+| M3 · Présentation de l’AppSec | 4 | — |
+| M7 · Vulnérabilités côté serveur | 29 | 2 |
+| M9 · Web avancé | 29 | 1 |
+| M8 · Vulnérabilités côté client & scripts tiers | 21 | 5 |
+| M26 · Gestion des vulnérabilités | 9 | 2 |
+| M30 · Faire adopter la sécurité | 3 | 1 |
+| M12 · Exigences, vie privée & conformité | 6 | 1 |
+| M13 · Spécifier et concevoir | 2 | 4 |
+| M14 · Identité : authentification, autorisation, OAuth & SAML | 5 | 1 |
+| M15 · Anti-abus, ATO & fraude | 5 | 2 |
 | M11 · Threat modeling & MITRE | 7 | — |
-| M12 · Revue de code sécurité | 5 | 1 |
-| M13 · Tests & analyse de code | 6 | 6 |
-| M14 · Pipeline, supply chain & fournisseurs | 20 | 2 |
-| M15 · IAM AWS | 15 | — |
-| M16 · Infrastructure as Code | 14 | 1 |
-| M17 · Déploiement, exploitation & résilience | 9 | 5 |
-| M18 · Surveillance, logging & SIEM | 19 | 1 |
-| M19 · Sécurité de l’IA | 30 | 2 |
-| M20 · Capstone : revue de sécurité de Novafact | — | 12 |
+| M16 · Revue de code sécurité | 5 | 1 |
+| M17 · Tests & analyse de code | 6 | 6 |
+| M18 · Pipeline, supply chain & fournisseurs | 20 | 2 |
+| M19 · IAM AWS | 15 | — |
+| M20 · Infrastructure as Code | 14 | 1 |
+| M21 · Déploiement, exploitation & résilience | 9 | 5 |
+| M23 · Journalisation & SIEM (Elastic) | 7 | 1 |
+| M27 · Sécurité des applications LLM | 25 | 2 |
+| M32 · Capstone : revue de sécurité de Novafact | — | 12 |
+| M4 · Les métiers de l’AppSec | 1 | — |
+| M5 · Maturité et posture de sécurité | 2 | — |
+| M24 · Detection engineering | 12 | — |
+| M28 · Agents & MCP | 5 | — |
+| M31 · Le programme AppSec | 5 | — |
 
 ### Par chapitre de *Designing Secure Software*
 
@@ -6284,42 +6299,130 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 
 ### Par leçon
 
-**158 des 162 leçons** du parcours sont rattachées à au moins un challenge.
+**158 des 237 leçons** du parcours sont rattachées à au moins un challenge.
 
 <details>
-<summary><strong>M1 · Programme AppSec & DevSecOps</strong> — 8/8 leçons couvertes</summary>
+<summary><strong>M1 · Cybersécurité et panorama de la menace</strong> — 0/6 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [La cybersécurité en un coup d’œil](http://127.0.0.1:5173/#/modules/m21/l01) | — |
+| [Qui attaque, et pourquoi](http://127.0.0.1:5173/#/modules/m21/l02) | — |
+| [Le panorama 2025-2026 en chiffres](http://127.0.0.1:5173/#/modules/m21/l03) | — |
+| [Les portes d’entrée qui passent par l’application](http://127.0.0.1:5173/#/modules/m21/l04) | — |
+| [Les affaires qui ont façonné le métier](http://127.0.0.1:5173/#/modules/m21/l05) | — |
+| [Pourquoi le logiciel reste vulnérable](http://127.0.0.1:5173/#/modules/m21/l06) | — |
+
+</details>
+
+<details>
+<summary><strong>M2 · MITRE ATT&CK et la menace SaaS</strong> — 0/6 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [ATT&CK : histoire et logique](http://127.0.0.1:5173/#/modules/m22/l01) | — |
+| [Les quatre usages d’ATT&CK](http://127.0.0.1:5173/#/modules/m22/l02) | — |
+| [La menace SaaS et identité](http://127.0.0.1:5173/#/modules/m22/l03) | — |
+| [Se protéger : les mitigations qui comptent](http://127.0.0.1:5173/#/modules/m22/l04) | — |
+| [Cas réels décortiqués](http://127.0.0.1:5173/#/modules/m22/l05) | — |
+| [Du TTP à la classe de bug](http://127.0.0.1:5173/#/modules/m22/l06) | — |
+
+</details>
+
+<details>
+<summary><strong>M3 · Présentation de l’AppSec</strong> — 4/5 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
 | [Du pentest à l’AppSec](http://127.0.0.1:5173/#/modules/m01/l01) | [Du finding au backlog](#pentest-to-appsec) |
-| [Principes DevSecOps](http://127.0.0.1:5173/#/modules/m01/l02) | [Le gabarit de route qui naît sûr](#paved-road-template) |
-| [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m01/l03) | [Évaluation SAMM qui se calcule](#samm-assessment)<br>[La feuille de route dérivée de l’écart](#samm-roadmap)<br>[Se comparer plutôt que se noter](#bsimm-compare)<br>Étape 11 · Roadmap à 12 mois *(à venir)* |
-| [BSIMM16 : se comparer](http://127.0.0.1:5173/#/modules/m01/l04) | [Se comparer plutôt que se noter](#bsimm-compare) |
-| [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m01/l05) | [La porte qui casse le build](#break-build-gate)<br>[L’exception qui expire](#risk-exception)<br>[Le modèle qui bloque la PR](#tm-drift-ci)<br>[Où placer chaque technique](#test-strategy)<br>[Les garde-fous débranchés](#cdk-nag-disabled)<br>Le DAST sur environnement éphémère *(à venir)* |
-| [Mesurer un programme](http://127.0.0.1:5173/#/modules/m01/l06) | [Évaluation SAMM qui se calcule](#samm-assessment)<br>[Le SLA qui se mesure](#sla-policy) |
-| [Risque et acceptation](http://127.0.0.1:5173/#/modules/m01/l07) | [Attestation SSDF adossée au dépôt](#ssdf-attestation) |
-| [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m01/l08) | [La feuille de route dérivée de l’écart](#samm-roadmap)<br>[Attestation SSDF adossée au dépôt](#ssdf-attestation)<br>[Le signalement CRA, en test](#cra-notification) |
+| [La confiance](http://127.0.0.1:5173/#/modules/m01/l02) | [À qui fait-on confiance, au juste](#trust-inventory) |
+| [C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m01/l03) | [Authentifier, autoriser, journaliser](#gold-standard-audit)<br>[Le vocabulaire imposé](#logging-vocabulary)<br>Le journal infalsifiable *(à venir)* |
+| [Le SSDLC et la carte du parcours](http://127.0.0.1:5173/#/modules/m01/l04) | — |
+| [Principes DevSecOps](http://127.0.0.1:5173/#/modules/m01/l05) | [Le gabarit de route qui naît sûr](#paved-road-template) |
 
 </details>
 
 <details>
-<summary><strong>M2 · Vulnérabilités web, écosystème JS</strong> — 7/8 leçons couvertes</summary>
+<summary><strong>M4 · Les métiers de l’AppSec</strong> — 2/7 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
-| [Top 10 2025, API Top 10 et CWE Top 25](http://127.0.0.1:5173/#/modules/m02/l01) | Cartographier les défauts du lab *(à venir)* |
-| [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l02) | [Injection NoSQL dans la connexion](#nosql-auth)<br>[Mass assignment sur le profil](#mass-assignment)<br>[BOLA : la facture du voisin](#bola-invoice)<br>[BFLA : la méthode oubliée](#bfla-method)<br>[BOLA sur un identifiant imbriqué](#bola-nested)<br>[Confusion de type sur la query string](#qs-type-confusion)<br>[Autorisation sur une seule étape du flux](#multistep-authz)<br>[Endpoint à double usage mal isolé](#dual-use-endpoint)<br>[Injection de formule dans l’export CSV](#csv-formula-injection)<br>[SSTI par les options de rendu](#ssti-render-options)<br>[Expansion d’entités sur le même import](#xml-entity-expansion)<br>[XXE à l’import de facture électronique](#xxe-import)<br>[Clés JSON dupliquées](#json-duplicate-keys)<br>[Contrôle d’accès par préfixe d’URL](#url-prefix-authz)<br>[Expression de validation non ancrée](#regex-unanchored)<br>Injection d’en-tête dans l’e-mail de facture *(à venir)* |
-| [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l03) | [Arithmétique de l’argent](#money-float)<br>[Le décodeur obéissant](#encoded-bypass)<br>[Au-delà de 2^53](#max-safe-integer)<br>[Number() permissif sur les montants](#number-coercion)<br>[Normalisation après le contrôle d’unicité](#unicode-normalization)<br>[Jeton tiré de Math.random](#weak-random)<br>La propriété qui trouve le bug d’argent *(à venir)* |
-| [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l04) | [Prototype pollution côté serveur](#proto-pollution)<br>[ReDoS sur la référence de facture](#redos)<br>[Traversée de chemin sur les pièces jointes](#path-traversal)<br>[SSRF vers le service de métadonnées](#ssrf-imds)<br>[eval dans le calcul des pénalités](#eval-formula)<br>[node:vm n’est pas un bac à sable](#vm-escape)<br>[Injection de commande dans l’export](#cmd-injection)<br>[Zip Slip à l’import d’un lot de factures](#zip-slip)<br>Le fuzz qui casse le parseur *(à venir)* |
-| [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l05) | [Race condition : l’avoir dépensé deux fois](#race-credit)<br>[Erreur non gérée et état incohérent](#error-leak)<br>[Number() permissif sur les montants](#number-coercion)<br>[GraphQL : reconstruire le schéma sans introspection](#graphql-clairvoyance)<br>[Le catch qui échoue ouvert](#try-catch-fail-open)<br>[Troncature après validation](#input-truncation)<br>[Comparaison de jeton à temps variable](#timing-attack) |
-| [React et le navigateur](http://127.0.0.1:5173/#/modules/m02/l06) | [XSS stockée dans la note de facture](#dom-xss)<br>[Confusion de Content-Type sur une mutation](#content-type-confusion)<br>[CSRF sur le point d’accès GraphQL](#graphql-csrf)<br>[URL javascript: rendue par React](#react-javascript-url)<br>[SameSite contourné par surcharge de méthode](#samesite-method-override)<br>[Redirection ouverte après connexion](#open-redirect)<br>Jeton anti-CSRF non lié à la session *(à venir)*<br>Cookie de session mal attribué *(à venir)* |
-| [Next.js, RSC et Server Actions](http://127.0.0.1:5173/#/modules/m02/l07) | — |
-| [Éliminer une classe entière](http://127.0.0.1:5173/#/modules/m02/l08) | [Injection NoSQL dans la connexion](#nosql-auth)<br>[eval dans le calcul des pénalités](#eval-formula)<br>[Injection de commande dans l’export](#cmd-injection) |
+| [Le rôle : une équipe qui rend capable](http://127.0.0.1:5173/#/modules/m23/l01) | [Router la revue vers les bonnes personnes](#codeowners-sensitive) |
+| [Panorama des rôles](http://127.0.0.1:5173/#/modules/m23/l02) | — |
+| [Organiser l’équipe](http://127.0.0.1:5173/#/modules/m23/l03) | — |
+| [Security Champions](http://127.0.0.1:5173/#/modules/m23/l04) | [Router la revue vers les bonnes personnes](#codeowners-sensitive) |
+| [Travailler avec les autres fonctions](http://127.0.0.1:5173/#/modules/m23/l05) | — |
+| [Le cadre juridique du métier](http://127.0.0.1:5173/#/modules/m23/l06) | — |
+| [Compétences, certifications et carrière](http://127.0.0.1:5173/#/modules/m23/l07) | — |
 
 </details>
 
 <details>
-<summary><strong>M3 · Web avancé : le programme PortSwigger</strong> — 12/13 leçons couvertes</summary>
+<summary><strong>M5 · Maturité et posture de sécurité</strong> — 2/6 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Maturité ou posture ?](http://127.0.0.1:5173/#/modules/m24/l01) | — |
+| [OWASP SAMM v2](http://127.0.0.1:5173/#/modules/m24/l02) | [Évaluation SAMM qui se calcule](#samm-assessment)<br>[La feuille de route dérivée de l’écart](#samm-roadmap)<br>[Se comparer plutôt que se noter](#bsimm-compare)<br>Étape 11 · Roadmap à 12 mois *(à venir)* |
+| [BSIMM16 : se comparer](http://127.0.0.1:5173/#/modules/m24/l03) | [Se comparer plutôt que se noter](#bsimm-compare) |
+| [Les autres modèles](http://127.0.0.1:5173/#/modules/m24/l04) | — |
+| [Mesurer la posture applicative](http://127.0.0.1:5173/#/modules/m24/l05) | — |
+| [Un état des lieux en deux semaines](http://127.0.0.1:5173/#/modules/m24/l06) | — |
+
+</details>
+
+<details>
+<summary><strong>M6 · Le web et ses protections</strong> — 1/8 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [De l’URL au pixel](http://127.0.0.1:5173/#/modules/m25/l01) | — |
+| [HTTP de bout en bout](http://127.0.0.1:5173/#/modules/m25/l02) | — |
+| [URL, origine, site et DNS](http://127.0.0.1:5173/#/modules/m25/l03) | — |
+| [TLS et certificats en pratique](http://127.0.0.1:5173/#/modules/m25/l04) | — |
+| [Le modèle de sécurité du navigateur](http://127.0.0.1:5173/#/modules/m25/l05) | — |
+| [Cookies et état](http://127.0.0.1:5173/#/modules/m25/l06) | — |
+| [La carte des en-têtes de sécurité](http://127.0.0.1:5173/#/modules/m25/l07) | — |
+| [Top 10 2025, API Top 10 et CWE Top 25](http://127.0.0.1:5173/#/modules/m25/l08) | Cartographier les défauts du lab *(à venir)* |
+
+</details>
+
+<details>
+<summary><strong>M7 · Vulnérabilités côté serveur</strong> — 5/9 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) | [Injection NoSQL dans la connexion](#nosql-auth)<br>[Mass assignment sur le profil](#mass-assignment)<br>[BOLA : la facture du voisin](#bola-invoice)<br>[BFLA : la méthode oubliée](#bfla-method)<br>[BOLA sur un identifiant imbriqué](#bola-nested)<br>[Confusion de type sur la query string](#qs-type-confusion)<br>[Autorisation sur une seule étape du flux](#multistep-authz)<br>[Endpoint à double usage mal isolé](#dual-use-endpoint)<br>[Injection de formule dans l’export CSV](#csv-formula-injection)<br>[SSTI par les options de rendu](#ssti-render-options)<br>[Expansion d’entités sur le même import](#xml-entity-expansion)<br>[XXE à l’import de facture électronique](#xxe-import)<br>[Clés JSON dupliquées](#json-duplicate-keys)<br>[Contrôle d’accès par préfixe d’URL](#url-prefix-authz)<br>[Expression de validation non ancrée](#regex-unanchored)<br>Injection d’en-tête dans l’e-mail de facture *(à venir)* |
+| [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) | [Arithmétique de l’argent](#money-float)<br>[Le décodeur obéissant](#encoded-bypass)<br>[Au-delà de 2^53](#max-safe-integer)<br>[Number() permissif sur les montants](#number-coercion)<br>[Normalisation après le contrôle d’unicité](#unicode-normalization)<br>[Jeton tiré de Math.random](#weak-random)<br>La propriété qui trouve le bug d’argent *(à venir)* |
+| [Spécificités Node.js](http://127.0.0.1:5173/#/modules/m02/l03) | [Prototype pollution côté serveur](#proto-pollution)<br>[ReDoS sur la référence de facture](#redos)<br>[Traversée de chemin sur les pièces jointes](#path-traversal)<br>[SSRF vers le service de métadonnées](#ssrf-imds)<br>[eval dans le calcul des pénalités](#eval-formula)<br>[node:vm n’est pas un bac à sable](#vm-escape)<br>[Injection de commande dans l’export](#cmd-injection)<br>[Zip Slip à l’import d’un lot de factures](#zip-slip)<br>Le fuzz qui casse le parseur *(à venir)* |
+| [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) | [Race condition : l’avoir dépensé deux fois](#race-credit)<br>[Erreur non gérée et état incohérent](#error-leak)<br>[Number() permissif sur les montants](#number-coercion)<br>[GraphQL : reconstruire le schéma sans introspection](#graphql-clairvoyance)<br>[Le catch qui échoue ouvert](#try-catch-fail-open)<br>[Troncature après validation](#input-truncation)<br>[Comparaison de jeton à temps variable](#timing-attack) |
+| [XML, DTD et XXE](http://127.0.0.1:5173/#/modules/m02/l05) | — |
+| [HTML côté serveur, XSS et jetons CSRF](http://127.0.0.1:5173/#/modules/m02/l06) | — |
+| [Fichiers : upload, téléchargement et chemins](http://127.0.0.1:5173/#/modules/m02/l07) | — |
+| [Next.js, RSC et Server Actions](http://127.0.0.1:5173/#/modules/m02/l08) | — |
+| [Éliminer une classe entière](http://127.0.0.1:5173/#/modules/m02/l09) | [Injection NoSQL dans la connexion](#nosql-auth)<br>[eval dans le calcul des pénalités](#eval-formula)<br>[Injection de commande dans l’export](#cmd-injection) |
+
+</details>
+
+<details>
+<summary><strong>M8 · Vulnérabilités côté client & scripts tiers</strong> — 9/9 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Le client n’est pas sous ton contrôle](http://127.0.0.1:5173/#/modules/m04/l01) | [Secret livré dans le bundle](#secret-in-bundle) |
+| [React et le navigateur](http://127.0.0.1:5173/#/modules/m04/l02) | [XSS stockée dans la note de facture](#dom-xss)<br>[Confusion de Content-Type sur une mutation](#content-type-confusion)<br>[CSRF sur le point d’accès GraphQL](#graphql-csrf)<br>[URL javascript: rendue par React](#react-javascript-url)<br>[SameSite contourné par surcharge de méthode](#samesite-method-override)<br>[Redirection ouverte après connexion](#open-redirect)<br>Jeton anti-CSRF non lié à la session *(à venir)*<br>Cookie de session mal attribué *(à venir)* |
+| [Scripts tiers](http://127.0.0.1:5173/#/modules/m04/l03) | [Script tiers piloté par la configuration](#third-party-script) |
+| [Réduire la confiance](http://127.0.0.1:5173/#/modules/m04/l04) | [Script tiers piloté par la configuration](#third-party-script)<br>Iframe de paiement sans sandbox *(à venir)* |
+| [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l05) | [XSS stockée dans la note de facture](#dom-xss)<br>[L’image qui part toute seule](#markdown-image-exfil)<br>[Nonce de CSP réutilisé](#csp-nonce-reuse)<br>[Gadget dans une origine autorisée](#csp-gadget)<br>Page de paiement sans CSP *(à venir)*<br>La CSP qui ne protège de rien *(à venir)* |
+| [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l06) | [XSS stockée dans la note de facture](#dom-xss)<br>[Sortie du modèle rendue en HTML](#llm-markdown-xss)<br>[Logo SVG exécutable](#svg-logo)<br>[URL javascript: rendue par React](#react-javascript-url)<br>[Pollution de prototype côté client](#client-proto-pollution)<br>[DOM clobbering sur la configuration](#dom-clobbering)<br>[Trusted Types en trompe-l’œil](#trusted-types-default) |
+| [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l07) | [Pièce jointe servie sur l’origine de l’application](#attachment-same-origin)<br>[Pipeline d’upload non isolé](#upload-pipeline)<br>[postMessage sans contrôle d’origine](#postmessage-origin)<br>[Fuite par l’en-tête Referer](#referrer-leak)<br>[Clickjacking sur les coordonnées bancaires](#clickjacking-prefilled)<br>[SameSite contourné par surcharge de méthode](#samesite-method-override)<br>[CORS : origine reflétée avec identifiants](#cors-origin-reflection)<br>[CORS : origine null autorisée](#cors-null-origin)<br>[XS-Leak par comptage de cadres](#xsleak-frame-count)<br>[XS-Leak par événements d’erreur](#xsleak-error-events)<br>[Validation de paiement encadrable](#clickjacking)<br>Jeton anti-CSRF non lié à la session *(à venir)*<br>Cookie de session mal attribué *(à venir)* |
+| [PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l08) | [Script tiers piloté par la configuration](#third-party-script)<br>[Ce que la conformité impose vraiment](#compliance-matrix)<br>Iframe de paiement sans sandbox *(à venir)*<br>Étape 5 · Page de paiement *(à venir)* |
+| [Surveiller le client](http://127.0.0.1:5173/#/modules/m04/l09) | Surveiller ce que la page charge *(à venir)* |
+
+</details>
+
+<details>
+<summary><strong>M9 · Web avancé : le programme PortSwigger</strong> — 12/13 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6340,112 +6443,16 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 </details>
 
 <details>
-<summary><strong>M4 · Sécurité côté client & scripts tiers</strong> — 8/8 leçons couvertes</summary>
+<summary><strong>M10 · Analyse de risques</strong> — 1/6 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
-| [Le client n’est pas sous ton contrôle](http://127.0.0.1:5173/#/modules/m04/l01) | [Secret livré dans le bundle](#secret-in-bundle) |
-| [Scripts tiers](http://127.0.0.1:5173/#/modules/m04/l02) | [Script tiers piloté par la configuration](#third-party-script) |
-| [Réduire la confiance](http://127.0.0.1:5173/#/modules/m04/l03) | [Script tiers piloté par la configuration](#third-party-script)<br>Iframe de paiement sans sandbox *(à venir)* |
-| [CSP stricte en pratique](http://127.0.0.1:5173/#/modules/m04/l04) | [XSS stockée dans la note de facture](#dom-xss)<br>[L’image qui part toute seule](#markdown-image-exfil)<br>[Nonce de CSP réutilisé](#csp-nonce-reuse)<br>[Gadget dans une origine autorisée](#csp-gadget)<br>Page de paiement sans CSP *(à venir)*<br>La CSP qui ne protège de rien *(à venir)* |
-| [Trusted Types et Sanitizer API](http://127.0.0.1:5173/#/modules/m04/l05) | [XSS stockée dans la note de facture](#dom-xss)<br>[Sortie du modèle rendue en HTML](#llm-markdown-xss)<br>[Logo SVG exécutable](#svg-logo)<br>[URL javascript: rendue par React](#react-javascript-url)<br>[Pollution de prototype côté client](#client-proto-pollution)<br>[DOM clobbering sur la configuration](#dom-clobbering)<br>[Trusted Types en trompe-l’œil](#trusted-types-default) |
-| [Isolation d’origine](http://127.0.0.1:5173/#/modules/m04/l06) | [Pièce jointe servie sur l’origine de l’application](#attachment-same-origin)<br>[Pipeline d’upload non isolé](#upload-pipeline)<br>[postMessage sans contrôle d’origine](#postmessage-origin)<br>[Fuite par l’en-tête Referer](#referrer-leak)<br>[Clickjacking sur les coordonnées bancaires](#clickjacking-prefilled)<br>[SameSite contourné par surcharge de méthode](#samesite-method-override)<br>[CORS : origine reflétée avec identifiants](#cors-origin-reflection)<br>[CORS : origine null autorisée](#cors-null-origin)<br>[XS-Leak par comptage de cadres](#xsleak-frame-count)<br>[XS-Leak par événements d’erreur](#xsleak-error-events)<br>[Validation de paiement encadrable](#clickjacking)<br>Jeton anti-CSRF non lié à la session *(à venir)*<br>Cookie de session mal attribué *(à venir)* |
-| [PCI DSS 4.0.1 : 6.4.3 et 11.6.1](http://127.0.0.1:5173/#/modules/m04/l07) | [Script tiers piloté par la configuration](#third-party-script)<br>[Ce que la conformité impose vraiment](#compliance-matrix)<br>Iframe de paiement sans sandbox *(à venir)*<br>Étape 5 · Page de paiement *(à venir)* |
-| [Surveiller le client](http://127.0.0.1:5173/#/modules/m04/l08) | Surveiller ce que la page charge *(à venir)* |
-
-</details>
-
-<details>
-<summary><strong>M5 · Gestion des vulnérabilités</strong> — 7/7 leçons couvertes</summary>
-
-| Leçon | Challenges |
-| --- | --- |
-| [Cycle de vie d’une vulnérabilité](http://127.0.0.1:5173/#/modules/m05/l01) | [Le doublon qui coûte cher](#finding-dedupe)<br>[L’arbre SSVC, appliqué](#ssvc-decision)<br>Cartographier les défauts du lab *(à venir)* |
-| [CVSS 4.0](http://127.0.0.1:5173/#/modules/m05/l02) | [Le triage qui va chercher la donnée](#triage-kev-epss)<br>Le vecteur CVSS 4.0 qui se recalcule *(à venir)* |
-| [Prioriser par le risque](http://127.0.0.1:5173/#/modules/m05/l03) | [L’exception qui expire](#risk-exception)<br>[Le triage qui va chercher la donnée](#triage-kev-epss)<br>[L’arbre SSVC, appliqué](#ssvc-decision)<br>[Le VEX qui dit non, et le prouve](#vex-not-affected)<br>[L’atteignabilité, à la main](#reachability-ast)<br>[Le constat qui agrège tout](#findings-aggregate)<br>Chaîne de vulnérabilités *(à venir)*<br>Le vecteur CVSS 4.0 qui se recalcule *(à venir)* |
-| [Faut-il un exploit pour faire corriger ?](http://127.0.0.1:5173/#/modules/m05/l04) | Le test de régression plutôt que la preuve d’exploitation *(à venir)* |
-| [Outillage, SLA et dépendances npm](http://127.0.0.1:5173/#/modules/m05/l05) | [Le VEX qui dit non, et le prouve](#vex-not-affected)<br>[Traduire un VEX d’un dialecte à l’autre](#vex-to-cyclonedx)<br>[Le SLA qui se mesure](#sla-policy)<br>[Le constat qui agrège tout](#findings-aggregate)<br>[Générer le SBOM, et le garder juste](#sbom-generate) |
-| [Divulgation, bug bounty et CRA](http://127.0.0.1:5173/#/modules/m05/l06) | [Le signalement CRA, en test](#cra-notification)<br>[Publier sa politique de divulgation](#disclosure-policy) |
-| [Gérer une critique à J+0](http://127.0.0.1:5173/#/modules/m05/l07) | [La chronologie de l’incident](#incident-timeline)<br>Répondre à un incident supply chain *(à venir)* |
-
-</details>
-
-<details>
-<summary><strong>M6 · Faire adopter la sécurité</strong> — 6/8 leçons couvertes</summary>
-
-| Leçon | Challenges |
-| --- | --- |
-| [Le rôle : une équipe qui rend capable](http://127.0.0.1:5173/#/modules/m06/l01) | [Router la revue vers les bonnes personnes](#codeowners-sensitive) |
-| [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l02) | [Du finding au backlog](#pentest-to-appsec)<br>[Le finding à la bonne ligne](#finding-sarif)<br>Le correctif qu’on peut fusionner *(à venir)*<br>Le test qui prouve qu’un contrôle refuse *(à venir)* |
-| [Négocier avec le produit](http://127.0.0.1:5173/#/modules/m06/l03) | — |
-| [Parler aux dirigeants](http://127.0.0.1:5173/#/modules/m06/l04) | — |
-| [Security Champions](http://127.0.0.1:5173/#/modules/m06/l05) | [Router la revue vers les bonnes personnes](#codeowners-sensitive) |
-| [Former au code sécurisé](http://127.0.0.1:5173/#/modules/m06/l06) | [Former à partir d’un vrai bug](#training-from-bug) |
-| [Le paved road comme produit](http://127.0.0.1:5173/#/modules/m06/l07) | [Le gabarit de route qui naît sûr](#paved-road-template)<br>Étape 12 · Adoption et restitution *(à venir)* |
-| [Piloter la sécurité offensive](http://127.0.0.1:5173/#/modules/m06/l08) | [Publier sa politique de divulgation](#disclosure-policy)<br>[Cadrer un test d’intrusion](#pentest-scope) |
-
-</details>
-
-<details>
-<summary><strong>M7 · Fondations, exigences & vie privée</strong> — 8/8 leçons couvertes</summary>
-
-| Leçon | Challenges |
-| --- | --- |
-| [La confiance](http://127.0.0.1:5173/#/modules/m07/l01) | [À qui fait-on confiance, au juste](#trust-inventory) |
-| [C-I-A et Gold Standard](http://127.0.0.1:5173/#/modules/m07/l02) | [Authentifier, autoriser, journaliser](#gold-standard-audit)<br>[Le vocabulaire imposé](#logging-vocabulary)<br>Le journal infalsifiable *(à venir)* |
-| [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l03) | [Troncature après validation](#input-truncation)<br>[Cadrer un test d’intrusion](#pentest-scope)<br>[Le sous-ensemble ASVS de Novafact](#asvs-subset)<br>L’abuse case exécutable *(à venir)* |
-| [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l04) | [Le sous-ensemble ASVS de Novafact](#asvs-subset)<br>[La matrice qui ne ment pas](#traceability-matrix)<br>[L’inventaire de journalisation](#logging-inventory)<br>Étape 1 · Exigences et traçabilité *(à venir)* |
-| [Classification des données](http://127.0.0.1:5173/#/modules/m07/l05) | [Fuite par l’ORM sur un filtre](#orm-leak)<br>[Injection de formule dans l’export CSV](#csv-formula-injection)<br>[La carte des données, confrontée au code](#data-classification)<br>[Des données de test qui ne viennent pas de la prod](#test-data-generator)<br>Éteindre un service proprement *(à venir)* |
-| [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l06) | [L’index survit à la suppression](#index-after-deletion)<br>[La carte des données, confrontée au code](#data-classification)<br>[L’effacement qui efface pour de bon](#erasure-test)<br>[LINDDUN sur le parcours de facturation](#linddun-privacy)<br>[Ce qu’il ne faut jamais journaliser](#never-log) |
-| [Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l07) | [Envoi de factures détourné](#send-quota)<br>[Ce que la conformité impose vraiment](#compliance-matrix)<br>Exigences de sécurité envers un fournisseur *(à venir)* |
-| [Provisionnement des accès](http://127.0.0.1:5173/#/modules/m07/l08) | [Recertifier les accès](#access-recertification) |
-
-</details>
-
-<details>
-<summary><strong>M8 · Conception sécurisée & architecture</strong> — 10/10 leçons couvertes</summary>
-
-| Leçon | Challenges |
-| --- | --- |
-| [Mitigations structurelles](http://127.0.0.1:5173/#/modules/m08/l01) | [Traversée de chemin sur les pièces jointes](#path-traversal)<br>[STRIDE par élément, sans trou](#stride-per-element) |
-| [Les 14 patterns](http://127.0.0.1:5173/#/modules/m08/l02) | Nommer les patterns déjà présents *(à venir)* |
-| [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l03) | [Script tiers piloté par la configuration](#third-party-script)<br>[Injection indirecte dans « Ask Novafact »](#prompt-injection)<br>[Le tool shadowing](#tool-shadowing)<br>[À qui fait-on confiance, au juste](#trust-inventory)<br>[Accès inter-comptes sans ExternalId](#iam-external-id)<br>Nommer les patterns déjà présents *(à venir)* |
-| [Écrire un design doc sécurisé](http://127.0.0.1:5173/#/modules/m08/l04) | Étape 2 · Design doc et revue de conception *(à venir)* |
-| [Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l05) | [L’arbre d’attaque coupé](#attack-tree)<br>Étape 2 · Design doc et revue de conception *(à venir)* |
-| [Authentification applicative](http://127.0.0.1:5173/#/modules/m08/l06) | [Empoisonnement du lien de réinitialisation](#host-header)<br>[Course à la construction du compte](#race-partial-construction)<br>[nOAuth : e-mail non vérifié](#oauth-email-unverified)<br>[Énumération de comptes](#user-enumeration)<br>Mots de passe hachés trop vite *(à venir)* |
-| [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m08/l07) | [BOLA : la facture du voisin](#bola-invoice)<br>[Le produit lui-même comme canal](#product-as-channel)<br>[RAG sans contrôle d’accès](#rag-acl)<br>[BFLA : la méthode oubliée](#bfla-method)<br>[BOLA sur un identifiant imbriqué](#bola-nested) |
-| [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) | [Comparaison de jeton à temps variable](#timing-attack)<br>[Jetons de réinitialisation collidants](#reset-token-collision)<br>[Cookie de préférences désérialisé](#cookie-deserialization)<br>[Jeton tiré de Math.random](#weak-random)<br>[Politique de clé trop permissive](#kms-key-policy)<br>Webhook signé mais rejouable *(à venir)*<br>Mots de passe hachés trop vite *(à venir)*<br>Clé de signature unique et éternelle *(à venir)*<br>Le secret de repli *(à venir)* |
-| [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l09) | [Endpoint à double usage mal isolé](#dual-use-endpoint)<br>[SSTI dans le gabarit de relance](#ssti-email-template)<br>[Pollution de paramètres côté serveur](#param-pollution) |
-| [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l10) | [Pièce jointe servie sur l’origine de l’application](#attachment-same-origin)<br>[Logo SVG exécutable](#svg-logo)<br>[TOCTOU sur le téléversement](#toctou-upload)<br>[Pipeline d’upload non isolé](#upload-pipeline)<br>[SSRF par le générateur de PDF](#ssrf-pdf-renderer)<br>[Zip Slip à l’import d’un lot de factures](#zip-slip) |
-
-</details>
-
-<details>
-<summary><strong>M9 · OAuth 2.x / OIDC / SAML</strong> — 6/6 leçons couvertes</summary>
-
-| Leçon | Challenges |
-| --- | --- |
-| [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l01) | [redirect_uri validée par préfixe](#oauth-redirect)<br>[Connexion fédérée sans state](#oauth-state) |
-| [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l02) | [Jeton d’accès passé dans l’URL](#token-in-url)<br>[Fuite par l’en-tête Referer](#referrer-leak)<br>[Session qu’on ne peut pas révoquer](#session-not-revocable) |
-| [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l03) | [JWT : décoder n’est pas vérifier](#jwt-decode)<br>[JWT : kid en traversée de chemin](#jwt-kid-traversal)<br>[JWT : jku et jwk honorés](#jwt-jku-jwk)<br>[Jeton valable d’un tenant à l’autre](#jwt-no-audience) |
-| [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l04) | [Redirection ouverte après connexion](#open-redirect)<br>[Différentiel d’analyse d’adresse](#email-parsing-differential)<br>[redirect_uri validée par préfixe](#oauth-redirect)<br>[Connexion fédérée sans state](#oauth-state)<br>[nOAuth : e-mail non vérifié](#oauth-email-unverified) |
-| [RFC 9700, DPoP, PAR et FAPI](http://127.0.0.1:5173/#/modules/m09/l05) | Lier le jeton à son porteur *(à venir)* |
-| [SAML en entreprise](http://127.0.0.1:5173/#/modules/m09/l06) | [SAML : envelopper la signature](#saml-wrapping) |
-
-</details>
-
-<details>
-<summary><strong>M10 · Anti-abus, ATO & fraude</strong> — 7/7 leçons couvertes</summary>
-
-| Leçon | Challenges |
-| --- | --- |
-| [Taxonomie des menaces automatisées](http://127.0.0.1:5173/#/modules/m10/l01) | Nommer l’abus qu’on subit *(à venir)* |
-| [Credential stuffing et prise de contrôle](http://127.0.0.1:5173/#/modules/m10/l02) | [Credential stuffing sans limite](#no-rate-limit)<br>[Expression de validation non ancrée](#regex-unanchored)<br>[Énumération de comptes](#user-enumeration)<br>[La corrélation temporelle](#rule-temporal-spray) |
-| [Limitation de débit bien conçue](http://127.0.0.1:5173/#/modules/m10/l03) | [Credential stuffing sans limite](#no-rate-limit)<br>[GraphQL : force brute par alias](#graphql-batching)<br>[Limitation contournée par X-Forwarded-For](#xff-spoof)<br>[La réponse graduée](#graduated-response)<br>Distinguer un bot d’un client *(à venir)*<br>Étape 6 · Contrôles anti-abus *(à venir)* |
-| [Bots et Fraud Control](http://127.0.0.1:5173/#/modules/m10/l04) | Distinguer un bot d’un client *(à venir)* |
-| [Abus de fonctionnalités](http://127.0.0.1:5173/#/modules/m10/l05) | [Invariant métier : rouvrir une facture payée](#invoice-state)<br>[Envoi de factures détourné](#send-quota)<br>[Clickjacking sur les coordonnées bancaires](#clickjacking-prefilled)<br>Injection d’en-tête dans l’e-mail de facture *(à venir)* |
-| [Invariants métier](http://127.0.0.1:5173/#/modules/m10/l06) | [Arithmétique de l’argent](#money-float)<br>[Invariant métier : rouvrir une facture payée](#invoice-state)<br>[Au-delà de 2^53](#max-safe-integer)<br>[Autorisation sur une seule étape du flux](#multistep-authz)<br>Webhook signé mais rejouable *(à venir)* |
-| [Détecter et répondre à la fraude](http://127.0.0.1:5173/#/modules/m10/l07) | [Le piège à miel](#honeytoken)<br>[Les points de détection applicatifs](#appsensor-points)<br>Nommer l’abus qu’on subit *(à venir)* |
+| [Le vocabulaire du risque](http://127.0.0.1:5173/#/modules/m26/l01) | — |
+| [EBIOS Risk Manager appliqué à Novafact](http://127.0.0.1:5173/#/modules/m26/l02) | — |
+| [Noter sans se mentir](http://127.0.0.1:5173/#/modules/m26/l03) | — |
+| [Quantifier avec FAIR](http://127.0.0.1:5173/#/modules/m26/l04) | — |
+| [Traiter le risque et tenir le registre](http://127.0.0.1:5173/#/modules/m26/l05) | — |
+| [Risque et acceptation](http://127.0.0.1:5173/#/modules/m26/l06) | [Attestation SSDF adossée au dépôt](#ssdf-attestation) |
 
 </details>
 
@@ -6464,7 +6471,70 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 </details>
 
 <details>
-<summary><strong>M12 · Revue de code sécurité</strong> — 7/7 leçons couvertes</summary>
+<summary><strong>M12 · Exigences, vie privée & conformité</strong> — 6/6 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Exigences et abuse cases](http://127.0.0.1:5173/#/modules/m07/l01) | [Troncature après validation](#input-truncation)<br>[Cadrer un test d’intrusion](#pentest-scope)<br>[Le sous-ensemble ASVS de Novafact](#asvs-subset)<br>L’abuse case exécutable *(à venir)* |
+| [Matrice de traçabilité](http://127.0.0.1:5173/#/modules/m07/l02) | [Le sous-ensemble ASVS de Novafact](#asvs-subset)<br>[La matrice qui ne ment pas](#traceability-matrix)<br>[L’inventaire de journalisation](#logging-inventory)<br>Étape 1 · Exigences et traçabilité *(à venir)* |
+| [Classification des données](http://127.0.0.1:5173/#/modules/m07/l03) | [Fuite par l’ORM sur un filtre](#orm-leak)<br>[Injection de formule dans l’export CSV](#csv-formula-injection)<br>[La carte des données, confrontée au code](#data-classification)<br>[Des données de test qui ne viennent pas de la prod](#test-data-generator)<br>Éteindre un service proprement *(à venir)* |
+| [Vie privée et RGPD](http://127.0.0.1:5173/#/modules/m07/l04) | [L’index survit à la suppression](#index-after-deletion)<br>[La carte des données, confrontée au code](#data-classification)<br>[L’effacement qui efface pour de bon](#erasure-test)<br>[LINDDUN sur le parcours de facturation](#linddun-privacy)<br>[Ce qu’il ne faut jamais journaliser](#never-log) |
+| [Conformité : NIS2, CRA, PCI DSS](http://127.0.0.1:5173/#/modules/m07/l05) | [Envoi de factures détourné](#send-quota)<br>[Ce que la conformité impose vraiment](#compliance-matrix)<br>Exigences de sécurité envers un fournisseur *(à venir)* |
+| [Provisionnement des accès](http://127.0.0.1:5173/#/modules/m07/l06) | [Recertifier les accès](#access-recertification) |
+
+</details>
+
+<details>
+<summary><strong>M13 · Spécifier et concevoir</strong> — 8/10 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [La spécification fonctionnelle de sécurité](http://127.0.0.1:5173/#/modules/m08/l01) | — |
+| [Mitigations structurelles](http://127.0.0.1:5173/#/modules/m08/l02) | [Traversée de chemin sur les pièces jointes](#path-traversal)<br>[STRIDE par élément, sans trou](#stride-per-element) |
+| [Les 14 patterns](http://127.0.0.1:5173/#/modules/m08/l03) | Nommer les patterns déjà présents *(à venir)* |
+| [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l04) | [Script tiers piloté par la configuration](#third-party-script)<br>[Injection indirecte dans « Ask Novafact »](#prompt-injection)<br>[Le tool shadowing](#tool-shadowing)<br>[À qui fait-on confiance, au juste](#trust-inventory)<br>[Accès inter-comptes sans ExternalId](#iam-external-id)<br>Nommer les patterns déjà présents *(à venir)* |
+| [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) | [Pièce jointe servie sur l’origine de l’application](#attachment-same-origin)<br>[Logo SVG exécutable](#svg-logo)<br>[TOCTOU sur le téléversement](#toctou-upload)<br>[Pipeline d’upload non isolé](#upload-pipeline)<br>[SSRF par le générateur de PDF](#ssrf-pdf-renderer)<br>[Zip Slip à l’import d’un lot de factures](#zip-slip) |
+| [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l06) | [Endpoint à double usage mal isolé](#dual-use-endpoint)<br>[SSTI dans le gabarit de relance](#ssti-email-template)<br>[Pollution de paramètres côté serveur](#param-pollution) |
+| [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) | [Comparaison de jeton à temps variable](#timing-attack)<br>[Jetons de réinitialisation collidants](#reset-token-collision)<br>[Cookie de préférences désérialisé](#cookie-deserialization)<br>[Jeton tiré de Math.random](#weak-random)<br>[Politique de clé trop permissive](#kms-key-policy)<br>Webhook signé mais rejouable *(à venir)*<br>Mots de passe hachés trop vite *(à venir)*<br>Clé de signature unique et éternelle *(à venir)*<br>Le secret de repli *(à venir)* |
+| [Crypto : hash, nonces et métadonnées](http://127.0.0.1:5173/#/modules/m08/l08) | — |
+| [La spécification technique : le design doc](http://127.0.0.1:5173/#/modules/m08/l09) | Étape 2 · Design doc et revue de conception *(à venir)* |
+| [Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l10) | [L’arbre d’attaque coupé](#attack-tree)<br>Étape 2 · Design doc et revue de conception *(à venir)* |
+
+</details>
+
+<details>
+<summary><strong>M14 · Identité : authentification, autorisation, OAuth & SAML</strong> — 8/8 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Authentification applicative](http://127.0.0.1:5173/#/modules/m09/l01) | [Empoisonnement du lien de réinitialisation](#host-header)<br>[Course à la construction du compte](#race-partial-construction)<br>[nOAuth : e-mail non vérifié](#oauth-email-unverified)<br>[Énumération de comptes](#user-enumeration)<br>Mots de passe hachés trop vite *(à venir)* |
+| [Autorisation et multi-tenant](http://127.0.0.1:5173/#/modules/m09/l02) | [BOLA : la facture du voisin](#bola-invoice)<br>[Le produit lui-même comme canal](#product-as-channel)<br>[RAG sans contrôle d’accès](#rag-acl)<br>[BFLA : la méthode oubliée](#bfla-method)<br>[BOLA sur un identifiant imbriqué](#bola-nested) |
+| [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l03) | [redirect_uri validée par préfixe](#oauth-redirect)<br>[Connexion fédérée sans state](#oauth-state) |
+| [SPA : RFC 10017 et BFF](http://127.0.0.1:5173/#/modules/m09/l04) | [Jeton d’accès passé dans l’URL](#token-in-url)<br>[Fuite par l’en-tête Referer](#referrer-leak)<br>[Session qu’on ne peut pas révoquer](#session-not-revocable) |
+| [Valider un JWT dans Express](http://127.0.0.1:5173/#/modules/m09/l05) | [JWT : décoder n’est pas vérifier](#jwt-decode)<br>[JWT : kid en traversée de chemin](#jwt-kid-traversal)<br>[JWT : jku et jwk honorés](#jwt-jku-jwk)<br>[Jeton valable d’un tenant à l’autre](#jwt-no-audience) |
+| [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l06) | [Redirection ouverte après connexion](#open-redirect)<br>[Différentiel d’analyse d’adresse](#email-parsing-differential)<br>[redirect_uri validée par préfixe](#oauth-redirect)<br>[Connexion fédérée sans state](#oauth-state)<br>[nOAuth : e-mail non vérifié](#oauth-email-unverified) |
+| [RFC 9700, DPoP, PAR et FAPI](http://127.0.0.1:5173/#/modules/m09/l07) | Lier le jeton à son porteur *(à venir)* |
+| [SAML en entreprise](http://127.0.0.1:5173/#/modules/m09/l08) | [SAML : envelopper la signature](#saml-wrapping) |
+
+</details>
+
+<details>
+<summary><strong>M15 · Anti-abus, ATO & fraude</strong> — 7/7 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Taxonomie des menaces automatisées](http://127.0.0.1:5173/#/modules/m10/l01) | Nommer l’abus qu’on subit *(à venir)* |
+| [Credential stuffing et prise de contrôle](http://127.0.0.1:5173/#/modules/m10/l02) | [Credential stuffing sans limite](#no-rate-limit)<br>[Expression de validation non ancrée](#regex-unanchored)<br>[Énumération de comptes](#user-enumeration)<br>[La corrélation temporelle](#rule-temporal-spray) |
+| [Limitation de débit bien conçue](http://127.0.0.1:5173/#/modules/m10/l03) | [Credential stuffing sans limite](#no-rate-limit)<br>[GraphQL : force brute par alias](#graphql-batching)<br>[Limitation contournée par X-Forwarded-For](#xff-spoof)<br>[La réponse graduée](#graduated-response)<br>Distinguer un bot d’un client *(à venir)*<br>Étape 6 · Contrôles anti-abus *(à venir)* |
+| [Bots et Fraud Control](http://127.0.0.1:5173/#/modules/m10/l04) | Distinguer un bot d’un client *(à venir)* |
+| [Abus de fonctionnalités](http://127.0.0.1:5173/#/modules/m10/l05) | [Invariant métier : rouvrir une facture payée](#invoice-state)<br>[Envoi de factures détourné](#send-quota)<br>[Clickjacking sur les coordonnées bancaires](#clickjacking-prefilled)<br>Injection d’en-tête dans l’e-mail de facture *(à venir)* |
+| [Invariants métier](http://127.0.0.1:5173/#/modules/m10/l06) | [Arithmétique de l’argent](#money-float)<br>[Invariant métier : rouvrir une facture payée](#invoice-state)<br>[Au-delà de 2^53](#max-safe-integer)<br>[Autorisation sur une seule étape du flux](#multistep-authz)<br>Webhook signé mais rejouable *(à venir)* |
+| [Détecter et répondre à la fraude](http://127.0.0.1:5173/#/modules/m10/l07) | [Le piège à miel](#honeytoken)<br>[Les points de détection applicatifs](#appsensor-points)<br>Nommer l’abus qu’on subit *(à venir)* |
+
+</details>
+
+<details>
+<summary><strong>M16 · Revue de code sécurité</strong> — 7/7 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6479,7 +6549,7 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 </details>
 
 <details>
-<summary><strong>M13 · Tests & analyse de code</strong> — 11/11 leçons couvertes</summary>
+<summary><strong>M17 · Tests & analyse de code</strong> — 11/12 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6494,11 +6564,12 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 | [Inspecter du code malveillant](http://127.0.0.1:5173/#/modules/m13/l09) | [Script d’installation malveillant](#malicious-postinstall) |
 | [L’IA dans l’analyse de code](http://127.0.0.1:5173/#/modules/m13/l10) | [Évaluer un relecteur IA](#ai-review-eval) |
 | [Bâtir la plateforme](http://127.0.0.1:5173/#/modules/m13/l11) | [La porte qui casse le build](#break-build-gate)<br>[Le doublon qui coûte cher](#finding-dedupe) |
+| [Tests de limites, de ressources et de fuites](http://127.0.0.1:5173/#/modules/m13/l12) | — |
 
 </details>
 
 <details>
-<summary><strong>M14 · Pipeline, supply chain & fournisseurs</strong> — 10/10 leçons couvertes</summary>
+<summary><strong>M18 · Pipeline, supply chain & fournisseurs</strong> — 10/11 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6508,15 +6579,16 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 | [Outils du pipeline](http://127.0.0.1:5173/#/modules/m14/l04) | [Injection de template dans un run](#gha-injection)<br>[Script tiers exécuté sans vérification](#gha-curl-bash) |
 | [npm : installer et publier](http://127.0.0.1:5173/#/modules/m14/l05) | [Le paquet qui n’existe pas](#package-hallucination)<br>[npm install en intégration continue](#npm-ci-lockfile)<br>[Publication sans provenance](#npm-provenance)<br>[Scripts d’installation non neutralisés](#npmrc-ignore-scripts)<br>[Jeton de publication dans le dépôt](#npm-token-in-repo)<br>[Confusion de dépendances sur le scope interne](#dependency-confusion)<br>[Lockfile détourné](#lockfile-integrity)<br>[Fuite de fichiers dans le paquet publié](#npm-pack-leak)<br>[Image de conteneur trop permissive](#dockerfile) |
 | [Choisir un composant](http://127.0.0.1:5173/#/modules/m14/l06) | [Désérialisation de types arbitraires](#deserialization)<br>[Action typosquattée](#gha-typosquat-action)<br>[Confusion de dépendances sur le scope interne](#dependency-confusion)<br>[Lockfile détourné](#lockfile-integrity) |
-| [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l07) | [Le rug pull](#rug-pull-mcp)<br>[Pwn request sur pull_request_target](#gha-pwn-request)<br>[Script tiers exécuté sans vérification](#gha-curl-bash)<br>[Empoisonnement du cache Actions](#gha-cache-poisoning)<br>[L’artefact ne correspond pas au source](#vendor-build-mismatch) |
-| [Fournisseurs et tiers](http://127.0.0.1:5173/#/modules/m14/l08) | [L’empoisonnement de description d’outil](#tool-poisoning-mcp)<br>[secrets: inherit vers un workflow réutilisable](#gha-secrets-inherit)<br>Exigences de sécurité envers un fournisseur *(à venir)* |
-| [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l09) | [Actions non épinglées au SHA](#gha-unpinned)<br>[Publication sans provenance](#npm-provenance)<br>[Fuite de fichiers dans le paquet publié](#npm-pack-leak)<br>[Provider et module non épinglés](#tf-unpinned-provider)<br>[Image de base non épinglée](#docker-base-pinning)<br>[Publier en sécurité](#signed-artifacts) |
-| [Répondre à un incident supply chain](http://127.0.0.1:5173/#/modules/m14/l10) | [L’artefact ne correspond pas au source](#vendor-build-mismatch)<br>Répondre à un incident supply chain *(à venir)* |
+| [Vérifier qu’un paquet n’est pas vérolé](http://127.0.0.1:5173/#/modules/m14/l07) | — |
+| [Cas réels de supply chain](http://127.0.0.1:5173/#/modules/m14/l08) | [Le rug pull](#rug-pull-mcp)<br>[Pwn request sur pull_request_target](#gha-pwn-request)<br>[Script tiers exécuté sans vérification](#gha-curl-bash)<br>[Empoisonnement du cache Actions](#gha-cache-poisoning)<br>[L’artefact ne correspond pas au source](#vendor-build-mismatch) |
+| [Fournisseurs et tiers](http://127.0.0.1:5173/#/modules/m14/l09) | [L’empoisonnement de description d’outil](#tool-poisoning-mcp)<br>[secrets: inherit vers un workflow réutilisable](#gha-secrets-inherit)<br>Exigences de sécurité envers un fournisseur *(à venir)* |
+| [SLSA, Sigstore et provenance](http://127.0.0.1:5173/#/modules/m14/l10) | [Actions non épinglées au SHA](#gha-unpinned)<br>[Publication sans provenance](#npm-provenance)<br>[Fuite de fichiers dans le paquet publié](#npm-pack-leak)<br>[Provider et module non épinglés](#tf-unpinned-provider)<br>[Image de base non épinglée](#docker-base-pinning)<br>[Publier en sécurité](#signed-artifacts) |
+| [Répondre à un incident supply chain](http://127.0.0.1:5173/#/modules/m14/l11) | [L’artefact ne correspond pas au source](#vendor-build-mismatch)<br>Répondre à un incident supply chain *(à venir)* |
 
 </details>
 
 <details>
-<summary><strong>M15 · IAM AWS</strong> — 6/6 leçons couvertes</summary>
+<summary><strong>M19 · IAM AWS</strong> — 6/6 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6530,7 +6602,7 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 </details>
 
 <details>
-<summary><strong>M16 · Infrastructure as Code</strong> — 5/5 leçons couvertes</summary>
+<summary><strong>M20 · Infrastructure as Code</strong> — 5/5 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6543,7 +6615,7 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 </details>
 
 <details>
-<summary><strong>M17 · Déploiement, exploitation & résilience</strong> — 8/8 leçons couvertes</summary>
+<summary><strong>M21 · Déploiement, exploitation & résilience</strong> — 8/8 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6559,21 +6631,74 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 </details>
 
 <details>
-<summary><strong>M18 · Surveillance, logging & SIEM (Elastic)</strong> — 6/6 leçons couvertes</summary>
+<summary><strong>M22 · SOC et renseignement sur la menace</strong> — 0/4 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
-| [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) | [Jeton d’accès passé dans l’URL](#token-in-url)<br>[Authentifier, autoriser, journaliser](#gold-standard-audit)<br>[Le vocabulaire imposé](#logging-vocabulary)<br>[Ce qu’il ne faut jamais journaliser](#never-log)<br>[Les champs qui manquent à la corrélation](#ecs-fields)<br>[L’inventaire de journalisation](#logging-inventory)<br>Le journal infalsifiable *(à venir)* |
-| [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l02) | [Journalisation d’infrastructure absente](#tf-logging)<br>[Les champs qui manquent à la corrélation](#ecs-fields)<br>[Le lint sémantique du schéma](#ecs-lint) |
-| [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l03) | [Écrire la règle : bourrage d’identifiants](#rule-credential-stuffing)<br>[La corrélation temporelle](#rule-temporal-spray) |
-| [Detection engineering](http://127.0.0.1:5173/#/modules/m18/l04) | [Du CWE à la technique ATT&CK](#cwe-capec-attack)<br>[Écrire la règle : bourrage d’identifiants](#rule-credential-stuffing)<br>[Régler le seuil](#rule-threshold)<br>[Deux fixtures par règle](#rule-fixtures)<br>[Le lint de règle](#rule-lint)<br>[L’atomique qui valide la règle](#atomic-test)<br>[La fiche de stratégie de détection](#ads-documentation)<br>[La couverture qui se prouve](#detection-coverage)<br>Étape 10 · Cinq détections testées *(à venir)* |
-| [Détections applicatives](http://127.0.0.1:5173/#/modules/m18/l05) | [Exfiltrer sans se faire remarquer](#stealth-attack)<br>[Le piège à miel](#honeytoken)<br>[Détecter l’injection indirecte](#detect-prompt-injection)<br>[Les points de détection applicatifs](#appsensor-points)<br>[La réponse graduée](#graduated-response)<br>Surveiller ce que la page charge *(à venir)* |
-| [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m18/l06) | [Régler le seuil](#rule-threshold)<br>[La règle qui se tait après le correctif](#rule-silent-after-fix)<br>[La fiche de stratégie de détection](#ads-documentation)<br>[La chronologie de l’incident](#incident-timeline) |
+| [Ce que fait un SOC](http://127.0.0.1:5173/#/modules/m27/l01) | — |
+| [Ce que le SOC attend de l’application](http://127.0.0.1:5173/#/modules/m27/l02) | — |
+| [Le renseignement utile à l’AppSec](http://127.0.0.1:5173/#/modules/m27/l03) | — |
+| [Chasser dans les journaux](http://127.0.0.1:5173/#/modules/m27/l04) | — |
 
 </details>
 
 <details>
-<summary><strong>M19 · Sécurité de l’IA</strong> — 8/8 leçons couvertes</summary>
+<summary><strong>M23 · Journalisation & SIEM (Elastic)</strong> — 3/4 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Journaliser pour la sécurité](http://127.0.0.1:5173/#/modules/m18/l01) | [Jeton d’accès passé dans l’URL](#token-in-url)<br>[Authentifier, autoriser, journaliser](#gold-standard-audit)<br>[Le vocabulaire imposé](#logging-vocabulary)<br>[Ce qu’il ne faut jamais journaliser](#never-log)<br>[Les champs qui manquent à la corrélation](#ecs-fields)<br>[L’inventaire de journalisation](#logging-inventory)<br>Le journal infalsifiable *(à venir)* |
+| [Architecture de journalisation](http://127.0.0.1:5173/#/modules/m18/l02) | — |
+| [Ingestion dans Elastic](http://127.0.0.1:5173/#/modules/m18/l03) | [Journalisation d’infrastructure absente](#tf-logging)<br>[Les champs qui manquent à la corrélation](#ecs-fields)<br>[Le lint sémantique du schéma](#ecs-lint) |
+| [KQL, EQL et ES|QL](http://127.0.0.1:5173/#/modules/m18/l04) | [Écrire la règle : bourrage d’identifiants](#rule-credential-stuffing)<br>[La corrélation temporelle](#rule-temporal-spray) |
+
+</details>
+
+<details>
+<summary><strong>M24 · Detection engineering</strong> — 3/6 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Le cycle de vie d’une détection](http://127.0.0.1:5173/#/modules/m28/l01) | — |
+| [Couverture ATT&CK](http://127.0.0.1:5173/#/modules/m28/l02) | — |
+| [Règles, Sigma et detection-as-code](http://127.0.0.1:5173/#/modules/m28/l03) | [Du CWE à la technique ATT&CK](#cwe-capec-attack)<br>[Écrire la règle : bourrage d’identifiants](#rule-credential-stuffing)<br>[Régler le seuil](#rule-threshold)<br>[Deux fixtures par règle](#rule-fixtures)<br>[Le lint de règle](#rule-lint)<br>[L’atomique qui valide la règle](#atomic-test)<br>[La fiche de stratégie de détection](#ads-documentation)<br>[La couverture qui se prouve](#detection-coverage)<br>Étape 10 · Cinq détections testées *(à venir)* |
+| [Tester ses détections](http://127.0.0.1:5173/#/modules/m28/l04) | — |
+| [Détections applicatives](http://127.0.0.1:5173/#/modules/m28/l05) | [Exfiltrer sans se faire remarquer](#stealth-attack)<br>[Le piège à miel](#honeytoken)<br>[Détecter l’injection indirecte](#detect-prompt-injection)<br>[Les points de détection applicatifs](#appsensor-points)<br>[La réponse graduée](#graduated-response)<br>Surveiller ce que la page charge *(à venir)* |
+| [Maturité et réponse à incident](http://127.0.0.1:5173/#/modules/m28/l06) | [Régler le seuil](#rule-threshold)<br>[La règle qui se tait après le correctif](#rule-silent-after-fix)<br>[La fiche de stratégie de détection](#ads-documentation)<br>[La chronologie de l’incident](#incident-timeline) |
+
+</details>
+
+<details>
+<summary><strong>M25 · Réponse à incident</strong> — 0/6 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Le cadre de la réponse à incident](http://127.0.0.1:5173/#/modules/m29/l01) | — |
+| [Playbooks et runbooks applicatifs](http://127.0.0.1:5173/#/modules/m29/l02) | — |
+| [Répondre dans AWS](http://127.0.0.1:5173/#/modules/m29/l03) | — |
+| [Crise et communication](http://127.0.0.1:5173/#/modules/m29/l04) | — |
+| [Notifier dans les délais](http://127.0.0.1:5173/#/modules/m29/l05) | — |
+| [Exercices et post-mortem](http://127.0.0.1:5173/#/modules/m29/l06) | — |
+
+</details>
+
+<details>
+<summary><strong>M26 · Gestion des vulnérabilités</strong> — 7/7 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Cycle de vie d’une vulnérabilité](http://127.0.0.1:5173/#/modules/m05/l01) | [Le doublon qui coûte cher](#finding-dedupe)<br>[L’arbre SSVC, appliqué](#ssvc-decision)<br>Cartographier les défauts du lab *(à venir)* |
+| [CVSS 4.0](http://127.0.0.1:5173/#/modules/m05/l02) | [Le triage qui va chercher la donnée](#triage-kev-epss)<br>Le vecteur CVSS 4.0 qui se recalcule *(à venir)* |
+| [Prioriser par le risque](http://127.0.0.1:5173/#/modules/m05/l03) | [L’exception qui expire](#risk-exception)<br>[Le triage qui va chercher la donnée](#triage-kev-epss)<br>[L’arbre SSVC, appliqué](#ssvc-decision)<br>[Le VEX qui dit non, et le prouve](#vex-not-affected)<br>[L’atteignabilité, à la main](#reachability-ast)<br>[Le constat qui agrège tout](#findings-aggregate)<br>Chaîne de vulnérabilités *(à venir)*<br>Le vecteur CVSS 4.0 qui se recalcule *(à venir)* |
+| [Faut-il un exploit pour faire corriger ?](http://127.0.0.1:5173/#/modules/m05/l04) | Le test de régression plutôt que la preuve d’exploitation *(à venir)* |
+| [Outillage, SLA et dépendances npm](http://127.0.0.1:5173/#/modules/m05/l05) | [Le VEX qui dit non, et le prouve](#vex-not-affected)<br>[Traduire un VEX d’un dialecte à l’autre](#vex-to-cyclonedx)<br>[Le SLA qui se mesure](#sla-policy)<br>[Le constat qui agrège tout](#findings-aggregate)<br>[Générer le SBOM, et le garder juste](#sbom-generate) |
+| [Divulgation, bug bounty et CRA](http://127.0.0.1:5173/#/modules/m05/l06) | [Le signalement CRA, en test](#cra-notification)<br>[Publier sa politique de divulgation](#disclosure-policy) |
+| [Gérer une critique à J+0](http://127.0.0.1:5173/#/modules/m05/l07) | [La chronologie de l’incident](#incident-timeline)<br>Répondre à un incident supply chain *(à venir)* |
+
+</details>
+
+<details>
+<summary><strong>M27 · Sécurité des applications LLM</strong> — 7/7 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6581,30 +6706,91 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/server/ro
 | [Prompt injection et règle de deux](http://127.0.0.1:5173/#/modules/m19/l02) | [Injection indirecte dans « Ask Novafact »](#prompt-injection)<br>[La fausse observation](#synthetic-observation)<br>[L’action qui porte l’identité de la victime](#indirect-victim-session)<br>[La mémoire à effet différé](#memory-poisoning) |
 | [Patterns de conception pour agents](http://127.0.0.1:5173/#/modules/m19/l03) | [Injection indirecte dans « Ask Novafact »](#prompt-injection)<br>[L’outil « sûr » comme canal](#dns-exfil-tool)<br>[La défense cassée par son propre délimiteur](#spotlighting-bypass)<br>[L’approbation humaine trompée](#human-approval-spoof)<br>Le profil de la session *(à venir)* |
 | [Applications JS avec LLM](http://127.0.0.1:5173/#/modules/m19/l04) | [L’action qui porte l’identité de la victime](#indirect-victim-session)<br>[L’image qui part toute seule](#markdown-image-exfil)<br>[Le filtre de liens et la forme référence](#reference-link-bypass)<br>[Combien de documents pour retourner une réponse](#poisoned-rag)<br>[RAG sans contrôle d’accès](#rag-acl)<br>[L’index survit à la suppression](#index-after-deletion)<br>[La citation qui ment](#citation-laundering)<br>[La fuite d’une session à l’autre](#cross-session-leak)<br>[Sortie du modèle rendue en HTML](#llm-markdown-xss)<br>[SSRF par un outil de l’agent](#llm-tool-ssrf) |
-| [Agents et MCP](http://127.0.0.1:5173/#/modules/m19/l05) | [La fausse observation](#synthetic-observation)<br>[L’outil de débogage branché sur l’assistant](#excessive-agency-tool)<br>[L’outil « sûr » comme canal](#dns-exfil-tool)<br>[Le produit lui-même comme canal](#product-as-channel)<br>[L’empoisonnement de description d’outil](#tool-poisoning-mcp)<br>[Le rug pull](#rug-pull-mcp)<br>[Le tool shadowing](#tool-shadowing)<br>[Nuire avant le premier appel](#line-jumping)<br>[La mémoire à effet différé](#memory-poisoning)<br>[L’approbation humaine trompée](#human-approval-spoof)<br>[SSRF par un outil de l’agent](#llm-tool-ssrf)<br>[Modéliser l’agent, la chaîne et le poste](#tm-ai-supply-dev)<br>[Détecter l’injection indirecte](#detect-prompt-injection) |
-| [MITRE ATLAS et OWASP AI Exchange](http://127.0.0.1:5173/#/modules/m19/l06) | Cartographier avec ATLAS *(à venir)* |
-| [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l07) | [Le filtre de liens et la forme référence](#reference-link-bypass)<br>[La défense cassée par son propre délimiteur](#spotlighting-bypass)<br>[Le canari du prompt système](#system-prompt-canary)<br>[Le décodeur obéissant](#encoded-bypass)<br>[Exfiltrer sans se faire remarquer](#stealth-attack) |
-| [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l08) | [Le paquet qui n’existe pas](#package-hallucination)<br>[Le bot de revue qui approuve](#ai-review-bot-approve)<br>[Le secret de CI dans un titre de PR](#ci-secret-in-pr-title) |
+| [MITRE ATLAS et OWASP AI Exchange](http://127.0.0.1:5173/#/modules/m19/l05) | Cartographier avec ATLAS *(à venir)* |
+| [Red teaming des LLM](http://127.0.0.1:5173/#/modules/m19/l06) | [Le filtre de liens et la forme référence](#reference-link-bypass)<br>[La défense cassée par son propre délimiteur](#spotlighting-bypass)<br>[Le canari du prompt système](#system-prompt-canary)<br>[Le décodeur obéissant](#encoded-bypass)<br>[Exfiltrer sans se faire remarquer](#stealth-attack) |
+| [L’IA dans le SDLC](http://127.0.0.1:5173/#/modules/m19/l07) | [Le paquet qui n’existe pas](#package-hallucination)<br>[Le bot de revue qui approuve](#ai-review-bot-approve)<br>[Le secret de CI dans un titre de PR](#ci-secret-in-pr-title) |
 
 </details>
 
 <details>
-<summary><strong>M20 · Capstone : revue de sécurité de Novafact</strong> — 12/12 leçons couvertes</summary>
+<summary><strong>M28 · Agents & MCP</strong> — 1/7 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
-| [Exigences et traçabilité](http://127.0.0.1:5173/#/modules/m20/l01) | Étape 1 · Exigences et traçabilité *(à venir)* |
-| [Design doc et revue de conception](http://127.0.0.1:5173/#/modules/m20/l02) | Étape 2 · Design doc et revue de conception *(à venir)* |
-| [Threat model](http://127.0.0.1:5173/#/modules/m20/l03) | Étape 3 · Threat model *(à venir)* |
-| [Revue de PR, règles et tests](http://127.0.0.1:5173/#/modules/m20/l04) | Étape 4 · Revue de PR, règles et tests *(à venir)* |
-| [Page de paiement](http://127.0.0.1:5173/#/modules/m20/l05) | Étape 5 · Page de paiement *(à venir)* |
-| [Contrôles anti-abus](http://127.0.0.1:5173/#/modules/m20/l06) | Étape 6 · Contrôles anti-abus *(à venir)* |
-| [Pipeline et supply chain](http://127.0.0.1:5173/#/modules/m20/l07) | Étape 7 · Pipeline et supply chain *(à venir)* |
-| [IAM au moindre privilège](http://127.0.0.1:5173/#/modules/m20/l08) | Étape 8 · IAM au moindre privilège *(à venir)* |
-| [Vulnérabilités avancées](http://127.0.0.1:5173/#/modules/m20/l09) | Étape 9 · Vulnérabilités avancées *(à venir)* |
-| [Cinq détections Elastic](http://127.0.0.1:5173/#/modules/m20/l10) | Étape 10 · Cinq détections testées *(à venir)* |
-| [Roadmap SAMM à 12 mois](http://127.0.0.1:5173/#/modules/m20/l11) | Étape 11 · Roadmap à 12 mois *(à venir)* |
-| [Plan d’adoption et restitution](http://127.0.0.1:5173/#/modules/m20/l12) | Étape 12 · Adoption et restitution *(à venir)* |
+| [Agents et MCP : vue d’ensemble](http://127.0.0.1:5173/#/modules/m30/l01) | [La fausse observation](#synthetic-observation)<br>[L’outil de débogage branché sur l’assistant](#excessive-agency-tool)<br>[L’outil « sûr » comme canal](#dns-exfil-tool)<br>[Le produit lui-même comme canal](#product-as-channel)<br>[L’empoisonnement de description d’outil](#tool-poisoning-mcp)<br>[Le rug pull](#rug-pull-mcp)<br>[Le tool shadowing](#tool-shadowing)<br>[Nuire avant le premier appel](#line-jumping)<br>[La mémoire à effet différé](#memory-poisoning)<br>[L’approbation humaine trompée](#human-approval-spoof)<br>[SSRF par un outil de l’agent](#llm-tool-ssrf)<br>[Modéliser l’agent, la chaîne et le poste](#tm-ai-supply-dev)<br>[Détecter l’injection indirecte](#detect-prompt-injection) |
+| [Anatomie de MCP](http://127.0.0.1:5173/#/modules/m30/l02) | — |
+| [Ce que le modèle lit, l’attaquant l’écrit](http://127.0.0.1:5173/#/modules/m30/l03) | — |
+| [Écrire un serveur MCP local sûr](http://127.0.0.1:5173/#/modules/m30/l04) | — |
+| [Serveur MCP distant et multi-tenant](http://127.0.0.1:5173/#/modules/m30/l05) | — |
+| [La supply chain MCP](http://127.0.0.1:5173/#/modules/m30/l06) | — |
+| [Gouverner MCP dans l’entreprise](http://127.0.0.1:5173/#/modules/m30/l07) | — |
+
+</details>
+
+<details>
+<summary><strong>M29 · MCP & OAuth</strong> — 0/9 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Comment MCP a adopté OAuth](http://127.0.0.1:5173/#/modules/m31/l01) | — |
+| [Découverte : PRM et métadonnées](http://127.0.0.1:5173/#/modules/m31/l02) | — |
+| [Enregistrer le client](http://127.0.0.1:5173/#/modules/m31/l03) | — |
+| [Le flux et ses vérifications](http://127.0.0.1:5173/#/modules/m31/l04) | — |
+| [Audience, passthrough et API en aval](http://127.0.0.1:5173/#/modules/m31/l05) | — |
+| [Le confused deputy des proxys MCP](http://127.0.0.1:5173/#/modules/m31/l06) | — |
+| [Scopes minimaux et step-up](http://127.0.0.1:5173/#/modules/m31/l07) | — |
+| [MCP en entreprise](http://127.0.0.1:5173/#/modules/m31/l08) | — |
+| [Implémenter en Express](http://127.0.0.1:5173/#/modules/m31/l09) | — |
+
+</details>
+
+<details>
+<summary><strong>M30 · Faire adopter la sécurité</strong> — 4/6 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Écrire un finding qui sera corrigé](http://127.0.0.1:5173/#/modules/m06/l01) | [Du finding au backlog](#pentest-to-appsec)<br>[Le finding à la bonne ligne](#finding-sarif)<br>Le correctif qu’on peut fusionner *(à venir)*<br>Le test qui prouve qu’un contrôle refuse *(à venir)* |
+| [Négocier avec le produit](http://127.0.0.1:5173/#/modules/m06/l02) | — |
+| [Parler aux dirigeants](http://127.0.0.1:5173/#/modules/m06/l03) | — |
+| [Former au code sécurisé](http://127.0.0.1:5173/#/modules/m06/l04) | [Former à partir d’un vrai bug](#training-from-bug) |
+| [Le paved road comme produit](http://127.0.0.1:5173/#/modules/m06/l05) | [Le gabarit de route qui naît sûr](#paved-road-template)<br>Étape 12 · Adoption et restitution *(à venir)* |
+| [Piloter la sécurité offensive](http://127.0.0.1:5173/#/modules/m06/l06) | [Publier sa politique de divulgation](#disclosure-policy)<br>[Cadrer un test d’intrusion](#pentest-scope) |
+
+</details>
+
+<details>
+<summary><strong>M31 · Le programme AppSec</strong> — 3/5 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Du parcours au programme](http://127.0.0.1:5173/#/modules/m32/l01) | — |
+| [Gouvernance : politiques, standards et comités](http://127.0.0.1:5173/#/modules/m32/l02) | — |
+| [Jalons, portes et exceptions](http://127.0.0.1:5173/#/modules/m32/l03) | [La porte qui casse le build](#break-build-gate)<br>[L’exception qui expire](#risk-exception)<br>[Le modèle qui bloque la PR](#tm-drift-ci)<br>[Où placer chaque technique](#test-strategy)<br>[Les garde-fous débranchés](#cdk-nag-disabled)<br>Le DAST sur environnement éphémère *(à venir)* |
+| [Mesurer un programme](http://127.0.0.1:5173/#/modules/m32/l04) | [Évaluation SAMM qui se calcule](#samm-assessment)<br>[Le SLA qui se mesure](#sla-policy) |
+| [Cyber Resilience Act et roadmap](http://127.0.0.1:5173/#/modules/m32/l05) | [La feuille de route dérivée de l’écart](#samm-roadmap)<br>[Attestation SSDF adossée au dépôt](#ssdf-attestation)<br>[Le signalement CRA, en test](#cra-notification) |
+
+</details>
+
+<details>
+<summary><strong>M32 · Capstone : revue de sécurité de Novafact</strong> — 12/15 leçons couvertes</summary>
+
+| Leçon | Challenges |
+| --- | --- |
+| [Analyse de risques](http://127.0.0.1:5173/#/modules/m20/l01) | — |
+| [Threat model](http://127.0.0.1:5173/#/modules/m20/l02) | Étape 3 · Threat model *(à venir)* |
+| [Exigences et traçabilité](http://127.0.0.1:5173/#/modules/m20/l03) | Étape 1 · Exigences et traçabilité *(à venir)* |
+| [Design doc et revue de conception](http://127.0.0.1:5173/#/modules/m20/l04) | Étape 2 · Design doc et revue de conception *(à venir)* |
+| [Contrôles anti-abus](http://127.0.0.1:5173/#/modules/m20/l05) | Étape 6 · Contrôles anti-abus *(à venir)* |
+| [Revue de PR, règles et tests](http://127.0.0.1:5173/#/modules/m20/l06) | Étape 4 · Revue de PR, règles et tests *(à venir)* |
+| [Vulnérabilités avancées](http://127.0.0.1:5173/#/modules/m20/l07) | Étape 9 · Vulnérabilités avancées *(à venir)* |
+| [Page de paiement](http://127.0.0.1:5173/#/modules/m20/l08) | Étape 5 · Page de paiement *(à venir)* |
+| [Pipeline et supply chain](http://127.0.0.1:5173/#/modules/m20/l09) | Étape 7 · Pipeline et supply chain *(à venir)* |
+| [IAM au moindre privilège](http://127.0.0.1:5173/#/modules/m20/l10) | Étape 8 · IAM au moindre privilège *(à venir)* |
+| [Cinq détections Elastic](http://127.0.0.1:5173/#/modules/m20/l11) | Étape 10 · Cinq détections testées *(à venir)* |
+| [Exercice de crise](http://127.0.0.1:5173/#/modules/m20/l12) | — |
+| [Le serveur MCP d’Ask Novafact](http://127.0.0.1:5173/#/modules/m20/l13) | — |
+| [Roadmap SAMM à 12 mois](http://127.0.0.1:5173/#/modules/m20/l14) | Étape 11 · Roadmap à 12 mois *(à venir)* |
+| [Plan d’adoption et restitution](http://127.0.0.1:5173/#/modules/m20/l15) | Étape 12 · Adoption et restitution *(à venir)* |
 
 </details>
 
@@ -6614,10 +6800,85 @@ Ces leçons n’ont aucun challenge, et c’est délibéré. Une seule des raiso
 
 | Leçon | Raison |
 | --- | --- |
-| **M2** · [Next.js, RSC et Server Actions](http://127.0.0.1:5173/#/modules/m02/l07) | Les Server Actions et les composants serveur n’existent pas sur un socle Express + Vite. Simuler leurs CVE enseignerait une fiction. |
-| **M3** · [Request smuggling et désynchronisation](http://127.0.0.1:5173/#/modules/m03/l05) | Le request smuggling demande une vraie chaîne de proxys dont les analyseurs HTTP divergent. Le simuler en local donnerait une fausse intuition du mécanisme. |
-| **M6** · [Négocier avec le produit](http://127.0.0.1:5173/#/modules/m06/l03) | Négocier avec une équipe produit se juge sur l’issue d’un échange humain. Le jeu Pushback du site le travaille déjà. |
-| **M6** · [Parler aux dirigeants](http://127.0.0.1:5173/#/modules/m06/l04) | Traduire un risque technique en risque métier repose sur des estimations d’expert — précisément le jugement qu’on voudrait évaluer. |
+| **M1** · [La cybersécurité en un coup d’œil](http://127.0.0.1:5173/#/modules/m21/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M1** · [Qui attaque, et pourquoi](http://127.0.0.1:5173/#/modules/m21/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M1** · [Le panorama 2025-2026 en chiffres](http://127.0.0.1:5173/#/modules/m21/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M1** · [Les portes d’entrée qui passent par l’application](http://127.0.0.1:5173/#/modules/m21/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M1** · [Les affaires qui ont façonné le métier](http://127.0.0.1:5173/#/modules/m21/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M1** · [Pourquoi le logiciel reste vulnérable](http://127.0.0.1:5173/#/modules/m21/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M2** · [ATT&CK : histoire et logique](http://127.0.0.1:5173/#/modules/m22/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M2** · [Les quatre usages d’ATT&CK](http://127.0.0.1:5173/#/modules/m22/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M2** · [La menace SaaS et identité](http://127.0.0.1:5173/#/modules/m22/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M2** · [Se protéger : les mitigations qui comptent](http://127.0.0.1:5173/#/modules/m22/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M2** · [Cas réels décortiqués](http://127.0.0.1:5173/#/modules/m22/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M2** · [Du TTP à la classe de bug](http://127.0.0.1:5173/#/modules/m22/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M3** · [Le SSDLC et la carte du parcours](http://127.0.0.1:5173/#/modules/m01/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M4** · [Panorama des rôles](http://127.0.0.1:5173/#/modules/m23/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M4** · [Organiser l’équipe](http://127.0.0.1:5173/#/modules/m23/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M4** · [Travailler avec les autres fonctions](http://127.0.0.1:5173/#/modules/m23/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M4** · [Le cadre juridique du métier](http://127.0.0.1:5173/#/modules/m23/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M4** · [Compétences, certifications et carrière](http://127.0.0.1:5173/#/modules/m23/l07) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M5** · [Maturité ou posture ?](http://127.0.0.1:5173/#/modules/m24/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M5** · [Les autres modèles](http://127.0.0.1:5173/#/modules/m24/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M5** · [Mesurer la posture applicative](http://127.0.0.1:5173/#/modules/m24/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M5** · [Un état des lieux en deux semaines](http://127.0.0.1:5173/#/modules/m24/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M6** · [De l’URL au pixel](http://127.0.0.1:5173/#/modules/m25/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M6** · [HTTP de bout en bout](http://127.0.0.1:5173/#/modules/m25/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M6** · [URL, origine, site et DNS](http://127.0.0.1:5173/#/modules/m25/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M6** · [TLS et certificats en pratique](http://127.0.0.1:5173/#/modules/m25/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M6** · [Le modèle de sécurité du navigateur](http://127.0.0.1:5173/#/modules/m25/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M6** · [Cookies et état](http://127.0.0.1:5173/#/modules/m25/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M6** · [La carte des en-têtes de sécurité](http://127.0.0.1:5173/#/modules/m25/l07) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M7** · [XML, DTD et XXE](http://127.0.0.1:5173/#/modules/m02/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M7** · [HTML côté serveur, XSS et jetons CSRF](http://127.0.0.1:5173/#/modules/m02/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M7** · [Fichiers : upload, téléchargement et chemins](http://127.0.0.1:5173/#/modules/m02/l07) | Les Server Actions et les composants serveur n’existent pas sur un socle Express + Vite. Simuler leurs CVE enseignerait une fiction. |
+| **M7** · [Next.js, RSC et Server Actions](http://127.0.0.1:5173/#/modules/m02/l08) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M9** · [Request smuggling et désynchronisation](http://127.0.0.1:5173/#/modules/m03/l05) | Le request smuggling demande une vraie chaîne de proxys dont les analyseurs HTTP divergent. Le simuler en local donnerait une fausse intuition du mécanisme. |
+| **M10** · [Le vocabulaire du risque](http://127.0.0.1:5173/#/modules/m26/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M10** · [EBIOS Risk Manager appliqué à Novafact](http://127.0.0.1:5173/#/modules/m26/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M10** · [Noter sans se mentir](http://127.0.0.1:5173/#/modules/m26/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M10** · [Quantifier avec FAIR](http://127.0.0.1:5173/#/modules/m26/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M10** · [Traiter le risque et tenir le registre](http://127.0.0.1:5173/#/modules/m26/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M13** · [La spécification fonctionnelle de sécurité](http://127.0.0.1:5173/#/modules/m08/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M13** · [Crypto : hash, nonces et métadonnées](http://127.0.0.1:5173/#/modules/m08/l08) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M17** · [Tests de limites, de ressources et de fuites](http://127.0.0.1:5173/#/modules/m13/l12) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M18** · [Vérifier qu’un paquet n’est pas vérolé](http://127.0.0.1:5173/#/modules/m14/l07) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M22** · [Ce que fait un SOC](http://127.0.0.1:5173/#/modules/m27/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M22** · [Ce que le SOC attend de l’application](http://127.0.0.1:5173/#/modules/m27/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M22** · [Le renseignement utile à l’AppSec](http://127.0.0.1:5173/#/modules/m27/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M22** · [Chasser dans les journaux](http://127.0.0.1:5173/#/modules/m27/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M23** · [Architecture de journalisation](http://127.0.0.1:5173/#/modules/m18/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M24** · [Le cycle de vie d’une détection](http://127.0.0.1:5173/#/modules/m28/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M24** · [Couverture ATT&CK](http://127.0.0.1:5173/#/modules/m28/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M24** · [Tester ses détections](http://127.0.0.1:5173/#/modules/m28/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M25** · [Le cadre de la réponse à incident](http://127.0.0.1:5173/#/modules/m29/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M25** · [Playbooks et runbooks applicatifs](http://127.0.0.1:5173/#/modules/m29/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M25** · [Répondre dans AWS](http://127.0.0.1:5173/#/modules/m29/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M25** · [Crise et communication](http://127.0.0.1:5173/#/modules/m29/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M25** · [Notifier dans les délais](http://127.0.0.1:5173/#/modules/m29/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M25** · [Exercices et post-mortem](http://127.0.0.1:5173/#/modules/m29/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M28** · [Anatomie de MCP](http://127.0.0.1:5173/#/modules/m30/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M28** · [Ce que le modèle lit, l’attaquant l’écrit](http://127.0.0.1:5173/#/modules/m30/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M28** · [Écrire un serveur MCP local sûr](http://127.0.0.1:5173/#/modules/m30/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M28** · [Serveur MCP distant et multi-tenant](http://127.0.0.1:5173/#/modules/m30/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M28** · [La supply chain MCP](http://127.0.0.1:5173/#/modules/m30/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M28** · [Gouverner MCP dans l’entreprise](http://127.0.0.1:5173/#/modules/m30/l07) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [Comment MCP a adopté OAuth](http://127.0.0.1:5173/#/modules/m31/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [Découverte : PRM et métadonnées](http://127.0.0.1:5173/#/modules/m31/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [Enregistrer le client](http://127.0.0.1:5173/#/modules/m31/l03) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [Le flux et ses vérifications](http://127.0.0.1:5173/#/modules/m31/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [Audience, passthrough et API en aval](http://127.0.0.1:5173/#/modules/m31/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [Le confused deputy des proxys MCP](http://127.0.0.1:5173/#/modules/m31/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [Scopes minimaux et step-up](http://127.0.0.1:5173/#/modules/m31/l07) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [MCP en entreprise](http://127.0.0.1:5173/#/modules/m31/l08) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M29** · [Implémenter en Express](http://127.0.0.1:5173/#/modules/m31/l09) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M30** · [Négocier avec le produit](http://127.0.0.1:5173/#/modules/m06/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M30** · [Parler aux dirigeants](http://127.0.0.1:5173/#/modules/m06/l03) | Négocier avec une équipe produit se juge sur l’issue d’un échange humain. Le jeu Pushback du site le travaille déjà. |
+| **M31** · [Du parcours au programme](http://127.0.0.1:5173/#/modules/m32/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M31** · [Gouvernance : politiques, standards et comités](http://127.0.0.1:5173/#/modules/m32/l02) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M32** · [Analyse de risques](http://127.0.0.1:5173/#/modules/m20/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M32** · [Exercice de crise](http://127.0.0.1:5173/#/modules/m20/l12) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M32** · [Le serveur MCP d’Ask Novafact](http://127.0.0.1:5173/#/modules/m20/l13) | Sujet de jugement ou d’animation : traité par les jeux du site. |
 
 Plus généralement : **les scénarios cloud exécutés** restent chez CloudGoat, TerraGoat et Stratus Red Team. Le
 lab n’en prend que la partie qui vit dans le dépôt — politiques IAM, Terraform, Dockerfile, workflows — parce

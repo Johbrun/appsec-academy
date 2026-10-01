@@ -19,14 +19,14 @@ export default function Parcours() {
 
   return (
     <>
-      <PageHead eyebrow="Parcours" title="Vingt modules, du finding au programme"
+      <PageHead eyebrow="Parcours" title="Du finding au programme, au rythme du cycle"
         aside={(
           <div className="row" style={{ gap: 28, marginTop: 24 }}>
             <div><span className="label">Leçons</span><div className="big-num" style={{ fontSize: '2.25rem' }}>{Object.keys(progress.lessons).length}<span className="dim" style={{ fontSize: '1.25rem' }}>/{totalLessons}</span></div></div>
             <div><span className="label">Lecture</span><div className="big-num" style={{ fontSize: '2.25rem' }}>{Math.round(total / 60)} h</div></div>
           </div>
         )}>
-        Ordre conseillé : A, B, C puis D, avec le module IA en parallèle dès le bloc B. Tout reste accessible : commence où tu veux.
+        Ordre conseillé : A et B pour le socle, puis C à F dans l’ordre du cycle de développement, H pour finir ; le bloc IA se lit en parallèle dès le bloc C. Tout reste accessible : commence où tu veux.
       </PageHead>
 
       {blocks.map((b) => {

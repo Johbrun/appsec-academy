@@ -97,7 +97,7 @@ Le prestataire de paiement notifie Novafact par un webhook. Quatre éléments : 
 | Flux | D : corps énorme ou rafale d'appels | Limite de taille, réponse 2xx rapide, traitement en file |
 | Handler | E : le handler écrit avec un rôle base trop large | Rôle Postgres limité aux tables de paiement |
 | Handler | I : le payload complet, avec données de carte partielles, finit dans les logs | Journaliser l'identifiant et le type, pas le corps |
-| Table des paiements | T : double encaissement | Index unique sur l'identifiant du paiement (M10) |
+| Table des paiements | T : double encaissement | Index unique sur l'identifiant du paiement (M15) |
 
 La première ligne se traduit directement en code. La bibliothèque officielle vérifie la signature et l'horodatage, à condition de lui passer le corps **non parsé** :
 
@@ -130,18 +130,18 @@ Sept menaces, une heure de discussion, et chaque ligne du tableau devient un tes
 
 ## Des abuse cases aux cartes
 
-- Les **abuse cases** (M7) sont une façon narrative de trouver des menaces : « en tant qu'attaquant, je veux… ».
+- Les **abuse cases** (M12) sont une façon narrative de trouver des menaces : « en tant qu'attaquant, je veux… ».
 - Les **jeux de cartes** rendent l'exercice collectif et moins intimidant pour les développeurs.
 
 **Elevation of Privilege**, créé par Adam Shostack en 2010 à Microsoft, reprend les six catégories STRIDE comme couleurs. Chaque carte décrit une menace concrète ; pour la jouer, il faut l'accrocher à un élément du diagramme. La mécanique de jeu est un prétexte : elle donne la parole à tout le monde, y compris au développeur junior qui n'aurait jamais osé dire « et si quelqu'un rejouait ce webhook ? ».
 
-**OWASP Cornucopia** suit la même idée avec des couleurs orientées web : validation et encodage des données, authentification, gestion de session, autorisation, cryptographie, et une couleur « Cornucopia » pour le reste. Ses cartes renvoient vers des exigences de l'ASVS, ce qui relie directement une menace trouvée à une exigence vérifiable (M7). Une édition mobile existe aussi.
+**OWASP Cornucopia** suit la même idée avec des couleurs orientées web : validation et encodage des données, authentification, gestion de session, autorisation, cryptographie, et une couleur « Cornucopia » pour le reste. Ses cartes renvoient vers des exigences de l'ASVS, ce qui relie directement une menace trouvée à une exigence vérifiable (M12). Une édition mobile existe aussi.
 
 Une séance d'une heure avec l'équipe sur un DFD produit souvent une dizaine de menaces pertinentes. Au-delà de six participants, la séance se transforme en réunion : mieux vaut deux tables.
 
 ## Du constat à l'action
 
-Chaque menace retenue devient une ligne du threat model : l'élément, la catégorie, le scénario, la mitigation choisie (ou la décision d'accepter), et un **ticket** si une action est nécessaire. Sans ticket, le threat model reste un document. Le ticket reprend le scénario en une phrase, le critère d'acceptation vérifiable (« un webhook sans signature valide reçoit 400 »), et un lien vers la ligne du modèle, pour que la revue de code (M12) sache ce qu'elle doit vérifier.
+Chaque menace retenue devient une ligne du threat model : l'élément, la catégorie, le scénario, la mitigation choisie (ou la décision d'accepter), et un **ticket** si une action est nécessaire. Sans ticket, le threat model reste un document. Le ticket reprend le scénario en une phrase, le critère d'acceptation vérifiable (« un webhook sans signature valide reçoit 400 »), et un lien vers la ligne du modèle, pour que la revue de code (M16) sache ce qu'elle doit vérifier.
 
 <Callout kind="tip">
 Le jeu **STRIDE Cards** te fait poser des menaces sur le DFD de Novafact : pour chacune, la bonne catégorie, le bon élément, puis la contre-mesure.

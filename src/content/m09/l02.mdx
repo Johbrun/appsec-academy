@@ -1,151 +1,222 @@
 export const questions = [
   {
-    q: "Dans l'architecture BFF recommandée par la RFC 10017, où vivent les jetons OAuth ?",
+    q: "Quel modèle d'autorisation exprime le mieux « un utilisateur peut voir une facture s'il est membre du tenant propriétaire, ou si la facture a été partagée avec lui » ?",
     options: [
-      "En mémoire de la SPA, jamais dans localStorage ni dans un cookie",
-      "Dans un cookie chiffré posé par le BFF, déchiffré à chaque appel d'API",
-      "Côté serveur, dans le BFF ; le navigateur n'a qu'un cookie de session HttpOnly",
-      "Dans un Service Worker, hors de portée du JavaScript de la page",
-    ],
-    answer: 2,
-    explain: "Le BFF est un client confidentiel : il obtient les jetons, les garde et relaie les appels à l'API, si bien qu'une XSS ne peut plus voler de jeton réutilisable. La conservation en mémoire de la SPA est l'autre architecture décrite par la RFC, et c'est celle qu'elle juge plus faible : une XSS peut alors relancer un flux silencieux. Un Service Worker ne fait pas mieux, la page pouvant toujours lui demander d'émettre des requêtes authentifiées.",
-  },
-  {
-    q: "Qu'apporte la rotation des refresh tokens ?",
-    options: [
-      "Le refresh token est lié à la clé du client, donc inutilisable ailleurs",
-      "La durée de vie du refresh token est ramenée à celle de l'access token",
-      "Le serveur chiffre le refresh token avec une clé propre au navigateur",
-      "Chaque usage émet un nouveau jeton et invalide l'ancien, ce qui révèle un vol",
-    ],
-    answer: 3,
-    explain: "Si le voleur et l'utilisateur légitime se servent du même jeton, le second usage présente un jeton déjà consommé : le serveur détecte la réutilisation et peut révoquer toute la chaîne. La rotation ne lie pas le jeton au client — c'est le rôle de DPoP ou de mTLS, et les deux se combinent très bien ; OAuth 2.1 demande d'ailleurs l'un ou l'autre.",
-  },
-  {
-    q: "Une SPA garde des access tokens de 5 minutes en mémoire, jamais dans localStorage. Quelle capacité d'une XSS reste intacte selon la RFC 10017 ?",
-    options: [
-      "Relancer un flux d'autorisation silencieux et obtenir des jetons neufs",
-      "Lire le refresh token dans le cookie HttpOnly posé par le serveur",
-      "Exfiltrer le code_verifier, qui reste dans le sessionStorage après le flux",
-      "Déchiffrer le jeton pour en extraire les claims d'identité de l'utilisateur",
-    ],
-    answer: 0,
-    explain: "La durée de vie courte et le stockage en mémoire limitent le vol ponctuel ; ils ne font rien contre l'obtention de jetons neufs par un flux silencieux dans une iframe, ni contre l'usage direct de la session depuis la page. Lire un cookie HttpOnly reste hors de portée du JavaScript — c'est précisément pour cela que le BFF l'utilise. Le code_verifier, lui, est consommé à l'échange du code : récupéré après coup, il ne sert plus à rien.",
-  },
-  {
-    q: "Pourquoi le BFF de Novafact exige-t-il un en-tête personnalisé (par exemple X-Novafact-CSRF: 1) sur ses routes d'API ?",
-    options: [
-      "Pour router la requête vers la bonne version de l'API selon le client",
-      "Parce qu'un en-tête personnalisé force un preflight CORS qu'un formulaire ne peut pas faire",
-      "Parce que le navigateur refuse d'envoyer un cookie SameSite=Strict sans cet en-tête",
-      "Parce que l'en-tête transporte un jeton anti-CSRF signé, vérifié par le BFF",
+      "RBAC, avec un rôle par tenant et un rôle « invité » par facture partagée",
+      "ReBAC : l'autorisation se déduit de relations (membre de, partagé avec)",
+      "ABAC, avec un attribut « tenant » et un attribut « partagé » sur la requête",
+      "MAC : des niveaux de sensibilité imposés par l'administrateur du système",
     ],
     answer: 1,
-    explain: "Une requête cross-site portant un en-tête non standard déclenche un preflight CORS, que le BFF ne valide pas : le navigateur n'envoie donc jamais la vraie requête, et un formulaire HTML forgé ne peut pas ajouter d'en-tête. Ce n'est pas un jeton anti-CSRF : la valeur n'a aucune importance, seule sa présence compte — d'où l'intérêt, ni état serveur ni synchronisation. La RFC 10017 la cite avec SameSite et CORS parmi les protections du BFF, l'authentification par cookie restant exposée au CSRF.",
+    explain: "Les relations (propriétaire de, membre de, partagé avec) sont le cœur de ReBAC, popularisé par Zanzibar et implémenté par OpenFGA. ABAC est le concurrent sérieux et sait exprimer le cas, mais il faut alors transporter dans la requête des attributs que seul un graphe de relations sait calculer : le partage transitif, l'appartenance à un groupe. RBAC, lui, explose en rôles dès qu'on partage un objet précis.",
+  },
+  {
+    q: "Quel contrôle garantit l'isolation des tenants même si un développeur oublie le filtre dans une requête ?",
+    options: [
+      "Un test d'intégration qui vérifie l'isolation sur chaque endpoint de l'API",
+      "Une revue de code obligatoire sur toute requête touchant la table des factures",
+      "Des identifiants de facture imprévisibles, impossibles à deviner de l'extérieur",
+      "La RLS de PostgreSQL, alimentée par le tenant de la transaction courante",
+    ],
+    answer: 3,
+    explain: "La RLS applique le filtre dans le moteur : une requête sans clause WHERE ne voit que les lignes du tenant courant, quel que soit le code qui l'a écrite. Les tests d'intégration sont la réponse la plus souvent proposée, et ils ne couvrent que les routes auxquelles on a pensé — or c'est précisément l'oubli qu'on cherche à rattraper. Des identifiants imprévisibles compliquent la découverte, ils n'empêchent pas l'accès une fois l'identifiant connu.",
+  },
+  {
+    q: "Avec un pool de connexions, pourquoi positionner le tenant par set_config('app.tenant_id', …, true) dans une transaction plutôt que par un SET au niveau de la session ?",
+    options: [
+      "Parce que la valeur locale disparaît au commit : la connexion rendue au pool est propre",
+      "Parce qu'un SET de session est de toute façon réinitialisé par le pool à chaque retour",
+      "Parce que set_config est lu par les politiques RLS, contrairement à un SET de session",
+      "Parce qu'un SET sur un paramètre applicatif exige des droits de superutilisateur",
+    ],
+    answer: 0,
+    explain: "Le troisième argument true rend la valeur locale à la transaction : elle disparaît au commit, donc la connexion rendue au pool ne garde pas le tenant précédent. Croire que le pool nettoie lui-même est l'erreur la plus courante — un pool applicatif comme celui de node-postgres ne réinitialise rien, et la requête suivante, pour un autre tenant, hériterait de l'ancienne valeur si elle oubliait de la poser. Côté PostgreSQL, current_setting lit indifféremment les deux.",
+  },
+  {
+    q: "L'API de Novafact se connecte à PostgreSQL avec le rôle propriétaire des tables. Qu'en est-il de la RLS ?",
+    options: [
+      "Elle s'applique à tous les rôles, à la seule exception des superutilisateurs",
+      "Le propriétaire contourne les politiques, sauf en FORCE ROW LEVEL SECURITY",
+      "Elle ne filtre que les SELECT ; les UPDATE et DELETE passent au travers",
+      "Elle bloque toutes les requêtes tant qu'aucune politique n'a été définie",
+    ],
+    answer: 1,
+    explain: "Le propriétaire de la table est exempté par défaut : il faut ALTER TABLE … FORCE ROW LEVEL SECURITY pour que les politiques s'appliquent à lui, et un superutilisateur ou un rôle BYPASSRLS passe toujours au travers. Réserver l'exemption aux seuls superutilisateurs est le piège : c'est vrai pour eux, et cela fait oublier le cas du propriétaire, qui est justement celui de beaucoup d'applications. D'où deux règles : un rôle applicatif dédié, non propriétaire et sans BYPASSRLS, et FORCE sur les tables sensibles.",
   },
 ];
 
 <YouKnow>
-Tu as vu des SPA stocker leurs jetons dans localStorage et tu sais qu'une seule XSS suffit à les exfiltrer. Depuis août 2026, une RFC dit enfin clairement comment faire autrement.
+Les failles d'autorisation (BOLA, BFLA) sont probablement ta source de findings critiques la plus fiable. Cette leçon regarde comment les rendre structurellement rares dans un SaaS multi-tenant.
 </YouKnow>
 
-## RFC 10017 : OAuth pour les applications navigateur
+## Les modèles
 
-La **RFC 10017** (*OAuth 2.0 for Browser-Based Applications*, publiée en août 2026 comme meilleure pratique, BCP 212) décrit trois architectures, de la plus sûre à la moins sûre :
-
-| Architecture | Principe | Exposition des jetons |
+| Modèle | Principe | Exemple Novafact |
 | --- | --- | --- |
-| **BFF** (Backend for Frontend) | Un composant serveur est le client OAuth. Il garde tous les jetons et relaie les appels à l'API. Le navigateur n'a qu'un cookie de session | Aucune dans le navigateur |
-| **Token-mediating backend** | Un composant serveur obtient les jetons, mais transmet l'access token au navigateur, qui appelle l'API directement | Access token dans le navigateur, refresh token côté serveur |
-| **Client navigateur pur** | L'application JavaScript est elle-même le client OAuth public | Tous les jetons dans le navigateur |
+| **RBAC** | Des rôles portent des permissions | Administrateur, comptable, lecteur |
+| **ABAC** | Des règles sur des attributs (utilisateur, ressource, contexte) | Un remboursement de plus de 5 000 € exige le rôle administrateur et une MFA récente |
+| **ReBAC** | Des relations entre objets | Membre du tenant, facture partagée avec un expert-comptable externe |
+| DAC / MAC | Vocabulaire classique (CSSLP) : le propriétaire décide / une autorité centrale impose des niveaux | Rarement utilisés tels quels dans un SaaS |
 
-La RFC **recommande fortement** le BFF pour les applications métier, les applications sensibles et celles qui traitent des données personnelles. C'est le choix de Novafact.
+Dans la pratique, on combine : des rôles pour la base, quelques attributs pour les cas sensibles, des relations pour le partage. Chaque modèle a son mode d'échec. RBAC seul dérive vers l'**explosion des rôles** (« comptable-sans-export-sauf-fin-de-mois ») ; ABAC est très expressif mais difficile à auditer, car la décision dépend de valeurs connues seulement à l'exécution ; ReBAC exige de maintenir un graphe de relations synchronisé avec les données métier. Le modèle ReBAC a été popularisé par **Zanzibar**, le système d'autorisation de Google décrit dans un article de 2019.
 
-## Ce qu'une XSS peut faire, architecture par architecture
+## Où se prend la décision
 
-La force de la RFC est de raisonner à partir des **capacités de l'attaquant** qui exécute du JavaScript dans la page, plutôt qu'à partir d'un emplacement de stockage « sûr ». Elle en distingue quatre :
+Le pattern *Complete Mediation* (leçon 3 de M13) impose un seul chemin vérifié. Le vocabulaire courant distingue le **point de décision** (qui répond « autorisé ou non ») et le **point d'application** (qui applique la réponse, dans chaque route ou service). La bonne architecture **centralise la décision** et **généralise l'application** : chaque accès passe par un contrôle, mais la logique n'est écrite qu'une fois. Trois niveaux de centralisation :
 
-| Capacité de l'attaquant | Client pur | Token-mediating | BFF |
-| --- | --- | --- | --- |
-| **Vol ponctuel** des jetons présents | Oui | Access token seulement | Non |
-| **Vol persistant** (un script qui récupère les jetons à intervalle régulier) | Oui | Access tokens seulement | Non |
-| **Obtention de nouveaux jetons** (flux d'autorisation silencieux dans une iframe cachée) | Oui | Oui, via le backend | Non |
-| **Relais de requêtes** depuis le navigateur de la victime | Oui | Oui | Oui, tant que la page est ouverte |
+- une **fonction** d'autorisation unique dans le code, appelée par toutes les routes (le `defineRoute` de M7) ;
+- un **moteur de politiques** : **OPA** (langage Rego), **Cedar** (langage d'AWS, utilisé par Amazon Verified Permissions), **OpenFGA** (ReBAC inspiré de Zanzibar) ;
+- des politiques **versionnées et testées** comme du code.
 
-Le tableau explique pourquoi les mesures habituelles des SPA déçoivent : des access tokens très courts et un stockage en mémoire ne gênent que la première ligne. Le vol persistant rattrape chaque nouveau jeton ; le flux silencieux en obtient d'indépendants, sans toucher à ceux de l'application. Seul le BFF ferme les trois premières lignes. La quatrième reste ouverte dans toutes les architectures : une XSS peut **agir** au nom de l'utilisateur tant qu'il a la page ouverte. C'est pourquoi la RFC exige aussi des mesures proactives contre l'exécution de JavaScript malveillant : encodage des sorties, CSP, Subresource Integrity (M4).
+Contre les BOLA, le point d'application le plus efficace est celui qui **charge** la ressource : un middleware qui lit l'objet à travers la DAL filtrée par tenant, vérifie l'action, et le transmet au handler. Le handler ne peut plus oublier le contrôle, puisqu'il ne reçoit l'objet qu'une fois vérifié.
 
-## Le BFF de Novafact
-
-<Steps items={[
-  { title: "Connexion", text: "Le BFF (Express, ou les route handlers de Next.js) démarre le flux Authorization Code + PKCE auprès de Cognito, en tant que client confidentiel." },
-  { title: "Session", text: "Il stocke access et refresh tokens côté serveur (Redis chiffré), et pose un cookie de session __Host-, HttpOnly, Secure, SameSite." },
-  { title: "Appels", text: "Le front appelle le BFF avec le cookie ; le BFF ajoute l'access token et relaie vers l'API." },
-  { title: "Renouvellement", text: "Le BFF renouvelle l'access token avec le refresh token, sans que le navigateur ne voie jamais l'un ou l'autre." },
-  { title: "Protection CSRF", text: "Comme toute application à cookie : SameSite, en-tête requis et Fetch Metadata (M2, M4)." },
-]} />
-
-Le relais tient en quelques lignes, à condition de ne relayer **que** vers l'API prévue (sinon le BFF devient un proxy ouvert, donc un vecteur de SSRF) et de ne jamais renvoyer le jeton au navigateur :
-
-<Code file="apps/bff/src/proxy.ts" hl="3,4,9,13">
+<Code file="apps/api/src/authz/loadInvoice.ts" hl="5,6,7">
 
 ```ts
-router.use('/api', async (req, res) => {
-  // CSRF : un formulaire cross-site ne peut pas poser cet en-tête, et un fetch cross-site déclencherait un preflight refusé
-  if (req.get('X-Novafact-CSRF') !== '1') return res.sendStatus(403);
-  if (req.get('Sec-Fetch-Site') && req.get('Sec-Fetch-Site') !== 'same-origin') return res.sendStatus(403);
-  const session = await sessions.get(req);
-  if (!session) return res.sendStatus(401);
-  const accessToken = await tokens.getFreshAccessToken(session); // renouvelle si besoin, côté serveur
-  const upstream = await fetch(new URL(req.url, env.API_ORIGIN), { // origine fixe : pas de proxy ouvert
-    method: req.method,
-    headers: { authorization: `Bearer ${accessToken}`, 'content-type': req.get('content-type') ?? 'application/json' },
-    body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.body,
-  });
-  res.status(upstream.status).type(upstream.headers.get('content-type') ?? 'application/json');
-  res.send(Buffer.from(await upstream.arrayBuffer()));
-});
+export const loadInvoice = (action: InvoiceAction) =>
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { invoiceId } = InvoiceParams.parse(req.params);
+    const invoice = await invoices.findForTenant(req.auth.tenantId, invoiceId);
+    // 404 dans les deux cas : on ne révèle pas l'existence d'une facture d'un autre tenant
+    if (!invoice) return res.sendStatus(404);
+    if (!(await authz.can(req.auth, action, invoice))) return res.sendStatus(404);
+    res.locals.invoice = invoice;
+    next();
+  };
+
+router.post('/invoices/:invoiceId/send', loadInvoice('send'), sendInvoiceHandler);
 ```
 
 </Code>
 
-Sur le cookie, la RFC est précise : `Secure` et `HttpOnly` obligatoires ; `SameSite=Strict` recommandé ; préfixe `__Host-` recommandé, sans attribut `Domain`, pour qu'aucun sous-domaine ne puisse le lire ou l'écraser. Un détail pratique : avec une connexion fédérée (Google, SSO d'entreprise), le retour vers le callback passe par un site tiers, et un cookie `Strict` n'est pas envoyé sur cette navigation. La solution courante sépare les deux usages : un petit cookie de **transaction de connexion**, `Lax` et valable quelques minutes, pour le callback ; le cookie de **session**, `Strict`, pour tout le reste.
+Les BOLA ont un cousin, la **BFLA** (API5:2023) : une fonction réservée à un rôle (supprimer un utilisateur, modifier les coordonnées bancaires du tenant) accessible à un autre. La parade est structurelle : chaque route **déclare** l'action qu'elle exige dans sa définition, et une route qui n'en déclare aucune est refusée par défaut au démarrage de l'application, plutôt qu'ouverte par oubli. Une revue de code n'a alors plus à chercher le contrôle dans le corps du handler : il est dans la signature de la route.
 
-## Ce que ça change face à une XSS
+<Callout kind="debate">
+**403 ou 404 ?** Répondre 404 à un accès interdit évite de confirmer qu'un objet existe (utile avec des identifiants devinables). Répondre 403 facilite le support et le débogage, et reste acceptable quand les identifiants sont aléatoires et que l'existence de l'objet n'est pas sensible. Novafact répond 404 pour les objets d'un autre tenant et 403 pour une action refusée sur un objet du tenant de l'utilisateur, où l'existence n'est pas un secret.
+</Callout>
 
-Une XSS reste grave : elle peut agir **depuis la page** tant que la victime l'a ouverte. Mais elle ne peut plus **voler un jeton réutilisable** ailleurs, pendant des heures. La fenêtre d'exploitation se réduit à la session ouverte, et la CSP stricte (M4) complète la défense. Le BFF a un coût : un composant serveur de plus, une latence supplémentaire, un stockage de session à protéger (les jetons de tous les utilisateurs sont désormais au même endroit). C'est un compromis explicite : on concentre les jetons là où on sait les défendre.
+## Les moteurs de politiques
 
-## Le token-mediating backend, un entre-deux
+Un moteur externalise la décision dans un langage dédié. Avec **Cedar**, tout est refusé par défaut, et une règle `forbid` l'emporte toujours sur une règle `permit`. Le langage a été conçu pour être analysable : on peut vérifier automatiquement des propriétés d'un ensemble de politiques. Amazon Verified Permissions l'exécute en service managé et sait lire directement les jetons de Cognito. La règle ABAC de Novafact sur les remboursements :
 
-L'architecture intermédiaire garde le refresh token côté serveur et ne confie au navigateur que l'access token. On la rencontre quand l'API est servie depuis une autre origine à fort trafic et que faire transiter chaque appel par un proxy coûte trop cher. Elle limite le vol persistant aux access tokens, courts par construction, mais laisse ouverte l'obtention de nouveaux jetons : le point du backend qui distribue les access tokens au navigateur répond à quiconque présente le cookie, y compris un script injecté. Si tu la choisis, écris-le comme un risque accepté dans le design doc (M8), avec une durée de vie d'access token mesurée en minutes et une audience limitée à cette API.
+<Code file="policies/refunds.cedar">
 
-## Si les jetons doivent être dans le navigateur
+```cedar
+permit (
+  principal in Role::"tenant-admin",
+  action == Action::"approveRefund",
+  resource
+)
+when { principal.tenantId == resource.tenantId && context.mfaAgeSeconds < 300 };
 
-Quand un BFF est impossible (application sans serveur, contraintes d'hébergement), la RFC détaille les exigences pour un client navigateur :
+forbid (principal, action == Action::"approveRefund", resource)
+when { resource.amount > 5000 && !(context has secondApprover) };
+```
 
-- **PKCE obligatoire**, et aucun secret client partagé (il serait lisible dans le bundle) ;
-- **access tokens courts** (quelques minutes) ;
-- des **refresh tokens** avec rotation à chaque usage **ou** liés au client (DPoP, leçon 5), **et** une durée de vie maximale ou une expiration en cas d'inactivité ; un jeton issu d'une rotation ne prolonge jamais la durée de vie du jeton initial ;
-- stockage en **mémoire** plutôt que dans `localStorage`, en acceptant qu'aucun stockage navigateur ne résiste à une XSS ;
-- CSP stricte et Trusted Types.
+</Code>
 
-DPoP mérite une précision : une clé WebCrypto générée **non extractible** ne peut pas être exfiltrée par une XSS, qui ne peut donc pas utiliser le jeton **ailleurs**. Elle peut en revanche toujours s'en servir **depuis la page** : c'est la ligne « relais de requêtes » du tableau.
+Pour le partage, un modèle **OpenFGA** exprime les relations plutôt que des règles :
+
+<Code file="policies/model.fga">
+
+```text
+model
+  schema 1.1
+
+type user
+
+type tenant
+  relations
+    define member: [user]
+    define admin: [user]
+
+type invoice
+  relations
+    define owner: [tenant]
+    define shared_with: [user]
+    define viewer: member from owner or shared_with
+    define editor: admin from owner
+```
+
+</Code>
+
+Un moteur ne décide qu'avec ce qu'on lui donne : si l'application lui transmet un `tenantId` lu dans la requête au lieu de la session, la politique la plus élégante autorise la mauvaise chose. Et il ajoute une dépendance critique : sa disponibilité, sa latence et sa synchronisation avec les données (pour OpenFGA, les relations) entrent dans la conception, avec un échec qui refuse (leçon 3 de M13).
+
+Qu'elles soient en TypeScript ou en Cedar, les politiques se testent par **matrice** : pour chaque rôle, chaque action et deux tenants, le résultat attendu. Un test généré à partir de cette matrice détecte une régression qu'aucun test écrit à la main n'aurait couverte.
+
+## L'isolation des tenants
+
+Le risque numéro un d'un SaaS : qu'un client voie les données d'un autre. Trois modèles :
+
+| Modèle | Isolation | Coût |
+| --- | --- | --- |
+| Base par tenant | Très forte | Élevé à grande échelle |
+| Schéma par tenant | Forte | Moyen, migrations plus lourdes |
+| **Base partagée**, colonne `tenant_id` | Dépend des contrôles | Faible : c'est le modèle de Novafact |
+
+<Callout kind="case">
+**ChaosDB (2021)**. Les chercheurs de Wiz ont montré qu'une fonctionnalité de notebooks Jupyter, activée automatiquement sur Azure Cosmos DB en février 2021, permettait d'obtenir les clés primaires des bases d'autres clients. Microsoft a confirmé que plusieurs milliers de clients étaient concernés. Même chez un grand fournisseur cloud, une fonctionnalité ajoutée sur une infrastructure partagée peut devenir le mécanisme commun qui relie les tenants (*Least Common Mechanism*).
+</Callout>
+
+Avec une base partagée, la **sécurité au niveau des lignes** de PostgreSQL applique le filtre dans la base elle-même :
+
+<Code file="db/migrations/042_rls_invoices.sql">
+
+```sql
+ALTER TABLE invoice ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invoice FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation ON invoice
+  USING (tenant_id = current_setting('app.tenant_id')::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
+```
+
+</Code>
+
+Trois pièges transforment souvent cette défense en illusion :
+
+- **Le rôle de connexion**. Le propriétaire d'une table contourne ses politiques, sauf avec `FORCE ROW LEVEL SECURITY` ; un superutilisateur ou un rôle doté de `BYPASSRLS` les contourne toujours. L'application utilise un rôle dédié, non propriétaire ; les migrations, un autre.
+- **Le pool de connexions**. Un `SET app.tenant_id` de session survit sur la connexion physique et peut profiter à la requête suivante. On positionne la valeur **localement à la transaction**.
+- **La source du tenant**. Il vient toujours de la **session**, jamais d'un paramètre de requête.
+
+<Code file="apps/api/src/db/withTenant.ts" hl="6">
+
+```ts
+import { Prisma } from '@prisma/client';
+
+export function withTenant<T>(tenantId: TenantId, fn: (tx: Prisma.TransactionClient) => Promise<T>) {
+  return prisma.$transaction(async (tx) => {
+    // is_local = true : la valeur disparaît à la fin de la transaction, la connexion rendue au pool est propre
+    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+    return fn(tx);
+  });
+}
+```
+
+</Code>
+
+Si une requête s'exécute sans que le tenant ait été positionné, `current_setting` échoue ou renvoie une chaîne vide, que la conversion en `uuid` refuse : la requête **échoue** au lieu de tout renvoyer, ce qui est le comportement voulu. Même une requête qui oublie son filtre ne voit que le tenant courant. La DAL (M7) reste la première ligne ; RLS est la **défense en profondeur**, indépendante du code applicatif.
 
 <Callout kind="novafact">
-Côté Cognito, la **rotation des refresh tokens** existe depuis avril 2025 (plans Essentials et Plus). Quand elle est activée, chaque renouvellement renvoie un nouveau refresh token, valable pour la durée restante du précédent, et l'ancien est invalidé après un délai de grâce configurable jusqu'à 60 secondes (pour absorber les nouvelles tentatives réseau). Le BFF de Novafact l'active, et appelle la révocation du refresh token à la déconnexion : Cognito invalide alors aussi les access tokens émis à partir de lui.
+Pour MongoDB, pas de RLS native : Novafact impose le `tenantId` dans le repository (type `TenantId` marqué, M7) et ajoute une règle Semgrep qui interdit toute requête sur les collections multi-tenant hors du repository. Un test d'intégration crée deux tenants, remplit chacun, et vérifie que chaque endpoint de lecture n'a jamais renvoyé de document de l'autre.
 </Callout>
 
 <Recap items={[
-  "RFC 10017 (août 2026, BCP 212) : BFF, token-mediating backend ou client navigateur pur ; le BFF est fortement recommandé pour les applications sensibles.",
-  "Raisonner en capacités d'attaquant : vol ponctuel, vol persistant, nouveaux jetons par flux silencieux, relais de requêtes.",
-  "Le BFF garde tous les jetons côté serveur, relaie vers une origine fixe, et protège son cookie (__Host-, HttpOnly, Secure, SameSite) et ses routes contre le CSRF.",
-  "Une XSS peut encore agir depuis la page dans toutes les architectures : CSP, encodage et SRI restent indispensables.",
-  "Sans BFF : PKCE, jetons courts, rotation ou liaison DPoP des refresh tokens avec durée maximale, stockage en mémoire.",
+  "RBAC pour la base, ABAC pour les cas sensibles, ReBAC pour le partage ; chaque modèle a son mode d'échec.",
+  "Centraliser la décision, généraliser l'application : le middleware qui charge la ressource est le meilleur point contre les BOLA.",
+  "Un moteur de politiques (OPA, Cedar, OpenFGA) ne vaut que par les données qu'on lui donne ; les politiques se testent par matrice.",
+  "RLS PostgreSQL : rôle non propriétaire sans BYPASSRLS, FORCE ROW LEVEL SECURITY, tenant positionné localement à la transaction.",
+  "Sans RLS (MongoDB) : repository imposé, règle SAST et test d'isolation entre deux tenants.",
 ]} />
 
+<Lab id="ps-access-control" />
+
 <Sources items={[
-  { title: "RFC 10017 : OAuth 2.0 for Browser-Based Applications", url: "https://www.rfc-editor.org/info/rfc10017/" },
-  { title: "oauth.net : Browser-Based Apps", url: "https://oauth.net/2/browser-based-apps/" },
-  { title: "Pragmatic Web Security (Philippe De Ryck)", url: "https://pragmaticwebsecurity.com/" },
-  { title: "Amazon Cognito : refresh tokens et rotation", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-refresh-token.html" },
-  { title: "MDN : Sec-Fetch-Site", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Sec-Fetch-Site" },
+  { title: "OWASP Cheat Sheet : Authorization", url: "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html" },
+  { title: "PostgreSQL : Row Security Policies", url: "https://www.postgresql.org/docs/current/ddl-rowsecurity.html" },
+  { title: "Cedar", url: "https://www.cedarpolicy.com/" },
+  { title: "OpenFGA", url: "https://openfga.dev/" },
+  { title: "Open Policy Agent", url: "https://www.openpolicyagent.org/" },
+  { title: "Zanzibar : Google's Consistent, Global Authorization System (USENIX ATC 2019)", url: "https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/" },
+  { title: "Wiz : ChaosDB", url: "https://www.wiz.io/blog/chaosdb-how-we-hacked-thousands-of-azure-customers-databases" },
 ]} />

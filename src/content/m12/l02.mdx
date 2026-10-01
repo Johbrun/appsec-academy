@@ -61,7 +61,7 @@ Avant de lire une ligne en détail, dresse la carte :
 | --- | --- | --- |
 | Quels sont les points d'entrée ? | `router.get/post/…`, `app.use`, `app.param`, gestionnaires de webhooks, consommateurs de files | `app/**/route.ts`, fonctions `'use server'`, `pages/api/`, `middleware.ts` (renommé `proxy.ts` depuis Next.js 16) |
 | Quels contrôles globaux ? | Middlewares montés dans `app.ts` : authentification, autorisation, validation, CORS, limites | Le fichier `middleware.ts` ou `proxy.ts`, et la couche d'accès aux données (DAL) |
-| Quelles données sensibles ? | Modèles Prisma et Mongoose, champs sensibles (M7) | Idem, plus ce qui franchit la frontière vers les Client Components |
+| Quelles données sensibles ? | Modèles Prisma et Mongoose, champs sensibles (M12) | Idem, plus ce qui franchit la frontière vers les Client Components |
 | Quelle configuration ? | Variables d'environnement, `trust proxy`, `query parser`, cookies, en-têtes | `next.config`, variables `NEXT_PUBLIC_*` (exposées au navigateur) |
 | Quelles dépendances clés ? | ORM, moteur de templates, bibliothèques d'authentification | Idem |
 
@@ -93,7 +93,7 @@ app.use(errorHandler);                                       // 4 arguments : le
 
 </Code>
 
-La ligne 5 est légitime : un webhook Stripe n'a pas de session et a besoin du corps brut pour vérifier sa signature. Mais elle crée une zone hors du contrôle central, et ta carte doit la noter : « `/webhooks/stripe` : pas de session, contrôle = signature, à vérifier ». Même raisonnement pour la ligne 6 (qu'y a-t-il dans `public/` ?) et pour la ligne 2 (combien de proxys y a-t-il vraiment devant l'API ? Si la valeur est fausse, `req.ip` devient contrôlable par le client, et le rate limiting de M10 avec lui).
+La ligne 5 est légitime : un webhook Stripe n'a pas de session et a besoin du corps brut pour vérifier sa signature. Mais elle crée une zone hors du contrôle central, et ta carte doit la noter : « `/webhooks/stripe` : pas de session, contrôle = signature, à vérifier ». Même raisonnement pour la ligne 6 (qu'y a-t-il dans `public/` ?) et pour la ligne 2 (combien de proxys y a-t-il vraiment devant l'API ? Si la valeur est fausse, `req.ip` devient contrôlable par le client, et le rate limiting de M15 avec lui).
 
 ## Étape 2 : sources et sinks
 
@@ -109,7 +109,7 @@ La ligne 5 est légitime : un webhook Stripe n'a pas de session et a besoin du c
 
 On suit chaque source jusqu'aux sinks qu'elle atteint, et on note **ce qui la contrôle** en chemin : validation, autorisation, encodage. Trois subtilités reviennent souvent :
 
-- **Le type n'est pas garanti.** Avec le parser de requêtes « extended » (défaut d'Express 4, basé sur `qs`), `req.query.status` peut être un objet ou un tableau, pas une chaîne. C'est la cause racine des injections d'opérateurs Mongo (M2). Express 5 est passé par défaut au parser « simple » : vérifie la version et le réglage `query parser` avant de conclure.
+- **Le type n'est pas garanti.** Avec le parser de requêtes « extended » (défaut d'Express 4, basé sur `qs`), `req.query.status` peut être un objet ou un tableau, pas une chaîne. C'est la cause racine des injections d'opérateurs Mongo (M7). Express 5 est passé par défaut au parser « simple » : vérifie la version et le réglage `query parser` avant de conclure.
 - **La confiance dépend de l'auteur, pas du stockage.** Une note de facture relue en base reste une donnée client : c'est le terrain des XSS stockées et des injections de second ordre.
 - **Les en-têtes « internes » sont des entrées.** `X-Forwarded-For`, `X-Tenant-Id` posé par un proxy, en-têtes que le framework croit être les seuls à écrire : CVE-2025-29927 (leçon 4) en est l'exemple parfait.
 
@@ -134,7 +134,7 @@ semgrep -e '$ROUTER.$METHOD($PATH, async ($REQ, $RES) => { ... })' --lang ts app
 semgrep -e 'prisma.$MODEL.findUnique({ where: { id: $ID } })' --lang ts apps/api/src
 ```
 
-Le second motif renvoie aussi les requêtes qui filtrent déjà par tenant (Semgrep accepte des champs supplémentaires dans l'objet) : c'est un point de départ pour la lecture, pas un verdict. Quand un motif devient utile à chaque revue, il mérite une vraie règle avec exclusions et tests (M13, leçon 4).
+Le second motif renvoie aussi les requêtes qui filtrent déjà par tenant (Semgrep accepte des champs supplémentaires dans l'objet) : c'est un point de départ pour la lecture, pas un verdict. Quand un motif devient utile à chaque revue, il mérite une vraie règle avec exclusions et tests (M17, leçon 4).
 
 ## Étape 4 : suivre un flux, et le noter
 
@@ -146,7 +146,7 @@ Source    req.file (multer, mémoire), nom et contenu
 Contrôles session ✓  permission invoices:import ✓  taille 5 Mo ✓  type MIME déclaré seulement ✗
 Chemin    routes/imports.ts → services/imports.ts:parseCsv → dal/invoices.ts:createMany
 Sinks     createMany (tenantId pris de la session ✓), note → rendu PDF (échappement ? à vérifier)
-Questions formules CSV en sortie d'export (M2) ; ligne de 10 Mo sans saut de ligne ?
+Questions formules CSV en sortie d'export (M7) ; ligne de 10 Mo sans saut de ligne ?
 ```
 
 Les « ✗ » et les « à vérifier » deviennent soit un test que tu écris tout de suite, soit un commentaire de revue, soit un finding.

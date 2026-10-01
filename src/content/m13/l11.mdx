@@ -48,7 +48,7 @@ Bâtir la plateforme, c'est résoudre quatre problèmes :
 | --- | --- |
 | **Dispersion** | Un point de collecte unique (ASPM) |
 | **Doublons** | Dédoublonnage et corrélation |
-| **Bruit** | Priorisation par contexte (M5) et réglage des règles |
+| **Bruit** | Priorisation par contexte (M26) et réglage des règles |
 | **Friction** | Des résultats au bon endroit, et des critères de blocage rares et justes |
 
 ## Centraliser : l'ASPM
@@ -71,10 +71,10 @@ Trois niveaux de rapprochement :
 
 Le blocage d'une PR ou d'un déploiement est l'outil le plus puissant du programme, et le plus facile à gâcher. Des principes qui tiennent :
 
-- **Ne bloquer que le nouveau** : la dette existante se traite par des délais de correction (M5), pas en bloquant toutes les PR de l'équipe.
+- **Ne bloquer que le nouveau** : la dette existante se traite par des délais de correction (M26), pas en bloquant toutes les PR de l'équipe.
 - **Ne bloquer que ce qui est précis** : des règles à faible taux de faux positifs, testées, documentées.
 - **Ne bloquer que ce qui est grave ou systémique** : secrets, injections, dépendance avec exploitation connue (KEV), règles de conformité maison (`defineRoute`).
-- **Toujours une sortie** : une exception motivée, tracée, avec expiration et approbation (M5), plutôt que la désactivation silencieuse de l'outil.
+- **Toujours une sortie** : une exception motivée, tracée, avec expiration et approbation (M26), plutôt que la désactivation silencieuse de l'outil.
 - **Dire comment corriger** : chaque blocage vient avec un message et un lien vers la documentation.
 
 <Code file=".github/security-gates.yml">
@@ -112,7 +112,7 @@ Ce fichier est une illustration : chaque plateforme a son format, mais la politi
 
 ## Les métriques
 
-Des métriques qui disent quelque chose (M6 détaille leur usage auprès de la direction) :
+Des métriques qui disent quelque chose (M30 détaille leur usage auprès de la direction) :
 
 | Métrique | Ce qu'elle montre |
 | --- | --- |
@@ -129,7 +129,7 @@ Méfie-toi des métriques de volume (« 12 000 findings corrigés ») : elles r�
 
 Le CSSLP (domaine 6) insiste sur l'**IV&V** : une partie de la vérification doit être faite par quelqu'un qui n'a pas construit le système. L'auteur d'un code ou d'un outil a des angles morts ; l'équipe qui a conçu une fonctionnalité teste ce qu'elle a prévu. L'indépendance se dose selon le risque :
 
-- une autre équipe interne relit la conception d'une fonctionnalité sensible (M8) ;
+- une autre équipe interne relit la conception d'une fonctionnalité sensible (M13) ;
 - l'équipe AppSec, indépendante des équipes produit, vérifie les contrôles critiques ;
 - un pentest externe, et le bug bounty, apportent une indépendance complète sur les versions majeures.
 

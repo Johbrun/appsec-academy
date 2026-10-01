@@ -1,4 +1,4 @@
-// Jeu « Detection Builder » (M18) : assembler une règle par blocs, la tester sur des événements, mesurer précision et rappel.
+// Jeu « Detection Builder » (M24) : assembler une règle par blocs, la tester sur des événements, mesurer précision et rappel.
 //
 // Les événements portent des champs ECS (Elastic Common Schema) tels que les produisent les journaux
 // applicatifs de Novafact (pino au format ECS) et l'intégration AWS d'Elastic pour CloudTrail

@@ -1,192 +1,213 @@
 export const questions = [
   {
-    q: "Qu'apporte DPoP (RFC 9449) ?",
+    q: "Une API reçoit un ID token OIDC en guise de jeton d'accès. Que doit-elle faire ?",
     options: [
-      "Un jeton lié à une clé détenue par le client, inutilisable sans elle",
-      "Un jeton chiffré dont seule l'API destinataire possède la clé de déchiffrement",
-      "Une liaison du jeton au certificat TLS client, vérifiée à chaque requête",
-      "Une signature du corps de la requête, qui en garantit l'intégrité de bout en bout",
-    ],
-    answer: 0,
-    explain: "Le client génère une paire de clés, le jeton porte l'empreinte de la publique (cnf.jkt), et chaque requête est accompagnée d'une preuve signée : un jeton volé seul ne sert plus à rien. La liaison au certificat TLS client existe aussi et remplit le même rôle (RFC 8705), mais elle suppose une PKI côté client — DPoP a justement été conçu pour s'en passer, au niveau applicatif. DPoP ne chiffre rien et ne signe pas le corps de la requête.",
-  },
-  {
-    q: "À quoi sert PAR (Pushed Authorization Requests, RFC 9126) ?",
-    options: [
-      "À signer la demande d'autorisation pour que le serveur en vérifie l'intégrité",
-      "À obtenir un jeton d'accès sans passer par le navigateur de l'utilisateur",
-      "À pousser vers le client les mises à jour du consentement de l'utilisateur",
-      "À envoyer les paramètres d'autorisation au serveur en dehors du navigateur",
-    ],
-    answer: 3,
-    explain: "Le client poste ses paramètres directement au serveur, sur un canal authentifié, et reçoit une request_uri opaque qu'il place dans l'URL du navigateur : les paramètres ne peuvent plus être ni lus ni modifiés en chemin. La confusion classique est avec JAR (RFC 9101), qui signe la demande : l'intégrité est alors garantie, mais les paramètres restent visibles dans l'URL. PAR ne supprime pas la redirection : l'utilisateur passe toujours par son navigateur pour consentir.",
-  },
-  {
-    q: "Une API reçoit un access token DPoP et sa preuve. Quelle vérification relie la preuve au jeton ?",
-    options: [
-      "La preuve reprend le jti du jeton d'accès, ce qui interdit de la rejouer ailleurs",
-      "La preuve est signée avec la clé privée du serveur d'autorisation, que l'API connaît",
-      "La claim ath vaut le hash du jeton, et l'empreinte de la clé correspond au cnf.jkt",
-      "La preuve porte la même date d'expiration que le jeton, ce qui les lie dans le temps",
-    ],
-    answer: 2,
-    explain: "Deux liens se croisent : ath (access token hash) attache la preuve à ce jeton précis, et cnf.jkt attache le jeton à cette clé publique. S'y ajoutent htm et htu (méthode et URL de la requête), un iat récent et un jti jamais vu. La preuve n'est jamais signée par le serveur d'autorisation : c'est le client qui signe, avec sa clé — sinon le jeton ne serait lié à personne en particulier.",
-  },
-  {
-    q: "L'assistant IA de Novafact doit appeler l'API des factures pour le compte d'un utilisateur. Quelle approche suit l'état de l'art ?",
-    options: [
-      "Relayer tel quel le jeton reçu par l'assistant, puisqu'il identifie l'utilisateur",
-      "Échanger le jeton (RFC 8693) contre un jeton d'audience et de scopes réduits",
-      "Utiliser un compte de service, en journalisant l'utilisateur pour lequel il agit",
-      "Demander à l'utilisateur d'autoriser l'assistant par un flux OAuth distinct",
+      "L'accepter si la signature et la date d'expiration sont valides",
+      "Le refuser : son audience est le client, pas l'API qui le reçoit",
+      "L'accepter si sa claim azp correspond au client autorisé par l'API",
+      "L'échanger auprès du fournisseur contre un access token équivalent",
     ],
     answer: 1,
-    explain: "Le token exchange garde l'identité de l'utilisateur (sub), trace l'acteur qui agit pour lui (act) et réduit audience et droits à ce que l'appel exige : c'est la réponse au confused deputy dans une chaîne de services ou d'agents. Relayer le jeton d'origine est la solution la plus simple et la plus courante — elle fonctionne, mais l'API des factures reçoit un jeton dont elle n'est pas l'audience, avec tous les scopes de l'assistant, et sans trace de qui a réellement agi. Le compte de service journalisé, lui, ne fait que documenter le problème après coup.",
+    explain: "L'ID token dit au client qui est l'utilisateur : son aud vaut le client_id, et l'API n'en est pas le destinataire. Vérifier azp ne change rien — cette claim nomme le client autorisé, pas la ressource visée, et laisserait entrer n'importe quel client du même fournisseur. L'API doit exiger un access token dont l'audience est elle-même.",
+  },
+  {
+    q: "Pourquoi vérifier la claim aud d'un access token ?",
+    options: [
+      "Pour refuser un jeton émis pour un autre service du même fournisseur",
+      "Pour vérifier que le jeton n'a pas été émis par un fournisseur usurpé",
+      "Pour s'assurer que l'utilisateur a bien consenti aux scopes demandés",
+      "Pour associer le jeton au client qui l'a demandé et tracer son usage",
+    ],
+    answer: 0,
+    explain: "Un même fournisseur signe des jetons pour de nombreux services : sans contrôle d'audience, un jeton obtenu pour un service peu sensible ouvre un service critique. La confusion la plus fréquente est avec iss, qui dit d'où vient le jeton — et une signature valide le garantit déjà. Le rôle d'aud est de dire pour qui il a été émis, et c'est cette question-là que l'API doit poser.",
+  },
+  {
+    q: "Pourquoi fixer algorithms: ['RS256'] dans jwtVerify protège-t-il de la confusion d'algorithme ?",
+    options: [
+      "Parce que la bibliothèque cesse alors de lire l'en-tête du jeton",
+      "Parce que RS256 est le seul algorithme asymétrique qui empêche de modifier le payload",
+      "Parce que le vérificateur refuse un jeton HS256 signé avec la clé publique, et alg: none",
+      "Parce que la clé publique n'est plus exposée sur l'endpoint JWKS du fournisseur",
+    ],
+    answer: 2,
+    explain: "C'est le serveur qui décide de l'algorithme attendu, jamais le jeton : sans liste, un attaquant présente un jeton HS256 signé en prenant la clé publique RSA comme secret HMAC, ou un jeton alg: none. La bibliothèque continue bien sûr de lire l'en-tête, elle le compare simplement à ce que tu autorises. jose refuse par ailleurs d'utiliser une clé RSA pour du HMAC, mais la liste explicite rend l'intention lisible en revue.",
+  },
+  {
+    q: "Les access tokens Cognito de Novafact contiennent-ils une claim aud ?",
+    options: [
+      "Toujours, avec pour valeur l'URL du user pool qui les a émis",
+      "Jamais : l'access token Cognito ne porte que client_id et scope",
+      "Seulement si le client a demandé une liaison de ressource (RFC 8707)",
+      "Toujours, avec pour valeur le client_id, exactement comme l'ID token",
+    ],
+    answer: 2,
+    explain: "Sans paramètre resource, l'access token Cognito porte client_id et scope mais pas de claim aud : on vérifie alors client_id, iss et les scopes. L'erreur habituelle est de transposer l'ID token, où aud vaut bien le client_id — ce qui conduit à écrire une vérification d'audience qui échouera en production. Novafact demande resource=https://api.novafact.example pour que l'API ait une vraie audience à contrôler.",
   },
 ];
 
 <YouKnow>
-Les jetons bearer ont un défaut connu de tout pentester : qui les détient les utilise. Cette leçon passe en revue l'état de l'art qui corrige ce défaut, et ce qu'il faut regarder pour les agents IA.
+Tu as forgé des JWT, testé alg none et la confusion d'algorithme (M9). Cette leçon écrit la vérification que tu aimerais trouver dans chaque API Express.
 </YouKnow>
 
-## RFC 9700 : l'état de l'art
+## La vérification complète
 
-Publiée en janvier 2025, la **RFC 9700** (*OAuth 2.0 Security Best Current Practice*) met à jour le modèle de menaces d'OAuth et fixe les exigences actuelles. Elle ajoute à l'attaquant réseau classique des attaquants plus réalistes : celui qui lit les réponses d'autorisation (logs, Referer, historique), celui qui lit les requêtes d'autorisation, celui qui obtient un access token. L'essentiel, avec la force de chaque exigence :
-
-| Exigence | Force |
-| --- | --- |
-| Pas de flux mot de passe (ROPC) | MUST NOT |
-| Pas de flux implicite ni de jeton dans la réponse d'autorisation | SHOULD NOT |
-| PKCE pour les clients publics ; le serveur refuse un `code_verifier` sans `code_challenge` initial | MUST |
-| Méthode PKCE qui n'expose pas le verifier (aujourd'hui `S256`) | SHOULD |
-| Comparaison exacte des redirect_uri (sauf port `localhost` des applications natives) | MUST |
-| Protection contre le mix-up (`iss`, RFC 9207) pour les clients multi-serveurs | MUST |
-| Refresh tokens des clients publics liés à l'émetteur ou soumis à rotation | MUST |
-| Access tokens restreints en audience | SHOULD |
-
-Le fil conducteur : réduire ce que vaut un secret volé. Un code sans verifier, un refresh token déjà tourné, un access token restreint à une API ou lié à une clé valent beaucoup moins qu'un jeton bearer universel.
-
-## Des jetons liés à leur détenteur
-
-| Mécanisme | Principe | Usage |
-| --- | --- | --- |
-| **DPoP** (RFC 9449) | Le client signe une preuve à chaque requête avec une clé privée ; le jeton est lié à la clé publique | Clients navigateur et mobiles, sans infrastructure de certificats |
-| **mTLS** (RFC 8705) | Le jeton est lié au certificat client de la connexion TLS | Communications entre services, secteur financier |
-
-Dans les deux cas, un jeton exfiltré (logs, XSS, fuite) ne sert à rien sans la clé.
-
-### DPoP en détail
-
-Le client génère une paire de clés (dans un navigateur, une clé WebCrypto non extractible). À chaque requête, il signe une **preuve** : un petit JWT de type `dpop+jwt`, dont l'en-tête porte sa clé publique (`jwk`), et qui contient la méthode (`htm`), l'URL sans paramètres (`htu`), la date (`iat`), un identifiant unique (`jti`) et, vers une API, le hash de l'access token (`ath`). Le serveur d'autorisation inscrit dans le jeton l'empreinte de la clé (`cnf.jkt`, empreinte JWK SHA-256 de la RFC 7638). L'API reçoit le jeton avec le schéma `Authorization: DPoP …` et la preuve dans l'en-tête `DPoP`.
-
-<Code file="apps/api/src/auth/dpop.ts" hl="6,10,11,12,13">
+<Code file="apps/api/src/auth/verifyAccessToken.ts" hl="9,10,11,12,16">
 
 ```ts
-import { jwtVerify, EmbeddedJWK, calculateJwkThumbprint, base64url } from 'jose';
-import { createHash } from 'node:crypto';
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
 
-export async function verifyDpop(proof: string, accessToken: string, tokenJkt: string, req: { method: string; url: URL }) {
-  const { payload, protectedHeader } = await jwtVerify(proof, EmbeddedJWK, {
-    typ: 'dpop+jwt', algorithms: ['ES256', 'EdDSA'], maxTokenAge: '60s', // asymétrique uniquement, preuve récente
+export const ISSUER = 'https://cognito-idp.eu-west-3.amazonaws.com/eu-west-3_Nova';
+export const AUDIENCE = 'https://api.novafact.example'; // demandé par le BFF via resource= (RFC 8707)
+const JWKS = createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`)); // mis en cache, rafraîchi à la rotation
+
+export const makeVerifier = (keys: JWTVerifyGetKey) => async (token: string) => {
+  const { payload } = await jwtVerify(token, keys, {
+    algorithms: ['RS256'],          // le serveur choisit l'algorithme
+    issuer: ISSUER,                 // le bon fournisseur
+    audience: AUDIENCE,             // émis pour cette API
+    requiredClaims: ['exp', 'sub', 'client_id'],
+    clockTolerance: 30,             // secondes de tolérance d'horloge
   });
-  const htu = `${req.url.origin}${req.url.pathname}`;
-  if (payload.htm !== req.method || payload.htu !== htu) throw new Error('preuve pour une autre requête');
-  const ath = base64url.encode(createHash('sha256').update(accessToken).digest());
-  if (payload.ath !== ath) throw new Error('preuve pour un autre jeton');
-  if ((await calculateJwkThumbprint(protectedHeader.jwk!)) !== tokenJkt) throw new Error('clé non liée au jeton');
-  if (!(await replayCache.addIfAbsent(String(payload.jti), 60))) throw new Error('preuve rejouée');
+  if (payload.token_use !== 'access') throw new Error('Pas un access token');
+  if (payload.client_id !== 'novafact-bff-client-id') throw new Error('Client inattendu');
+  return { sub: payload.sub!, scopes: String(payload.scope ?? '').split(' ') };
+};
+
+export const verifyAccessToken = makeVerifier(JWKS);
+```
+
+</Code>
+
+| Contrôle | Contre quoi |
+| --- | --- |
+| Algorithme fixé | `alg: none`, confusion RS256/HS256 |
+| JWKS de confiance, `jwk`/`jku`/`x5u` ignorés | Clés fournies par l'attaquant |
+| `iss` | Jetons d'un autre fournisseur |
+| `aud` | Jetons émis pour un autre service |
+| `exp`, `nbf` | Jetons expirés ou pas encore valides |
+| Type de jeton | ID token utilisé comme access token (RFC 9068 définit le type `at+jwt` ; Cognito utilise la claim `token_use`) |
+| Client émetteur | Jeton obtenu par une autre application du même pool |
+
+La RFC 8725 (*JWT Best Current Practices*) rassemble ces règles.
+
+<Callout kind="warn">
+**L'audience chez Cognito.** Un access token Cognito ne contient une claim `aud` que si le client a demandé une **liaison de ressource** : le paramètre `resource` (RFC 8707) dans la requête d'autorisation, disponible avec la connexion gérée par Cognito. L'audience devient alors l'URL demandée. Sans ce paramètre, le jeton porte seulement `client_id`, et un `audience` configuré dans `jwtVerify` rejette tous les jetons, ce qui pousse parfois des équipes pressées à retirer la vérification. Novafact demande `resource=https://api.novafact.example` et vérifie **aussi** `client_id`. La bibliothèque `aws-jwt-verify` (AWS Labs) encapsule ces particularités de Cognito, avec `tokenUse` et `clientId`.
+</Callout>
+
+## Pourquoi chaque ligne compte
+
+La **confusion d'algorithme** tient à ce que l'en-tête `alg` est choisi par l'émetteur du jeton, donc par l'attaquant quand il forge. Une bibliothèque qui choisit sa vérification d'après l'en-tête peut accepter un jeton `HS256` signé avec la **clé publique** RSA employée comme secret HMAC, ou un jeton `alg: none`. La liste `algorithms` retourne la décision au serveur. La même logique vaut pour les en-têtes `jwk`, `jku` et `x5u` : ils proposent une clé ou l'URL d'une clé, que le vérificateur doit ignorer. Le `kid`, lui, sert seulement à **choisir** parmi les clés de confiance du JWKS ; dans du code maison, il ne doit jamais atterrir dans un chemin de fichier ou une requête SQL.
+
+Le **JWKS** évolue : le fournisseur fait tourner ses clés et publie la nouvelle avant de l'utiliser. `createRemoteJWKSet` met les clés en cache (10 minutes par défaut) et, face à un `kid` inconnu, recharge le JWKS, au plus une fois toutes les 30 secondes par défaut : un attaquant qui envoie des `kid` aléatoires ne peut pas transformer l'API en générateur de requêtes vers le fournisseur. Si l'API accepte plusieurs émetteurs (le Cognito de Novafact et un fournisseur partenaire), la correspondance émetteur → URL du JWKS est une **liste fixe** dans la configuration, jamais une URL déduite de la claim `iss` du jeton.
+
+Enfin, l'ordre compte : aucune claim n'est lue avant que la signature soit vérifiée. Décoder un jeton pour « regarder le tenant » avant de le vérifier est un classique des revues de code.
+
+## Ce que retenir de la RFC 8725
+
+La RFC 8725 liste douze recommandations. Celles qui changent le plus le code d'une API Node :
+
+- **Vérifier l'algorithme** et n'utiliser que des algorithmes appropriés ; le `none` n'est jamais acceptable pour un jeton qui porte une autorisation.
+- **Des clés d'entropie suffisante** : un jeton HS256 signé avec un secret mémorisable (`novafact-secret`) se casse hors ligne, sans aucune requête au serveur. Un secret HMAC est une valeur aléatoire d'au moins 256 bits.
+- **Ne pas faire confiance aux claims reçues** avant vérification, y compris celles de l'en-tête (`kid`, `jku`, `x5u`).
+- **Utiliser et valider l'audience**, ainsi que l'émetteur et le sujet.
+- **Typer explicitement** les jetons (`typ`), et appliquer des **règles de validation mutuellement exclusives** à des jetons de nature différente : un jeton de réinitialisation de mot de passe, un ID token et un access token signés par la même clé ne doivent jamais pouvoir passer l'un pour l'autre.
+
+Ce dernier point est souvent violé dans les applications qui signent tout avec une seule clé HS256 : le jeton de lien « confirmer mon e-mail » devient un jeton de session si les deux vérifications ne diffèrent que par une claim facultative. Avec jose, l'option `typ` de `jwtVerify` impose le type attendu dans l'en-tête (par exemple `at+jwt` pour les access tokens au format RFC 9068).
+
+## Le middleware Express
+
+<Code file="apps/api/src/auth/requireAuth.ts">
+
+```ts
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const match = /^Bearer ([A-Za-z0-9._~+/-]+=*)$/.exec(req.get('authorization') ?? '');
+  if (!match) {
+    res.set('WWW-Authenticate', 'Bearer');
+    return res.sendStatus(401);
+  }
+  try {
+    req.auth = await verifyAccessToken(match[1]);
+    return next();
+  } catch {
+    res.set('WWW-Authenticate', 'Bearer error="invalid_token"'); // pas de détail sur la raison exacte
+    return res.sendStatus(401);
+  }
 }
 ```
 
 </Code>
 
-Ce code montre les vérifications ; en production, préfère une bibliothèque maintenue et testée pour ce rôle. Le serveur peut en plus imposer un `nonce` fourni par l'en-tête `DPoP-Nonce`, pour qu'une preuve fabriquée à l'avance (par une XSS, par exemple) expire vite. Et DPoP ne protège pas contre ce qui s'exécute **dans** le client : un script injecté peut demander à la page de signer des preuves (leçon 2).
+Le middleware ne dit pas **pourquoi** le jeton est refusé (expiré, mauvaise audience, signature) : ce détail va dans les logs, pas dans la réponse.
 
-### mTLS : la liaison par certificat
+## Tester les cas négatifs
 
-Avec la RFC 8705, le jeton porte l'empreinte du certificat client (`cnf` avec `x5t#S256`), et l'API la compare au certificat présenté sur la connexion TLS. Il n'y a pas de preuve à signer par requête : c'est la poignée de main TLS qui prouve la détention de la clé. Le piège est architectural : quand TLS se termine sur un équilibreur de charge, l'application reçoit le certificat client dans un en-tête ajouté par l'équilibreur. Cet en-tête ne doit pouvoir venir **que** de lui (en-tête supprimé s'il arrive du client, application injoignable autrement), sinon la liaison devient déclarative.
+Un vérificateur se teste surtout sur ce qu'il **refuse**. Avec `jose`, on génère une paire de clés de test et un JWKS local, puis on signe des jetons volontairement défectueux :
+
+<Code file="apps/api/test/verifyAccessToken.test.ts">
+
+```ts
+import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from 'jose';
+import { makeVerifier, ISSUER, AUDIENCE } from '../src/auth/verifyAccessToken';
+
+const { publicKey, privateKey } = await generateKeyPair('RS256');
+const verify = makeVerifier(createLocalJWKSet({ keys: [{ ...(await exportJWK(publicKey)), kid: 'k1', alg: 'RS256' }] }));
+
+const sign = (claims: Record<string, unknown>, aud = AUDIENCE) =>
+  new SignJWT({ token_use: 'access', client_id: 'novafact-bff-client-id', ...claims })
+    .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+    .setIssuer(ISSUER).setAudience(aud).setSubject('user-1').setIssuedAt().setExpirationTime('5m')
+    .sign(privateKey);
+
+it('refuse un jeton émis pour un autre service', async () => {
+  await expect(verify(await sign({}, 'https://pdf.internal.novafact.example'))).rejects.toThrow();
+});
+it('refuse un ID token', async () => {
+  await expect(verify(await sign({ token_use: 'id' }))).rejects.toThrow();
+});
+```
+
+</Code>
+
+La même suite ajoute un jeton expiré, un `alg: none`, un jeton signé par une autre clé et un `client_id` inattendu : chaque ligne du tableau de contrôles a son test.
+
+## Access token, ID token, refresh token
+
+| Jeton | Destinataire | Usage |
+| --- | --- | --- |
+| **ID token** | Le **client** | Savoir qui est l'utilisateur. Jamais envoyé à une API |
+| **Access token** | L'**API** (resource server) | Autoriser un appel, avec des scopes |
+| **Refresh token** | Le **serveur d'autorisation** | Obtenir de nouveaux access tokens |
+
+## Jeton autoportant ou opaque ?
+
+Un JWT se vérifie localement, mais il reste valide jusqu'à son expiration même si la session est révoquée. Un **jeton opaque** oblige l'API à interroger le serveur d'autorisation (**introspection**, RFC 7662), ce qui permet une révocation immédiate au prix d'un appel. Compromis courant : JWT de **quelques minutes** pour les appels fréquents, et révocation des refresh tokens côté serveur. Si l'on met en cache les réponses d'introspection pour réduire la charge, la durée du cache redevient la fenêtre pendant laquelle un jeton révoqué passe encore.
+
+Chez Cognito, révoquer un refresh token invalide aussi les access tokens émis à partir de lui (ils partagent la claim `origin_jti`), mais seuls les services de Cognito le savent. Une API qui vérifie les JWT localement continue de les accepter jusqu'à leur expiration : c'est pourquoi la durée de vie de l'access token (réglable de 5 minutes à 1 jour) est une décision de sécurité, pas un paramètre de confort.
 
 <Callout kind="debate">
-**DPoP, ou des jetons bearer très courts ?** Des access tokens de 5 minutes réduisent déjà beaucoup la valeur d'un vol, pour un coût nul côté client. DPoP ajoute une signature par requête, un cache anti-rejeu côté serveur et une gestion de clés dans le client. Pour une SPA derrière un BFF comme Novafact, les jetons ne quittent pas le serveur et DPoP apporte peu ; pour une application mobile ou un partenaire qui appelle l'API directement, il ferme la fenêtre qu'une expiration courte laisse ouverte.
+**Des JWT pour les sessions ?** Beaucoup de praticiens déconseillent les JWT comme cookie de session d'application web : pas de révocation, taille, et une bibliothèque de plus à configurer correctement, pour un bénéfice (l'absence d'état côté serveur) rarement nécessaire. D'autres les défendent pour des architectures très distribuées. Le compromis de Novafact suit la ligne de partage la plus courante : session opaque entre le navigateur et le BFF, JWT courts entre le BFF et les API.
 </Callout>
 
-## Durcir la demande d'autorisation
+## Les scopes ne sont pas des permissions métier
 
-- **PAR** (RFC 9126) : le client pousse les paramètres de la demande au serveur par un canal authentifié et reçoit une `request_uri` opaque. Rien à lire ni à modifier dans le navigateur, et le serveur peut valider la demande (redirect_uri, scopes) avant même que l'utilisateur la voie.
-- **RAR** (RFC 9396, *Rich Authorization Requests*) : décrire précisément l'autorisation demandée au lieu d'un scope générique, dans un paramètre `authorization_details` structuré en JSON.
-- **FAPI 2.0** : le profil de sécurité de l'OpenID Foundation pour les API sensibles (banque ouverte, santé), **final depuis février 2025**. Il combine PAR, PKCE, jetons liés (DPoP ou mTLS) et authentification forte des clients.
-
-Pour le paiement d'une facture par un logiciel tiers, un scope `payments:write` autoriserait n'importe quel virement. Avec RAR, le consentement porte sur **cette** opération :
-
-<Code file="docs/examples/rar-invoice-payment.json">
-
-```json
-[
-  {
-    "type": "novafact_invoice_payment",
-    "actions": ["initiate"],
-    "locations": ["https://api.novafact.example"],
-    "invoiceId": "inv_7f3c2a",
-    "instructedAmount": { "currency": "EUR", "amount": "1200.00" }
-  }
-]
-```
-
-</Code>
-
-Le serveur d'autorisation affiche ces détails à l'écran de consentement, les recopie dans le jeton, et l'API vérifie que l'opération demandée correspond exactement.
-
-## Entre services : token exchange
-
-La **RFC 8693** (*Token Exchange*) permet à un service d'échanger le jeton reçu contre un nouveau jeton, destiné au service suivant, avec une audience et des droits réduits, tout en conservant l'identité de l'utilisateur d'origine. La requête présente le jeton de l'utilisateur (`subject_token`) et, en cas de délégation, celui de l'acteur (`actor_token`) ; le jeton obtenu porte alors une claim `act` qui dit **qui agit pour qui**. C'est la réponse propre au *confused deputy* (M8) dans une chaîne de microservices… et d'agents IA.
-
-<Code file="docs/examples/token-exchange.http">
-
-```text
-POST /oauth2/token HTTP/1.1
-Host: auth.internal.novafact.example
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token=<access token de l'utilisateur>
-&subject_token_type=urn:ietf:params:oauth:token-type:access_token
-&actor_token=<jeton de l'assistant IA>
-&actor_token_type=urn:ietf:params:oauth:token-type:jwt
-&audience=invoices-api
-&scope=invoices:read
-```
-
-</Code>
-
-Chez Novafact, c'est l'émetteur de jetons internes (M8, leçon 10) qui assure cet échange. Sa politique décide quels échanges sont permis : l'assistant peut obtenir un jeton de lecture des factures pour l'utilisateur, jamais un jeton d'envoi ou de paiement sans confirmation explicite.
-
-## L'autorisation des agents et de MCP
-
-La spécification du **Model Context Protocol** (MCP, version 2026-07-28) s'appuie sur OAuth 2.1 pour autoriser l'accès aux serveurs MCP distants (transport HTTP). Ses exigences principales :
-
-- le serveur MCP **doit** publier ses métadonnées de ressource protégée (RFC 9728), qui indiquent au client quel serveur d'autorisation utiliser ;
-- le client **doit** envoyer le paramètre `resource` (RFC 8707) avec l'URI canonique du serveur MCP, pour que chaque jeton soit émis pour un serveur précis, et utiliser PKCE ;
-- le serveur MCP **doit** vérifier que le jeton lui est destiné (audience), et **ne doit ni accepter ni relayer** d'autres jetons : pas de *token passthrough* vers une API en aval ;
-- le client vérifie le paramètre `iss` de la réponse (RFC 9207) contre l'émetteur enregistré ;
-- pour l'enregistrement des clients, les documents de métadonnées de client (*Client ID Metadata Documents*) sont recommandés, l'enregistrement dynamique (RFC 7591) est désormais déprécié et conservé pour compatibilité.
-
-Le module 19 y revient en détail.
+Un scope `invoices:read` dit que le client **peut** lire des factures, pas **lesquelles**. L'API vérifie toujours, en plus, que la facture appartient au tenant de l'utilisateur (M14). Beaucoup de BOLA naissent de la confusion entre scope et autorisation.
 
 <Recap items={[
-  "RFC 9700 (janvier 2025) fixe l'état de l'art : ROPC interdit, PKCE S256, redirect_uri exact, mix-up, refresh tokens liés ou tournés, audience restreinte.",
-  "DPoP et mTLS lient le jeton à une clé : preuve signée par requête (htm, htu, iat, jti, ath) et empreinte cnf.jkt.",
-  "PAR sort les paramètres d'autorisation du navigateur ; RAR décrit précisément l'opération autorisée.",
-  "FAPI 2.0, final depuis février 2025, combine ces mécanismes pour les API sensibles.",
-  "Token exchange (RFC 8693) et indicateurs de ressource cadrent les chaînes de services et les agents MCP, sans relais de jetons.",
+  "Vérifier algorithme, clés de confiance, iss, aud, exp, nbf, type de jeton et client émetteur ; aucune claim lue avant la signature.",
+  "Chez Cognito, l'aud d'un access token n'existe qu'avec une liaison de ressource (RFC 8707) ; sinon, client_id.",
+  "JWKS en cache avec rechargement borné ; émetteurs et URL de JWKS dans une liste fixe.",
+  "L'ID token est pour le client, l'access token pour l'API, le refresh token pour le serveur d'autorisation ; chaque refus a son test.",
+  "Un scope autorise une catégorie d'action ; l'autorisation sur l'objet reste à vérifier.",
 ]} />
 
+<Lab id="ps-jwt" />
+
 <Sources items={[
-  { title: "RFC 9700", url: "https://www.rfc-editor.org/rfc/rfc9700" },
-  { title: "RFC 9449 : DPoP", url: "https://www.rfc-editor.org/rfc/rfc9449" },
-  { title: "RFC 9126 : PAR", url: "https://www.rfc-editor.org/rfc/rfc9126" },
-  { title: "RFC 9396 : Rich Authorization Requests", url: "https://www.rfc-editor.org/rfc/rfc9396" },
-  { title: "RFC 8693 : Token Exchange", url: "https://www.rfc-editor.org/rfc/rfc8693" },
-  { title: "RFC 9728 : Protected Resource Metadata", url: "https://www.rfc-editor.org/rfc/rfc9728" },
-  { title: "OpenID Foundation : FAPI 2.0 final", url: "https://openid.net/fapi-2-security-profile-attacker-model-final-specifications-approved/" },
-  { title: "MCP : Authorization", url: "https://modelcontextprotocol.io/specification/latest/basic/authorization" },
+  { title: "RFC 8725 : JWT Best Current Practices", url: "https://www.rfc-editor.org/rfc/rfc8725" },
+  { title: "RFC 9068 : JWT Profile for OAuth 2.0 Access Tokens", url: "https://www.rfc-editor.org/rfc/rfc9068" },
+  { title: "RFC 7662 : Token Introspection", url: "https://www.rfc-editor.org/rfc/rfc7662" },
+  { title: "jose (panva)", url: "https://github.com/panva/jose" },
+  { title: "Amazon Cognito : l'access token", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-access-token.html" },
+  { title: "Amazon Cognito : liaison de ressource", url: "https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html" },
+  { title: "aws-jwt-verify (AWS Labs)", url: "https://github.com/awslabs/aws-jwt-verify" },
 ]} />

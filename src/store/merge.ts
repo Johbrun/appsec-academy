@@ -46,7 +46,7 @@ export function mergeProgress(local: Progress, server: Progress): Progress {
   }
 
   return {
-    version: 1,
+    version: 2,
     name: local.name,
     xp: Math.max(local.xp, server.xp),
     lessons,

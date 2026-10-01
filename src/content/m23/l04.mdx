@@ -1,0 +1,163 @@
+export const questions = [
+  {
+    q: "Quelle est la meilleure façon de recruter des Security Champions ?",
+    options: [
+      "Désigner le développeur le plus expérimenté de chaque équipe",
+      "Des volontaires, avec l'accord du manager et du temps réservé",
+      "Recruter des ingénieurs sécurité et les détacher dans les équipes",
+      "Confier le rôle aux tech leads, déjà présents dans les conceptions",
+    ],
+    answer: 1,
+    explain: "Il faut les trois ensemble : de l'intérêt — un rôle subi ne produit rien —, un soutien managérial explicite, et du temps inscrit dans le planning. Le tech lead paraît le choix évident puisqu'il assiste aux conceptions, mais son agenda est déjà saturé et le rôle s'évapore à la première échéance. Détacher un ingénieur sécurité recrée précisément ce qu'un champion doit éviter : la sécurité portée par quelqu'un qui n'est pas de l'équipe.",
+  },
+  {
+    q: "Que mesurer pour savoir si le programme de champions fonctionne ?",
+    options: [
+      "Le taux de participation au rendez-vous mensuel du réseau",
+      "Le nombre de règles et de contributions produites par les champions",
+      "La satisfaction des champions, recueillie deux fois par an",
+      "L'évolution dans leurs équipes : threat models, findings en revue, délais",
+    ],
+    answer: 3,
+    explain: "On mesure l'effet dans les équipes, pas l'activité du réseau : threat models réalisés sur les fonctionnalités sensibles, part des vulnérabilités attrapées en revue plutôt qu'en production, délai de correction. Le ressenti des champions se recueille bien deux fois par an — c'est souvent la meilleure feuille de route du programme —, mais il dit si le rôle est tenable, pas s'il produit un effet. Contributions et participation, elles, montent dès que le réseau s'anime, même si rien ne change dans le code.",
+  },
+  {
+    q: "Six mois après le lancement, le champion de l'équipe Paiement reçoit tous les tickets de sécurité et relit seul chaque PR sensible. Quel est le problème ?",
+    options: [
+      "Il est devenu le point de passage unique : l'équipe s'est déchargée sur lui",
+      "Il sort de son mandat : ces revues relèvent de l'AppSec, pas du champion",
+      "Aucun : relire les changements sensibles est précisément son rôle",
+      "Il lui manque la formation nécessaire pour tenir ce volume de revues",
+    ],
+    answer: 0,
+    explain: "Relire les changements sensibles fait bien partie du rôle — c'est ce qui rend l'objection tentante —, mais les relire tous, seul, signifie que l'équipe s'est déchargée : le goulot d'étranglement a simplement migré de l'AppSec vers une personne, en plus fragile. Un congé de trois semaines laisse alors les PR sensibles sans relecteur. Les parades sont connues : un CODEOWNERS qui pointe une équipe et non un individu, un second champion sur les périmètres sensibles, une passation prévue.",
+  },
+  {
+    q: "Pourquoi le guide OWASP recommande-t-il un « captain » dédié au programme ?",
+    options: [
+      "Pour valider les décisions des champions et garder un niveau homogène",
+      "Pour décharger l'équipe AppSec du suivi opérationnel des findings",
+      "Parce que le programme demande une attention continue qui disparaît sinon",
+      "Parce que la direction a besoin d'un interlocuteur unique sur le sujet",
+    ],
+    answer: 2,
+    explain: "Feuille de route, défense du temps des champions auprès des managers, animation de la communauté, compte rendu à la direction : fait « à côté » par une AppSec déjà chargée, tout cela s'essouffle après l'enthousiasme du lancement. Le captain n'est pas un valideur — le guide recommande au contraire de donner aux champions un mandat de décision dans les limites de l'appétence au risque — et il ne reprend pas le triage des findings, qui reste à l'équipe.",
+  },
+];
+
+<YouKnow>
+Une équipe AppSec est toujours beaucoup plus petite que la population de développeurs qu'elle sert. Tu ne pourras pas relire tout le code ni assister à toutes les conceptions : il te faut des relais.
+</YouKnow>
+
+## Pourquoi des champions
+
+Un **Security Champion** est un membre d'une équipe produit (souvent un développeur) qui porte la sécurité au quotidien dans son équipe : il pose les bonnes questions en conception, relit les changements sensibles, fait le lien avec l'AppSec. Ce n'est pas un auditeur de plus : c'est un **multiplicateur**.
+
+Son avantage sur toi est décisif : il connaît le code, l'historique des décisions, les raccourcis que l'équipe prend sous pression et les endroits où les données sensibles passent vraiment. Il est présent au moment où la décision se prend (la réunion de conception, la revue de PR), alors que tu arriverais après. Et l'équipe l'écoute plus facilement, parce qu'il est « l'un des leurs ».
+
+Ce qu'il n'est pas : un ingénieur sécurité à temps partiel à qui l'équipe délègue toute la sécurité. Si l'équipe se décharge sur lui, tu as déplacé le goulot d'étranglement de l'AppSec vers une personne, en plus fragile.
+
+## Les principes de l'OWASP Security Champions Guide
+
+Le guide OWASP formule dix principes. Regroupés, ils décrivent trois conditions de réussite :
+
+| Condition | Principes du guide | Ce que ça veut dire concrètement |
+| --- | --- | --- |
+| **Un cadre solide** | Partir d'une vision claire ; obtenir le soutien de la direction ; nommer un *captain* dédié | Des objectifs écrits, du temps alloué validé par les managers, et une personne dont le programme est le travail |
+| **Des personnes motivées et libres d'agir** | Être passionné de sécurité ; faire confiance aux champions ; créer une communauté ; favoriser le partage | Des volontaires, un mandat pour décider dans les limites de l'appétence au risque, un réseau qui échange |
+| **Un programme qui dure** | Récompenser la responsabilité ; investir dans les champions ; anticiper les changements de personnel | Reconnaissance et progression de carrière, formation, et un programme qui survit au départ de n'importe qui |
+
+Le principe du **captain** est le plus souvent négligé. Le guide observe qu'un programme de champions demande une attention continue : définir la feuille de route, obtenir et défendre le temps des champions auprès des managers, animer la communauté, rendre compte à la direction. Fait « à côté » par une AppSec déjà débordée, il s'essouffle après quelques mois.
+
+Le principe de **confiance** va plus loin qu'on ne le croit : le guide recommande de donner aux champions un vrai **mandat de décision** dans les limites de l'appétence au risque de l'organisation. Un champion qui doit demander l'avis de l'AppSec pour chaque question n'est qu'un intermédiaire.
+
+## Recruter et démarrer
+
+<Steps items={[
+  { title: "Un engagement explicite", text: "Une part du temps réservée et écrite, avec l'accord du manager. Sans temps prévu, le rôle disparaît à la première échéance." },
+  { title: "Des volontaires", text: "L'intérêt compte plus que le niveau initial : la compétence se construit. Un développeur curieux qui a signalé un bug de sécurité est un excellent candidat." },
+  { title: "Un rôle clair", text: "Ce qu'on attend (relire les PR sensibles, animer un threat model, trier les findings de l'équipe) et ce qu'on n'attend pas (tout sécuriser seul, être d'astreinte sécurité)." },
+  { title: "Un parcours d'arrivée", text: "Les premières semaines : les outils et leurs résultats pour son équipe, un threat model animé en binôme avec l'AppSec, une revue de PR commentée ensemble." },
+  { title: "Une communication régulière", text: "Un canal dédié, un rendez-vous mensuel, des retours rapides de l'équipe AppSec." },
+  { title: "De la reconnaissance", text: "Visible et concrète : mention dans les entretiens annuels, conférences, certifications prises en charge, et une place dans la grille de carrière." },
+]} />
+
+Le guide suggère un ratio d'ordre de grandeur (par exemple, un champion pour 25 développeurs dans une grande organisation). Chez une entreprise de la taille de Novafact, **un par équipe** est le point de départ naturel ; au-delà, un second champion dans les équipes qui touchent au paiement ou à l'authentification évite la dépendance à une seule personne.
+
+## Le rôle dans le code : CODEOWNERS
+
+Le mandat du champion devient concret quand il est inscrit dans l'outillage. Sur GitHub, un fichier `CODEOWNERS` combiné à la règle de protection de branche « Require review from Code Owners » impose une revue par les bonnes personnes sur les chemins sensibles :
+
+<Code file=".github/CODEOWNERS" hl="5,6,7">
+
+```text
+# Propriétaires par défaut : l'équipe elle-même
+*                               @novafact/billing
+
+# Chemins sensibles : une revue d'un champion (ou de l'AppSec) est requise
+/apps/api/src/auth/             @novafact/billing-champions @novafact/appsec
+/apps/api/src/dal/              @novafact/billing-champions @novafact/appsec
+/apps/api/src/webhooks/         @novafact/billing-champions @novafact/appsec
+
+# La configuration des contrôles de sécurité reste à l'AppSec
+/.semgrep/                      @novafact/appsec
+```
+
+</Code>
+
+Deux détails comptent. Le propriétaire est une **équipe** (`@novafact/billing-champions`, qui contient deux personnes), pas un individu : l'absence d'une personne ne bloque pas les livraisons. Et l'AppSec figure sur la même ligne, en recours, pas en passage obligé : n'importe lequel des propriétaires listés suffit pour approuver.
+
+## Animer le réseau
+
+- **Un rendez-vous mensuel** d'une heure : un sujet technique (une vulnérabilité récente, une nouvelle règle), un retour d'une équipe, les questions ouvertes.
+- **Des exercices pratiques** : un threat model en direct sur une vraie fonctionnalité, une revue de code en groupe, un CTF interne.
+- **Un accès privilégié** : les champions sont prévenus en premier des nouvelles règles et donnent leur avis avant qu'elles deviennent bloquantes. Une règle Semgrep qui produit des faux positifs dans leur équipe, ils le savent avant toi.
+- **Des contributions reconnues** : un champion qui écrit une règle, améliore le template de service ou présente un retour d'expérience le fait au nom du réseau, et c'est visible.
+
+<Callout kind="warn">
+Trois dérives classiques. Le champion **boîte aux lettres**, à qui l'AppSec envoie tous les tickets de l'équipe et qui les transmet : il n'apporte rien et s'use. Le champion **alibi**, dont l'existence sert à dire « l'équipe a quelqu'un pour ça » pendant que le reste de l'équipe s'en désintéresse. Le champion **épuisé**, dont le temps réservé a été mangé par les échéances du sprint sans que personne ne le défende : c'est précisément le rôle du captain et du manager.
+</Callout>
+
+## Anticiper les départs
+
+Les champions changent d'équipe, sont promus ou partent. Le guide OWASP en fait un principe à part entière, parce qu'un programme qui repose sur quelques personnes clés s'effondre à leur départ. Les parades :
+
+- **deux champions** dans les équipes les plus sensibles ;
+- une **documentation** du rôle et des pratiques de l'équipe (son threat model, ses exceptions en cours) qui ne vit pas seulement dans la tête du champion ;
+- une **passation** prévue quand un champion quitte son rôle, comme pour toute responsabilité ;
+- un rôle **officiellement reconnu**, aligné avec les RH, pour qu'il puisse figurer dans les recrutements et les promotions.
+
+## Mesurer
+
+Mesure l'effet **dans les équipes** plutôt que l'activité du réseau :
+
+| Indicateur | Ce qu'il montre |
+| --- | --- |
+| Threat models réalisés sur les nouvelles fonctionnalités sensibles | La sécurité entre dans la conception |
+| Part des vulnérabilités trouvées en revue plutôt qu'en test ou en production | Les défauts sont attrapés plus tôt |
+| Délai de correction des findings de l'équipe | Le triage et le suivi fonctionnent |
+| Questions posées à l'AppSec avant plutôt qu'après la livraison | Le réflexe de consulter s'installe |
+| Rétention des champions sur un an | Le rôle est tenable et valorisé |
+
+Et demande aux champions eux-mêmes, deux fois par an, ce qui les aide et ce qui les freine. Leurs réponses sont souvent la meilleure feuille de route du programme.
+
+<Callout kind="novafact">
+Novafact démarre avec cinq champions, un par équipe, sur la base du volontariat et avec 15 % de leur temps, inscrit dans les objectifs validés par leurs managers. Premier objectif commun : un threat model léger pour chaque nouvelle fonctionnalité du trimestre, animé par le champion avec l'appui de l'AppSec. Au deuxième trimestre, l'équipe Paiement ajoute un second champion après que le premier, en congé trois semaines, a laissé les PR sensibles sans relecteur.
+</Callout>
+
+<Recap items={[
+  "Un champion est un multiplicateur dans son équipe, pas un auditeur de plus ni un délégataire de toute la sécurité.",
+  "Trois conditions : un cadre (vision, soutien, captain), des personnes motivées et mandatées, un programme qui dure.",
+  "Volontariat, temps réservé et accord du manager sont indispensables.",
+  "CODEOWNERS inscrit le rôle dans l'outil, avec des équipes plutôt que des individus.",
+  "Éviter les champions boîte aux lettres, alibi ou épuisés ; anticiper les départs.",
+  "On mesure l'effet dans les équipes, pas l'activité du réseau.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Security Champions Guide", url: "https://securitychampions.owasp.org/" },
+  { title: "OWASP Security Champions Guide : Nominate a dedicated captain", url: "https://securitychampions.owasp.org/principles/04_Nominate_a_dedicated_captain/" },
+  { title: "OWASP Security Champions Guide : Anticipate personnel changes", url: "https://securitychampions.owasp.org/principles/10_Anticipate_personnel_changes/" },
+  { title: "OWASP SAMM : Education & Guidance", url: "https://owaspsamm.org/model/governance/education-and-guidance/" },
+  { title: "GitHub Docs : About code owners", url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners" },
+]} />

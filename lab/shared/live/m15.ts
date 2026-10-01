@@ -1,4 +1,4 @@
-// M15 · IAM AWS — challenges jouables.
+// m15 · IAM AWS — challenges jouables.
 //
 // Challenges « fix » : le défaut vit dans les documents de politique du dépôt
 // fixture `novafact/infra/`, pas dans une requête. Aucun compte AWS n'est
@@ -118,7 +118,7 @@ export const m15: ExerciseDef[] = [
     brief: 'Un rôle partenaire fait confiance au compte d’un tiers sans condition d’identifiant externe ni d’organisation.',
     goal: 'Ajouter la condition, et vérifier qu’aucune politique d’approbation inter-comptes n’en est dépourvue.',
     file: 'novafact/infra/iam/partner-role.json',
-    lessons: ['m15/l06', 'm08/l03'],
+    lessons: ['m15/l06', 'm08/l04'],
     hints: [
       'Le prestataire a d’autres clients que toi, et il assume leurs rôles depuis le même compte.',
       'L’ARN d’un rôle n’est pas un secret : il suffit de le connaître pour demander au prestataire de s’en servir. AWS a créé une clé de condition pour exactement ce problème.',
@@ -188,7 +188,7 @@ export const m15: ExerciseDef[] = [
     brief: 'La politique de la clé de chiffrement accorde toutes les opérations à un principal universel, « parce que c’est plus simple ».',
     goal: 'Restreindre aux rôles nommés et au service appelant, sans casser le déchiffrement applicatif.',
     file: 'novafact/infra/iam/kms-key-policy.json',
-    lessons: ['m15/l01', 'm08/l08'],
+    lessons: ['m15/l01', 'm08/l07'],
     hints: [
       'Le chiffrement au repos ne vaut que ce que vaut la politique de la clé.',
       'Deux choses à séparer : qui administre la clé, et qui s’en sert. Et personne ne doit être « tout le monde ». Attention : l’instruction du compte racine est le pivot voulu par AWS, la retirer rend la clé inutilisable.',

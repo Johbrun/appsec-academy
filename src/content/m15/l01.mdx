@@ -51,7 +51,7 @@ En pentest cloud, tu as déjà vu un `AccessDenied` sur une action qui « devrai
 
 ## La requête avant la politique
 
-IAM répond à la même question que ton contrôle d'autorisation applicatif (M8, M12) : **qui** peut faire **quoi** sur **quelle ressource**, dans **quel contexte**. Chaque appel à AWS est traduit en un *request context* :
+IAM répond à la même question que ton contrôle d'autorisation applicatif (M14, M16) : **qui** peut faire **quoi** sur **quelle ressource**, dans **quel contexte**. Chaque appel à AWS est traduit en un *request context* :
 
 - le **principal** : utilisateur IAM, session de rôle (`arn:aws:sts::…:assumed-role/role/session`), utilisateur fédéré, principal de service (`lambda.amazonaws.com`) ou compte racine ;
 - l'**action** : `s3:GetObject`, `kms:Decrypt`, `sts:AssumeRole` ;
@@ -120,7 +120,7 @@ Les conditions transforment une politique générique en règle précise. Celles
 | Clé | Ce qu'elle vérifie | Usage typique |
 | --- | --- | --- |
 | `aws:PrincipalOrgID` | L'organisation du principal appelant | Politique de ressource : seuls les principals de l'organisation |
-| `aws:ResourceOrgID` | L'organisation propriétaire de la ressource | SCP : mes principals n'écrivent que dans mes ressources (M15, leçon 6) |
+| `aws:ResourceOrgID` | L'organisation propriétaire de la ressource | SCP : mes principals n'écrivent que dans mes ressources (M19, leçon 6) |
 | `aws:SourceArn`, `aws:SourceAccount` | La ressource ou le compte pour lequel un service agit | Protection contre le *confused deputy* des principals de service |
 | `aws:SecureTransport` | La requête est-elle en TLS | Refuser tout accès en clair à un bucket |
 | `aws:SourceVpce`, `aws:SourceVpc` | Le point de terminaison VPC ou le VPC d'origine | Périmètre réseau d'un bucket ou d'un secret |
@@ -184,7 +184,7 @@ Le bucket `novafact-prod-invoices-pdf` stocke les PDF de toutes les factures, to
 
 </Code>
 
-Remarque ce que la politique **ne fait pas** : elle ne sépare pas les tenants entre eux. Le rôle de l'API lit tous les préfixes, et c'est le code (M8) qui choisit la bonne clé d'objet à partir du tenant de la session. Si tu veux qu'IAM porte aussi l'isolation, il faut une session par tenant (session policy ou tags de session), un choix d'architecture traité en M8.
+Remarque ce que la politique **ne fait pas** : elle ne sépare pas les tenants entre eux. Le rôle de l'API lit tous les préfixes, et c'est le code (M14) qui choisit la bonne clé d'objet à partir du tenant de la session. Si tu veux qu'IAM porte aussi l'isolation, il faut une session par tenant (session policy ou tags de session), un choix d'architecture traité en M14.
 
 ## Déboguer un AccessDenied sans tout ouvrir
 

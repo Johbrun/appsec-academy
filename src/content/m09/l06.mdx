@@ -1,157 +1,168 @@
 export const questions = [
   {
-    q: "Quel est le principe d'une attaque par signature wrapping (XSW) en SAML ?",
+    q: "Qu'est-ce qu'une attaque « mix-up » en OAuth ?",
     options: [
-      "Rejouer une assertion valide avant l'expiration de sa fenêtre NotOnOrAfter",
-      "Remplacer le certificat du KeyInfo par celui de l'attaquant dans la réponse",
-      "Exploiter une entité XML externe pour lire un fichier du serveur d'authentification",
-      "Faire vérifier la signature sur un élément, et lire l'identité dans un autre",
-    ],
-    answer: 3,
-    explain: "La signature reste mathématiquement valide : elle porte sur un élément que l'attaquant a conservé, pendant que le code d'extraction lit une assertion qu'il a ajoutée ailleurs dans l'arbre. C'est une divergence entre deux parcours du même document, pas un problème de cryptographie — d'où l'inutilité de toute vérification supplémentaire de la signature elle-même. Substituer le certificat du KeyInfo est une attaque réelle et distincte, qui ne marche que si l'application fait confiance au certificat inclus dans le message.",
-  },
-  {
-    q: "Quelle règle d'implémentation protège le mieux une application Node qui consomme du SAML ?",
-    options: [
-      "Réextraire les attributs du XML après validation, pour ne rien manquer",
-      "Utiliser une bibliothèque à jour et ne lire que le résultat qu'elle a vérifié",
-      "Vérifier la signature de la réponse, ce qui couvre l'assertion qu'elle contient",
-      "Valider le document contre le schéma XSD de SAML avant toute lecture",
-    ],
-    answer: 1,
-    explain: "Chaque réanalyse maison est un nouveau parser, donc une nouvelle occasion de diverger de celui qui a validé la signature : c'est exactement le terrain du signature wrapping. Croire que la signature de la réponse couvre l'assertion est l'autre piège classique — une assertion non signée peut être glissée dans une réponse signée si l'on ne vérifie pas laquelle des deux porte la signature. La validation XSD n'y change rien : le document forgé reste conforme au schéma.",
-  },
-  {
-    q: "Pourquoi régler validateInResponseTo sur always dans @node-saml/node-saml ?",
-    options: [
-      "Pour vérifier que l'assertion désigne bien Novafact comme destinataire",
-      "Pour refuser une réponse dont la fenêtre NotOnOrAfter est dépassée",
-      "Pour n'accepter qu'une réponse qui répond à une demande encore en attente",
-      "Pour s'assurer que l'IdP émetteur est bien celui configuré pour ce tenant",
+      "Un attaquant échange son propre code contre les jetons de la victime",
+      "Deux clients du même fournisseur se partagent un redirect_uri commun",
+      "Un client multi-fournisseurs envoie le code au mauvais serveur, celui de l'attaquant",
+      "Le client confond l'ID token et l'access token dans les appels qu'il adresse à ses API",
     ],
     answer: 2,
-    explain: "La valeur par défaut est never, et la bibliothèque avertit qu'une réponse peut alors être rejouée ou livrée sans qu'aucune demande n'ait été émise. Avec always, l'InResponseTo doit correspondre à une requête émise par Novafact, et l'identifiant est consommé une seule fois. Les contrôles de destinataire, de validité et d'émetteur existent et sont indispensables, mais chacun répond à une autre question : aucun ne dit que cette réponse-ci a été sollicitée.",
+    explain: "La réponse d'autorisation qui arrive sur le callback n'indique pas toujours de quel serveur elle vient : un client qui parle à plusieurs fournisseurs peut envoyer le code, et son secret client, au serveur de l'attaquant. Le paramètre iss de la RFC 9207 permet de le vérifier. L'injection de code est l'attaque voisine mais inverse — c'est le code de l'attaquant qu'on fait avaler au client légitime — et c'est PKCE qui la bloque.",
   },
   {
-    q: "L'IdP d'un client annonce la rotation de son certificat de signature dans deux semaines. Comment l'absorber sans coupure ?",
+    q: "Pourquoi l'attaque « nOAuth » (2023) a-t-elle permis des prises de contrôle de comptes ?",
     options: [
-      "Faire confiance au certificat présent dans le KeyInfo de chaque réponse",
-      "Configurer les deux certificats pour ce tenant, puis retirer l'ancien après bascule",
-      "Recharger les métadonnées de l'IdP à chaque authentification entrante",
-      "Planifier une fenêtre de maintenance et basculer le certificat à l'heure dite",
+      "Parce que le paramètre state n'était pas lié à la session du navigateur",
+      "Parce que des applications identifiaient l'utilisateur par la claim email",
+      "Parce que l'ID token n'était pas vérifié contre le JWKS du fournisseur",
+      "Parce que le scope email pouvait être obtenu sans consentement explicite",
     ],
     answer: 1,
-    explain: "idpCert accepte une liste : on ajoute le nouveau certificat avant la bascule, on retire l'ancien après, et personne ne voit rien. Faire confiance au KeyInfo du message revient à laisser l'attaquant choisir la clé qui valide sa propre signature. Recharger les métadonnées à chaque authentification paraît élégant, mais cela place la confiance dans une URL joignable à tout moment, sans contrôle humain sur ce qui change, et rend l'authentification dépendante de la disponibilité de l'IdP.",
+    explain: "Chez certains fournisseurs, un administrateur de tenant peut poser n'importe quelle adresse sur un compte sans la vérifier : il suffit d'y écrire l'e-mail de la victime pour se connecter à sa place sur toute application qui rapproche les comptes par e-mail. Les jetons étaient parfaitement valides et signés — c'est ce qui rend l'attaque discrète, et pourquoi chercher un défaut de vérification cryptographique mène à côté. On identifie un utilisateur par le couple (iss, sub).",
+  },
+  {
+    q: "Un comptable de Novafact a autorisé une application tierce malveillante à lire ses factures. Pourquoi changer son mot de passe ne suffit-il pas ?",
+    options: [
+      "Parce que le changement de mot de passe ne révoque que la session du navigateur",
+      "Parce que l'application peut relancer un flux d'autorisation sans interaction",
+      "Parce que Cognito ne propage le changement qu'après expiration du cache JWKS",
+      "Parce que l'application détient ses propres jetons, liés au consentement accordé",
+    ],
+    answer: 3,
+    explain: "Le consentement crée une autorisation indépendante du mot de passe : tant qu'elle n'est pas révoquée, l'application renouvelle ses accès avec son refresh token. L'idée que le changement ne révoquerait « que la session du navigateur » décrit le bon symptôme avec la mauvaise cause : le problème n'est pas l'étendue de la révocation de session, c'est qu'une délégation OAuth ne passe pas du tout par le mot de passe. On révoque l'autorisation, puis on regarde ce qui a déjà été exporté.",
+  },
+  {
+    q: "Pourquoi la page de callback OAuth de Novafact ne charge-t-elle aucun script tiers et envoie-t-elle Referrer-Policy: no-referrer ?",
+    options: [
+      "Parce qu'un script tiers pourrait lire le jeton d'accès stocké dans le localStorage de la page",
+      "Parce que le code d'autorisation est dans l'URL et peut fuir par Referer ou un script",
+      "Parce que le code_verifier transite en clair dans l'URL du callback",
+      "Parce que la CSP de la page de callback doit rester alignée sur celle de l'API",
+    ],
+    answer: 1,
+    explain: "Le code d'autorisation transite dans la query string du callback : un script tiers, un écouteur postMessage trop permissif ou un simple en-tête Referer vers une ressource externe suffisent à le faire fuir. C'est le scénario dit du « dirty dancing », où l'attaquant fait volontairement échouer le flux pour que le code atterrisse sur une page qui fuit. Le code_verifier, lui, ne passe jamais par le navigateur : il part en POST directement vers le serveur d'autorisation.",
   },
 ];
 
 <YouKnow>
-Tu as peut-être déjà exploité du signature wrapping ou des commentaires XML dans des assertions. SAML reste incontournable pour le SSO entreprise ; cette leçon dit comment l'intégrer sans y laisser de porte.
+Tu connais ces attaques par cœur côté offensif. Chaque ligne de cette leçon associe une attaque à la défense précise qui l'élimine, pour que tu puisses la vérifier en revue de conception.
 </YouKnow>
 
-## Pourquoi SAML reste là
+## Les attaques et leurs défenses
 
-Les grands comptes de Novafact exigent le **SSO** avec leur fournisseur d'identité, souvent en **SAML 2.0**. Le protocole repose sur des assertions XML signées avec **XML-DSig** : un terrain notoirement difficile, parce que vérifier une signature XML et lire le document sont deux opérations distinctes, souvent faites par des parsers différents.
+| Attaque | Mécanisme | Défense |
+| --- | --- | --- |
+| **Interception du code** | Une autre application ou un script récupère le code d'autorisation | PKCE obligatoire |
+| **redirect_uri manipulé** | Le serveur accepte une URL proche de celle enregistrée | Comparaison exacte des URL enregistrées |
+| **Open redirect en chaîne** | Le redirect_uri pointe vers une page légitime qui redirige ailleurs (M9, leçon 4) | Comparaison exacte, pas d'open redirect sur le domaine du client |
+| **CSRF de connexion** | La victime est connectée avec le compte de l'attaquant | `state` lié à la session |
+| **Mix-up** | Un client multi-fournisseurs envoie un code au mauvais serveur | Paramètre `iss` dans la réponse (RFC 9207), vérifié par le client |
+| **Fuite de jeton** | Jeton dans l'URL, le Referer, les logs, l'historique | Code + PKCE, jetons jamais dans l'URL, `Referrer-Policy` |
+| **Dirty dancing** | Le flux est cassé exprès pour faire atterrir le code sur une page d'où il fuit | Page de callback minimale, sans scripts tiers (M9) |
+| **Rejeu d'ID token** | Un ID token capturé est rejoué | `nonce` vérifié |
+| **Identité par l'e-mail** (nOAuth, 2023) | L'application identifie l'utilisateur par une claim `email` modifiable | Identifier par `iss` + `sub` ; n'utiliser l'e-mail que s'il est vérifié et de confiance |
 
-Le flux le plus sûr est celui **initié par le fournisseur de service** (SP-initiated) : Novafact émet une demande d'authentification (`AuthnRequest`) avec un identifiant, l'IdP du client authentifie l'utilisateur, puis le navigateur poste la réponse signée sur le point de consommation d'assertions (ACS) de Novafact, qui vérifie qu'elle répond bien à **sa** demande (`InResponseTo`). Le flux **initié par l'IdP** envoie une réponse que personne n'a demandée : rien ne la relie à une session du navigateur, ce qui facilite le rejeu et l'injection d'une réponse dans la session d'une victime.
+## Le redirect_uri et ses voisins
 
-## Pourquoi XML-DSig est si fragile
+Tout ce qui élargit l'ensemble des URL acceptées crée une page où le code peut atterrir : un préfixe de chemin, un joker de sous-domaine (et donc un sous-domaine abandonné ou mal configuré), une normalisation d'URL différente entre le serveur d'autorisation et le navigateur. La seule règle robuste est la comparaison **exacte** à une liste enregistrée (leçon 3). Côté client, le domaine de callback ne doit contenir **aucune** redirection ouverte : un paramètre `?next=` non validé sur la page de connexion suffit à transformer une URL exacte en tremplin.
 
-Une signature XML ne signe pas « le document » : elle référence un élément par son identifiant, applique des transformations (dont la **canonicalisation**, qui normalise le XML et supprime notamment les commentaires), calcule une empreinte, puis signe le bloc qui contient ces empreintes. L'application, elle, cherche l'élément qui l'intéresse (l'assertion, le `NameID`) avec sa propre logique. Chaque écart entre ces deux regards est une faille potentielle :
+## Mix-up : savoir qui répond
 
-- **Signature wrapping** : l'élément signé est déplacé ou dupliqué, et l'application lit une copie non signée ajoutée par l'attaquant.
-- **Commentaires et canonicalisation** : la signature est calculée sans les commentaires, mais le code qui extrait le texte d'un nœud s'arrête au premier commentaire. Un `NameID` signé pour un compte peut alors être lu comme un autre.
-- **Divergences de parsers** : deux parsers XML qui ne construisent pas le même arbre à partir des mêmes octets (entités, espaces de noms, `DOCTYPE`) font vérifier un document et lire un autre.
+Un client qui parle à plusieurs serveurs d'autorisation (Novafact accepte Cognito, et les fournisseurs d'identité de certains clients) reçoit sur son callback un `code` et un `state`, sans indication fiable de l'émetteur. Si l'un de ces serveurs est malveillant ou compromis, il peut amener le client à envoyer au mauvais point de terminaison un code destiné à un autre. La RFC 9207 ajoute le paramètre `iss` à la réponse d'autorisation : le client enregistre l'émetteur attendu **avant** la redirection, dans la même entrée de session que le `code_verifier`, et compare à l'arrivée. Une alternative plus ancienne consiste à utiliser un `redirect_uri` distinct par serveur d'autorisation.
 
-## Une série qui ne s'arrête pas
+## CSRF de connexion : pourquoi c'est grave
 
-| Recherche | Ce qu'elle a montré |
-| --- | --- |
-| **Duo Labs** (2018) | Des commentaires dans le `NameID` tronquaient l'identité lue par plusieurs bibliothèques (python-saml, ruby-saml, saml2-js, OmniAuth-SAML, Shibboleth) sans invalider la signature |
-| **ruby-saml** (2024-2025) | Plusieurs contournements critiques ; en mars 2025, GitHub Security Lab publie CVE-2025-25291 et CVE-2025-25292, dus aux divergences entre REXML et Nokogiri (corrigés en 1.12.4 et 1.18.0) |
-| **SAMLStorm** (WorkOS, mars 2025, CVE-2025-29775) | `xml-crypto`, au cœur de la plupart des bibliothèques SAML de Node, acceptait un document modifié grâce à un commentaire dans `DigestValue`. Corrigée en 6.0.1 (et 3.2.1, 2.1.6) |
-| *SAML roulette* et *The Fragile Lock* (PortSwigger, 2025) | De nouvelles classes de signature wrapping ; les correctifs incrémentaux ne suffisent pas quand l'architecture repose sur deux parsers |
+Se retrouver connecté au compte de quelqu'un d'autre semble anodin. Pour Novafact, ça ne l'est pas : la victime, croyant être chez elle, saisit les coordonnées bancaires de son entreprise ou téléverse des factures fournisseurs **dans le tenant de l'attaquant**. Le paramètre `state` (ou PKCE, si le serveur l'applique, leçon 3) lie le retour au navigateur qui a démarré le flux.
 
-La leçon d'architecture est celle de M3 : **une seule analyse**, et on lit ce qui a été vérifié. Et côté exploitation, une conséquence pratique : ces failles se corrigent par **mise à jour de dépendance**, souvent transitive (`xml-crypto` sous `@node-saml/node-saml`), d'où l'importance de la SCA (M13) et d'une capacité à déployer vite (M8, leçon 3).
+## Fuites du code : Referer, logs et dirty dancing
 
-## Intégrer SAML dans Node
+Le code d'autorisation voyage dans l'URL du callback. Tout ce qui lit cette URL est une fuite potentielle : l'en-tête `Referer` envoyé aux ressources de la page, les scripts tiers (analytics, chat) qui lisent `location`, les journaux d'accès du CDN ou de l'équilibreur de charge, l'historique du navigateur.
 
-<Code file="apps/bff/src/auth/saml.ts" hl="8,9,14">
+Les recherches de Frans Rosén (Detectify, 2022) ont montré le *dirty dancing* : l'attaquant fait **volontairement échouer** le flux (par exemple en altérant `state` ou le type de réponse) pour que le code, toujours valide, atterrisse sur une page d'erreur ou de repli du client. Si cette page contient un gadget qui fuit (un écouteur `postMessage` qui ne vérifie pas l'origine, un script tiers qui transmet l'URL), le code sort. La défense se joue côté client :
+
+<Code file="apps/bff/src/auth/callbackHardening.ts">
 
 ```ts
-import { SAML, ValidateInResponseTo } from '@node-saml/node-saml';
-
-export const samlFor = (tenant: TenantSsoConfig) => new SAML({
-  issuer: 'https://app.novafact.example/saml/metadata',        // l'entité Novafact
-  callbackUrl: `https://app.novafact.example/saml/acs/${tenant.id}`,
-  entryPoint: tenant.idpSsoUrl,
-  idpCert: tenant.idpCertificates,                             // un ou deux certificats, configurés par tenant
-  wantAssertionsSigned: true,                                  // l'assertion elle-même doit être signée
-  wantAuthnResponseSigned: true,
-  audience: 'https://app.novafact.example/saml/metadata',
-  acceptedClockSkewMs: 60_000,
-  maxAssertionAgeMs: 5 * 60_000,
-  validateInResponseTo: ValidateInResponseTo.always,            // défaut : never
-  cacheProvider: redisRequestIdCache,                          // identifiants de demande partagés entre instances
+router.use('/auth/callback', (req, res, next) => {
+  res.set({
+    'Referrer-Policy': 'no-referrer',     // le code ne part pas dans le Referer des sous-ressources
+    'Cache-Control': 'no-store',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'", // aucune ressource, aucun script
+  });
+  next();
 });
-
-// const { profile } = await samlFor(tenant).validatePostResponseAsync(req.body);
+// Le handler traite le code puis redirige (303) vers une URL propre : le code ne reste ni dans la barre d'adresse ni dans l'historique.
+// Les journaux d'accès (ALB, CloudFront) masquent le paramètre code avant indexation dans Elastic.
 ```
 
 </Code>
 
-`validateInResponseTo` vaut `never` par défaut, et la bibliothèque le signale au démarrage : une réponse peut alors être rejouée ou livrée sans demande. Avec `always`, l'identifiant de la demande est stocké à l'émission et **consommé** à la réception. Le cache par défaut est en mémoire : avec plusieurs instances du BFF, il faut un `cacheProvider` partagé (Redis), sinon une réponse arrivée sur une autre instance est refusée, et la tentation de désactiver le contrôle arrive vite.
+Et côté serveur d'autorisation, un code est à **usage unique** et de très courte durée : un code volé après avoir été échangé ne sert plus.
+
+## L'identité : iss + sub, jamais l'e-mail seul
+
+L'attaque **nOAuth**, décrite par Descope en 2023, visait des applications multi-tenant connectées à Microsoft Entra ID (alors Azure AD) : l'attribut e-mail d'un utilisateur pouvait être modifié par l'administrateur de son propre tenant, sans vérification. Une application qui retrouvait ses utilisateurs par la claim `email`, ou qui **fusionnait** automatiquement un compte fédéré avec un compte existant de même e-mail, ouvrait la prise de contrôle de n'importe quel compte.
+
+<Callout kind="case">
+**Sign in with Apple (2020)**. Un chercheur, Bhavuk Jain, a découvert qu'il pouvait obtenir d'Apple un JWT valide, correctement signé, pour **n'importe quelle** adresse e-mail. Toute application qui faisait confiance à la claim e-mail du jeton pour retrouver un compte existant était exposée à une prise de contrôle complète. Apple a corrigé le défaut et versé une prime de 100 000 dollars. La signature prouvait l'émetteur, pas la vérité de ce que l'émetteur affirmait.
+</Callout>
+
+La règle de Novafact : un compte fédéré est retrouvé par le couple (`iss`, `sub`), unique en base. La liaison avec un compte existant ne se fait jamais automatiquement sur l'e-mail : l'utilisateur doit d'abord se connecter au compte existant, puis ajouter la nouvelle méthode de connexion.
+
+<Code file="apps/bff/src/auth/resolveUser.ts">
+
+```ts
+export async function resolveUser(claims: { iss: string; sub: string; email?: string; email_verified?: boolean }) {
+  const identity = await prisma.federatedIdentity.findUnique({
+    where: { issuer_subject: { issuer: claims.iss, subject: claims.sub } }, // @@unique([issuer, subject])
+    include: { user: true },
+  });
+  if (identity) return identity.user;
+  // Inconnu : pas de rattachement automatique par e-mail, même si email_verified est vrai.
+  return { status: 'link-or-signup-required' as const, suggestedEmail: claims.email };
+}
+```
+
+</Code>
+
+## Le consentement abusif
+
+Toutes les attaques ne cassent pas le protocole. Le **consent phishing** l'utilise normalement : une application malveillante demande des permissions larges (lire les e-mails, accès hors ligne), et l'utilisateur les accorde. Le jeton obtenu **survit au changement de mot de passe**. ATT&CK décrit le vol de jetons d'application (T1528) et la persistance par intégration d'applications cloud (T1671), au cœur de l'ATT&CK SaaS Academy.
+
+<Callout kind="case">
+**Midnight Blizzard (Microsoft, janvier 2024)**. Selon Microsoft, l'attaquant a compromis par pulvérisation de mots de passe un compte d'un ancien tenant de test sans MFA, puis s'est appuyé sur une application OAuth de test existante et en a créé d'autres, auxquelles un compte créé pour l'occasion a donné son consentement. Il a ainsi obtenu le rôle `full_access_as_app` d'Exchange Online, qui donne accès aux boîtes aux lettres. Les applications OAuth et leurs consentements sont des identités à part entière, qui méritent inventaire, revue et alertes.
+</Callout>
+
+Côté Novafact, qui propose une API à des applications tierces :
 
 <Steps items={[
-  { title: "Une bibliothèque maintenue", text: "@node-saml/node-saml à jour, et une version corrigée de xml-crypto vérifiée dans le lockfile (et par la SCA, M13)." },
-  { title: "Signatures exigées", text: "Assertion signée, algorithmes faibles refusés, certificat de l'IdP épinglé par tenant." },
-  { title: "Contexte vérifié", text: "Audience, destinataire (ACS), InResponseTo, NotBefore et NotOnOrAfter, et un identifiant d'assertion à usage unique contre le rejeu." },
-  { title: "Rien de maison", text: "Jamais de réanalyse du XML pour extraire un attribut : on lit le profil retourné par la bibliothèque." },
-  { title: "Rattacher au bon tenant", text: "L'assertion d'un IdP ne peut connecter qu'aux comptes du tenant qui a configuré cet IdP." },
+  { title: "Vérifier les éditeurs", text: "Les applications tierces sont enregistrées et vérifiées avant d'obtenir des scopes sensibles." },
+  { title: "Des scopes étroits", text: "Pas de scope « tout accès » ; des scopes par ressource et par action." },
+  { title: "Un écran de consentement clair", text: "Ce que l'application pourra faire, en langage simple, et qui la publie." },
+  { title: "La révocation", text: "Une page où chaque client voit et révoque les applications autorisées, et une révocation centrale en cas d'incident." },
 ]} />
 
-Si un client exige le flux initié par l'IdP, Novafact ne consomme pas directement la réponse non sollicitée : l'ACS la traite comme un simple signal et **redémarre** un flux initié par Novafact vers le même IdP, ce qui rétablit le lien avec une demande.
+## Côté revue de code
 
-## Les certificats X.509
-
-Chaque tenant configure le certificat de signature de **son** IdP, idéalement importé depuis ses métadonnées. Trois règles :
-
-- le certificat de référence est celui **configuré** pour le tenant ; celui qui figure dans le message (`KeyInfo`) ne sert jamais à décider, puisque c'est l'émetteur du message, donc potentiellement l'attaquant, qui le choisit ;
-- une rotation se prépare par un **chevauchement** : l'ancien et le nouveau certificat sont acceptés pendant la bascule, puis l'ancien est retiré ;
-- les dates d'expiration de tous les certificats configurés sont **surveillées**, avec une alerte au client plusieurs semaines avant : un certificat expiré coupe l'accès de toute une entreprise.
-
-## Les pièges des courtiers d'identité
-
-Cognito, Auth0 ou Keycloak sont souvent placés entre les IdP des clients et l'application. Ils simplifient l'intégration, mais déplacent les questions de confiance dans leur configuration :
-
-| Question | Pourquoi |
-| --- | --- |
-| Quel attribut identifie l'utilisateur ? | Un `NameID` persistant et opaque est stable ; un e-mail peut être réaffecté ou affirmé par n'importe quel IdP (leçon 4) |
-| Le courtier lie-t-il automatiquement des comptes ? | Keycloak peut, dans son flux *first broker login*, rattacher automatiquement une identité externe à un utilisateur existant (« Automatically Set Existing User ») ; Cognito le permet par l'API `AdminLinkProviderForUser`, dont la documentation rappelle qu'elle ne doit servir qu'avec des IdP et des attributs de confiance |
-| Quels domaines un IdP peut-il affirmer ? | L'IdP du client A ne doit pas pouvoir connecter `ceo@client-b.example` |
-| À quel tenant l'IdP est-il rattaché ? | Une assertion valide de l'IdP de A ne donne jamais accès au tenant B |
-
-L'IdP d'un client est administré par ce client, pas par Novafact. Tout ce qu'il affirme est vrai **pour son tenant**, et seulement pour lui.
-
-## Préférer OIDC quand c'est possible
-
-La plupart des fournisseurs d'identité d'entreprise proposent aussi **OpenID Connect**, qui évite toute la complexité de XML-DSig. Propose OIDC par défaut, et SAML quand le client l'exige. Et côté conception : l'intégration SSO d'un client est un **changement de confiance** majeur, qui mérite sa propre revue (M8).
+Dans une PR qui touche à OAuth, cherche d'abord : `state` généré et vérifié ; `code_verifier` présent et méthode `S256` ; `iss` de la réponse comparé à l'émetteur attendu ; URL de redirection construite depuis la configuration ; page de callback sans script tiers ; identifiant utilisateur tiré de (`iss`, `sub`) ; aucune donnée de jeton ni code journalisé.
 
 <Recap items={[
-  "SAML repose sur XML-DSig, où vérifier et lire sont deux opérations distinctes : wrapping, commentaires et divergences de parsers en découlent.",
-  "Duo (2018), ruby-saml, SAMLStorm (xml-crypto) et PortSwigger montrent une série continue : mettre à jour vite, y compris les dépendances transitives.",
-  "node-saml : assertions signées, audience, validateInResponseTo à always avec un cache partagé, flux initié par le SP.",
-  "Certificats configurés par tenant (jamais celui du message), rotation par chevauchement, expirations surveillées.",
-  "Dans un courtier : identifiant stable, pas de liaison automatique par e-mail, un IdP ne connecte que son tenant ; OIDC par défaut.",
+  "PKCE, comparaison exacte des redirect_uri et state éliminent les attaques les plus courantes ; aucune redirection ouverte sur le domaine du client.",
+  "Le paramètre iss (RFC 9207), comparé à l'émetteur enregistré avant la redirection, protège les clients multi-fournisseurs contre le mix-up.",
+  "Le code est dans l'URL : callback minimal, Referrer-Policy, CSP stricte, redirection vers une URL propre, logs masqués.",
+  "Identifier les utilisateurs par iss + sub, jamais par l'e-mail seul (nOAuth, Sign in with Apple) ; pas de fusion automatique de comptes.",
+  "Le consent phishing utilise le protocole normalement : vérification des éditeurs, scopes étroits, révocation visible.",
 ]} />
 
+<Lab id="ps-oauth" note="Fais les labs OAuth et, pour chacun, indique la ligne du tableau qui l'aurait empêché." />
+
 <Sources items={[
-  { title: "WorkOS : SAMLStorm", url: "https://workos.com/blog/samlstorm" },
-  { title: "GitHub Blog : Sign in as anyone, parser differentials in ruby-saml", url: "https://github.blog/security/sign-in-as-anyone-bypassing-saml-sso-authentication-with-parser-differentials/" },
-  { title: "Duo : SAML vulnerabilities affecting multiple implementations (2018)", url: "https://duo.com/blog/duo-finds-saml-vulnerabilities-affecting-multiple-implementations" },
-  { title: "PortSwigger Research : The Fragile Lock", url: "https://portswigger.net/research/the-fragile-lock" },
-  { title: "PortSwigger Research : SAML roulette", url: "https://portswigger.net/research/saml-roulette-the-hacker-always-wins" },
-  { title: "OWASP Cheat Sheet : SAML Security", url: "https://cheatsheetseries.owasp.org/cheatsheets/SAML_Security_Cheat_Sheet.html" },
-  { title: "node-saml", url: "https://github.com/node-saml/node-saml" },
-  { title: "Amazon Cognito : AdminLinkProviderForUser", url: "https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_AdminLinkProviderForUser.html" },
+  { title: "RFC 9700 : OAuth 2.0 Security Best Current Practice", url: "https://www.rfc-editor.org/rfc/rfc9700" },
+  { title: "RFC 9207 : Authorization Server Issuer Identification", url: "https://www.rfc-editor.org/rfc/rfc9207" },
+  { title: "Descope : nOAuth", url: "https://www.descope.com/blog/post/noauth" },
+  { title: "Detectify Labs : dirty dancing", url: "https://labs.detectify.com/writeups/account-hijacking-using-dirty-dancing-in-sign-in-oauth-flows/" },
+  { title: "Bhavuk Jain : Zero-day in Sign in with Apple (2020)", url: "https://bhavukjain.com/blog/2020/05/30/zeroday-signin-with-apple/" },
+  { title: "Microsoft : Midnight Blizzard, guidance for responders (janvier 2024)", url: "https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/" },
+  { title: "MITRE ATT&CK : T1528 Steal Application Access Token", url: "https://attack.mitre.org/techniques/T1528/" },
 ]} />

@@ -57,7 +57,7 @@ Une application Node ne sait pas qu'elle est en production : c'est toi qui le lu
 | --- | --- | --- | --- |
 | `NODE_ENV` | `development` | `production` | Traces de pile dans les réponses d'Express, modes debug des bibliothèques |
 | Gestion d'erreurs | Détail complet | Message générique + identifiant | Chemins, requêtes SQL, versions (A10:2025) |
-| Source maps | Actives | Hors du bucket public (M4) | Code source du front, commentaires, routes internes |
+| Source maps | Actives | Hors du bucket public (M8) | Code source du front, commentaires, routes internes |
 | Routes de debug, GraphiQL, Swagger UI | Actives | Retirées ou derrière authentification | Surface d'attaque gratuite |
 | Niveau de log | `debug` | `info` | Corps de requêtes, jetons, données personnelles dans Elastic |
 | Secrets | Fichier `.env` local | Secrets Manager | Clés dans l'image, la task definition ou un crash report |
@@ -113,7 +113,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
 `err.expose` est posé par `http-errors` (utilisé par Express et `body-parser`) à `true` pour les erreurs 4xx, dont le message est prévu pour le client. Tout le reste est masqué, y compris les messages des pilotes Mongo ou Prisma qui citent des noms de collections et de colonnes.
 
-Deux compléments. Au niveau du processus, depuis Node 15, une promesse rejetée non gérée fait planter le processus par défaut : c'est le bon comportement. Journalise l'événement, laisse le processus s'arrêter, et l'orchestrateur (ECS, Kubernetes) relance une tâche saine plutôt que de continuer dans un état inconnu. Au niveau de la conception, vérifie que chaque contrôle de sécurité **échoue fermé** : si le service d'autorisation ne répond pas, la requête est refusée, pas autorisée (M8).
+Deux compléments. Au niveau du processus, depuis Node 15, une promesse rejetée non gérée fait planter le processus par défaut : c'est le bon comportement. Journalise l'événement, laisse le processus s'arrêter, et l'orchestrateur (ECS, Kubernetes) relance une tâche saine plutôt que de continuer dans un état inconnu. Au niveau de la conception, vérifie que chaque contrôle de sécurité **échoue fermé** : si le service d'autorisation ne répond pas, la requête est refusée, pas autorisée (M13).
 
 ## Secrets : sortir des variables d'environnement
 
@@ -124,7 +124,7 @@ La méthode « Twelve-Factor » a popularisé la configuration par variables d'e
 - elle ne tourne pas : changer la valeur exige un redéploiement.
 
 <Callout kind="case">
-**Codecov (2021)**. Du 31 janvier au 1er avril 2021, le script Bash Uploader de Codecov a été modifié pour envoyer vers un serveur tiers la sortie de la commande `env` des pipelines CI qui l'exécutaient. Tout secret passé en variable d'environnement a été collecté d'un seul coup ; Codecov a demandé à ses clients d'invalider tous les identifiants présents dans l'environnement. Les voleurs d'identifiants de 2025 et 2026 (Shai-Hulud, la compromission de Trivy en mars 2026, M14) ont repris la même cible.
+**Codecov (2021)**. Du 31 janvier au 1er avril 2021, le script Bash Uploader de Codecov a été modifié pour envoyer vers un serveur tiers la sortie de la commande `env` des pipelines CI qui l'exécutaient. Tout secret passé en variable d'environnement a été collecté d'un seul coup ; Codecov a demandé à ses clients d'invalider tous les identifiants présents dans l'environnement. Les voleurs d'identifiants de 2025 et 2026 (Shai-Hulud, la compromission de Trivy en mars 2026, M18) ont repris la même cible.
 </Callout>
 
 Trois niveaux existent sur ECS :
@@ -166,7 +166,7 @@ Le droit `secretsmanager:GetSecretValue` va au **rôle de la tâche**, limité a
 
 `helmet` pose en une ligne treize en-têtes : une CSP par défaut, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, `X-XSS-Protection: 0` (le filtre historique des navigateurs créait lui-même des failles), et il retire `X-Powered-By`. Il ne pose **pas** `Permissions-Policy` ni `Cross-Origin-Embedder-Policy`.
 
-Pour une API qui ne sert que du JSON, la CSP utile est minimale : aucune ressource, aucune intégration en iframe. Les pages HTML reçoivent la politique stricte conçue en M4 (leçon 5 pour l'emplacement).
+Pour une API qui ne sert que du JSON, la CSP utile est minimale : aucune ressource, aucune intégration en iframe. Les pages HTML reçoivent la politique stricte conçue en M8 (leçon 6 pour l'emplacement).
 
 <Code file="apps/api/src/app.ts" hl="5,8,9,13">
 
@@ -192,7 +192,7 @@ app.use((_req, res, next) => {
 
 `trust proxy` mérite une ligne d'explication. Derrière l'ALB, Express voit une connexion HTTP venant de l'adresse de l'ALB. Sans ce réglage, `req.secure` est faux (et `express-session` refuse de poser un cookie `Secure`), et `req.ip` vaut l'adresse de l'ALB, ce qui ruine les limites de débit par IP. Avec `true` au lieu de `1`, Express ferait confiance à toute la chaîne `X-Forwarded-For`, que le client contrôle en partie : indique le nombre exact de sauts.
 
-Pour les cookies de session, la configuration de M4 (leçon 6) s'applique telle quelle : préfixe `__Host-`, `Secure`, `HttpOnly`, `SameSite` explicite, sans `Domain`.
+Pour les cookies de session, la configuration de M8 (leçon 7) s'applique telle quelle : préfixe `__Host-`, `Secure`, `HttpOnly`, `SameSite` explicite, sans `Domain`.
 
 <Callout kind="warn">
 HSTS avec `preload` inscrit le domaine dans les navigateurs pour des mois : tout sous-domaine de `novafact.example` devra servir du HTTPS valide, y compris un vieil outil interne. Active `includeSubDomains` après inventaire des sous-domaines, et `preload` seulement ensuite, par décision explicite.
@@ -239,7 +239,7 @@ resource "aws_lb_listener" "api_https" {
 </Code>
 
 <Callout kind="novafact">
-Revue de mise en production de l'API Express (chiffres fictifs) : `DATABASE_URL` en `environment` dans la task definition, lisible par 14 rôles IAM ; listener créé en CDK sans `sslPolicy`, donc en `ELBSecurityPolicy-2016-08` ; `NODE_ENV` absent, donc traces de pile sur les 500 ; `trust proxy` non défini, donc limite de débit du login appliquée à l'adresse de l'ALB. Quatre corrections d'une ligne, et une règle Checkov maison (M16) qui refuse désormais tout listener HTTPS sans politique TLS 1.2 minimum.
+Revue de mise en production de l'API Express (chiffres fictifs) : `DATABASE_URL` en `environment` dans la task definition, lisible par 14 rôles IAM ; listener créé en CDK sans `sslPolicy`, donc en `ELBSecurityPolicy-2016-08` ; `NODE_ENV` absent, donc traces de pile sur les 500 ; `trust proxy` non défini, donc limite de débit du login appliquée à l'adresse de l'ALB. Quatre corrections d'une ligne, et une règle Checkov maison (M20) qui refuse désormais tout listener HTTPS sans politique TLS 1.2 minimum.
 </Callout>
 
 <Steps items={[
@@ -248,7 +248,7 @@ Revue de mise en production de l'API Express (chiffres fictifs) : `DATABASE_URL`
   { title: "Secrets", text: "Aucun secret en environment ; lecture par le SDK ou champ secrets, droits limités au rôle de la tâche." },
   { title: "En-têtes", text: "helmet, Permissions-Policy, trust proxy au nombre exact de sauts, cookies __Host-." },
   { title: "TLS", text: "Certificats ACM validés par DNS, dans us-east-1 pour CloudFront ; politique TLS écrite explicitement." },
-  { title: "Vérifier", text: "Un test ou un template Nuclei (M13) qui provoque une 500 et vérifie l'absence de trace de pile, à chaque déploiement." },
+  { title: "Vérifier", text: "Un test ou un template Nuclei (M17) qui provoque une 500 et vérifie l'absence de trace de pile, à chaque déploiement." },
 ]} />
 
 <Recap items={[

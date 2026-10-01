@@ -106,15 +106,15 @@ Dans un diff, quelques zones concentrent l'essentiel du risque :
 | Signal dans le diff | Pourquoi |
 | --- | --- |
 | Nouvelle route, nouvelle Server Action, nouveau webhook | Nouvelle surface : authentification, autorisation, validation ? |
-| Code d'authentification, de session, de jetons | Zone critique (M8, M9) |
-| Requête brute, construction de requête, nouveau filtre | Injection, fuite via l'ORM (M2, M3) |
+| Code d'authentification, de session, de jetons | Zone critique (M14) |
+| Requête brute, construction de requête, nouveau filtre | Injection, fuite via l'ORM (M7, M9) |
 | Accès à une ressource par identifiant | BOLA (leçon 5) |
 | Lignes supprimées dans un contrôle | Contrôle perdu au passage |
-| Nouvelle dépendance ou changement du lockfile | Code tiers, supply chain (M14) |
-| Workflow CI, Dockerfile, IaC | Pipeline et infrastructure (M14, M16) |
-| Gestion d'erreur, `catch` vide | Échec en ouvert, fuite d'informations (M2) |
-| Crypto, aléatoire, comparaison de secrets | Mauvais usage (M8) |
-| Journalisation | Données sensibles dans les logs (M18) |
+| Nouvelle dépendance ou changement du lockfile | Code tiers, supply chain (M18) |
+| Workflow CI, Dockerfile, IaC | Pipeline et infrastructure (M18, M20) |
+| Gestion d'erreur, `catch` vide | Échec en ouvert, fuite d'informations (M7) |
+| Crypto, aléatoire, comparaison de secrets | Mauvais usage (M13) |
+| Journalisation | Données sensibles dans les logs (M23) |
 
 Le **lockfile** mérite une mention à part : personne ne relit 20 000 lignes générées, c'est justement ce qui en fait un vecteur. Une ligne `resolved` qui pointe vers un autre hôte que le registre fait installer un autre code que celui déclaré dans `package.json`. Délègue ce contrôle à la CI :
 
@@ -131,7 +131,7 @@ Pour une **nouvelle dépendance**, cinq questions suffisent : existe-t-elle vrai
   { title: "React", text: "Pas de dangerouslySetInnerHTML hors du composant dédié, URL validées avant un href ou un src, pas de secret ni de clé d'API dans le code client." },
   { title: "Next.js", text: "Server Actions authentifiées et autorisées (ce sont des endpoints publics), DTO vers les Client Components, import 'server-only' sur les modules serveur, rien de sensible dans une variable NEXT_PUBLIC_." },
   { title: "Prisma", text: "Pas de $queryRawUnsafe ni de Prisma.raw sur une entrée, filtres construits côté serveur, select explicite des champs renvoyés, pas de data: req.body." },
-  { title: "GitHub Actions", text: "Permissions minimales, actions épinglées par SHA, pas d'expression ${{ }} issue de l'événement dans un run (passer par une variable d'environnement), pas de checkout du code de la PR dans un workflow pull_request_target (M14)." },
+  { title: "GitHub Actions", text: "Permissions minimales, actions épinglées par SHA, pas d'expression ${{ }} issue de l'événement dans un run (passer par une variable d'environnement), pas de checkout du code de la PR dans un workflow pull_request_target (M18)." },
 ]} />
 
 ## Des commentaires actionnables
@@ -148,7 +148,7 @@ Proposition, comme dans `routes/invoices.ts` :
   if (body.amount > invoice.balance) throw new Conflict('amount_exceeds_balance');
 ```
 
-Et un test de refus dans `credit-notes.authz.test.ts` (M13, leçon 2) ?
+Et un test de refus dans `credit-notes.authz.test.ts` (M17, leçon 2) ?
 ````
 
 Remarque le dernier point : demander le **test de refus** transforme ton commentaire en protection durable.

@@ -137,7 +137,7 @@ exitPlan: SEC-412, correction dans le middleware d'autorisation central
 
 Le registre des risques acceptés se revoit chaque trimestre avec les signataires. Deux signaux d'alerte : une acceptation renouvelée plusieurs fois sans progrès sur le plan de sortie, et un même composant qui accumule les acceptations. Le premier dit que « accepter » est devenu « ignorer » ; le second, que le composant mérite une décision plus radicale (le réécrire ou le retirer).
 
-Un cas où le niveau de signature se discute. Le pentest relève que la `redirect_uri` du flux OAuth est validée par préfixe (M9). Pris isolément, le finding est classé faible : il faut une redirection ouverte pour l'exploiter. Sauf qu'une redirection ouverte existe sur `/logout`, également classée faible — et les deux ensemble donnent le vol du compte d'un administrateur de tenant. Le risque ne se signe donc pas au niveau de l'équipe qui porte le finding : il se signe au niveau de celui qui accepterait qu'un client perde le contrôle de son espace.
+Un cas où le niveau de signature se discute. Le pentest relève que la `redirect_uri` du flux OAuth est validée par préfixe (M14). Pris isolément, le finding est classé faible : il faut une redirection ouverte pour l'exploiter. Sauf qu'une redirection ouverte existe sur `/logout`, également classée faible — et les deux ensemble donnent le vol du compte d'un administrateur de tenant. Le risque ne se signe donc pas au niveau de l'équipe qui porte le finding : il se signe au niveau de celui qui accepterait qu'un client perde le contrôle de son espace.
 
 ## NIST SSDF
 

@@ -1,62 +1,89 @@
 export const questions = [];
 
 <YouKnow>
-Les onze premières étapes ont produit des livrables techniques. Les deux dernières prennent de la hauteur : d’abord la roadmap du programme AppSec sur douze mois, avec le module 3 (SAMM).
+Prévenir ne suffit pas : il faut voir quand ça arrive. Cette étape te fait écrire et tester cinq détections Elastic pour Novafact, avec le module 24.
 </YouKnow>
 
-## Étape 11 : roadmap SAMM à 12 mois
+## Étape 11 : cinq détections Elastic
 
-Un dossier de revue liste des trous ; un **programme** dit dans quel ordre les combler, avec quels moyens. Ton livrable : une feuille de route sur douze mois, structurée par les fonctions de l’**OWASP SAMM**, réaliste au regard des moyens de Novafact.
+Ton livrable : cinq **règles de détection** couvrant les menaces prioritaires de Novafact, chacune avec sa logique, ses champs, son niveau de faux positifs et un **test** sur des événements. On vise la qualité, pas le volume : cinq détections utiles valent mieux que cinquante bruyantes.
 
-## Évaluer la maturité actuelle
+## Choisir les cinq
 
-Repars de l’auto-évaluation SAMM (M3) : les cinq fonctions métier (Governance, Design, Implementation, Verification, Operations), chacune avec ses pratiques. Note le niveau actuel de Novafact, honnêtement, à partir de ce que les étapes précédentes ont révélé.
-
-| Fonction | Pratique | Niveau actuel (exemple) | Cible 12 mois |
-| --- | --- | --- | --- |
-| Governance | Éducation et conseil | 1 | 2 |
-| Design | Threat assessment | 1 | 2 |
-| Implementation | Secure build | 1 | 2 |
-| Verification | Security testing | 1 | 2 |
-| Operations | Incident management | 1 | 2 |
-
-<Callout kind="tip">
-Ne vise pas le niveau 3 partout : une cible réaliste vaut mieux qu’un plan ambitieux jamais tenu. Faire passer les pratiques clés de 1 à 2 en un an est déjà un vrai progrès pour une équipe produit.
-</Callout>
-
-## Séquencer sur quatre trimestres
-
-Ordonne les chantiers par **effet de levier** : ce qui protège le plus, le plus tôt, pour le moins d’effort. Les contrôles de classe (M2, M13) et le paved road (M6) viennent tôt, parce qu’ils rendent le reste plus facile.
+Pars du threat model (étape 2) et des contrôles anti-abus (étape 5). Cinq détections qui couvrent des maillons différents :
 
 <Steps items={[
-  { title: "T1 — Fondations", text: "Contrôles de classe (defineRoute, DAL par tenant), SAST différentiel bloquant en PR, secrets scanning, matrice d’exigences adoptée. Effet immédiat sur des classes entières." },
-  { title: "T2 — Chaîne et cloud", text: "Durcissement des workflows (épinglage, OIDC), SBOM et SCA, moindre privilège IAM et garde-fous de compte. Réduit le rayon d’explosion." },
-  { title: "T3 — Détection et conception", text: "Détections Elastic en detection-as-code, revues de conception systématiques sur les fonctionnalités sensibles, threat model vivant." },
-  { title: "T4 — Adoption et mesure", text: "Réseau de champions, formation, métriques (délai de correction, classes éliminées), premier pentest externe ou bug bounty." },
+  { title: "Credential stuffing", text: "Beaucoup de comptes distincts, un essai chacun, depuis peu d’IP, avec un client automatisé (ATT&CK T1110.004)." },
+  { title: "Prise de contrôle de compte", text: "Voyage impossible : une même session change de pays et de type de client en quelques minutes (T1078)." },
+  { title: "Énumération de factures", text: "Un compte parcourt des identifiants séquentiels avec une majorité de 404 (BOLA tentée)." },
+  { title: "Modification d’IAM hors pipeline", text: "Une écriture IAM (Create*, Attach*, Put*) par un rôle autre que terraform-ci (T1548)." },
+  { title: "Honeytoken touché", text: "Toute utilisation d’une fausse clé AWS ou d’une facture-appât : faux positifs quasi nuls." },
 ]} />
 
-## Chiffrer et affecter
+## Écrire une détection
 
-Une roadmap sans moyens est un vœu. Pour chaque chantier, note : qui le porte (AppSec, champions, plateforme), l’effort approximatif, et l’indicateur qui prouvera qu’il a avancé. Rattache chaque chantier à la pratique SAMM qu’il fait progresser et, quand c’est utile, à une obligation réglementaire (CRA, NIS2) qui lui donne du poids auprès de la direction.
+Chaque règle suit la structure ADS (Alerting and Detection Strategy) de M24 : objectif, logique, champs, faux positifs attendus, réponse. Exemple pour la modification d’IAM hors pipeline, en ES|QL :
+
+<Code file="detections/iam-change-outside-pipeline.esql">
+
+```sql
+FROM logs-aws.cloudtrail-*
+| WHERE event.provider == "iam.amazonaws.com"
+    AND event.action RLIKE "(Create|Attach|Put|Delete|Update).*"
+    AND user.name != "role/terraform-ci"
+| STATS actions = COUNT(*) BY user.name, event.action, source.ip
+| SORT actions DESC
+```
+
+</Code>
+
+Et la même logique en règle EQL pour la corrélation de séquence (écriture de politique puis attachement d’admin) :
+
+<Code file="detections/iam-privesc-sequence.eql">
+
+```sql
+sequence by user.name with maxspan=10m
+  [ any where event.action == "CreatePolicyVersion" ]
+  [ any where event.action == "AttachRolePolicy" and aws.cloudtrail.request_parameters like "*AdministratorAccess*" ]
+```
+
+</Code>
+
+## Tester chaque règle
+
+Une détection non testée est une hypothèse (M24). Pour chacune, prépare un petit jeu d’événements : des **vrais positifs** (l’attaque) et des **vrais négatifs** (l’activité légitime qui lui ressemble). Mesure la précision et le rappel, exactement comme le jeu **Detection Builder**.
+
+| Règle | Vrai positif de test | Piège à ne pas alerter |
+| --- | --- | --- |
+| Stuffing | 1 000 comptes, 1 essai, 1 client automatisé | Fautes de frappe d’un utilisateur, API mobile légitime |
+| ATO voyage impossible | FR puis ZA en 3 min | Un utilisateur en déplacement sur plusieurs heures |
+| Énumération | 4 000 lectures, 99 % de 404 | Un export légitime volumineux |
+| IAM hors pipeline | support-tools réécrit sa politique | terraform-ci applique un changement |
+| Honeytoken | toute interaction | (aucune interaction légitime attendue) |
+
+## Detection-as-code
+
+Range les cinq règles dans un dépôt, versionnées, avec leur jeu de test, exactement comme le code applicatif (M24). C’est ce que le DEBMM appelle une pratique mûre : des détections revues, testées et mesurées, pas écrites à la main dans l’interface.
 
 <Callout kind="novafact">
-Fil conducteur de la roadmap de Novafact : « éliminer des classes plutôt que corriger des instances ». Le T1 installe les contrôles de classe et le paved road ; les trimestres suivants s’appuient dessus. La métrique-phare n’est pas le nombre de findings corrigés mais le nombre de classes de vulnérabilités devenues impossibles.
+Les cinq détections de Novafact vivent dans `security/detections/`, chacune avec sa fiche ADS et son fichier d’événements de test. La CI rejoue les événements à chaque changement : une règle qui ne détecte plus son vrai positif, ou qui se met à alerter sur le négatif, casse le build.
 </Callout>
 
 ## Livrable de l’étape
 
-- L’**auto-évaluation SAMM** actuelle de Novafact, par pratique.
-- La **cible à 12 mois**, réaliste, et le **séquencement** en quatre trimestres.
-- Pour chaque chantier : **porteur**, effort, **indicateur** de progrès, pratique SAMM et éventuelle obligation réglementaire.
+- Cinq **règles de détection** (KQL, EQL ou ES|QL) avec leur fiche ADS.
+- Pour chacune, le **jeu d’événements de test** et les mesures de précision et rappel.
+- Le tout en **detection-as-code**, versionné et rejoué en CI.
 
 <Recap items={[
-  "Un programme dit dans quel ordre combler les trous, avec quels moyens.",
-  "Évaluer honnêtement la maturité SAMM actuelle et viser une cible réaliste (souvent 1 → 2).",
-  "Séquencer par effet de levier : contrôles de classe et paved road d’abord.",
-  "Chiffrer, affecter un porteur et un indicateur à chaque chantier ; mesurer les classes éliminées.",
+  "Choisir cinq détections qui couvrent des maillons différents, issues du threat model et de l’anti-abus.",
+  "Structurer chaque règle en ADS : objectif, logique, champs, faux positifs, réponse.",
+  "Tester sur des vrais positifs et des vrais négatifs, mesurer précision et rappel.",
+  "Detection-as-code : règles versionnées, testées et rejouées en CI (maturité DEBMM).",
 ]} />
 
 <Sources items={[
-  { title: "OWASP SAMM", url: "https://owaspsamm.org/" },
-  { title: "OWASP SAMM : toolbox et roadmap", url: "https://owaspsamm.org/guidance/roadmap/" },
+  { title: "Elastic : detection rules", url: "https://www.elastic.co/guide/en/security/current/rules-ui-create.html" },
+  { title: "Palantir : Alerting and Detection Strategy Framework", url: "https://github.com/palantir/alerting-detection-strategy-framework" },
+  { title: "MITRE ATT&CK", url: "https://attack.mitre.org/" },
 ]} />

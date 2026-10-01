@@ -1,4 +1,4 @@
-// M3 · Web avancé — challenges spécifiés.
+// m03 · Web avancé — challenges spécifiés.
 //
 // Le request smuggling (m03/l05) est volontairement absent : il demande une
 // vraie chaîne de proxys avec des analyseurs HTTP divergents. Le simuler en

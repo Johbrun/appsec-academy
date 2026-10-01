@@ -1,7 +1,8 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Difficulty, Feedback, GameHeader, ScoreScreen } from './ui';
-import type { SeriesInfo, SeriesSet } from '../lib/series';
+import { seriesKey, type SeriesInfo, type SeriesSet } from '../lib/series';
 import { useProgress } from '../store/progress';
 
 // Écran de choix de série, commun à tous les jeux.
@@ -10,9 +11,9 @@ import { useProgress } from '../store/progress';
 // tirer, et appelle `finish` au lieu de `recordScore`. Le composant de partie
 // est remonté à chaque série et à chaque « Rejouer » (clé), donc son état
 // repart de zéro sans qu'il ait à le gérer.
-
-/** Clé de score propre à une série : elle n'accorde pas d'XP, elle mémorise. */
-export const seriesKey = (gameId: string, seriesId: string) => `${gameId}:${seriesId}`;
+//
+// `?serie=<id>` ouvre directement une série : c'est le lien que suit une leçon
+// qui l'exige.
 
 export interface SeriesPlay<T> {
   items: T[];
@@ -35,7 +36,11 @@ export function SeriesGame<T>({ gameId, title, intro, set, unit = 'scénarios', 
   children: (play: SeriesPlay<T>) => ReactNode;
 }) {
   const { progress, recordScore } = useProgress();
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const [chosen, setChosen] = useState<string | null>(() => {
+    const wanted = params.get('serie');
+    return set.list.some((s) => s.id === wanted) ? wanted : null;
+  });
   const [salt, setSalt] = useState(0);
 
   const items = useMemo(() => (chosen ? set.items(chosen, salt) : []), [chosen, salt, set]);
@@ -72,7 +77,12 @@ export function SeriesGame<T>({ gameId, title, intro, set, unit = 'scénarios', 
     );
   }
 
-  const back = () => { setChosen(null); setSalt(0); };
+  const back = () => {
+    setChosen(null);
+    setSalt(0);
+    // Sans ça, recharger la page rouvrirait la série qu'on vient de quitter.
+    if (params.has('serie')) setParams({}, { replace: true });
+  };
 
   // Une série vide signale un pool trop étroit : mieux vaut le dire que de
   // planter à l'affichage du premier item.

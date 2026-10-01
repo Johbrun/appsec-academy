@@ -1,6 +1,6 @@
 import { defineSeries, type SeriesProfile } from '../lib/series';
 
-// Modèle du jeu « Abuse Desk » (M10) : du trafic sur Novafact, des contrôles, des compromis.
+// Modèle du jeu « Abuse Desk » (M15) : du trafic sur Novafact, des contrôles, des compromis.
 // Le modèle est volontairement simple et déterministe : chaque contrôle bloque une fraction d'un segment d'abus
 // et gêne une fraction d'un segment légitime. Les effets de plusieurs contrôles se combinent : 1 - Π(1 - e).
 // Le score pondère l'abus bloqué (60 %) et les clients épargnés (40 %) ; 0 % = ne rien faire, 100 % = le

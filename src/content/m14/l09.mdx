@@ -1,211 +1,162 @@
 export const questions = [
   {
-    q: "Une version malveillante d'un paquet porte une attestation de provenance valide, signée par le workflow de release officiel. Comment est-ce possible ?",
+    q: "Un fournisseur envoie un rapport SOC 2 Type I daté d'il y a deux ans. Pourquoi est-ce insuffisant pour un fournisseur critique ?",
     options: [
-      "Le journal de transparence Sigstore a accepté un certificat sans vérification d'identité",
-      "La clé de signature du mainteneur a été volée et réutilisée hors du workflow",
-      "La provenance atteste où et comment, pas quoi : le workflow officiel était piégé",
-      "L'attestation a été générée après coup et rattachée à l'artefact publié",
-    ],
-    answer: 2,
-    explain: "Chercher une clé volée est le réflexe hérité de la signature classique, et il ne s'applique pas : en signature sans clé, il n'y a pas de clé longue durée à voler. Sigstore n'a rien laissé passer, et l'attestation n'a pas été forgée — elle est parfaitement authentique, et c'est tout le problème. La provenance dit où et comment l'artefact a été construit, pas si son contenu est sain. C'est le cas d'Ultralytics (2024) et de TanStack (2026) : la question se déplace vers la sécurité du builder, que SLSA Build L3 traite.",
-  },
-  {
-    q: "Qu'est-ce qui distingue principalement SLSA Build L3 de Build L2 ?",
-    options: [
-      "L3 exige un build durci : runs isolés, matériel de signature hors de portée",
-      "L3 exige une revue de code à deux personnes avant toute publication",
-      "L3 exige un build reproductible, vérifiable à l'identique par un tiers indépendant",
-      "L3 exige un SBOM signé et joint à chaque artefact publié",
+      "Parce qu'un Type I juge la conception à une date, sans tester le fonctionnement",
+      "Parce qu'un Type I ne couvre que le critère de sécurité, sans la disponibilité",
+      "Parce qu'un Type I est produit par le fournisseur lui-même, sans auditeur externe",
+      "Parce que SOC 2 ne s'applique pas aux fournisseurs européens, soumis à l'ISO 27001",
     ],
     answer: 0,
-    explain: "Les trois autres exigences sont réelles, mais ailleurs : la revue à deux personnes relève du Source track, et ni le build reproductible ni le SBOM ne figurent dans les niveaux Build. La marche entre L2 et L3 porte sur le builder lui-même — L2 demande une provenance signée par une plateforme de build hébergée, L3 y ajoute l'isolation entre exécutions et un matériel de signature inaccessible aux étapes définies par l'utilisateur.",
+    explain: "Un Type I est bien émis par un auditeur indépendant, le choix des critères (sécurité, disponibilité, confidentialité…) ne dépend pas du type, et rien n'oppose SOC 2 à l'ISO 27001 selon la géographie. La différence est ailleurs : un Type I atteste de la conception des contrôles à une date donnée, là où un Type II teste leur efficacité opérationnelle sur une période, souvent 6 à 12 mois. Et un rapport de deux ans ne dit rien de l'état actuel — on demande le dernier, plus une lettre de continuité pour la période non couverte.",
   },
   {
-    q: "Avec la signature « sans clé » de Sigstore, que vérifie-t-on au moment du déploiement ?",
+    q: "Le rapport SOC 2 du prestataire de paiement liste des « complementary user entity controls ». Qu'est-ce que cela implique pour Novafact ?",
     options: [
-      "La clé publique du mainteneur, publiée dans le dépôt du projet",
-      "L'empreinte SHA-256 de l'artefact, comparée à celle du registre",
-      "La validité du certificat éphémère au moment du déploiement, et sa non-expiration",
-      "L'identité inscrite dans le certificat éphémère, et l'émetteur OIDC",
+      "Que l'auditeur a relevé des exceptions dans le fonctionnement des contrôles",
+      "Que le fournisseur délègue ces contrôles à ses propres sous-traitants",
+      "Que Novafact doit faire auditer à son tour les contrôles qu'elle applique",
+      "Que certains contrôles supposés par l'auditeur incombent au client",
     ],
     answer: 3,
-    explain: "Exiger un certificat non expiré au moment du déploiement est le piège : les certificats Sigstore vivent quelques minutes, et c'est le journal de transparence qui atteste qu'ils étaient valides à la signature. L'empreinte prouve l'intégrité, pas l'origine, et il n'existe aucune clé publique longue durée à publier. La confiance porte sur une identité — le workflow GitHub et sa référence, plus l'émetteur OIDC. Une vérification qui n'impose pas l'identité attendue n'apporte presque rien.",
+    explain: "La confusion la plus fréquente est avec les sous-traitants du fournisseur, qui figurent ailleurs dans le rapport (subservice organizations), et avec les exceptions relevées par l'auditeur, qui sont encore autre chose. Les CUEC sont la traduction écrite de la responsabilité partagée : si Novafact ne les applique pas — gestion des clés d'API, revue des accès au tableau de bord —, les conclusions du rapport ne tiennent plus pour elle. Ils vont donc dans la checklist d'intégration du fournisseur.",
   },
   {
-    q: "Pourquoi une politique doit-elle aussi détecter l'**absence** de provenance sur une nouvelle version ?",
+    q: "Quelle clause est la plus importante pour l'assistant IA de Novafact, qui envoie des extraits de factures à un fournisseur de modèles ?",
     options: [
-      "Parce qu'une publication hors du workflow officiel n'a pas de provenance",
-      "Parce qu'une version sans provenance ne peut pas être installée par pnpm",
-      "Parce que l'absence de provenance indique que le paquet a été retiré du registre",
-      "Parce que npm exige la provenance sur tous les paquets publics depuis 2025",
+      "Les garanties de disponibilité et les pénalités en cas de dépassement de latence",
+      "L'usage des données : entraînement, rétention, région, sous-traitants, incidents",
+      "La propriété intellectuelle des sorties générées par le modèle, et leur réutilisation",
+      "La réversibilité : la possibilité de changer de fournisseur sans réécrire le code",
     ],
-    answer: 0,
-    explain: "Les trois autres réponses supposent que l'absence de provenance est déjà bloquée, ou déjà signalée par le registre. Elle ne l'est pas : par défaut, une version sans attestation s'installe comme les autres — et c'est ce qui la rend exploitable. Chez Ultralytics, les dernières versions malveillantes ont été publiées avec un jeton d'API, hors du workflow officiel, donc sans attestation. Une baisse du niveau de confiance est un signal, et `trustPolicy: no-downgrade` de pnpm applique cette règle.",
+    answer: 1,
+    explain: "La propriété des sorties, la réversibilité et les engagements de disponibilité sont de vraies clauses, et elles se négocient. Mais aucune ne traite ce qui sort réellement du périmètre de Novafact : les données de facturation de ses clients. Le contrat doit fixer ce que le fournisseur peut en faire (pas d'entraînement), combien de temps il les conserve, où elles sont traitées, avec quels sous-traitants ultérieurs, et sous quel délai de notification en cas d'incident.",
   },
 ];
 
 <YouKnow>
-Tu as déjà vérifié une signature GPG ou une empreinte SHA-256 à la main. La provenance pousse l'idée plus loin : pas seulement « ce fichier n'a pas été modifié », mais « ce fichier a été construit à partir de ce commit, par ce workflow, sur cette plateforme », avec une preuve vérifiable automatiquement avant chaque déploiement.
+En pentest, le périmètre s'arrête souvent là où commence un tiers : « le paiement, c'est le prestataire ». Côté AppSec, ce tiers fait partie de ta surface d'attaque. Cette leçon donne la méthode pour l'évaluer, le contractualiser et le surveiller, sans en faire une usine à questionnaires.
 </YouKnow>
 
-## La chaîne de conservation
+## Qui sont les tiers de Novafact
 
-Entre le commit relu et le conteneur qui tourne en production, l'artefact de Novafact passe par la plateforme Git, le runner, les dépendances téléchargées, le registre d'images et le déploiement. À chaque étape, quelqu'un pourrait substituer autre chose. Le modèle de menaces de SLSA (M11) les nomme : source modifiée hors revue, build compromis, dépendance compromise, artefact substitué entre le build et le déploiement.
-
-La réponse est une **chaîne de conservation** : à chaque étape, une attestation signée dit ce qui s'est passé, et le consommateur vérifie ces attestations contre une politique avant d'accepter l'artefact.
-
-## SLSA v1.2 : deux tracks
-
-SLSA (*Supply-chain Levels for Software Artifacts*, projet OpenSSF) découpe les garanties en **tracks** indépendants. La version 1.2 ajoute le **Source track** au **Build track** existant.
-
-| Build track | Exigence | Ce que ça protège |
+| Tiers | Ce qu'il voit ou fait | Criticité |
 | --- | --- | --- |
-| **L0** | Aucune | Rien : builds locaux, tests |
-| **L1** : provenance existante | Provenance générée automatiquement (builder, processus, entrées principales) | Les erreurs ; falsifiable trivialement |
-| **L2** : plateforme hébergée | Provenance **signée** par une plateforme de build hébergée, vérifiée par le consommateur | La modification après le build ; la falsifier demande une attaque explicite |
-| **L3** : build durci | Runs isolés entre eux, matériel de signature inaccessible aux étapes du projet | La falsification pendant le build, hors vulnérabilité de la plateforme |
+| Prestataire de paiement | Données de carte (dans son iframe), statut des paiements, webhooks | Critique |
+| Fournisseur de modèles d'IA | Extraits de factures et questions des utilisateurs de l'assistant | Critique |
+| AWS | Toute l'infrastructure et les données | Critique |
+| GitHub | Code source, CI/CD, secrets de déploiement | Critique |
+| Elastic (SIEM) | Journaux applicatifs et d'infrastructure | Élevée |
+| Tag manager, analytics, widget de chat | Code exécuté sur les pages de l'application | Élevée (M8) |
+| Société de pentest | Accès temporaire à des environnements et à des findings sensibles | Moyenne, ponctuelle |
 
-| Source track | Exigence |
+La criticité se déduit de trois questions : **quelles données** le tiers traite-t-il, **quel accès** a-t-il à tes systèmes (ou toi aux siens), et **à quel point es-tu dépendant** de lui (remplaçabilité, impact d'une panne). Elle fixe le niveau d'évaluation : on ne demande pas le même dossier au widget de chat et au prestataire de paiement.
+
+## Un cycle de vie, pas un questionnaire
+
+Le **NIST SP 800-161r1** (gestion des risques cyber de la chaîne d'approvisionnement, mis à jour en novembre 2024) et la série **ISO/IEC 27036** (sécurité des relations fournisseurs, avec des parties dédiées à la chaîne TIC et aux services cloud) décrivent la même logique : le risque fournisseur se gère sur toute la durée de la relation. Côté ISO 27001:2022, ce sont les mesures 5.19 à 5.23 de l'annexe A.
+
+<Steps items={[
+  { title: "Planifier", text: "Définir le besoin, les données concernées et la criticité. Décider du niveau d'évaluation." },
+  { title: "Évaluer", text: "Attestations (SOC 2, ISO 27001, PCI DSS), questionnaire (CAIQ), revue d'architecture de l'intégration pour les tiers critiques." },
+  { title: "Contractualiser", text: "Clauses de sécurité, de notification, d'audit, de sortie ; annexe de protection des données." },
+  { title: "Intégrer", text: "Appliquer les contrôles à la charge de Novafact : moindre privilège, clés d'API en coffre, journaux vers le SIEM." },
+  { title: "Suivre", text: "Réévaluation annuelle pour les critiques, veille sur les incidents du fournisseur, revue des accès." },
+  { title: "Sortir", text: "Récupération et suppression des données, révocation des accès et des clés, attestation de destruction." },
+]} />
+
+## Lire les attestations
+
+**SOC 2** (AICPA) : un auditeur indépendant évalue les contrôles du fournisseur selon les *Trust Services Criteria* (sécurité, et selon le périmètre disponibilité, intégrité du traitement, confidentialité, vie privée). Le **Type I** décrit leur conception à une date ; le **Type II** teste leur fonctionnement sur une période. Dans le rapport, lis en priorité :
+
+- la **description du système** : le service que tu achètes est-il dans le périmètre ?
+- les **exceptions** relevées par l'auditeur et la réponse de la direction ;
+- les **sous-traitants** exclus du périmètre (*carve-out*) : l'hébergeur, par exemple, a son propre rapport ;
+- les **CUEC** (*complementary user entity controls*) : les contrôles que l'auditeur suppose appliqués **par toi**.
+
+**ISO 27001** : un certificat ne vaut que par son **périmètre** (quel site, quel service) et sa date ; la déclaration d'applicabilité dit quelles mesures sont retenues. **CSA STAR** et le couple **CCM / CAIQ v4.1** (Cloud Security Alliance) fournissent une grille de contrôles cloud et un questionnaire standard, souvent déjà rempli et publié par le fournisseur : demande-le avant d'envoyer ton propre questionnaire. Pour le paiement, l'**attestation de conformité PCI DSS** (AOC) du prestataire est la pièce clé, en lien avec le périmètre réduit de la page de paiement (M8).
+
+## La responsabilité partagée
+
+| Relation | Ce que fait le fournisseur | Ce qui reste à Novafact |
+| --- | --- | --- |
+| AWS | Sécurité **du** cloud : matériel, hyperviseur, services managés | Sécurité **dans** le cloud : IAM, configuration, données, code |
+| Prestataire de paiement | Traitement des cartes dans son iframe, conformité PCI DSS | Page qui embarque l'iframe, vérification des webhooks, montants calculés côté serveur |
+| Fournisseur d'IA | Sécurité de la plateforme, isolation entre clients | Données envoyées, droits des outils de l'agent, filtrage des sorties (M28) |
+| GitHub | Plateforme, runners hébergés | Workflows, permissions, secrets, règles de l'organisation (leçons 1 à 4) |
+
+Les incidents naissent souvent dans les interstices : un contrôle que chacun croit à la charge de l'autre. Les CUEC et ce tableau se relisent ensemble.
+
+## Les clauses qui comptent
+
+| Clause | Ce que Novafact demande |
 | --- | --- |
-| **L1** : versionné | Code dans un système de gestion de versions moderne |
-| **L2** : historique et provenance | Historique de branche continu et immuable, attestations de provenance de source émises au fil de l'eau |
-| **L3** : contrôles techniques continus | Les politiques de l'organisation (revue, checks) sont appliquées techniquement sur les branches protégées, et vérifiables |
-| **L4** : revue à deux personnes | Deux personnes de confiance approuvent chaque changement avant fusion |
+| **Notification d'incident** | Délai court et chiffré (par exemple 24 à 48 heures après détection), contenu minimal, contact joignable. Novafact a elle-même des délais : 72 heures vers la CNIL pour une violation de données personnelles, obligations CRA et NIS2 selon les cas (M31) |
+| **Notification de vulnérabilité** | Information sur les vulnérabilités affectant le service ou les composants livrés, avec calendrier de correction |
+| **Données** | Finalités, pas d'entraînement de modèles sans accord, rétention, région, chiffrement, suppression en fin de contrat (annexe de sous-traitance RGPD, article 28) |
+| **Sous-traitants ultérieurs** | Liste, information préalable des changements, droit d'objection |
+| **Droit d'audit** | Audit sur pièces (rapports récents) par défaut, audit sur place pour les critiques ou après incident |
+| **Journaux** | Accès aux journaux d'audit du service (API ou export), rétention suffisante |
+| **Propriété intellectuelle** | Code développé par un prestataire cédé à Novafact ; propriété des sorties de l'IA |
+| **Séquestre de code** | Pour un logiciel propriétaire critique : dépôt du code chez un tiers de confiance, remis si l'éditeur disparaît |
+| **Responsabilité** | Plafonds d'indemnisation, en particulier pour une violation de données |
+| **SLA** | Disponibilité, temps de réponse du support, délai de correction des vulnérabilités |
+| **Réversibilité** | Export des données dans un format exploitable, assistance à la migration |
 
-Deux limites à garder en tête : un niveau SLSA qualifie **un artefact et sa construction**, pas la qualité du code ; et il ne se transmet pas aux dépendances, qui ont leur propre niveau (ou aucun).
+## Brancher les tiers sur le SIEM
 
-## Les attestations in-toto
+Un fournisseur critique dont tu ne vois aucun journal est un angle mort. Pour chaque tiers, la question est : **quel événement chez lui doit déclencher une alerte chez moi ?** Connexion d'un administrateur depuis un pays inhabituel sur le tableau de bord du paiement, création d'une clé d'API, changement de l'URL de webhook, pic de consommation chez le fournisseur d'IA, runner self-hosted enregistré sur GitHub.
 
-Une attestation suit le format **in-toto** : un *statement* qui désigne des **sujets** (artefacts identifiés par leur empreinte), un **type de prédicat** et le **prédicat** lui-même. La provenance SLSA est un prédicat parmi d'autres (SBOM, résultats de tests, VSA).
-
-<Code file="provenance.json (extrait simplifié)" hl="3,4,5,9,13">
-
-```json
-{
-  "_type": "https://in-toto.io/Statement/v1",
-  "subject": [{ "name": "novafact-sdk-3.4.0.tgz", "digest": { "sha256": "9f2c…" } }],
-  "predicateType": "https://slsa.dev/provenance/v1",
-  "predicate": {
-    "buildDefinition": {
-      "buildType": "https://actions.github.io/buildtypes/workflow/v1",
-      "externalParameters": {
-        "workflow": { "repository": "https://github.com/novafact/sdk", "path": ".github/workflows/release-sdk.yml", "ref": "refs/tags/v3.4.0" }
-      }
-    },
-    "runDetails": {
-      "builder": { "id": "https://github.com/actions/runner/github-hosted" }
-    }
-  }
-}
-```
-
-</Code>
-
-## Sigstore : signer sans clé longue durée
-
-Gérer des clés de signature est difficile : il faut les protéger, les distribuer, les faire tourner. **Sigstore** remplace la clé par une **identité** :
-
-- **Fulcio**, une autorité de certification, délivre un certificat valable une dizaine de minutes à une identité prouvée par OIDC (un compte, ou un workflow GitHub Actions et sa référence) ;
-- l'artefact est signé avec une clé éphémère liée à ce certificat, puis la clé est oubliée ;
-- **Rekor**, un journal de transparence public en ajout seul, enregistre la signature : toute signature émise pour ton identité y est visible, y compris celles que tu n'as pas faites ;
-- **cosign** signe et vérifie images et fichiers.
-
-La vérification porte donc sur **qui** a signé : l'identité du certificat et l'émetteur OIDC doivent correspondre à ce qui est attendu. Par exemple, pour l'image d'un petit outil open source que Novafact publie depuis un dépôt public et signe avec cosign en mode sans clé :
-
-<Code file="terminal">
-
-```bash
-cosign verify ghcr.io/novafact/webhook-relay@sha256:4b1e… \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github\.com/novafact/webhook-relay/\.github/workflows/release\.yml@refs/tags/v'
-```
-
-</Code>
-
-## GitHub artifact attestations
-
-GitHub intègre Sigstore : l'action `actions/attest` (v4) génère et signe une provenance SLSA pour un artefact, stockée par GitHub. Pour les dépôts publics, la signature passe par l'instance publique de Sigstore ; pour les dépôts privés, par l'instance de GitHub, qui n'a pas de journal de transparence. Seule, elle apporte **SLSA Build L2** ; en construisant dans un **workflow réutilisable** dédié, dont l'identité est celle qui signe, on atteint **Build L3** : le dépôt appelant ne peut ni modifier les étapes de build ni toucher à la signature.
-
-<Code file=".github/workflows/build-image.yml (workflow réutilisable, extrait)" hl="2,3,4,5,11">
+<Code file="vendors/ai-provider.yaml">
 
 ```yaml
-    permissions:
-      id-token: write          # certificat Sigstore
-      attestations: write      # stockage de l'attestation
-      contents: read
-      artifact-metadata: write # enregistrement de l'artefact
-    steps:
-      # … checkout, build et push de l'image, sortie `digest` …
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-name: 111122223333.dkr.ecr.eu-west-3.amazonaws.com/novafact-api
-          subject-digest: ${{ steps.push.outputs.digest }}
+vendor: fournisseur-modeles-ia          # fiche du registre des tiers (fictive)
+owner: equipe-assistant
+criticality: critical
+data:
+  categories: [extraits-de-factures, questions-utilisateurs]
+  training_on_customer_data: false      # clause contractuelle vérifiée
+  retention_days: 30
+  region: eu
+evidence:
+  soc2_type2: { period_end: 2026-06-30, exceptions: 1, reviewed_by: appsec }
+  caiq_version: "4.1"
+contract:
+  incident_notification_hours: 48
+  subprocessors_notice_days: 30
+  audit: documents-annuels
+integration:
+  api_keys: secrets-manager/novafact/ai-provider   # rotation trimestrielle
+  logs: usage-api -> s3 -> elastic                  # alerte sur pic de consommation
+review:
+  next: 2027-06-30
 ```
 
 </Code>
 
-Les dépôts de l'API étant privés, c'est `gh attestation verify` qui fait foi. Avant le déploiement sur ECS, le pipeline de Novafact vérifie l'attestation en imposant l'identité du workflow de build, la branche source et l'usage d'un runner hébergé :
-
-<Code file="scripts/verify-image.sh">
-
-```bash
-gh attestation verify "oci://${IMAGE}@${DIGEST}" \
-  --owner novafact \
-  --signer-workflow novafact/build-workflows/.github/workflows/build-image.yml \
-  --source-ref refs/heads/main \
-  --deny-self-hosted-runners
-```
-
-</Code>
-
-## npm : provenance et signatures du registre
-
-Pour `@novafact/sdk`, le trusted publishing génère la provenance automatiquement (leçon 5), visible sur la page du paquet. Côté consommateur, **`npm audit signatures`** vérifie deux choses pour les paquets installés : les **signatures du registre** (npm signe chaque version publiée) et les **attestations de provenance** quand elles existent. Il détecte une archive altérée dans un miroir ou un cache, et une attestation invalide ; il ne dit rien d'un paquet sans attestation. D'où l'intérêt de `trustPolicy: no-downgrade` (pnpm), qui échoue si une version perd le niveau de confiance des précédentes : exactement le signal qu'aurait donné une publication par jeton volé.
-
-## Ce que la provenance prouve, et ce qu'elle ne prouve pas
-
-| Elle prouve | Elle ne prouve pas |
-| --- | --- |
-| L'artefact vient de ce dépôt, de ce commit, de ce workflow | Que le code du commit est sain |
-| Il a été construit sur telle plateforme, par tel builder | Que le workflow n'a pas exécuté de code malveillant (cache, dépendance) |
-| Il n'a pas été modifié depuis | Que les dépendances étaient saines |
-
-Chez Ultralytics comme chez TanStack, les premières versions malveillantes portaient une provenance authentique. La provenance sert alors à **l'enquête** et à la **politique** : exiger une référence de tag de release, un workflow précis, un runner hébergé, et refuser tout ce qui s'en écarte.
-
-## Builds reproductibles et S2C2F
-
-Un **build reproductible** produit un résultat identique bit à bit à partir des mêmes sources. Deux builders indépendants qui obtiennent la même empreinte rendent une compromission de l'un d'eux détectable : c'est la réponse de fond au cas xz utils (M13, leçon 9), où l'archive publiée différait du dépôt. Il faut pour cela neutraliser horodatages, chemins et ordre des fichiers.
-
-Côté consommation, le **S2C2F** (*Secure Supply Chain Consumption Framework*, OpenSSF) organise huit pratiques en quatre niveaux de maturité :
-
-| Pratique | Chez Novafact |
-| --- | --- |
-| Ingest It | Proxy de registre interne qui garde une copie de tout ce qui est utilisé |
-| Scan It, Inventory It | SCA et SBOM (M13), inventaire par service |
-| Update It, Audit It | Mises à jour automatisées avec délai, vérification que tout passe par les canaux approuvés |
-| Enforce It | Les builds échouent s'ils tirent d'une source non approuvée |
-| Rebuild It, Fix It + Upstream | Niveau 4, aspirationnel : reconstruire soi-même les composants les plus critiques, corriger en privé et remonter le correctif |
+L'intégration GitHub d'Elastic collecte le journal d'audit par l'API ou via un flux (S3, SQS, Event Hubs, Cloud Storage) ; CloudTrail couvre AWS ; pour les autres tiers, on commence par ce que leur API d'audit expose. Un tiers qui n'expose aucun journal d'audit est un critère de choix, pas un détail.
 
 <Callout kind="novafact">
-Cible de Novafact à douze mois (fictive) : `@novafact/sdk`, dont le dépôt est public, en SLSA Build L3 (trusted publishing depuis un workflow réutilisable, provenance publique, staged publishing) ; images de l'API attestées et vérifiées avant chaque déploiement ECS, déploiement refusé sinon ; Source L3 sur `api`, `sdk` et `infra` via rulesets (revue obligatoire, checks requis, historique protégé) et L4 sur `infra` (deux approbations). S2C2F niveau 2 atteint, niveau 3 visé sur les dix dépendances les plus critiques.
+Évaluation du fournisseur d'IA (fictive). Rapport SOC 2 Type II récent avec une exception (revue d'accès trimestrielle manquée, corrigée) ; CAIQ v4.1 publié ; traitement en région UE disponible en option ; pas d'entraînement sur les données des clients API par défaut, confirmé dans l'annexe contractuelle ; notification d'incident portée de « sans délai injustifié » à 48 heures après négociation. Mitigations côté Novafact : pseudonymisation des noms de clients avant envoi, clés d'API séparées par environnement, journal d'usage dans Elastic. Décision signée par le CTO et le DPO, réexamen dans un an.
+</Callout>
+
+<Callout kind="debate">
+Les questionnaires de sécurité fatiguent tout le monde : des centaines de questions, des réponses copiées d'une année sur l'autre, peu de vérification. Certains les remplacent par des notations externes en continu, qui mesurent la surface visible d'Internet ; d'autres jugent ces notes superficielles. Un compromis pragmatique : attestations standard (SOC 2, ISO, CAIQ) plutôt que questionnaire maison, quelques questions ciblées sur l'intégration réelle, et un effort concentré sur les tiers critiques.
 </Callout>
 
 <Recap items={[
-  "SLSA v1.2 : Build track L0 à L3 (provenance, plateforme hébergée, build durci) et nouveau Source track L1 à L4.",
-  "Une attestation in-toto lie des sujets (empreintes) à un prédicat, dont la provenance SLSA.",
-  "Sigstore signe avec une identité OIDC (Fulcio, Rekor, cosign) : la vérification doit imposer l'identité attendue.",
-  "GitHub artifact attestations : Build L2 seules, L3 avec un workflow réutilisable ; `gh attestation verify` avant déploiement.",
-  "`npm audit signatures` vérifie signatures et attestations ; `no-downgrade` détecte une provenance qui disparaît.",
-  "La provenance prouve l'origine, pas l'innocuité ; builds reproductibles et S2C2F complètent la chaîne.",
+  "La criticité d'un tiers dépend des données, de l'accès et de la dépendance ; elle fixe le niveau d'évaluation.",
+  "Le risque fournisseur se gère sur tout le cycle de vie (NIST SP 800-161r1, ISO/IEC 27036), de la planification à la sortie.",
+  "SOC 2 Type II, périmètre ISO 27001, CAIQ v4.1, AOC PCI DSS : lire le périmètre, les exceptions et les CUEC.",
+  "Clauses clés : notification d'incident et de vulnérabilité, données, sous-traitants, audit, journaux, PI, séquestre, responsabilité, SLA, réversibilité.",
+  "Chaque tiers critique alimente le SIEM : sans journal, pas de détection.",
 ]} />
 
 <Sources items={[
-  { title: "SLSA v1.2 : spécification", url: "https://slsa.dev/spec/v1.2/" },
-  { title: "Sigstore : documentation", url: "https://docs.sigstore.dev/" },
-  { title: "GitHub Docs : artifact attestations", url: "https://docs.github.com/en/actions/concepts/security/artifact-attestations" },
-  { title: "npm Docs : generating provenance statements", url: "https://docs.npmjs.com/generating-provenance-statements" },
-  { title: "in-toto", url: "https://in-toto.io/" },
-  { title: "OpenSSF : S2C2F", url: "https://github.com/ossf/s2c2f" },
-  { title: "Reproducible Builds", url: "https://reproducible-builds.org/" },
+  { title: "NIST SP 800-161 Rev. 1 (mise à jour 1) : C-SCRM", url: "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final" },
+  { title: "CSA : Cloud Controls Matrix et CAIQ v4.1", url: "https://cloudsecurityalliance.org/artifacts/cloud-controls-matrix-v4-1" },
+  { title: "AICPA : SOC 2", url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2" },
+  { title: "ENISA : Good practices for supply chain cybersecurity", url: "https://www.enisa.europa.eu/publications/good-practices-for-supply-chain-cybersecurity" },
+  { title: "RGPD (règlement 2016/679), articles 28 et 33", url: "https://eur-lex.europa.eu/eli/reg/2016/679/oj" },
+  { title: "Elastic : intégration GitHub (journal d'audit)", url: "https://www.elastic.co/docs/reference/integrations/github" },
 ]} />

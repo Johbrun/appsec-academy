@@ -41,7 +41,7 @@ export const questions = [
       "La publication d'un artefact qui ne correspond pas à ses sources",
     ],
     answer: 0,
-    explain: "SLSA prouve d'où vient un artefact et comment il a été construit : la piste Source couvre la modification non revue, la piste Build couvre la compromission de la plateforme et l'artefact qui ne correspond pas aux sources. Ce qu'aucune des deux ne dit, c'est si tu as choisi le bon paquet — un typosquat parfaitement construit satisfait SLSA niveau 3. La sélection des dépendances relève d'autres contrôles (M14).",
+    explain: "SLSA prouve d'où vient un artefact et comment il a été construit : la piste Source couvre la modification non revue, la piste Build couvre la compromission de la plateforme et l'artefact qui ne correspond pas aux sources. Ce qu'aucune des deux ne dit, c'est si tu as choisi le bon paquet — un typosquat parfaitement construit satisfait SLSA niveau 3. La sélection des dépendances relève d'autres contrôles (M18).",
   },
 ];
 
@@ -66,7 +66,7 @@ Le point commun de ces menaces : l'attaquant ne cherche pas une faille dans Nova
 
 ## Le modèle de SLSA
 
-Le modèle de menaces de **SLSA** (M14) décrit ces menaces de la source à l'usage, avec une lettre par point d'attaque. Il a l'avantage de dire aussi ce que SLSA **ne** couvre **pas** :
+Le modèle de menaces de **SLSA** (M18) décrit ces menaces de la source à l'usage, avec une lettre par point d'attaque. Il a l'avantage de dire aussi ce que SLSA **ne** couvre **pas** :
 
 | Menace SLSA | Chez Novafact | Couverte par |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ Un agent IA a un profil de menaces nouveau :
 <Steps items={[
   { title: "Les données deviennent des instructions", text: "Un document, une page web ou un e-mail lu par l'agent peut contenir des consignes (injection indirecte)." },
   { title: "Les outils deviennent l'impact", text: "Ce que l'agent peut faire (envoyer, créer, supprimer, payer) est ce qu'un attaquant peut lui faire faire." },
-  { title: "Les droits sont ceux de l'agent", text: "Risque de confused deputy si l'agent agit avec ses propres droits (M8)." },
+  { title: "Les droits sont ceux de l'agent", text: "Risque de confused deputy si l'agent agit avec ses propres droits (M13)." },
   { title: "La mémoire persiste", text: "Une injection stockée en mémoire ou dans le RAG continue d'agir." },
 ]} />
 
@@ -106,11 +106,11 @@ Appliqué à l'assistant de Novafact, qui passe par des serveurs MCP :
 
 Le tableau se lit comme un threat model : chaque ligne qui coche les trois colonnes appelle une validation humaine ou la suppression de l'outil. Dans le DFD, représente chaque **source de contenu** lue par l'agent comme une entité externe non fiable, et chaque **outil** comme un flux vers un système à protéger.
 
-**MITRE ATLAS** fournit les tactiques et techniques propres aux systèmes d'IA, et l'**OWASP Top 10 for Agentic Applications 2026**, publié en décembre 2025, les risques des agents (détournement d'objectif, mauvais usage des outils, abus d'identité et de privilèges, empoisonnement de la mémoire…). Pour les systèmes multi-agents, le cadre **MAESTRO** de la Cloud Security Alliance propose une analyse en sept couches, des modèles de fondation jusqu'à l'intégration dans l'écosystème. Le module 19 détaille ces référentiels.
+**MITRE ATLAS** fournit les tactiques et techniques propres aux systèmes d'IA, et l'**OWASP Top 10 for Agentic Applications 2026**, publié en décembre 2025, les risques des agents (détournement d'objectif, mauvais usage des outils, abus d'identité et de privilèges, empoisonnement de la mémoire…). Pour les systèmes multi-agents, le cadre **MAESTRO** de la Cloud Security Alliance propose une analyse en sept couches, des modèles de fondation jusqu'à l'intégration dans l'écosystème. Le module 27 détaille ces référentiels.
 
 ## Le cloud
 
-Le modèle de responsabilité partagée fixe la frontière : AWS sécurise l'infrastructure, Novafact sa configuration, ses identités et ses données. Les menaces cloud se concentrent sur l'**IAM** (M15), la **configuration** (M16) et la **détection** (M18). Dans un DFD, cela se traduit par une règle simple : chaque rôle IAM est un **processus** à part entière, avec ses propres menaces d'élévation de privilège, et chaque politique de ressource (bucket, file, clé KMS) est une frontière de confiance. **Stratus Red Team** permet de rejouer des techniques d'attaque cloud pour vérifier que le modèle et les détections tiennent.
+Le modèle de responsabilité partagée fixe la frontière : AWS sécurise l'infrastructure, Novafact sa configuration, ses identités et ses données. Les menaces cloud se concentrent sur l'**IAM** (M19), la **configuration** (M20) et la **détection** (M24). Dans un DFD, cela se traduit par une règle simple : chaque rôle IAM est un **processus** à part entière, avec ses propres menaces d'élévation de privilège, et chaque politique de ressource (bucket, file, clé KMS) est une frontière de confiance. **Stratus Red Team** permet de rejouer des techniques d'attaque cloud pour vérifier que le modèle et les détections tiennent.
 
 ## La revue de risque architecturale
 

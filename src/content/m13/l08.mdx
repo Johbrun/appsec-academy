@@ -120,13 +120,13 @@ L'extrait pseudonymisé reçoit une **durée de vie** (supprimé à la fermeture
 
 ## Les secrets et les intégrations de test
 
-Les données de test incluent aussi les **secrets et intégrations** : clés Stripe en mode test, bac à sable Cognito dédié, bucket S3 de recette distinct. Aucun environnement de test ne doit détenir un secret qui permet d'agir en production. C'est l'anti-pattern Backflow of Trust de Kohnfelder (M8) : un environnement peu fiable qui contrôle un environnement très fiable.
+Les données de test incluent aussi les **secrets et intégrations** : clés Stripe en mode test, bac à sable Cognito dédié, bucket S3 de recette distinct. Aucun environnement de test ne doit détenir un secret qui permet d'agir en production. C'est l'anti-pattern Backflow of Trust de Kohnfelder (M13) : un environnement peu fiable qui contrôle un environnement très fiable.
 
 ## Fonctionnalités non documentées et vérification de la documentation
 
 Le domaine 6 du CSSLP ajoute deux vérifications que les tests fonctionnels oublient :
 
-- **Les fonctionnalités non documentées** : routes de debug, paramètres cachés (`?debug=1`), comptes de support, drapeaux de fonctionnalités oubliés. Elles ne figurent dans aucun cahier de test, donc personne ne les teste, alors qu'elles contournent souvent les contrôles. La cartographie de M12 et le contrat OpenAPI permettent de comparer ce qui est déclaré à ce qui est exposé.
+- **Les fonctionnalités non documentées** : routes de debug, paramètres cachés (`?debug=1`), comptes de support, drapeaux de fonctionnalités oubliés. Elles ne figurent dans aucun cahier de test, donc personne ne les teste, alors qu'elles contournent souvent les contrôles. La cartographie de M16 et le contrat OpenAPI permettent de comparer ce qui est déclaré à ce qui est exposé.
 - **La documentation elle-même** : messages d'erreur trop bavards (traces de pile, requêtes SQL), notes de version qui décrivent une vulnérabilité avant que les clients aient pu mettre à jour, documentation d'API qui expose des champs internes. La documentation se relit avec le même regard que le code.
 
 <Callout kind="novafact">

@@ -1,59 +1,65 @@
 export const questions = [];
 
 <YouKnow>
-Novafact ajoute une fonctionnalité : le paiement d’une facture en un clic depuis l’e-mail du client, via un lien signé. Cette étape te fait rédiger le design doc puis le passer en revue de conception (Security Design Review), comme au module 8.
+Le capstone n’enseigne rien de neuf : il te fait produire, étape par étape et dans l’ordre du cycle de développement, la revue de sécurité complète de Novafact. À la fin, tu auras un livrable présentable, comme celui qu’on remet à un client ou à sa direction. L’analyse de risques de l’étape 1 a dit quelles valeurs métier protéger ; cette étape dit contre quoi : le threat model de Novafact, avec la méthode du module 11.
 </YouKnow>
 
-## Étape 2 : design doc et revue de conception
+## L’objectif du capstone
 
-La sécurité la moins chère est celle qu’on décide avant d’écrire le code (M8). Ton livrable : un **design doc** court de la nouvelle fonctionnalité, puis une **revue de conception** qui le passe au crible.
-
-## Rédiger le design doc
-
-Un bon design doc de sécurité tient en deux pages et répond à des questions précises :
-
-<Steps items={[
-  { title: "But et périmètre", text: "Payer une facture depuis un lien reçu par e-mail, sans se connecter, pour réduire les impayés. Ce qui est hors périmètre : la gestion des litiges." },
-  { title: "Flux de données", text: "Qui envoie quoi à qui : génération du lien signé côté API, e-mail via le prestataire, page de paiement, webhook du prestataire de paiement, mise à jour de la facture." },
-  { title: "Frontières de confiance", text: "Le lien voyage hors du système (boîte mail, proxys). Le client n’est pas authentifié sur cette page. Le webhook vient de l’extérieur." },
-  { title: "Décisions de sécurité", text: "Durée de vie et portée du lien signé ; ce que la page expose (le minimum : montant, référence) ; vérification de la signature du webhook ; idempotence." },
-  { title: "Hypothèses et dépendances", text: "On fait confiance au prestataire de paiement pour l’encaissement, pas pour l’autorisation métier. On ne stocke aucune donnée de carte (SAQ A)." },
-]} />
-
-## Passer la revue
-
-Applique la méthode de Kohnfelder (M8) : lire, questionner, identifier, puis prioriser en Must / Ought / Should. Quelques questions qui font surface les vrais risques ici :
-
-| Question | Risque si mal traité |
-| --- | --- |
-| Le lien signé donne-t-il accès à autre chose que cette facture ? | BOLA via un jeton trop large |
-| Que contient le lien ? Un identifiant devinable ? | Énumération d’autres factures |
-| Quelle est sa durée de vie, et est-il à usage unique ? | Rejeu, partage involontaire |
-| La page de paiement expose-t-elle des données personnelles à un non-authentifié ? | Fuite (M7) |
-| Le webhook est-il signé, horodaté, idempotent ? | Faux paiement, double traitement (M10) |
-| Que se passe-t-il si le service d’autorisation tombe ? | Doit échouer fermé (M8) |
-
-## Le compte rendu de revue
-
-Rédige le rapport comme au module 8 : par **changement recommandé**, priorisé, avec pour chacun le risque, la recommandation et un renvoi vers l’exigence de l’étape 1. Mentionne aussi ce qui est **bien conçu** (par exemple : aucune donnée de carte ne transite par Novafact), pour le protéger lors des évolutions.
+Quinze étapes, un fil rouge unique : **Novafact**, le SaaS de facturation multi-tenant que tu connais depuis le début du parcours. Chaque étape réutilise un module du parcours et produit un morceau du dossier final. Travaille dans un dépôt (ou un document) que tu enrichis à chaque étape ; le résultat est un livrable réutilisable, pas un exercice jetable.
 
 <Callout kind="novafact">
-Décision retenue pour Novafact : lien signé (JWT court, 30 minutes, à usage unique, portée limitée à `pay:invoice:<id>`), page qui n’expose que le montant et la référence, webhook Stripe vérifié par signature et horodatage avec déduplication sur l’identifiant d’événement, et repli en « refus » si la vérification échoue.
+Rappel de l’architecture : SPA React/Vite, back-office Next.js, API Express, MongoDB et PostgreSQL (Prisma), Cognito pour l’identité, un BFF, un assistant IA avec MCP, le tout sur AWS, livré par GitHub Actions et observé dans Elastic.
+</Callout>
+
+## Étape 2 : le threat model de Novafact
+
+Le threat model couvre l’**architecture** ; les design docs de l’étape 4 couvriront chaque fonctionnalité. Ton livrable : un modèle de menaces structuré, avec un DFD, les menaces par STRIDE et les contre-mesures, priorisées.
+
+## Dessiner le DFD
+
+Reprends le diagramme de flux de données que tu connais (c’est celui du jeu STRIDE Cards) : les entités externes (utilisateur, Stripe), les processus (BFF, API, assistant IA, worker PDF), les stores (Postgres, S3, logs Elastic), et surtout la **frontière de confiance** autour de l’infrastructure AWS.
+
+<Steps items={[
+  { title: "Cartographier", text: "Points d’entrée, processus, stockages, flux. Marque les frontières de confiance : entre le navigateur et le BFF, entre l’API et l’assistant, entre Novafact et Stripe." },
+  { title: "Appliquer STRIDE par élément", text: "Pour chaque processus et chaque flux, parcours Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege." },
+  { title: "Retenir les menaces crédibles", text: "N’écris pas une menace par case : garde celles qui ont un sens pour Novafact, avec un scénario concret." },
+  { title: "Associer une contre-mesure", text: "Chaque menace retenue reçoit une parade, qui deviendra une exigence à l’étape 3, et à un module du parcours." },
+  { title: "Prioriser", text: "Trie par impact et vraisemblance, en reprenant l’échelle de l’analyse de risques (étape 1, M10), sans additionner des notes arbitraires : des tailles de t-shirt suffisent." },
+]} />
+
+## Un extrait attendu
+
+| Élément | STRIDE | Menace | Contre-mesure | Priorité |
+| --- | --- | --- | --- | --- |
+| Webhook Stripe → API | Spoofing | Un faux webhook déclare une facture payée | Vérification de signature + horodatage + idempotence | Haute |
+| API → Postgres | Information disclosure | Un tenant lit les factures d’un autre | DAL par tenant + RLS | Haute |
+| Assistant IA | Elevation of privilege | L’agent agit au-delà des droits de l’utilisateur | Droits délégués + confirmation humaine (M27) | Haute |
+| Worker PDF | Denial of service | Un tenant sature la file | Quotas par tenant, file équitable | Moyenne |
+| Logs Elastic | Information disclosure | Secrets ou IBAN dans les journaux | Liste blanche des champs, masquage à la source | Moyenne |
+
+## Le threat model est vivant
+
+Note dans ton livrable **quand** ce modèle sera revu : à chaque changement d’architecture, à chaque nouvelle intégration tierce, et au minimum une fois par trimestre. Un threat model figé dans un document que personne ne rouvre ne vaut rien (M11). Rattache-le au dépôt, à côté du registre des risques.
+
+<Callout kind="tip">
+Prévois le lien avec l’étape 4 : la fonctionnalité de paiement que tu y concevras devra apparaître dans ce modèle. Un threat model qui ne connaît pas la dernière fonctionnalité livrée est déjà en retard.
 </Callout>
 
 ## Livrable de l’étape
 
-- Le **design doc** de la fonctionnalité de paiement (deux pages).
-- Le **compte rendu de revue de conception**, priorisé en Must / Ought / Should, relié aux exigences.
+- Le **DFD** de Novafact avec ses frontières de confiance.
+- La **table des menaces** par STRIDE, avec contre-mesures reliées aux exigences et priorités.
+- La **cadence de revue** du modèle.
 
 <Recap items={[
-  "Décider la sécurité au niveau de la conception coûte bien moins cher qu’un correctif tardif.",
-  "Un design doc de sécurité dit : but, flux, frontières de confiance, décisions, hypothèses.",
-  "La revue lit, questionne, identifie et priorise en Must / Ought / Should.",
-  "Le rapport se relie aux exigences de l’étape 1 et souligne aussi ce qui est bien conçu.",
+  "Le threat model couvre l’architecture entière, là où le design doc couvre une fonctionnalité.",
+  "DFD, puis STRIDE par élément, puis menaces crédibles avec contre-mesures reliées aux exigences.",
+  "Prioriser par impact et vraisemblance, sans additionner des notes arbitraires.",
+  "Le modèle est vivant : il se revoit à chaque changement et se range dans le dépôt.",
 ]} />
 
 <Sources items={[
-  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 6 et 7" },
-  { title: "OWASP Threat Modeling Process", url: "https://owasp.org/www-community/Threat_Modeling_Process" },
+  { title: "OWASP Threat Modeling", url: "https://owasp.org/www-community/Threat_Modeling" },
+  { title: "Microsoft : STRIDE", url: "https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats" },
 ]} />

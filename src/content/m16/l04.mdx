@@ -107,7 +107,7 @@ Une subtilité de permissions : `terraform plan` **prend aussi le verrou** par d
 
 ## Deux rôles OIDC : plan et apply
 
-La CI obtient ses identifiants AWS par **OIDC** (M14, leçon 2 ; M15, leçon 4), sans secret stocké. Le point clé est de séparer deux identités, avec deux trust policies qui n'acceptent pas les mêmes jetons :
+La CI obtient ses identifiants AWS par **OIDC** (M18, leçon 2 ; M19, leçon 4), sans secret stocké. Le point clé est de séparer deux identités, avec deux trust policies qui n'acceptent pas les mêmes jetons :
 
 | | Rôle de plan | Rôle d'apply |
 | --- | --- | --- |
@@ -183,7 +183,7 @@ Les relecteurs de l'environnement `production` approuvent en lisant le résumé 
 
 ## La supply chain de l'IaC
 
-Terraform télécharge du code à chaque `init` : des **providers** (binaires qui détiennent tes identifiants) et des **modules** (du HCL qui décide de ta configuration). Le CDK, lui, tire des paquets npm (M14, leçon 5). Chacun doit être épinglé et vérifié.
+Terraform télécharge du code à chaque `init` : des **providers** (binaires qui détiennent tes identifiants) et des **modules** (du HCL qui décide de ta configuration). Le CDK, lui, tire des paquets npm (M18, leçon 5). Chacun doit être épinglé et vérifié.
 
 <Steps items={[
   { title: "Providers : contrainte et lock file", text: "Une contrainte de version dans required_providers, et .terraform.lock.hcl commité : il enregistre la version choisie et les empreintes des paquets. Un binaire différent est refusé." },

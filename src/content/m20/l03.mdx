@@ -1,57 +1,49 @@
 export const questions = [];
 
 <YouKnow>
-Tu as le design doc de la fonctionnalité de paiement et la matrice d’exigences. Cette étape élève le regard au système entier : le threat model de Novafact, avec la méthode du module 11.
+Tu as les risques métier de Novafact et son threat model. Cette étape répond à la question suivante : ce que le système doit garantir, sous forme d’exigences traçables jusqu’à leur preuve.
 </YouKnow>
 
-## Étape 3 : le threat model de Novafact
+## Étape 3 : exigences et traçabilité
 
-Un design doc couvre une fonctionnalité ; le threat model couvre l’**architecture**. Ton livrable : un modèle de menaces structuré, avec un DFD, les menaces par STRIDE et les contre-mesures, priorisées.
-
-## Dessiner le DFD
-
-Reprends le diagramme de flux de données que tu connais (c’est celui du jeu STRIDE Cards) : les entités externes (utilisateur, Stripe), les processus (BFF, API, assistant IA, worker PDF), les stores (Postgres, S3, logs Elastic), et surtout la **frontière de confiance** autour de l’infrastructure AWS.
+Après les risques et les menaces vient la question « **que doit garantir ce système ?** » (M12). Sans exigences, on ne peut ni concevoir, ni tester, ni prouver. Ton livrable de cette étape : une **matrice de traçabilité** qui relie chaque exigence à sa source, à son contrôle et à son test.
 
 <Steps items={[
-  { title: "Cartographier", text: "Points d’entrée, processus, stockages, flux. Marque les frontières de confiance : entre le navigateur et le BFF, entre l’API et l’assistant, entre Novafact et Stripe." },
-  { title: "Appliquer STRIDE par élément", text: "Pour chaque processus et chaque flux, parcours Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege." },
-  { title: "Retenir les menaces crédibles", text: "N’écris pas une menace par case : garde celles qui ont un sens pour Novafact, avec un scénario concret." },
-  { title: "Associer une contre-mesure", text: "Chaque menace retenue reçoit une parade, reliée à une exigence (étape 1) et à un module du parcours." },
-  { title: "Prioriser", text: "Trie par impact et vraisemblance (M11), sans additionner des notes arbitraires : des tailles de t-shirt suffisent." },
+  { title: "Classer les données", text: "Dresse l’inventaire des données de Novafact et classe-les : factures et IBAN (données personnelles et financières), identifiants, secrets, journaux. Note pour chacune sa sensibilité et son régime (RGPD, conservation légale des factures)." },
+  { title: "Choisir le niveau ASVS", text: "Novafact traite des données financières multi-tenant : vise ASVS niveau 2. Justifie ce choix en une phrase." },
+  { title: "Dériver les exigences", text: "Pour chaque chapitre ASVS pertinent (authentification, autorisation, validation, cryptographie, journalisation), retiens les exigences applicables. N’invente rien : pars de la liste ASVS." },
+  { title: "Ajouter les exigences métier", text: "Celles qu’aucun référentiel ne connaît : isolation stricte des tenants, immuabilité d’une facture émise, séparation des rôles pour les avoirs au-dessus d’un seuil." },
+  { title: "Tracer", text: "Une ligne par exigence : identifiant, énoncé, source (ASVS ou métier), contrôle qui la satisfait, test qui la vérifie. Les colonnes contrôle et test se rempliront aux étapes suivantes." },
 ]} />
 
-## Un extrait attendu
+## Le format de la matrice
 
-| Élément | STRIDE | Menace | Contre-mesure | Priorité |
+| ID | Exigence | Source | Contrôle | Test |
 | --- | --- | --- | --- | --- |
-| Webhook Stripe → API | Spoofing | Un faux webhook déclare une facture payée | Vérification de signature + horodatage + idempotence | Haute |
-| API → Postgres | Information disclosure | Un tenant lit les factures d’un autre | DAL par tenant + RLS | Haute |
-| Assistant IA | Elevation of privilege | L’agent agit au-delà des droits de l’utilisateur | Droits délégués + confirmation humaine (M19) | Haute |
-| Worker PDF | Denial of service | Un tenant sature la file | Quotas par tenant, file équitable | Moyenne |
-| Logs Elastic | Information disclosure | Secrets ou IBAN dans les journaux | Liste blanche des champs, masquage à la source | Moyenne |
+| NF-AUTHZ-01 | Un utilisateur n’accède qu’aux factures de son tenant | Métier + ASVS | DAL filtrée par tenant + RLS Postgres | Test supertest inter-tenant (M17) |
+| NF-INT-01 | Une facture émise est immuable | Métier | Machine à états + contrainte en base | Test de transition interdite |
+| NF-AUTH-01 | Mots de passe vérifiés contre une base de fuites | ASVS 2.x | Contrôle à l’inscription et à la connexion | Test avec un mot de passe fuité connu |
 
-## Le threat model est vivant
-
-Note dans ton livrable **quand** ce modèle sera revu : à chaque changement d’architecture, à chaque nouvelle intégration tierce, et au minimum une fois par trimestre. Un threat model figé dans un document que personne ne rouvre ne vaut rien (M11). Rattache-le au dépôt, à côté de la matrice d’exigences.
+Vise une matrice de 15 à 25 lignes : assez pour couvrir le cœur, pas au point de devenir illisible. La classification des données oriente les priorités : ce qui touche les IBAN et les paiements passe avant le reste.
 
 <Callout kind="tip">
-Fais le lien avec l’étape 2 : la fonctionnalité de paiement que tu viens de concevoir doit apparaître dans ce modèle. Un threat model qui ne connaît pas la dernière fonctionnalité livrée est déjà en retard.
+Range cette matrice à la racine de ton dossier de revue. C’est le document qui donne sa cohérence à tout le reste : chaque finding des étapes suivantes se rattache à une exigence, et chaque exigence finit avec un contrôle et un test.
 </Callout>
 
 ## Livrable de l’étape
 
-- Le **DFD** de Novafact avec ses frontières de confiance.
-- La **table des menaces** par STRIDE, avec contre-mesures reliées aux exigences et priorités.
-- La **cadence de revue** du modèle.
+- L’**inventaire classé** des données de Novafact.
+- Le **niveau ASVS** retenu, justifié.
+- La **matrice de traçabilité** initiale (exigences, sources ; contrôles et tests à compléter).
 
 <Recap items={[
-  "Le threat model couvre l’architecture entière, là où le design doc couvre une fonctionnalité.",
-  "DFD, puis STRIDE par élément, puis menaces crédibles avec contre-mesures reliées aux exigences.",
-  "Prioriser par impact et vraisemblance, sans additionner des notes arbitraires.",
-  "Le modèle est vivant : il se revoit à chaque changement et se range dans le dépôt.",
+  "Le capstone produit la revue de sécurité complète de Novafact, en quinze livrables cumulés.",
+  "Une revue commence par les exigences : classer les données, choisir le niveau ASVS, dériver les exigences.",
+  "Ajouter les exigences métier qu’aucun référentiel ne connaît (isolation, immuabilité, séparation des rôles).",
+  "La matrice de traçabilité relie chaque exigence à son contrôle et à son test ; elle structure tout le dossier.",
 ]} />
 
 <Sources items={[
-  { title: "OWASP Threat Modeling", url: "https://owasp.org/www-community/Threat_Modeling" },
-  { title: "Microsoft : STRIDE", url: "https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats" },
+  { title: "OWASP ASVS", url: "https://owasp.org/www-project-application-security-verification-standard/" },
+  { title: "OWASP Threat Modeling : data classification", url: "https://owasp.org/www-community/Threat_Modeling" },
 ]} />

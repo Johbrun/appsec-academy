@@ -69,7 +69,7 @@ export default function LessonRail({ m, lessonId, article, ready }: {
   const bloc = blocks.find((b) => b.id === m.block);
   const done = m.lessons.filter((l) => progress.lessons[lessonKey(m.id, l.id)]).length;
 
-  // La liste peut dépasser la hauteur de la fenêtre (13 leçons au module 3) :
+  // La liste peut dépasser la hauteur de la fenêtre (13 leçons au module 9) :
   // on garde visible la section en cours — ou la leçon, tant qu'aucune section
   // n'est atteinte — sans jamais faire défiler la page elle-même.
   useEffect(() => {

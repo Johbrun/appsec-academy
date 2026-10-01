@@ -8,7 +8,7 @@ export const questions = [
       "Parce que X-Forwarded-For contient plusieurs adresses et Express retient la dernière",
     ],
     answer: 2,
-    explain: "req.ip doit refléter l'adresse réelle du client, ce qui suppose un trust proxy réglé sur le nombre exact de sauts (M3) : sans lui, tous les clients partagent la clé du proxy et la première rafale bloque tout le monde. L'histoire du X-Forwarded-For décrit le risque voisin — un trust proxy mal dimensionné fait retenir la mauvaise adresse dans la chaîne, et cette fois c'est l'attaquant qui choisit sa clé — mais ce n'est pas ce qui bloque tout le monde d'un coup.",
+    explain: "req.ip doit refléter l'adresse réelle du client, ce qui suppose un trust proxy réglé sur le nombre exact de sauts (M9) : sans lui, tous les clients partagent la clé du proxy et la première rafale bloque tout le monde. L'histoire du X-Forwarded-For décrit le risque voisin — un trust proxy mal dimensionné fait retenir la mauvaise adresse dans la chaîne, et cette fois c'est l'attaquant qui choisit sa clé — mais ce n'est pas ce qui bloque tout le monde d'un coup.",
   },
   {
     q: "Pourquoi un verrouillage de compte définitif après 5 échecs est-il dangereux ?",
@@ -100,7 +100,7 @@ import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import { redis } from '../redis'; // client ioredis partagé
 
-app.set('trust proxy', 2); // CloudFront puis ALB : req.ip est la vraie adresse (M3)
+app.set('trust proxy', 2); // CloudFront puis ALB : req.ip est la vraie adresse (M9)
 
 const store = (prefix: string) => new RedisStore({
   prefix,

@@ -1,179 +1,177 @@
 export const questions = [
   {
-    q: "Un serveur MCP tiers ajouté à l'assistant de Novafact a été approuvé après relecture de ses outils. Trois semaines plus tard, la description d'un outil change et contient de nouvelles consignes. Comment s'appelle ce scénario, et quel contrôle le détecte ?",
+    q: "Tu construis le threat model de l'assistant de Novafact. Quelle technique ATLAS décrit l'usage de l'outil d'envoi d'e-mails pour faire sortir des données de factures après une injection ?",
     options: [
-      "Un rug pull ; on compare l'empreinte des définitions d'outils à celle approuvée",
-      "Un token passthrough ; on le détecte en vérifiant l'audience des jetons émis",
-      "Une injection de prompt ; un classifieur sur la description d'outil la détecte",
-      "Une compromission de la chaîne d'approvisionnement ; le SBOM du serveur la révèle",
-    ],
-    answer: 0,
-    explain: "Le rug pull exploite le fait que l'approbation a porté sur une version des outils : la description change après coup, et personne ne relit. Le seul contrôle qui l'attrape est la comparaison d'empreinte des définitions renvoyées par `tools/list` avec celles approuvées, avec blocage du serveur en cas d'écart. C'est bien une attaque de chaîne d'approvisionnement, mais un SBOM décrit les dépendances du serveur, pas le texte que ses outils exposent à ton modèle : il ne verra rien passer. Et un classifieur d'injection intervient trop tard — on veut refuser la mise à jour, pas trier ce qu'elle produit.",
-  },
-  {
-    q: "Le serveur MCP interne de Novafact reçoit un jeton d'accès de l'assistant et le transmet tel quel à l'API de facturation. Que dit la spécification MCP ?",
-    options: [
-      "C'est la méthode recommandée pour propager l'identité de l'utilisateur en aval",
-      "C'est admis entre services d'un même domaine de confiance, sur un réseau privé",
-      "C'est admis si le serveur vérifie le `scope` du jeton avant de le transmettre",
-      "C'est du token passthrough, interdit : le serveur n'accepte que ses propres jetons",
-    ],
-    answer: 3,
-    explain: "La spécification l'interdit explicitement : un serveur MCP ne doit accepter que des jetons émis pour lui, et obtenir un jeton distinct — par token exchange, par exemple — pour appeler l'API en aval. Vérifier le `scope` avant de relayer est la concession qui paraît la plus raisonnable et manque le point : le problème n'est pas l'étendue du jeton mais son audience, car l'API en aval le validera comme si elle était bien la destinataire prévue. Le réseau privé n'y change rien non plus, et l'audit devient faux : l'API croit parler à l'application alors qu'elle parle au serveur MCP.",
-  },
-  {
-    q: "Dans l'OWASP Top 10 for Agentic Applications 2026, quel risque correspond à un agent dont une injection indirecte modifie l'objectif (résumer devient exfiltrer) ?",
-    options: [
-      "ASI07 Insecure Inter-Agent Communication",
-      "ASI01 Agent Goal Hijack",
-      "ASI08 Cascading Failures",
-      "ASI10 Rogue Agents",
-    ],
-    answer: 1,
-    explain: "ASI01 couvre le détournement de l'objectif ou du chemin de décision d'un agent par un contenu malveillant : c'est exactement « résumer devient exfiltrer ». ASI10 Rogue Agents est le voisin le plus tentant, mais il décrit un agent non autorisé ou devenu incontrôlable dans l'écosystème, pas un agent légitime dont l'objectif a été détourné. ASI02 couvrira ensuite l'usage abusif des outils qui en découle.",
-  },
-  {
-    q: "Pourquoi l'incident postmark-mcp (septembre 2025) concerne-t-il directement l'assistant de Novafact ?",
-    options: [
-      "Parce que Novafact utilise Postmark comme fournisseur d'envoi transactionnel",
-      "Parce qu'il s'agissait d'une faille du protocole MCP lui-même, donc de tout serveur",
-      "Un serveur MCP d'envoi d'e-mails a été modifié pour mettre l'attaquant en copie cachée",
-      "Parce que le serveur exploitait une injection de prompt cachée dans ses descriptions d'outils",
+      "AML.T0024 Exfiltration via AI Inference API",
+      "AML.T0020 Poison Training Data",
+      "AML.T0086 Exfiltration via AI Agent Tool Invocation",
+      "AML.T0029 Denial of AI Service",
     ],
     answer: 2,
-    explain: "Aucune injection n'était nécessaire et le protocole n'était pas en cause : c'est une attaque de chaîne d'approvisionnement classique (ASI04) sur un composant qui voit passer tous les e-mails — exactement le profil de l'outil d'envoi de factures de Novafact, qu'elle utilise Postmark ou non. La confondre avec une injection de prompt change le correctif du tout au tout : ici, versions figées, relecture des mises à jour et sortie réseau contrôlée, comme pour n'importe quel paquet npm.",
+    explain: "AML.T0086, ajoutée fin septembre 2025, décrit l'exfiltration par un outil légitime de l'agent — e-mail, document, CRM — dont les paramètres transportent les données. AML.T0024 est le faux ami : il vise l'extraction d'informations par les réponses du modèle lui-même (inversion, extraction de données d'entraînement), pas par un outil. La chaîne typique enchaîne AML.T0051 LLM Prompt Injection, puis T0086.",
+  },
+  {
+    q: "Quelle est la différence d'usage principale entre l'OWASP LLM Top 10 et MITRE ATLAS ?",
+    options: [
+      "Le Top 10 classe des risques pour prioriser ; ATLAS décrit le comportement adverse",
+      "Le Top 10 vise les applications, ATLAS les modèles et leur entraînement",
+      "Le Top 10 est une liste consensuelle, ATLAS une base de vulnérabilités indexées par produit",
+      "Le Top 10 sert aux développeurs, ATLAS aux équipes de réponse à incident",
+    ],
+    answer: 0,
+    explain: "Comme le Top 10 web et ATT&CK : l'un aide à savoir quoi corriger en priorité, l'autre à raisonner comme l'attaquant, étape par étape, et à étiqueter les détections. ATLAS n'est pas un catalogue de vulnérabilités — il n'indexe rien par produit, il décrit des tactiques, des techniques et des études de cas. Et le partage par périmètre est trop net : ATLAS couvre aussi bien l'empoisonnement d'un jeu d'entraînement que l'exfiltration par un outil d'agent, c'est-à-dire le niveau applicatif.",
+  },
+  {
+    q: "Pourquoi le champ « maturity » d'une technique ATLAS (Feasible, Demonstrated, Realized) est-il utile en priorisation ?",
+    options: [
+      "Il indique la difficulté d'exploitation, du prototype de recherche au script prêt à l'emploi",
+      "Il distingue ce qui est montré en recherche, démontré, ou vu dans un incident réel",
+      "Il indique la maturité des contrôles disponibles contre la technique",
+      "Il indique depuis combien de temps la technique figure dans la matrice ATLAS",
+    ],
+    answer: 1,
+    explain: "Feasible, Demonstrated, Realized disent où en est la technique dans le monde réel : montrée en recherche, démontrée sur un système réaliste, ou déjà employée par un attaquant lors d'un incident. À exposition égale, une technique « Realized » passe devant une « Feasible ». Ce n'est pas une mesure de difficulté d'exploitation — la confusion avec la maturité d'exploit du CVSS temporel est fréquente et mène à sous-estimer une technique simple mais jamais observée — ni une indication sur les contrôles disponibles, dont le champ ne dit rien.",
+  },
+  {
+    q: "Pour quelle raison l'OWASP AI Exchange compte-t-il pour une équipe européenne ?",
+    options: [
+      "Il fournit la documentation technique exigée par l'article 11 de l'AI Act",
+      "Il dispense de l'analyse d'impact quand le système suit ses recommandations",
+      "C'est le référentiel officiel des autorités nationales pour auditer un système d'IA",
+      "Son contenu alimente, par liaison officielle, l'ISO/IEC 27090 et la prEN 18282",
+    ],
+    answer: 3,
+    explain: "L'AI Exchange alimente, par une liaison officielle, la norme ISO/IEC 27090 sur la sécurité de l'IA et la prEN 18282, la norme européenne de cybersécurité de l'IA rattachée à l'AI Act : le lire aujourd'hui, c'est lire en avance une bonne partie de ce que les normes attendront. Ce n'est pas pour autant un document opposable — il ne dispense d'aucune analyse d'impact, ne constitue pas la documentation technique de l'article 11, et aucune autorité ne l'a désigné comme référentiel d'audit. Prêter une valeur réglementaire à un guide libre est l'erreur qui se paie en audit. Il reste gratuit et ouvert.",
   },
 ];
 
 <YouKnow>
-Tu as vu l'autorisation OAuth de MCP en M9 (leçon 5). Ici, on regarde le reste : ce que les serveurs MCP font entrer dans le contexte du modèle, les attaques propres aux agents, et le Top 10 qui les classe.
+Tu utilises ATT&CK pour décrire une intrusion et étiqueter des détections. **MITRE ATLAS** fait la même chose pour les systèmes d'IA ; l'**OWASP AI Exchange** est la base de connaissances ouverte qui nourrit les normes. Les deux complètent les Top 10 de la leçon 1 et de M28, leçon 1.
 </YouKnow>
 
-## Ce que MCP change pour la sécurité
+## ATLAS : l'ATT&CK des systèmes d'IA
 
-Le **Model Context Protocol** standardise la façon dont une application (le client) branche des **serveurs** qui exposent des outils, des ressources et des prompts. Chez Novafact, l'assistant est un client MCP ; il consomme un serveur interne (factures, clients, avoirs) et l'équipe envisage d'ajouter des serveurs d'éditeurs (comptabilité, signature électronique).
+**ATLAS** (*Adversarial Threat Landscape for Artificial-Intelligence Systems*) reprend la structure d'ATT&CK : des **tactiques** (l'objectif de l'adversaire à une étape), des **techniques** et sous-techniques (comment il l'atteint), des **mitigations** et des **études de cas** tirées d'incidents ou d'exercices de red team.
 
-Le point de sécurité central : **les descriptions d'outils sont du texte que le modèle lit**. Quand un client liste les outils d'un serveur, les noms, descriptions et schémas entrent dans le contexte, au même titre qu'un document. Brancher un serveur, c'est donc à la fois ajouter une dépendance qui exécute du code et une source de consignes pour le modèle.
+La matrice compte **16 tactiques**. Quatorze reprennent celles d'ATT&CK (reconnaissance, accès initial, exécution, persistance, exfiltration, impact…) ; deux sont propres à l'IA : **AI Model Access** (obtenir un accès au modèle, par son API ou via un produit qui l'utilise) et **AI Attack Adaptation**, renommée en août 2026 (elle s'appelait *AI Attack Staging*) pour refléter des attaques qui s'ajustent en cours d'exécution.
 
-La spécification évolue vite. La version **2026-07-28**, publiée le 28 juillet 2026, rend le cœur du protocole sans état (plus de sessions ni de poignée de main `initialize`), déprécie l'enregistrement dynamique de clients au profit des *Client ID Metadata Documents*, et impose la validation de l'émetteur (`iss`, RFC 9207) contre les attaques de type mix-up. Les pratiques de sécurité décrites plus bas suivent la page *Security Best Practices* de la spécification.
+Le rythme de mise à jour est désormais mensuel, et les versions sont datées. La version **v2026.09**, publiée mi-septembre 2026, contient 120 techniques, 88 sous-techniques, 40 mitigations et 73 études de cas. Depuis la version 5.0.0 (septembre 2025), chaque technique porte un niveau de **maturité** : *Feasible* (montrée en recherche ou en milieu académique), *Demonstrated* (efficace lors d'un exercice de red team ou d'une démonstration sur un système réaliste) ou *Realized* (utilisée par un acteur malveillant dans un incident réel).
 
-## L'OWASP Top 10 for Agentic Applications 2026
-
-Publié le **9 décembre 2025** par l'OWASP GenAI Security Project, avec plus d'une centaine de contributeurs, ce Top 10 complète celui des applications LLM : il traite de ce qui arrive quand le modèle cesse d'être un générateur de texte et devient un acteur, avec des objectifs, des identifiants, des outils, une mémoire et de l'autonomie.
-
-| ID | Risque | Chez Novafact | Contrôle principal |
-| --- | --- | --- | --- |
-| ASI01 | Agent Goal Hijack | Une facture importée transforme « résume » en « envoie tout à cette adresse » | Règle de deux, séparation des privilèges (leçons 2 et 3) |
-| ASI02 | Tool Misuse and Exploitation | L'outil d'avoir appelé en boucle avec des montants maximaux | Schémas stricts, plafonds, approbation |
-| ASI03 | Identity and Privilege Abuse | L'agent appelle l'API avec un compte de service omnipotent | Identité de l'utilisateur propagée, token exchange (M9) |
-| ASI04 | Agentic Supply Chain Vulnerabilities | Un serveur MCP ou un paquet d'outils compromis | Versions figées, revue, empreintes, AI SBOM |
-| ASI05 | Unexpected Code Execution | Un outil « calculatrice » qui évalue une expression écrite par le modèle | Pas d'`eval` ; bac à sable sans réseau |
-| ASI06 | Memory and Context Poisoning | Une consigne stockée dans la mémoire de l'assistant | Mémoire cloisonnée par utilisateur, provenance, expiration |
-| ASI07 | Insecure Inter-Agent Communication | Un agent de relance qui fait confiance aux messages d'un agent de tri | Authentification et validation entre agents |
-| ASI08 | Cascading Failures | Une erreur de classification propagée à 300 relances automatiques | Plafonds de volume, disjoncteurs, revue d'échantillons |
-| ASI09 | Human Agent Trust Exploitation | Un écran de confirmation rédigé par le modèle qui minimise l'action | Confirmation affichant les données stockées, pas le texte du modèle |
-| ASI10 | Rogue Agents | Un agent dont le comportement dérive sans que personne ne le voie | Journalisation, détection de dérive, coupe-circuit |
-
-## Tool poisoning, shadowing et rug pull
-
-Le **1er avril 2025**, Invariant Labs a décrit le **tool poisoning** : un serveur MCP place dans la description d'un outil des consignes que le modèle lit et suit, mais que l'utilisateur ne voit pas dans l'interface. Leur démonstration montrait un outil anodin dont la description demandait au modèle de lire des fichiers sensibles de la machine et de les transmettre en argument.
-
-Deux variantes aggravent le problème :
-
-- le **shadowing** : la description d'un outil malveillant modifie la façon dont le modèle utilise l'outil d'un **autre** serveur, de confiance (dans la démonstration d'Invariant, un outil d'addition redirigeait vers l'attaquant tous les e-mails envoyés par l'outil de messagerie légitime, quel que soit le destinataire demandé par l'utilisateur) ;
-- le **rug pull** : le serveur présente des descriptions saines au moment de l'approbation, puis les change plus tard.
-
-La défense combine revue humaine des descriptions à l'intégration, version figée du serveur, et **détection de tout changement** des définitions d'outils.
-
-<Code file="apps/api/src/mcp/tool-pinning.ts" hl="11,12,13">
-
-```ts
-import { createHash } from 'node:crypto';
-import approved from './approved-tools.json' with { type: 'json' }; // { "compta-editeur": "sha256:…" }
-
-const canonical = (tools: Array<{ name: string; description?: string; inputSchema: unknown }>) =>
-  JSON.stringify([...tools].sort((a, b) => a.name.localeCompare(b.name)).map(({ name, description, inputSchema }) => ({ name, description, inputSchema })));
-
-export async function loadServerTools(serverId: string, client: McpClient) {
-  const { tools } = await client.listTools();
-  const digest = 'sha256:' + createHash('sha256').update(canonical(tools)).digest('hex');
-  if (approved[serverId] !== digest) {
-    logger.warn({ event: 'mcp.tools.changed', serverId, digest }, 'définitions d’outils modifiées');
-    return [];                                   // serveur désactivé jusqu'à nouvelle revue
-  }
-  return tools;
-}
-```
-
-</Code>
-
-<Callout kind="case">
-En septembre 2025, Koi Security a révélé **postmark-mcp**, le premier serveur MCP malveillant documenté publiquement. Le paquet npm usurpait le nom du service d'e-mail Postmark ; ses premières versions fonctionnaient normalement. La version 1.0.16 a ajouté **une seule ligne** : l'adresse de l'attaquant en copie cachée de chaque e-mail envoyé. Factures, réinitialisations de mot de passe et correspondances internes sont ainsi parties chez l'attaquant ; le paquet avait été téléchargé 1 643 fois avant son retrait. En mars 2026, MITRE ATLAS l'a ajouté à ses études de cas (AML.CS0053). C'est très exactement le profil de l'outil d'envoi de factures de Novafact.
+<Callout kind="info">
+Module vivant : les chiffres de ce paragraphe datent de septembre 2026 et auront changé quand tu liras ces lignes. Les données d'ATLAS sont publiées en YAML sur GitHub (dépôt `mitre-atlas/atlas-data`), ce qui permet de suivre les ajouts dans le changelog ou de les importer dans tes outils.
 </Callout>
 
-## Token passthrough et identité de l'agent
+## Les techniques qui concernent Novafact
 
-La spécification est catégorique : un serveur MCP **ne doit accepter aucun jeton qui n'a pas été explicitement émis pour lui**. Le *token passthrough*, qui consiste à accepter le jeton du client et à le relayer tel quel vers une API en aval, est interdit : il contourne les contrôles de l'API (limites, audience), rend l'audit illisible et fait du serveur un proxy d'exfiltration pour un jeton volé.
+| ID | Technique | Maturité | Chez Novafact |
+| --- | --- | --- | --- |
+| AML.T0051 | LLM Prompt Injection (sous-techniques Direct, Indirect, Triggered) | Realized | Facture importée contenant des consignes |
+| AML.T0053 | AI Agent Tool Invocation | Demonstrated | L'injection déclenche l'outil d'avoir |
+| AML.T0056 | Extract LLM System Prompt | Feasible | Récupération du contexte caché (LLM08:2026) |
+| AML.T0070 | RAG Poisoning | Demonstrated | Document piégé indexé dans le corpus |
+| AML.T0080 | AI Agent Context Poisoning (Memory, Thread) | Realized | Consigne persistée dans la mémoire de l'assistant |
+| AML.T0084 | Discover AI Agent Configuration (dont Tool Definitions) | Demonstrated | L'attaquant fait lister les outils disponibles |
+| AML.T0086 | Exfiltration via AI Agent Tool Invocation | Realized | Données envoyées via l'outil d'e-mail |
+| AML.T0010.005 | AI Supply Chain Compromise : AI Agent Tool | Realized | Serveur MCP tiers compromis |
+| AML.T0110 | AI Agent Tool Poisoning | Realized | Description d'outil MCP piégée |
+| AML.T0034 | Cost Harvesting (dont Agentic Resource Consumption) | Feasible | Compte d'essai qui fait exploser la facture |
 
-<Code file="services/mcp-novafact/src/auth.ts" hl="8,9">
+Maturités relevées dans la version v2026.09 : elles évoluent à mesure que des études de cas documentent des incidents réels. Note que AML.T0056 est encore classée *Feasible* alors que l'extraction de prompt se reproduit facilement : la maturité mesure le niveau de preuve documenté, pas la difficulté de l'attaque.
 
-```ts
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+### Les vagues agentiques de 2025-2026
 
-const JWKS = createRemoteJWKSet(new URL('https://auth.novafact.example/.well-known/jwks.json'));
+Le contenu d'ATLAS a basculé vers les agents en quelques mois :
 
-export async function authenticate(authorization: string | undefined) {
-  const token = authorization?.replace(/^Bearer /, '');
-  if (!token) throw new Unauthorized();
-  const { payload } = await jwtVerify(token, JWKS, {
-    issuer: 'https://auth.novafact.example', audience: 'https://mcp.novafact.example', algorithms: ['RS256'],
-  });
-  return { userId: payload.sub!, tenantId: payload['tenant_id'] as string, scope: String(payload.scope ?? '').split(' ') };
-}
-// Pour appeler l'API de facturation : token exchange (RFC 8693) vers l'audience de l'API, jamais le jeton reçu.
-```
+- **Fin septembre 2025** (v5.0.0) : AML.T0080 à AML.T0086, dont l'empoisonnement du contexte d'un agent, la récupération d'identifiants dans un RAG ou dans la configuration d'un agent, et AML.T0086.
+- **Novembre 2025** : collecte d'identifiants via les outils d'un agent (AML.T0098), empoisonnement des données d'outils (AML.T0099), *AI Agent Clickbait* (AML.T0100), destruction de données via un outil (AML.T0101).
+- **Mars 2026** : AML.T0110 AI Agent Tool Poisoning, et la sous-technique « AI Agent Tool » de la compromission de supply chain.
+- **Août 2026** : un ensemble de techniques où l'**attaquant est lui-même un agent autonome** (reconnaissance autonome, orchestration d'attaque autonome, AML.T0116 et suivantes).
+- **Septembre 2026** : entre autres, les liens piégés vers un assistant IA (AML.T0131) et une nouvelle mitigation, les **pots de miel IA** (AML.M0039).
 
-</Code>
+## Les études de cas : des chaînes complètes
 
-Même logique pour les **scopes** : la spécification recommande un ensemble minimal au départ, puis une élévation progressive quand un outil privilégié est appelé, plutôt qu'un jeton omnipotent obtenu d'emblée. Chez Novafact, `invoices:read` suffit pour démarrer ; `credit_notes:write` fait l'objet d'une élévation explicite.
+Une étude de cas ATLAS décrit une attaque réelle ou un exercice de red team **étape par étape**, chaque étape étiquetée par une technique. C'est la partie la plus utile pour un défenseur : elle montre comment les techniques s'enchaînent.
 
-## Les autres pratiques de la spécification
+| Étude de cas | Pourquoi la lire |
+| --- | --- |
+| AML.CS0053 Poisoned Postmark MCP Server Email Exfiltration | Supply chain sur un outil d'envoi d'e-mails (leçon 1 de M28) |
+| AML.CS0059 EchoLeak | Injection zéro clic via un e-mail récupéré par le RAG (leçon 2) |
+| AML.CS0037 Data Exfiltration via Agent Tools in Copilot Studio | Exfiltration par les outils d'un agent d'entreprise |
+| AML.CS0045 Data Exfiltration via an MCP Server used by Cursor | Serveur MCP et poste de développeur |
+| AML.CS0067 Claude Code GitHub Action Secret Exposure | Agent de code en CI et secrets (leçon 7) |
+| AML.CS0022 ChatGPT Package Hallucination | Paquets hallucinés et supply chain (leçon 7) |
 
-La page *Security Best Practices* couvre aussi :
+## Les mitigations orientées agents
 
-- **SSRF côté client** : pendant la découverte OAuth, un serveur malveillant peut fournir des URL pointant vers le réseau interne ou le service de métadonnées cloud. HTTPS obligatoire, plages privées bloquées, redirections validées, proxy de sortie.
-- **Validation des URL d'autorisation** : n'accepter que `https` (et `http` en boucle locale pour le développement), refuser `javascript:` et consorts, ne jamais ouvrir une URL via un shell. En juillet 2025, JFrog a publié CVE-2025-6514 (CVSS 9.6) dans `mcp-remote` : une URL d'autorisation piégée renvoyée par un serveur malveillant provoquait l'exécution de commandes sur le poste du client ; corrigé en 0.1.16.
-- **Serveurs locaux** : consentement explicite affichant la commande exacte avant d'installer un serveur, exécution en bac à sable.
-- **Poignées d'état** : depuis que le protocole est sans état, un serveur qui garde un état entre requêtes émet un identifiant ; il doit être aléatoire, lié côté serveur à l'utilisateur authentifié, et ne jamais servir d'authentification.
+Les mitigations récentes d'ATLAS recoupent presque mot pour mot les défenses d'architecture des leçons 2 à 4 et de M28, leçon 1, ce qui en fait un bon langage commun avec une équipe de détection ou un auditeur.
 
-## Le bac à sable et l'intégration d'un serveur
+| Mitigation | Traduction chez Novafact |
+| --- | --- |
+| AML.M0026 et M0027 : configuration des permissions d'un agent privilégié ou mono-utilisateur | L'assistant agit avec l'identité de l'utilisateur, pas avec un compte de service |
+| AML.M0028 AI Agent Tools Permissions Configuration | Moindre privilège et accès délégué par outil |
+| AML.M0029 Human In-the-Loop for AI Agent Actions | Confirmation des avoirs et des envois |
+| AML.M0030 Restrict AI Agent Tool Invocation on Untrusted Data | Règle de deux : pas d'outil d'écriture après lecture d'un document importé |
+| AML.M0032 Segmentation of AI Agent Components | Serveurs MCP en conteneur, réseau et fichiers restreints |
+| AML.M0033 Input and Output Validation for AI Agent Components | Schémas zod, rendu Markdown filtré |
+| AML.M0036 Limit AI Workload Resource Consumption | Quotas de jetons, plafond d'étapes |
+| AML.M0037 et M0038 : contrôle de l'extension d'autorité, détection de dérive d'objectif | Autorité maximale fixée avant l'exécution, alertes sur des actions hors objectif |
+
+## Utiliser ATLAS en pratique
 
 <Steps items={[
-  { title: "Qualifier", text: "Qui édite le serveur, où est le code, qui peut publier une version ? Même grille que pour un fournisseur ou un paquet npm critique (M14)." },
-  { title: "Relire", text: "Lire les descriptions et schémas de chaque outil comme un prompt : consignes cachées, texte hors sujet, demandes de lire d'autres outils ou fichiers." },
-  { title: "Restreindre", text: "N'exposer à l'agent que les outils nécessaires ; scopes minimaux ; jamais de serveur tiers dans une session qui détient les outils d'écriture de Novafact sans validation humaine." },
-  { title: "Isoler", text: "Conteneur sans privilèges, système de fichiers en lecture seule, aucun secret dans l'environnement, sortie réseau limitée aux domaines de l'éditeur." },
-  { title: "Figer", text: "Version exacte, empreinte des définitions d'outils, mises à jour relues comme une PR." },
-  { title: "Observer", text: "Journaliser chaque appel d'outil avec son serveur d'origine ; alerter sur un changement de définition ou un appel inhabituel." },
+  { title: "Partir du diagramme", text: "Reprends le diagramme de flux de l'assistant (M11). Pour chaque frontière de confiance, parcours les tactiques et note les techniques plausibles." },
+  { title: "Enchaîner", text: "Écris deux ou trois chaînes complètes, à la manière d'une étude de cas : accès initial, exécution, collecte, exfiltration. Une chaîne rend visibles les points où une seule mesure casse tout." },
+  { title: "Relier aux contrôles", text: "Pour chaque technique retenue : la mitigation ATLAS, le contrôle concret, le test qui le vérifie (leçon 6)." },
+  { title: "Étiqueter les détections", text: "Chaque règle Elastic sur les journaux d'outils (M24) porte l'identifiant ATLAS, comme tu le fais avec ATT&CK." },
+  { title: "Suivre les mises à jour", text: "Une fois par mois, parcours le changelog : une nouvelle technique marquée Realized sur un composant que tu utilises mérite une revue." },
 ]} />
 
-<Callout kind="tip">
-Le jeu **Agent Blast Radius** te fait choisir quels outils et quels serveurs exposer à l'assistant, et où placer les validations humaines.
-</Callout>
+<Code file="security/threat-model/assistant.yaml">
+
+```yaml
+- id: TM-AI-004
+  scenario: Facture importée contenant des consignes, exfiltration par l'outil d'e-mail
+  chain: [AML.T0051.001, AML.T0053, AML.T0086]
+  owasp: [LLM01:2026, LLM03:2026, ASI01, ASI02]
+  mitigations:
+    - atlas: AML.M0030
+      control: Aucun outil d'écriture dans une session qui a lu un document importé sans confirmation
+    - atlas: AML.M0028
+      control: sendInvoiceEmail n'accepte qu'un contactId du tenant
+  tests: [promptfoo/indirect-injection-invoice.yaml]
+  detection: elastic/rules/assistant-write-after-untrusted-read.toml
+  status: mitigated
+```
+
+</Code>
+
+## L'OWASP AI Exchange
+
+L'**OWASP AI Exchange** est un projet phare de l'OWASP : plus de 300 pages de guidance gratuite et ouverte sur la sécurité et la confidentialité des systèmes d'IA, fondé par Rob van der Veer. Là où les Top 10 sélectionnent, l'AI Exchange se veut exhaustif. Il organise les menaces selon le moment où elles interviennent : **contrôles généraux** (gouvernance, limitation des données), **menaces par l'entrée** (évasion, injection de prompt, divulgation), **menaces au développement** (empoisonnement, fuite de données d'entraînement), **sécurité conventionnelle à l'exécution**, puis les **tests** et la **vie privée**.
+
+Sa particularité : une **liaison officielle** avec les organismes de normalisation. Son contenu a été versé dans **ISO/IEC 27090** (sécurité de l'IA) et dans **prEN 18282**, la norme européenne de cybersécurité des systèmes d'IA préparée par le CEN et le CENELEC pour l'AI Act. Pour une équipe européenne, c'est la meilleure façon de savoir, avant publication, ce que les normes vont attendre.
+
+| Référentiel | Question à laquelle il répond | Quand l'ouvrir |
+| --- | --- | --- |
+| OWASP LLM Top 10 2026 | Quels sont les risques principaux d'une application LLM ? | Sensibilisation, priorisation |
+| OWASP Agentic Top 10 2026 | Quels risques ajoutent les agents ? | Dès qu'il y a des outils et de l'autonomie |
+| MITRE ATLAS | Comment un adversaire procède-t-il, étape par étape ? | Threat model, détection, red team |
+| OWASP AI Exchange | Quels contrôles existent pour chaque menace, en détail ? | Conception, exigences, préparation aux normes |
+| NIST AI 100-2 | Quelle taxonomie des attaques d'apprentissage automatique ? | Vocabulaire commun, gouvernance (leçon 7) |
 
 <Recap items={[
-  "Les descriptions d'outils MCP entrent dans le contexte : un serveur est à la fois du code exécuté et une source de consignes.",
-  "Top 10 Agentic 2026 (9 décembre 2025) : ASI01 Agent Goal Hijack à ASI10 Rogue Agents.",
-  "Tool poisoning, shadowing et rug pull : relire, figer la version, détecter tout changement des définitions.",
-  "Token passthrough interdit : n'accepter que les jetons émis pour le serveur, token exchange vers l'aval, scopes progressifs.",
-  "Spécification 2026-07-28 : cœur sans état, CIMD, validation de l'émetteur ; serveurs tiers en bac à sable et sous surveillance.",
+  "ATLAS : 16 tactiques, des techniques datées et une maturité (Feasible, Demonstrated, Realized) ; mise à jour mensuelle.",
+  "Les vagues 2025-2026 couvrent les agents : AML.T0080 à T0086, T0110, puis l'attaquant autonome (août 2026).",
+  "Les études de cas montrent des chaînes complètes ; les mitigations M0026 à M0038 parlent le langage des défenses d'architecture.",
+  "En pratique : chaînes dans le threat model, contrôles et tests reliés, détections étiquetées.",
+  "L'OWASP AI Exchange, exhaustif et ouvert, alimente ISO/IEC 27090 et prEN 18282.",
 ]} />
 
 <Sources items={[
-  { title: "MCP : Security Best Practices", url: "https://modelcontextprotocol.io/specification/latest/basic/security_best_practices" },
-  { title: "MCP : la spécification 2026-07-28", url: "https://blog.modelcontextprotocol.io/posts/2026-07-28/" },
-  { title: "OWASP Top 10 for Agentic Applications 2026", url: "https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/" },
-  { title: "Invariant Labs : MCP Security Notification, Tool Poisoning Attacks", url: "https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks" },
-  { title: "Postmark : paquet malveillant postmark-mcp", url: "https://postmarkapp.com/blog/information-regarding-malicious-postmark-mcp-package" },
-  { title: "JFrog : CVE-2025-6514 dans mcp-remote", url: "https://jfrog.com/blog/2025-6514-critical-mcp-remote-rce-vulnerability/" },
+  { title: "MITRE ATLAS", url: "https://atlas.mitre.org/" },
+  { title: "ATLAS : changelog des données", url: "https://github.com/mitre-atlas/atlas-data/blob/main/CHANGELOG.md" },
+  { title: "ATLAS : version v2026.09", url: "https://github.com/mitre-atlas/atlas-data/releases/tag/v2026.09" },
+  { title: "OWASP AI Exchange", url: "https://owaspai.org/" },
+  { title: "OWASP AI Exchange : AI Security Overview", url: "https://owaspai.org/docs/ai_security_overview/" },
+  { title: "NIST AI 100-2 E2025 : Adversarial Machine Learning", url: "https://csrc.nist.gov/pubs/ai/100/2/e2025/final" },
 ]} />

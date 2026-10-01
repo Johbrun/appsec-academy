@@ -85,7 +85,7 @@ describe('GET /invoices/:id', () => {
 
 </Code>
 
-La table de décision de M12 (leçon 5) se traduit directement en tests paramétrés. Si la politique existe dans le code, les tests la parcourent entièrement, et une permission ajoutée sans test apparaît aussitôt :
+La table de décision de M16 (leçon 5) se traduit directement en tests paramétrés. Si la politique existe dans le code, les tests la parcourent entièrement, et une permission ajoutée sans test apparaît aussitôt :
 
 <Code file="apps/api/test/policy.matrix.test.ts" hl="4,8">
 
@@ -218,7 +218,7 @@ Kohnfelder conseille de ne pas viser la couverture totale d'un coup :
 <Steps items={[
   { title: "Les contrôles critiques d'abord", text: "Authentification, autorisation inter-tenant, validation des montants : une poignée de tests de refus protège l'essentiel." },
   { title: "Un test à chaque bug corrigé", text: "Chaque finding de pentest, de bug bounty ou de revue arrive avec son test de régression." },
-  { title: "Des tests de refus pour chaque nouvelle route", text: "La revue (M12) les demande ; la PR sans test de refus sur une route sensible ne passe pas." },
+  { title: "Des tests de refus pour chaque nouvelle route", text: "La revue (M16) les demande ; la PR sans test de refus sur une route sensible ne passe pas." },
   { title: "Des tests de caractérisation sur le code ancien", text: "Avant de refactorer un module sans tests, figer son comportement actuel, y compris ce qu'il refuse, pour détecter tout changement." },
 ]} />
 

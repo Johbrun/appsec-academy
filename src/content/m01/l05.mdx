@@ -1,227 +1,204 @@
 export const questions = [
   {
-    q: "Une nouvelle règle SAST produit encore 30 % de faux positifs. Que fais-tu ?",
+    q: "Qu'est-ce qu'un « paved road » ?",
     options: [
-      "Tu la rends bloquante tout de suite, avec une exception préremplie pour les cas connus",
-      "Tu la laisses en mode Monitor jusqu'à ce que son taux de faux positifs tombe à zéro",
-      "Tu la passes en commentaire de PR, tu l'affines, puis tu la rends bloquante",
-      "Tu la rends bloquante sur les dépôts d'une seule équipe volontaire, en pilote",
+      "Un socle de configurations durcies imposé à toutes les équipes, sans dérogation possible",
+      "Une liste de bibliothèques et de versions approuvées, tenue par l'équipe sécurité",
+      "Un chemin outillé et sûr par défaut, plus rapide à suivre que l'alternative",
+      "Un ensemble de portes bloquantes qui empêchent de livrer un service non conforme",
     ],
     answer: 2,
-    explain: "Attendre le zéro faux positif en mode Monitor est le piège : le tableau de bord ne renvoie rien aux développeurs, donc personne ne te dit quels findings sont faux, et la règle n'atteindra jamais ce zéro. Le commentaire de PR est l'étape qui manque : il fait travailler la règle sans bloquer personne et te donne la matière pour l'affiner. Le pilote reporte le coût sur une équipe sans améliorer la règle, et l'exception préremplie apprend aux équipes à la remplir.",
+    explain: "Les trois autres décrivent des contraintes ; un paved road est une offre. Ce qui le définit n'est pas d'être sûr mais d'être le chemin le plus court : on peut en sortir, à condition d'en assumer le coût (revue, justification). Le socle imposé et les portes bloquantes produisent du contournement silencieux ; la liste de bibliothèques approuvées ne donne rien de prêt à l'emploi, donc ne fait gagner aucun temps.",
   },
   {
-    q: "Qu'est-ce qu'une bonne exception de sécurité ?",
+    q: "Pourquoi « shift left » ne suffit-il pas ?",
     options: [
-      "Une entrée dans le backlog sécurité de l'équipe, priorisée par son lead",
-      "Une dérogation écrite, datée, avec un propriétaire du risque et un plan de sortie",
-      "Un // nosemgrep portant l'identifiant de la règle et un commentaire d'explication en clair",
-      "Une validation de l'ingénieur AppSec, consignée dans la revue de la PR",
-    ],
-    answer: 1,
-    explain: "Le // nosemgrep bien renseigné est le plus tentant, parce qu'il corrige déjà le mauvais réflexe (supprimer toutes les règles sur la ligne). Il reste une suppression : ni propriétaire, ni date, invisible du programme. La validation AppSec écrit la décision mais la fait prendre par quelqu'un qui ne porte pas le risque. Le backlog trace une intention, pas une acceptation. Une exception est une acceptation de risque : écrite, approuvée au bon niveau, datée, réexaminée à échéance.",
-  },
-  {
-    q: "Tu actives un SCA bloquant sur un monorepo qui compte déjà 40 vulnérabilités hautes connues. Comment éviter de bloquer toutes les PR dès le premier jour ?",
-    options: [
-      "Abaisser le seuil à « critique seulement » jusqu'à ce que le stock soit résorbé",
-      "Inscrire les 40 vulnérabilités au fichier d'exceptions, avec une date d'expiration",
-      "Bloquer la release plutôt que les PR, tant que le stock n'est pas résorbé",
-      "Ne bloquer que sur ce que la PR introduit, et traiter le stock à part",
-    ],
-    answer: 3,
-    explain: "Le fichier d'exceptions est le plus séduisant : le mécanisme existe, il est daté et versionné. Mais une exception est une décision instruite et signée, cas par cas ; quarante d'un coup en font une case à cocher et décrédibilisent l'outil. Abaisser le seuil laisse passer les nouvelles hautes tout en bloquant encore sur d'anciennes critiques. Déplacer la porte vers la release déplace juste le blocage sur ceux qui livrent. Une porte juge le changement ; le stock relève d'un plan de remédiation avec des SLA.",
-  },
-  {
-    q: "Un correctif de production urgent est bloqué par une porte de sécurité en panne. Quelle procédure est la plus saine ?",
-    options: [
-      "Une personne de la bypass list contourne la porte, et une revue a lieu sous 24 h",
-      "Le lead rend le job non obligatoire le temps de livrer, puis le remet ensuite",
-      "On passe par le pipeline de hotfix, qui n'a pas de porte de sécurité",
-      "On attend la réparation : aucune livraison ne doit sortir sans contrôle de sécurité",
+      "Parce que certains risques n'existent qu'une fois l'application exposée",
+      "Parce que les équipes n'ont pas le temps de trier les alertes remontées dans la PR",
+      "Parce que l'analyse statique produit trop de faux positifs pour être fiable seule",
+      "Parce que les contrôles en amont ne voient pas les dépendances tierces",
     ],
     answer: 0,
-    explain: "Rendre le job non obligatoire « le temps de livrer » est ce que presque tout le monde fait, et c'est exactement le contournement par la configuration qu'il faut traquer : rien ne garantit qu'on le remette, et la trace ressemble à un commit anodin. Le pipeline de hotfix sans porte transforme l'exception en autoroute permanente. Attendre la réparation fait payer au client la panne d'un outil. Le bris de glace existe pour ce cas : restreint à quelques personnes, tracé, revu après coup.",
+    explain: "La surcharge d'alertes et le bruit du SAST sont de vraies plaies, mais ce sont des défauts de mise en œuvre : on peut les corriger sans sortir de l'amont. Quant aux dépendances, le SCA dans la PR les voit très bien. Ce que l'amont ne peut pas voir, c'est la configuration réellement déployée, l'usage abusif et l'attaquant en cours : c'est le domaine du shift right, qui renvoie ensuite ses leçons vers l'amont.",
+  },
+  {
+    q: "Novafact veut interdire le SQL brut. Quelle mise en œuvre relève vraiment du safe coding ?",
+    options: [
+      "Une revue AppSec obligatoire sur tout fichier qui construit une requête SQL",
+      "Une règle Semgrep qui remonte chaque concaténation SQL dans le tableau de bord sécurité",
+      "Un WAF devant l'API, avec le jeu de règles SQLi d'OWASP CRS en mode blocage",
+      "Une règle de lint bloquante sur $queryRawUnsafe, sauf dans un module revu",
+    ],
+    answer: 3,
+    explain: "La revue AppSec obligatoire est le distracteur sérieux : elle existe vraiment, et c'est même elle qui protège le module d'échappatoire. Mais étendue à tout le code, elle remet un humain dans la boucle à chaque commit, ne passe pas à l'échelle et finit par être contournée. Le tableau de bord Semgrep détecte sans empêcher. Le safe coding fait l'inverse : il rend la construction dangereuse impossible par défaut et la concentre là où la revue reste tenable.",
+  },
+  {
+    q: "Le paved road de Novafact existe depuis six mois, mais deux équipes sur six l'utilisent. Quelle est la première hypothèse à vérifier ?",
+    options: [
+      "Le kit a été mal annoncé : il faut une démo et une communication par équipe",
+      "Un tiers des équipes à six mois est un rythme normal : il faut laisser du temps",
+      "Le kit ne leur fait pas gagner de temps par rapport à leur façon de faire",
+      "Il faut rendre le kit obligatoire pour tout nouveau service, par décision de la direction",
+    ],
+    answer: 2,
+    explain: "La communication et la patience sont recevables, et tu les vérifieras aussi — mais elles supposent déjà que le produit est bon et que seul le message manque. L'obligation par décision de la direction est le vrai piège : elle fait monter le chiffre d'adoption sans toucher à la cause, et déplace le contournement là où tu ne le vois plus. Un paved road s'emprunte parce qu'il est plus rapide ; commence par demander aux quatre équipes ce qu'il leur coûte.",
   },
 ];
 
 <YouKnow>
-Tu as vu des pipelines où « tout est rouge » et où personne ne regarde plus, et d'autres où rien ne bloque jamais. Le bon réglage se trouve entre les deux, et il se décide explicitement.
+Tu as déjà croisé des pipelines avec un scanner qui bloque tout, des équipes qui contournent les contrôles, et des rapports de pentest qui dorment dans un drive. Tu sais aussi que les mêmes bugs reviennent d'une mission à l'autre.
 </YouKnow>
 
-## Où placer les contrôles
+## DevSecOps en une phrase
 
-Chaque étape de la livraison peut porter un contrôle, avec un coût et un délai de retour différents :
+DevSecOps, c'est intégrer la sécurité dans le flux de livraison **sans créer de file d'attente**. Si chaque mise en production attend une validation manuelle de l'équipe sécurité, l'équipe sécurité devient le goulot, et le produit apprend à l'éviter. L'objectif est l'inverse : que la sécurité voyage avec le code, automatiquement, avec un retour rapide aux personnes qui peuvent agir.
 
-| Étape | Exemples de contrôles | Délai de retour |
+Le mécanisme d'évitement est prévisible. Une validation manuelle qui prend trois jours pousse les équipes à regrouper leurs changements pour n'y passer qu'une fois, donc à livrer de plus gros lots, plus risqués et plus difficiles à relire. Ou à reclasser leurs changements pour qu'ils « n'aient pas besoin » de revue. Dans les deux cas, le contrôle dégrade la sécurité qu'il devait protéger.
+
+## Shift left et shift right
+
+**Shift left** : trouver plus tôt, là où corriger coûte moins cher. Exigences, conception, revue de code, analyse statique, tests en CI.
+
+**Shift right** : apprendre de la production. Journalisation, détection, retours d'incidents, bug bounty, analyse des abus. Beaucoup de risques n'existent qu'une fois l'application exposée : une configuration réelle, un comportement d'utilisateur, un attaquant patient.
+
+| Ce que tu cherches | Plutôt à gauche | Plutôt à droite |
 | --- | --- | --- |
-| Poste du développeur | Lint de sécurité, pre-commit (secrets), extension IDE | Secondes |
-| Pull request | SAST ciblé, SCA, revue de code, tests de sécurité | Minutes |
-| Build et release | SBOM, signature, scan d'image, vérification de provenance | Minutes |
-| Staging | DAST authentifié, tests d'intégration de sécurité | Heures |
-| Production | WAF, détection, bug bounty, pentest | Continu |
+| Injection, SQL brut, désérialisation | SAST, lint, revue de code | Détection d'erreurs anormales dans les logs |
+| Dépendance vulnérable | SCA dans la PR | Inventaire des versions déployées, alertes sur un nouvel advisory |
+| Faille d'autorisation (BOLA) | Tests d'autorisation, middleware central | Alerte sur des accès inter-tenants |
+| Abus métier (export massif, fraude) | Exigences, threat modeling | Détection comportementale, limites de débit |
+| Mauvaise configuration cloud | Scan de l'IaC | Contrôle de la configuration réelle (drift) |
 
-Plus le contrôle est tôt, plus il doit être **rapide et précis**, car il touche chaque développeur à chaque commit. Un contrôle sur le poste ne peut pas être une porte : le développeur peut toujours le contourner (`git commit --no-verify`). Il sert au confort et au retour immédiat ; la vraie porte est côté serveur, dans la PR ou la release, là où le contournement laisse une trace.
-
-## Break/build : décider ce qui bloque
-
-Un critère *break/build* dit ce qui empêche une fusion ou une mise en production. Il doit être **écrit**, **connu** et **stable**. Un exemple de politique raisonnable pour Novafact :
-
-<Steps items={[
-  { title: "Bloquant", text: "Secret détecté dans le code ; dépendance avec vulnérabilité critique atteignable et correctif disponible ; règle SAST maison à très faible taux de faux positifs (ex. SQL brut hors module autorisé)." },
-  { title: "Bloquant avec délai", text: "Vulnérabilité haute atteignable : la PR passe, mais un ticket est créé avec un SLA ; au-delà du SLA, les releases sont bloquées." },
-  { title: "Informatif", text: "Tout le reste : commentaires dans la PR, tableau de bord, revue lors des rituels de sécurité." },
-]} />
-
-Deux principes rendent cette politique tenable.
-
-**Juger le changement, pas l'historique.** Une porte qui bloque sur les 40 vulnérabilités déjà présentes dans le dépôt punit un développeur qui n'y est pour rien. Les bons outils savent comparer à une référence : `semgrep ci` fait un scan « diff-aware » dans les pull requests et ne remonte que les findings introduits par le changement ; l'action `dependency-review-action` de GitHub ne regarde que les dépendances ajoutées ou modifiées par la PR. Le stock existant relève d'un plan de remédiation, pas de la porte.
-
-**Monter en puissance règle par règle.** Semgrep formalise très bien cette progression avec trois modes par règle : *Monitor* (le finding n'apparaît que dans le tableau de bord), *Comment* (un commentaire dans la PR, qui reste fusionnable) et *Block* (le check échoue). Une règle nouvelle commence en Monitor ; elle passe en Comment quand tu as vérifié ses résultats sur quelques semaines, et en Block quand son taux de faux positifs est quasi nul et que le correctif est évident.
-
-## Mettre la porte en place
-
-Chez Novafact, la porte de PR tient dans un workflow GitHub Actions et une règle de branche. Le workflow vérifie d'abord le fichier d'exceptions, puis les dépendances.
-
-<Code file=".github/workflows/security-gate.yml" hl="13,20,21,22">
-
-```yaml
-name: security-gate
-on:
-  pull_request:
-permissions:
-  contents: read
-  pull-requests: write
-jobs:
-  exceptions:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7          # à épingler par SHA en production (voir M14)
-      - run: npm ci
-      - run: node scripts/check-exceptions.mjs
-  dependencies:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/dependency-review-action@v5
-        with:
-          fail-on-severity: critical
-          fail-on-scopes: runtime
-          comment-summary-in-pr: on-failure
-```
-
-</Code>
-
-Côté GitHub, un **ruleset** sur la branche principale rend ces deux jobs obligatoires (*required status checks*). Si le dépôt utilise le code scanning, le même ruleset peut exiger les résultats d'un outil et bloquer la fusion au-delà d'un seuil de gravité (par exemple « High or higher » pour les alertes de sécurité). Le ruleset porte aussi une **liste de contournement** (*bypass list*) limitée à quelques personnes : c'est le bris de glace, pour un correctif urgent quand un outil est en panne. Chaque contournement est tracé et donne lieu à une revue a posteriori.
-
-La porte de **release** est différente : elle ne juge plus un changement, mais l'état du produit au moment de livrer. C'est là que vit la catégorie « bloquant avec délai ». Chez Novafact, le job de release interroge le gestionnaire de vulnérabilités et refuse de publier si une vulnérabilité haute ou critique a dépassé son SLA sans exception valide. L'équipe a donc un délai pour corriger, mais le délai a une fin concrète.
-
-<Callout kind="debate">
-Faut-il bloquer du tout ? Certains praticiens défendent un modèle sans porte bloquante en PR : tout est informatif, et la pression passe par les SLA, les tableaux de bord et la revue de risque. L'argument : une porte bloquante crée un rapport de force et incite à tromper l'outil. D'autres répondent que certaines catégories (secret en clair, dépendance critique exploitée) ne se négocient pas, et qu'un blocage rare et prévisible est mieux accepté qu'une relance permanente. Le compromis habituel : très peu de règles bloquantes, choisies pour leur précision, et tout le reste en information.
-</Callout>
-
-<Callout kind="warn">
-La plupart des contournements ne passent pas par la liste prévue, mais par la configuration : un `// nosemgrep` sans identifiant de règle (qui ignore toutes les règles sur la ligne), une option `warn-only: true` ajoutée « temporairement », un job rendu non obligatoire. Surveille ces changements comme du code sensible : `CODEOWNERS` sur les fichiers de workflow et de configuration des outils, et un contrôle qui refuse un `nosemgrep` sans identifiant de règle.
-</Callout>
-
-La porte la plus économique n'est pas toujours dans la CI. Pour l'infrastructure, elle se place **à l'admission** : un contrôle de politique qui refuse une ressource exposée publiquement avant qu'elle n'existe (M16). La différence avec un scan périodique du compte est une fenêtre : le scan constate après coup, avec les minutes ou les heures d'exposition qui séparent la création de la détection. Même logique qu'une porte de PR, appliquée à un autre moment de la chaîne.
-
-## Les exceptions
-
-Un contrôle bloquant sans procédure d'exception pousse au contournement silencieux (désactiver la règle, `// nosemgrep`, merge forcé). Une bonne exception :
-
-- est **écrite** dans un outil traçable (ticket, fichier dans le dépôt) ;
-- est **justifiée** : pourquoi le risque est acceptable ou pourquoi le correctif ne peut pas attendre ;
-- a un **propriétaire du risque** du bon niveau (pas le développeur qui veut merger) ;
-- a une **date d'expiration** et un **plan de sortie** ;
-- est **revue** à échéance, automatiquement.
-
-Un fichier `security-exceptions.yml` versionné dans le dépôt, lu par la CI, est une solution simple et efficace : l'exception est revue en PR comme le code, et la CI refuse une exception expirée, trop longue ou auto-approuvée.
-
-<Code file="security-exceptions.yml">
-
-```yaml
-- id: EXC-2026-014
-  rule: novafact.raw-sql-outside-db-module
-  path: apps/api/src/exports/accounting.ts
-  reason: >
-    Requête d'agrégation comptable non exprimable avec le query builder ;
-    les paramètres sont des dates validées par schéma, jamais des chaînes libres.
-  requestedBy: equipe-facturation
-  riskOwner: responsable-produit-facturation
-  approvedBy: responsable-produit-facturation
-  expires: 2026-12-15
-  exitPlan: https://tickets.novafact.example/SEC-412
-```
-
-</Code>
-
-<Code file="scripts/check-exceptions.mjs" hl="5,16,22,23">
-
-```js
-import { readFileSync } from 'node:fs';
-import { parse } from 'yaml';
-import { z } from 'zod';
-
-const MAX_DAYS = 365; // plafond absolu ; la durée par niveau de risque est vérifiée en revue
-const Exception = z.object({
-  id: z.string().regex(/^EXC-\d{4}-\d{3}$/),
-  rule: z.string().min(1),
-  path: z.string().min(1),
-  reason: z.string().min(40),
-  requestedBy: z.string(),
-  riskOwner: z.string(),
-  approvedBy: z.string(),
-  expires: z.coerce.date(),
-  exitPlan: z.string().url(),
-}).refine((e) => e.approvedBy !== e.requestedBy, 'le demandeur ne peut pas approuver sa propre exception');
-
-const list = z.array(Exception).parse(parse(readFileSync('security-exceptions.yml', 'utf8')) ?? []);
-const errors = [];
-for (const e of list) {
-  const daysLeft = (e.expires.getTime() - Date.now()) / 86_400_000;
-  if (daysLeft < 0) errors.push(`${e.id} a expiré : renouvelle-la en PR ou corrige le code`);
-  if (daysLeft > MAX_DAYS) errors.push(`${e.id} dépasse ${MAX_DAYS} jours`);
-}
-if (errors.length) {
-  console.error(errors.join('\n'));
-  process.exit(1);
-}
-```
-
-</Code>
-
-Le script n'applique qu'un plafond absolu d'un an : la durée réelle dépend du niveau de risque, et la leçon sur le risque propose une matrice (qui peut signer, pour combien de temps). Pour les dépendances, l'équivalent existe dans `dependency-review-action` : l'option `allow-ghsas` accepte une liste d'identifiants d'advisories à ignorer, que tu peux générer à partir du même fichier d'exceptions pour garder une seule source de vérité.
+Les deux se nourrissent. Un incident en production (shift right) devient une règle SAST et un test de régression (shift left). Un contrôle en amont réduit le bruit en aval.
 
 <Callout kind="novafact">
-Premier trimestre de la porte chez Novafact (chiffres fictifs) : 212 PR analysées, 9 bloquées, dont 7 corrigées dans l'heure (secrets et une dépendance critique), 2 passées par une exception signée. Un seul bris de glace, lors d'une panne de l'API d'advisories. Ce sont ces chiffres, plus que la politique elle-même, qui ont convaincu les équipes que la porte était raisonnable.
+Exemple de boucle chez Novafact. Une alerte Elastic signale un utilisateur qui télécharge des PDF de factures d'un autre tenant : la route d'export ne vérifiait que l'authentification. Le correctif passe par le middleware d'autorisation central ; le post-mortem produit une règle Semgrep « route sans appel à `authorize()` » et un test d'intégration qui tente l'accès croisé. La même classe ne pourra plus passer en PR sans bruit.
 </Callout>
 
-## Documenter et rendre compte
+## Secure by default et paved road
 
-Les jalons et exceptions n'ont de valeur que s'ils sont visibles. Trois supports suffisent au début :
+Un contrôle **sûr par défaut** protège sans que personne n'ait à y penser : un framework qui échappe la sortie HTML, un client HTTP qui refuse les adresses internes, un template de service qui naît avec ses en-têtes de sécurité.
 
-- une **page de politique** courte (ce qui bloque, qui décide, comment demander une exception) ;
-- un **tableau de bord** par équipe (findings ouverts, âge, exceptions actives) ;
-- une **boucle de retour** : chaque incident ou faux positif récurrent fait évoluer les règles.
+Le **paved road** (popularisé par Netflix) généralise l'idée : l'équipe sécurité, souvent avec l'équipe plateforme, fournit un chemin outillé pour créer un service, une API ou un pipeline, où les bonnes pratiques sont déjà intégrées. Les équipes restent libres d'en sortir, mais elles en assument le coût : revue manuelle, justification, exceptions.
 
-Dans le rapport mensuel, quatre lignes suffisent : nombre de PR bloquées et motif, délai médian de déblocage, exceptions actives (et celles qui expirent dans le mois), contournements utilisés. Le délai de déblocage est l'indicateur à surveiller : s'il monte, la porte coûte trop cher aux équipes et le contournement n'est pas loin.
+<Callout kind="case">
+En 2021, Netflix a décrit Wall-E, une passerelle (un déploiement de son proxy Zuul) placée devant les applications de ses studios. Elle prend en charge l'authentification, le WAF, la protection DDoS, les en-têtes de sécurité et la journalisation. Pour une application sans particularité, une équipe passait de `git init` à une application en production, authentifiée et exposée à Internet en un peu moins de dix minutes. La longue checklist de sécurité se réduisait à une question : « Vas-tu utiliser Wall-E ? ». Au moment de l'article, la passerelle protégeait plus de 350 applications.
+</Callout>
+
+Chez Novafact, la version la plus simple du paved road est un paquet interne qui crée une application Express déjà durcie. L'équipe qui l'utilise n'a rien à configurer pour avoir les bons défauts ; celle qui veut en sortir doit l'écrire explicitement, ce qui se voit en revue.
+
+<Code file="packages/service-kit/src/create-service.ts" hl="8,9,10,11,15,16">
+
+```ts
+import express from 'express';
+import helmet from 'helmet';
+import pinoHttp from 'pino-http';
+import { authenticate } from './auth.js';
+import { errorHandler } from './errors.js';
+
+export function createService() {
+  const app = express();
+  app.disable('x-powered-by');
+  app.use(helmet());
+  app.use(express.json({ limit: '100kb' }));
+  app.use(pinoHttp({
+    redact: ['req.headers.authorization', 'req.headers.cookie'],
+  }));
+  app.use(authenticate());   // toute route est authentifiée sauf déclaration publique explicite
+  app.use(errorHandler());   // pas de pile d'appels ni de message interne vers le client
+  return app;
+}
+```
+
+</Code>
+
+Trois conditions font qu'un paved road est réellement emprunté :
+
+- il est **plus rapide** que l'alternative, pas seulement plus sûr : c'est la seule motivation qui fonctionne à grande échelle ;
+- il est **maintenu** comme un produit, avec des versions, un changelog et des mises à jour de dépendances faites pour les équipes ;
+- sa **sortie est possible et visible** : une option explicite, revue, plutôt qu'une interdiction qui pousse au contournement silencieux.
+
+Mesure son adoption (part des services créés avec le kit, part des routes derrière le middleware d'autorisation) : c'est un indicateur de résultat bien plus parlant que le nombre de formations.
+
+<Callout kind="novafact">
+La route pavée n'est pas qu'une affaire de code applicatif. Le template de service de Novafact pose l'authentification IAM entre deux services en deux lignes de Terraform, sans secret à gérer (M19, M20) : la question « faut-il authentifier cette API interne ? » ne se pose plus, parce que la réponse coûte moins cher que l'absence de réponse. À l'inverse, tant que la solution sûre demandait une clé partagée à faire tourner, l'argument « c'est interne » gagnait à chaque fois.
+</Callout>
+
+## Safe coding : éliminer plutôt que vérifier
+
+Google a publié plusieurs articles sur son approche *Secure by Design* et *Safe Coding* (Christoph Kern). L'idée centrale : plutôt que de compter sur chaque développeur pour éviter chaque piège, on conçoit des API où l'erreur est impossible ou très visible. Par exemple, un type `SafeHtml` qu'on ne peut construire qu'à partir de sources sûres, ou un constructeur de requêtes SQL qui n'accepte pas de chaîne brute.
+
+La raison est statistique. Les constructions dangereuses (concaténer du SQL, écrire du HTML brut) sont nombreuses dans un code typique, et savoir si chacune est sûre demande de suivre la donnée à travers plusieurs services. Personne ne fait ce raisonnement correctement des milliers de fois. En revanche, on peut rendre la construction dangereuse rare, isolée et revue.
+
+En JavaScript, la même logique donne :
+
+- des schémas de validation (zod, ajv) obligatoires à l'entrée de chaque route ;
+- un ORM ou un query builder sans échappatoire vers le SQL brut, sauf fonction explicitement nommée et surveillée ;
+- Trusted Types côté navigateur, qui rend `innerHTML` inutilisable avec une chaîne ;
+- des règles de lint qui interdisent les fonctions dangereuses hors d'un module revu.
+
+Avec Prisma, par exemple, `$queryRaw` utilisé comme gabarit étiqueté paramètre automatiquement les valeurs, alors que `$queryRawUnsafe` accepte une chaîne construite à la main. La règle ESLint suivante bloque la seconde partout, sauf dans un dossier dont chaque modification passe par une revue sécurité.
+
+<Diff file="eslint.config.js" hlAfter="4-9,11-14">
+
+```js
+export default [
+  ...baseConfig,
+];
+```
+
+```js
+export default [
+  ...baseConfig,
+  {
+    rules: {
+      'no-restricted-properties': ['error', {
+        property: '$queryRawUnsafe',
+        message: 'Utilise $queryRaw avec un gabarit étiqueté, ou passe par src/db/raw/ (revu par l’AppSec).',
+      }],
+    },
+  },
+  {
+    files: ['src/db/raw/**'],
+    rules: { 'no-restricted-properties': 'off' },
+  },
+];
+```
+
+</Diff>
+
+Le dossier `src/db/raw/` est ensuite protégé par un fichier `CODEOWNERS` qui exige l'approbation de l'équipe AppSec. La construction dangereuse n'a pas disparu, mais elle est concentrée à un seul endroit, visible et revu.
+
+## Garde-fous plutôt que barrières
+
+Un bon contrôle DevSecOps a trois propriétés :
+
+<Steps items={[
+  { title: "Rapide", text: "Il répond en minutes, dans la PR, pas en jours dans un ticket." },
+  { title: "Précis", text: "Peu de faux positifs, sinon les équipes apprennent à l'ignorer." },
+  { title: "Actionnable", text: "Il dit quoi changer, et idéalement le propose." },
+]} />
+
+Commence par **informer** (commentaire dans la PR), passe à **bloquer** seulement quand la règle est fiable et que le correctif est simple. Un contrôle bloquant et bruyant est le moyen le plus rapide de perdre la confiance des équipes. On y revient en détail dans la leçon sur les jalons et les exceptions.
+
+<Callout kind="debate">
+« Shift left » a mauvaise presse chez une partie des praticiens, parce qu'il a souvent servi à déplacer la charge plutôt qu'à la réduire : on installe cinq scanners dans la CI, et chaque développeur doit trier seul des centaines d'alertes. Le reproche est juste quand l'équipe sécurité ne fournit que des outils. Il ne l'est plus quand elle fournit aussi des défauts sûrs, des règles triées et des correctifs proposés : là, le travail du développeur diminue réellement.
+</Callout>
 
 <Recap items={[
-  "Chaque étape de la livraison peut porter un contrôle ; plus il est tôt, plus il doit être rapide et précis. La vraie porte est côté serveur.",
-  "Les critères break/build sont écrits, connus et stables ; une porte juge le changement, pas l'historique.",
-  "On monte en puissance règle par règle : surveiller, commenter, puis bloquer quand la règle est fiable.",
-  "Une exception est écrite, justifiée, approuvée par quelqu'un d'autre que le demandeur, datée et vérifiée par la CI.",
-  "Un bris de glace prévu, restreint et tracé vaut mieux qu'un contournement improvisé.",
-  "Politique courte, tableau de bord par équipe et boucle de retour rendent le système vivant.",
+  "DevSecOps intègre la sécurité au flux de livraison sans créer de file d'attente ; une validation lente pousse aux gros lots et au contournement.",
+  "Shift left trouve plus tôt, shift right apprend de la production ; chaque incident doit produire un contrôle en amont.",
+  "Secure by default et paved road rendent le chemin sûr plus rapide que l'autre ; on mesure leur adoption.",
+  "Le safe coding élimine des classes de bugs par la conception des API, et concentre les échappatoires dans un module revu.",
+  "Un bon contrôle est rapide, précis et actionnable ; on informe avant de bloquer.",
 ]} />
 
 <Sources items={[
-  { title: "OWASP SAMM : Secure Build et Defect Management", url: "https://owaspsamm.org/model/" },
-  { title: "Semgrep, modes de règles (Monitor, Comment, Block)", url: "https://semgrep.dev/docs/semgrep-code/policies" },
-  { title: "Semgrep, ignorer du code avec nosemgrep", url: "https://docs.semgrep.dev/ignoring-files-folders-code" },
-  { title: "GitHub, dependency-review-action", url: "https://github.com/actions/dependency-review-action" },
-  { title: "GitHub Docs, code scanning merge protection", url: "https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection" },
+  { title: "Google, Secure by Design at Google", url: "https://research.google/pubs/secure-by-design-at-google/" },
+  { title: "Christoph Kern, Developer Ecosystems for Software Safety (ACM Queue)", url: "https://research.google/pubs/developer-ecosystems-for-software-safety/" },
+  { title: "Netflix, The Show Must Go On: Securing Netflix Studios At Scale (2021)", url: "https://netflixtechblog.com/the-show-must-go-on-securing-netflix-studios-at-scale-19b801c86479", note: "Wall-E" },
+  { title: "Prisma, requêtes SQL brutes", url: "https://www.prisma.io/docs/orm/prisma-client/using-raw-sql/raw-queries" },
+  { title: "ESLint, règle no-restricted-properties", url: "https://eslint.org/docs/latest/rules/no-restricted-properties" },
   { title: "OWASP DevSecOps Guideline", url: "https://owasp.org/www-project-devsecops-guideline/" },
-  { title: "NIST SSDF SP 800-218", url: "https://csrc.nist.gov/pubs/sp/800/218/final" },
+  { title: "OWASP DSOMM", url: "https://dsomm.owasp.org/" },
 ]} />

@@ -1,4 +1,4 @@
-// Modèle du jeu « Allow or Deny ? » (M15).
+// Modèle du jeu « Allow or Deny ? » (M19).
 //
 // Le jeu demande deux choses : prédire la décision d'AWS (Allow / Deny), puis
 // nommer l'étape de l'évaluation qui tranche. La difficulté ne vient pas du

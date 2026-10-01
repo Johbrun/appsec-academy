@@ -147,7 +147,7 @@ resource "aws_backup_plan" "prod" {
 
 </Code>
 
-Complète par une SCP d'organisation qui refuse, dans les comptes de production, `backup:DeleteBackupVaultLockConfiguration`, `backup:DeleteRecoveryPoint` et `kms:ScheduleKeyDeletion` hors d'un rôle de break-glass (M15), et par des alertes Elastic sur ces mêmes appels (M18).
+Complète par une SCP d'organisation qui refuse, dans les comptes de production, `backup:DeleteBackupVaultLockConfiguration`, `backup:DeleteRecoveryPoint` et `kms:ScheduleKeyDeletion` hors d'un rôle de break-glass (M19), et par des alertes Elastic sur ces mêmes appels (M24).
 
 ## Plans de reprise et de continuité, et les tests qui les rendent vrais
 
@@ -177,8 +177,8 @@ La disponibilité est la troisième propriété de la triade, et le DoS se trait
 | Couche | Menace | Contrôle |
 | --- | --- | --- |
 | Réseau (L3/L4) | Inondations volumétriques | AWS Shield Standard, automatique et gratuit sur CloudFront ; Shield Advanced pour les applications critiques |
-| HTTP | Rafales de requêtes, bots | Règles rate-based d'AWS WAF, Bot Control (leçon 4, M10) |
-| Application | Requêtes coûteuses : exports massifs, ReDoS, GraphQL profond | Limites de taille (`express.json({ limit })`), délais d'expiration, pagination bornée, limites de coût GraphQL (M3) |
+| HTTP | Rafales de requêtes, bots | Règles rate-based d'AWS WAF, Bot Control (leçon 4, M15) |
+| Application | Requêtes coûteuses : exports massifs, ReDoS, GraphQL profond | Limites de taille (`express.json({ limit })`), délais d'expiration, pagination bornée, limites de coût GraphQL (M9) |
 | Facture | Déni de portefeuille : l'autoscaling et Lambda absorbent l'attaque, la facture explose | Plafonds d'autoscaling, concurrence réservée, alertes AWS Budgets |
 
 La dernière ligne est propre au cloud : une architecture qui « tient » l'attaque en montant à 400 tâches Fargate a transformé un problème de disponibilité en problème financier. Un plafond explicite est une décision de risque, pas un oubli.

@@ -51,7 +51,7 @@ Tu as exploité des désérialisations Node (node-serialize et consorts) et tu a
 
 ## Des formats qui reconstruisent du comportement
 
-Le principe posé en M2 reste la base : `JSON.parse` ne produit que des données, mais certains formats **reconstruisent des types ou du code**. Dans l'écosystème JS :
+Le principe posé en M7 reste la base : `JSON.parse` ne produit que des données, mais certains formats **reconstruisent des types ou du code**. Dans l'écosystème JS :
 
 | Format ou bibliothèque | Ce qu'il reconstruit | Règle |
 | --- | --- | --- |
@@ -60,9 +60,9 @@ Le principe posé en M2 reste la base : `JSON.parse` ne produit que des données
 | `js-yaml` 3.x avec le schéma complet | Des types `!!js/function`, `!!js/regexp` | Depuis la 4.0.0 (janvier 2021), `load` est sûr par défaut et ces types ont été déplacés dans un paquet séparé : vérifie qu'il n'est pas réintroduit |
 | Protocole Flight (React Server Components) | Des références et structures du framework | Suivre les versions corrigées de React et Next.js |
 
-**React2Shell** (CVE-2025-55182, M2) a montré que le problème existe aussi **dans les frameworks** : le protocole Flight des Server Components désérialise des structures envoyées par le client. Aucune erreur applicative n'était nécessaire.
+**React2Shell** (CVE-2025-55182, M7) a montré que le problème existe aussi **dans les frameworks** : le protocole Flight des Server Components désérialise des structures envoyées par le client. Aucune erreur applicative n'était nécessaire.
 
-Pour ta revue de dépendances, une recherche rapide dans le lockfile (`node-serialize`, `js-yaml-js-types`, versions 3.x de `js-yaml` utilisées avec un schéma non sûr) repère les candidats. C'est typiquement une règle à automatiser dans la CI (M14) plutôt qu'une vérification ponctuelle.
+Pour ta revue de dépendances, une recherche rapide dans le lockfile (`node-serialize`, `js-yaml-js-types`, versions 3.x de `js-yaml` utilisées avec un schéma non sûr) repère les candidats. C'est typiquement une règle à automatiser dans la CI (M18) plutôt qu'une vérification ponctuelle.
 
 ## D'où vient la pollution
 
@@ -116,12 +116,12 @@ La recherche académique a outillé cette chasse :
 
 Les techniques de Heyes intéressent aussi le défenseur, car elles décrivent les symptômes à surveiller. L'Academy les classe en trois familles : une pollution qui change le **code de statut** renvoyé par certaines erreurs, une qui change l'**indentation** des réponses JSON (le réglage `json spaces` d'Express), et une qui change le **jeu de caractères** d'une réponse. Si ton monitoring voit apparaître des réponses JSON indentées alors que l'application ne l'est jamais, ce n'est pas un bug cosmétique.
 
-Ces mêmes techniques ont été implémentées par Heyes dans une extension Burp open source, ce qui en fait un bon candidat pour le scan DAST de préproduction (M13) : non destructives, elles peuvent tourner à chaque version sans risquer de laisser un environnement partagé dans un état pollué. Complète par un test de régression unitaire : une requête dont le corps contient `__proto__` doit recevoir 400, et un objet vide créé après la requête ne doit porter aucune propriété inattendue.
+Ces mêmes techniques ont été implémentées par Heyes dans une extension Burp open source, ce qui en fait un bon candidat pour le scan DAST de préproduction (M17) : non destructives, elles peuvent tourner à chaque version sans risquer de laisser un environnement partagé dans un état pollué. Complète par un test de régression unitaire : une requête dont le corps contient `__proto__` doit recevoir 400, et un objet vide créé après la requête ne doit porter aucune propriété inattendue.
 
 ## Défense en profondeur
 
 <Steps items={[
-  { title: "Supprimer la source", text: "Pas de fusion d'objets arbitraires, schémas stricts, Map pour les dictionnaires (M2), rejet des clés __proto__ et constructor.prototype à l'entrée." },
+  { title: "Supprimer la source", text: "Pas de fusion d'objets arbitraires, schémas stricts, Map pour les dictionnaires (M7), rejet des clés __proto__ et constructor.prototype à l'entrée." },
   { title: "Supprimer l'accesseur", text: "Lancer Node avec --disable-proto=delete retire __proto__ comme accesseur." },
   { title: "Couper les gadgets", text: "Créer les objets d'options avec un prototype nul : Object.assign(Object.create(null), defaults, opts)." },
   { title: "Figer le prototype", text: "Object.freeze(Object.prototype) au démarrage rend la pollution impossible, à tester soigneusement car certaines bibliothèques modifient les prototypes." },

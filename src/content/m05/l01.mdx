@@ -56,9 +56,9 @@ Tu produis des findings depuis des années, et tu sais qu'une partie finit dans 
   { title: "Dédoublonnage", text: "Le même problème remonté par plusieurs sources devient un seul élément, avec l'historique de ses sources." },
   { title: "Triage", text: "Vrai ou faux positif ? Qui en est propriétaire ? Quel actif est touché ?" },
   { title: "Priorisation", text: "Quelle urgence, au regard de l'exploitation, de l'exposition et de l'impact (leçon 3) ?" },
-  { title: "Correction", text: "Le correctif, ou une mesure compensatoire, ou une acceptation formelle du risque (M1)." },
+  { title: "Correction", text: "Le correctif, ou une mesure compensatoire, ou une acceptation formelle du risque (M10)." },
   { title: "Vérification", text: "Le correctif fonctionne-t-il vraiment ? Test de régression, nouveau scan, retest." },
-  { title: "Reporting", text: "Indicateurs, tendances, et retour vers les contrôles en amont (M1, leçon 6)." },
+  { title: "Reporting", text: "Indicateurs, tendances, et retour vers les contrôles en amont (M31, leçon 4)." },
 ]} />
 
 Ces étapes paraissent évidentes ; ce qui distingue un programme qui fonctionne d'un tableur qui grossit, c'est que **chaque transition a une règle** : qui peut la faire, avec quelle justification, et ce qu'elle déclenche.
@@ -69,7 +69,7 @@ Ces étapes paraissent évidentes ; ce qui distingue un programme qui fonctionne
 | --- | --- | --- |
 | SAST, SCA, secrets, IaC | Continu, dans la PR, couvre tout le code | Faux positifs, pas de contexte d'exécution |
 | DAST | Voit l'application réelle | Surface limitée, peu de logique métier |
-| Revue de code | Autorisation, logique, conception | Coûteux, ne passe pas à l'échelle sans méthode (M12) |
+| Revue de code | Autorisation, logique, conception | Coûteux, ne passe pas à l'échelle sans méthode (M16) |
 | Pentest | Profondeur, chaînes, logique | Ponctuel, cher |
 | Bug bounty et VDP | Diversité des chercheurs, continu | Qualité variable, demande de la capacité de triage |
 | Veille et avis de sécurité | Vulnérabilités des dépendances et frameworks | Volume énorme, pertinence à qualifier |
@@ -93,7 +93,7 @@ Le dédoublonnage **entre outils** de natures différentes (le SAST voit une lig
 | Confirmé | Vrai problème, propriétaire et actif identifiés | Priorité fixée par la grille (leçon 3) |
 | Faux positif | Le problème n'existe pas | Justification écrite ; retour vers l'outil (règle ajustée) |
 | Non applicable | Le problème existe mais ne touche pas ce produit | Justification, idéalement un VEX (leçon 3) |
-| Risque accepté | Vrai problème, non corrigé par décision | Propriétaire du risque, date d'expiration (M1) |
+| Risque accepté | Vrai problème, non corrigé par décision | Propriétaire du risque, date d'expiration (M10) |
 | Corrigé | Correctif livré | N'est pas une fermeture |
 | Vérifié | Correctif constaté en production | Seul état qui ferme |
 
@@ -156,14 +156,14 @@ L'attribution se fait mal à la main. Chez Novafact, elle part du **catalogue de
 
 ## Vérifier, puis corriger la classe
 
-La vérification répond à deux questions distinctes. **Le correctif fonctionne-t-il ?** Un test de régression qui échoue avant et passe après (leçon 4), un nouveau scan, ou un retest pour les findings de pentest. **Le même bug existe-t-il ailleurs ?** C'est l'analyse de variantes : transformer le finding en règle (Semgrep, CodeQL, M12) et l'exécuter sur tout le code. Un finding corrigé à un seul endroit alors que la cause racine se trouve dans un helper partagé n'est corrigé qu'en apparence.
+La vérification répond à deux questions distinctes. **Le correctif fonctionne-t-il ?** Un test de régression qui échoue avant et passe après (leçon 4), un nouveau scan, ou un retest pour les findings de pentest. **Le même bug existe-t-il ailleurs ?** C'est l'analyse de variantes : transformer le finding en règle (Semgrep, CodeQL, M16) et l'exécuter sur tout le code. Un finding corrigé à un seul endroit alors que la cause racine se trouve dans un helper partagé n'est corrigé qu'en apparence.
 
 ## Le reporting qui sert
 
 - **Délai de correction** par niveau de priorité, mesuré depuis la découverte, et pas seulement la moyenne : le 90e centile montre les findings qui traînent.
 - **Âge du backlog** par équipe : la tendance compte plus que le chiffre.
 - **Taux de réouverture** : un correctif qui ne tient pas signale une vérification trop légère.
-- **Origine des findings** : ce que le pentest trouve et que les outils auraient dû voir indique la prochaine règle à écrire (M1, leçon 6).
+- **Origine des findings** : ce que le pentest trouve et que les outils auraient dû voir indique la prochaine règle à écrire (M31, leçon 4).
 
 <Callout kind="novafact">
 Premier inventaire de Novafact : 412 findings répartis entre l'ancien SAST, deux rapports de pentest en PDF et un export de npm audit. Après dédoublonnage et triage : 58 vrais problèmes, dont 9 prioritaires, chacun désormais dans le backlog de l'équipe concernée. Trois mois plus tard, le taux de réouverture est de 12 % : deux équipes fermaient les tickets au merge de la PR, avant le déploiement. La règle devient « fermé = vérifié en production ».

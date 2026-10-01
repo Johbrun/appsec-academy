@@ -1,163 +1,170 @@
 export const questions = [
   {
-    q: "Quelle est la meilleure façon de recruter des Security Champions ?",
+    q: "Comment savoir si un paved road est adopté ?",
     options: [
-      "Désigner le développeur le plus expérimenté de chaque équipe",
-      "Des volontaires, avec l'accord du manager et du temps réservé",
-      "Recruter des ingénieurs sécurité et les détacher dans les équipes",
-      "Confier le rôle aux tech leads, déjà présents dans les conceptions",
-    ],
-    answer: 1,
-    explain: "Il faut les trois ensemble : de l'intérêt — un rôle subi ne produit rien —, un soutien managérial explicite, et du temps inscrit dans le planning. Le tech lead paraît le choix évident puisqu'il assiste aux conceptions, mais son agenda est déjà saturé et le rôle s'évapore à la première échéance. Détacher un ingénieur sécurité recrée précisément ce qu'un champion doit éviter : la sécurité portée par quelqu'un qui n'est pas de l'équipe.",
-  },
-  {
-    q: "Que mesurer pour savoir si le programme de champions fonctionne ?",
-    options: [
-      "Le taux de participation au rendez-vous mensuel du réseau",
-      "Le nombre de règles et de contributions produites par les champions",
-      "La satisfaction des champions, recueillie deux fois par an",
-      "L'évolution dans leurs équipes : threat models, findings en revue, délais",
-    ],
-    answer: 3,
-    explain: "On mesure l'effet dans les équipes, pas l'activité du réseau : threat models réalisés sur les fonctionnalités sensibles, part des vulnérabilités attrapées en revue plutôt qu'en production, délai de correction. Le ressenti des champions se recueille bien deux fois par an — c'est souvent la meilleure feuille de route du programme —, mais il dit si le rôle est tenable, pas s'il produit un effet. Contributions et participation, elles, montent dès que le réseau s'anime, même si rien ne change dans le code.",
-  },
-  {
-    q: "Six mois après le lancement, le champion de l'équipe Paiement reçoit tous les tickets de sécurité et relit seul chaque PR sensible. Quel est le problème ?",
-    options: [
-      "Il est devenu le point de passage unique : l'équipe s'est déchargée sur lui",
-      "Il sort de son mandat : ces revues relèvent de l'AppSec, pas du champion",
-      "Aucun : relire les changements sensibles est précisément son rôle",
-      "Il lui manque la formation nécessaire pour tenir ce volume de revues",
-    ],
-    answer: 0,
-    explain: "Relire les changements sensibles fait bien partie du rôle — c'est ce qui rend l'objection tentante —, mais les relire tous, seul, signifie que l'équipe s'est déchargée : le goulot d'étranglement a simplement migré de l'AppSec vers une personne, en plus fragile. Un congé de trois semaines laisse alors les PR sensibles sans relecteur. Les parades sont connues : un CODEOWNERS qui pointe une équipe et non un individu, un second champion sur les périmètres sensibles, une passation prévue.",
-  },
-  {
-    q: "Pourquoi le guide OWASP recommande-t-il un « captain » dédié au programme ?",
-    options: [
-      "Pour valider les décisions des champions et garder un niveau homogène",
-      "Pour décharger l'équipe AppSec du suivi opérationnel des findings",
-      "Parce que le programme demande une attention continue qui disparaît sinon",
-      "Parce que la direction a besoin d'un interlocuteur unique sur le sujet",
+      "Au nombre de services qui exécutent le workflow CI réutilisable",
+      "Au temps gagné annoncé par l'équipe plateforme dans son bilan",
+      "À la part de nouveaux services issus du template, et aux sorties du chemin",
+      "Au nombre de contrôles de sécurité intégrés dans le template",
     ],
     answer: 2,
-    explain: "Feuille de route, défense du temps des champions auprès des managers, animation de la communauté, compte rendu à la direction : fait « à côté » par une AppSec déjà chargée, tout cela s'essouffle après l'enthousiasme du lancement. Le captain n'est pas un valideur — le guide recommande au contraire de donner aux champions un mandat de décision dans les limites de l'appétence au risque — et il ne reprend pas le triage des findings, qui reste à l'équipe.",
+    explain: "Un paved road est un produit : on mesure combien de nouveaux services l'empruntent et, surtout, combien en sortent et pourquoi — chaque sortie est un besoin non couvert, donc un ticket produit et non une faute. Compter les contrôles intégrés décrit ce que la plateforme a construit, pas ce que les équipes ont choisi ; et un service qui exécute le workflow peut très bien avoir été bâti hors du template.",
+  },
+  {
+    q: "Que propose la Security Chaos Engineering ?",
+    options: [
+      "Injecter des attaques réalistes en production, sans prévenir les équipes",
+      "Formuler une hypothèse sur un contrôle, la tester, apprendre de l'écart",
+      "Désactiver un contrôle en production pour mesurer ce qui change vraiment",
+      "Remplacer les tests d'autorisation par des exercices d'équipe rouge",
+    ],
+    answer: 1,
+    explain: "On formule une hypothèse vérifiable — « si une clé AWS fuite, elle est révoquée et l'alerte part en moins de 10 minutes » —, on l'expérimente de façon contrôlée, et chaque écart devient un résultat. Le cadrage est constitutif : préproduction, équipe prévenue, moyen d'arrêter. Une injection surprise en production n'est plus une expérience mais un incident, et désactiver un contrôle crée un risque réel au lieu de tester une promesse.",
+  },
+  {
+    q: "Un an après son lancement, le template de service de Novafact a été utilisé par 14 services, mais 9 d'entre eux tournent encore avec la version du middleware d'authentification d'origine, qui a reçu depuis un correctif de sécurité. Quelle est la cause la plus probable ?",
+    options: [
+      "Les équipes refusent les mises à jour proposées par Renovate",
+      "Le template n'est pas assez documenté pour signaler la mise à jour",
+      "Le correctif n'est pas sorti en version majeure, donc personne ne l'a vu",
+      "Le template copie le code : les améliorations ultérieures ne se propagent pas",
+    ],
+    answer: 3,
+    explain: "Ce qu'on copie dérive : un middleware généré dans chaque service crée autant de copies indépendantes, que plus rien ne relie à l'original — il n'y a donc aucune PR de mise à jour à refuser, ni aucune version à manquer. La règle est que le template assemble et ne contient pas : ce qui porte un contrôle de sécurité vit dans une dépendance versionnée, suivie par Renovate et par la SCA, ou dans une référence centrale comme un workflow épinglé.",
+  },
+  {
+    q: "Dans un workflow GitHub Actions réutilisable, qui fixe le plafond des permissions du GITHUB_TOKEN ?",
+    options: [
+      "Le workflow appelant : le workflow appelé peut seulement les réduire",
+      "Le workflow appelé, qui déclare les permissions dont il a besoin",
+      "Le paramétrage par défaut de l'organisation, appliqué à chaque exécution",
+      "Ni l'un ni l'autre : le jeton d'un workflow réutilisable reste en lecture seule",
+    ],
+    answer: 0,
+    explain: "Les permissions transmises par l'appelant ne peuvent qu'être réduites par le workflow appelé : c'est ce qui permet à la plateforme de fournir un pipeline sans jamais obtenir plus de droits que ce que chaque dépôt lui accorde. Le workflow appelé déclare bien ses besoins, mais cette déclaration ne relève pas le plafond. Le réglage par défaut de l'organisation fixe le point de départ du jeton, pas la règle de propagation ; et rien ne le ramène d'office à la lecture, puisqu'un déploiement a besoin de id-token: write.",
   },
 ];
 
 <YouKnow>
-Une équipe AppSec est toujours beaucoup plus petite que la population de développeurs qu'elle sert. Tu ne pourras pas relire tout le code ni assister à toutes les conceptions : il te faut des relais.
+Tu as vu des équipes contourner des outils de sécurité imposés sans concertation. Le paved road inverse la logique : rendre le chemin sûr plus facile que l'autre, et le traiter comme un produit.
 </YouKnow>
 
-## Pourquoi des champions
+## Un produit, avec des utilisateurs
 
-Un **Security Champion** est un membre d'une équipe produit (souvent un développeur) qui porte la sécurité au quotidien dans son équipe : il pose les bonnes questions en conception, relit les changements sensibles, fait le lien avec l'AppSec. Ce n'est pas un auditeur de plus : c'est un **multiplicateur**.
+Le **paved road** (M3) n'est utile que s'il est emprunté. Il faut donc le traiter comme un produit dont les utilisateurs sont les développeurs :
 
-Son avantage sur toi est décisif : il connaît le code, l'historique des décisions, les raccourcis que l'équipe prend sous pression et les endroits où les données sensibles passent vraiment. Il est présent au moment où la décision se prend (la réunion de conception, la revue de PR), alors que tu arriverais après. Et l'équipe l'écoute plus facilement, parce qu'il est « l'un des leurs ».
+- comprendre leurs besoins avant de construire ;
+- livrer quelque chose de **plus rapide** que la solution maison (un service prêt en dix minutes, pas en deux jours) ;
+- documenter pour être autonome ;
+- mesurer l'adoption et écouter ceux qui en sortent.
 
-Ce qu'il n'est pas : un ingénieur sécurité à temps partiel à qui l'équipe délègue toute la sécurité. Si l'équipe se décharge sur lui, tu as déplacé le goulot d'étranglement de l'AppSec vers une personne, en plus fragile.
+L'idée n'est pas propre à la sécurité. Spotify a décrit en 2020 ses *Golden Paths* : face à plus de 300 équipes qui choisissaient chacune leurs outils, l'entreprise a défini un chemin outillé et soutenu par type de projet, accompagné d'un tutoriel. Le problème qu'ils décrivaient (le seul moyen d'apprendre à faire quelque chose était de demander à un collègue) est aussi un problème de sécurité : chaque équipe réinvente son authentification, sa gestion des secrets et son client HTTP, avec ses propres défauts.
 
-## Les principes de l'OWASP Security Champions Guide
+La sécurité y gagne un levier décisif : quand un contrôle est **intégré au chemin**, il s'applique sans que personne ait à y penser. Un client HTTP interne qui bloque les adresses privées élimine la SSRF pour tous ses utilisateurs, sans formation ni revue.
 
-Le guide OWASP formule dix principes. Regroupés, ils décrivent trois conditions de réussite :
-
-| Condition | Principes du guide | Ce que ça veut dire concrètement |
-| --- | --- | --- |
-| **Un cadre solide** | Partir d'une vision claire ; obtenir le soutien de la direction ; nommer un *captain* dédié | Des objectifs écrits, du temps alloué validé par les managers, et une personne dont le programme est le travail |
-| **Des personnes motivées et libres d'agir** | Être passionné de sécurité ; faire confiance aux champions ; créer une communauté ; favoriser le partage | Des volontaires, un mandat pour décider dans les limites de l'appétence au risque, un réseau qui échange |
-| **Un programme qui dure** | Récompenser la responsabilité ; investir dans les champions ; anticiper les changements de personnel | Reconnaissance et progression de carrière, formation, et un programme qui survit au départ de n'importe qui |
-
-Le principe du **captain** est le plus souvent négligé. Le guide observe qu'un programme de champions demande une attention continue : définir la feuille de route, obtenir et défendre le temps des champions auprès des managers, animer la communauté, rendre compte à la direction. Fait « à côté » par une AppSec déjà débordée, il s'essouffle après quelques mois.
-
-Le principe de **confiance** va plus loin qu'on ne le croit : le guide recommande de donner aux champions un vrai **mandat de décision** dans les limites de l'appétence au risque de l'organisation. Un champion qui doit demander l'avis de l'AppSec pour chaque question n'est qu'un intermédiaire.
-
-## Recruter et démarrer
+## Ce que contient le paved road de Novafact
 
 <Steps items={[
-  { title: "Un engagement explicite", text: "Une part du temps réservée et écrite, avec l'accord du manager. Sans temps prévu, le rôle disparaît à la première échéance." },
-  { title: "Des volontaires", text: "L'intérêt compte plus que le niveau initial : la compétence se construit. Un développeur curieux qui a signalé un bug de sécurité est un excellent candidat." },
-  { title: "Un rôle clair", text: "Ce qu'on attend (relire les PR sensibles, animer un threat model, trier les findings de l'équipe) et ce qu'on n'attend pas (tout sécuriser seul, être d'astreinte sécurité)." },
-  { title: "Un parcours d'arrivée", text: "Les premières semaines : les outils et leurs résultats pour son équipe, un threat model animé en binôme avec l'AppSec, une revue de PR commentée ensemble." },
-  { title: "Une communication régulière", text: "Un canal dédié, un rendez-vous mensuel, des retours rapides de l'équipe AppSec." },
-  { title: "De la reconnaissance", text: "Visible et concrète : mention dans les entretiens annuels, conférences, certifications prises en charge, et une place dans la grille de carrière." },
+  { title: "Un template de service", text: "create-novafact-service : Express 5, defineRoute, DAL multi-tenant, logs pino ECS, helmet, tests prêts, Dockerfile durci." },
+  { title: "Un pipeline prêt", text: "Workflow GitHub Actions réutilisable : lint, tests, Semgrep, SCA, SBOM, build signé, déploiement par OIDC." },
+  { title: "Des bibliothèques internes", text: "Client HTTP anti-SSRF, gestion des secrets, validation des webhooks, envoi d'e-mails avec quotas." },
+  { title: "Une infrastructure standard", text: "Modules CDK pour un service ECS derrière l'ALB, avec IAM minimal, logs et alarmes." },
 ]} />
 
-Le guide suggère un ratio d'ordre de grandeur (par exemple, un champion pour 25 développeurs dans une grande organisation). Chez une entreprise de la taille de Novafact, **un par équipe** est le point de départ naturel ; au-delà, un second champion dans les équipes qui touchent au paiement ou à l'authentification évite la dépendance à une seule personne.
+Le template se lance avec `npm create novafact-service@latest` : npm traduit `npm create <nom>` (alias de `npm init <nom>`) en l'exécution du paquet `create-<nom>`. Dix minutes plus tard, l'équipe a un service qui compile, passe la CI et se déploie en préproduction.
 
-## Le rôle dans le code : CODEOWNERS
+Une équipe peut sortir du chemin, mais elle en assume le coût : revue de sécurité manuelle, justification écrite, maintenance de sa propre solution.
 
-Le mandat du champion devient concret quand il est inscrit dans l'outillage. Sur GitHub, un fichier `CODEOWNERS` combiné à la règle de protection de branche « Require review from Code Owners » impose une revue par les bonnes personnes sur les chemins sensibles :
+## Copier ou référencer : le problème de la dérive
 
-<Code file=".github/CODEOWNERS" hl="5,6,7">
+Le piège le plus courant d'un paved road est invisible au lancement et évident un an plus tard : **ce qu'on copie dérive**. Un template qui génère le code du middleware d'authentification dans chaque nouveau service produit autant de copies que de services ; quand un correctif arrive, il faut le reporter partout, et la moitié des services ne le reçoivent jamais.
 
-```text
-# Propriétaires par défaut : l'équipe elle-même
-*                               @novafact/billing
+| Mécanisme | Exemple | Mise à jour | Pour quoi |
+| --- | --- | --- | --- |
+| **Copie au démarrage** (scaffold) | Structure du projet, Dockerfile, README | Manuelle, service par service | Ce qui appartient à l'équipe et doit pouvoir diverger |
+| **Dépendance versionnée** | `@novafact/http-client`, `@novafact/auth-middleware` | PR automatique (Renovate, Dependabot), suivie par la SCA | La logique de sécurité qui doit évoluer partout |
+| **Référence centrale** | Workflow CI réutilisable, modules CDK publiés | Nouvelle version référencée, épinglée par empreinte | Ce qui doit être homogène et contrôlé par la plateforme |
 
-# Chemins sensibles : une revue d'un champion (ou de l'AppSec) est requise
-/apps/api/src/auth/             @novafact/billing-champions @novafact/appsec
-/apps/api/src/dal/              @novafact/billing-champions @novafact/appsec
-/apps/api/src/webhooks/         @novafact/billing-champions @novafact/appsec
+La règle : le template **assemble**, il ne **contient** pas. Tout ce qui porte un contrôle de sécurité vit dans une bibliothèque ou un composant versionné ; le template se contente de l'importer.
 
-# La configuration des contrôles de sécurité reste à l'AppSec
-/.semgrep/                      @novafact/appsec
+## Le pipeline comme service
+
+Le workflow CI réutilisable est l'exemple type de référence centrale. La plateforme le maintient dans un dépôt dédié ; chaque service l'appelle en quelques lignes :
+
+<Code file=".github/workflows/ci.yml (dans le dépôt d'un service)" hl="9,10,11,12,13">
+
+```yaml
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pipeline:
+    # Épinglé par empreinte de commit ; Renovate propose les nouvelles versions.
+    uses: novafact/platform-workflows/.github/workflows/service-ci.yml@9f2c4e1b7a3d5f6e8c0b1a2d3e4f5a6b7c8d9e0f # v3.4.0
+    permissions:
+      contents: read
+      id-token: write   # OIDC vers AWS, pour le déploiement
+    with:
+      service-name: invoices-api
 ```
 
 </Code>
 
-Deux détails comptent. Le propriétaire est une **équipe** (`@novafact/billing-champions`, qui contient deux personnes), pas un individu : l'absence d'une personne ne bloque pas les livraisons. Et l'AppSec figure sur la même ligne, en recours, pas en passage obligé : n'importe lequel des propriétaires listés suffit pour approuver.
+Deux propriétés de GitHub Actions rendent ce modèle sûr. Les permissions du `GITHUB_TOKEN` transmises par l'appelant **ne peuvent qu'être réduites** par le workflow appelé : la plateforme ne peut pas obtenir plus de droits que ce que le dépôt lui accorde. Et l'épinglage par empreinte de commit garantit que le code exécuté est celui qui a été relu, pas ce que quelqu'un aurait poussé depuis sur une étiquette.
 
-## Animer le réseau
+Pour que le pipeline ne soit pas contourné en supprimant ce fichier, GitHub Enterprise Cloud permet aussi d'**exiger un workflow** au niveau de l'organisation, par une règle de ruleset : il s'exécute sur les PR des dépôts ciblés, et la fusion attend qu'il réussisse. C'est un filet, pas le chemin principal : si les équipes adoptent le workflow parce qu'il leur fait gagner du temps, l'obligation ne sert qu'aux oublis.
 
-- **Un rendez-vous mensuel** d'une heure : un sujet technique (une vulnérabilité récente, une nouvelle règle), un retour d'une équipe, les questions ouvertes.
-- **Des exercices pratiques** : un threat model en direct sur une vraie fonctionnalité, une revue de code en groupe, un CTF interne.
-- **Un accès privilégié** : les champions sont prévenus en premier des nouvelles règles et donnent leur avis avant qu'elles deviennent bloquantes. Une règle Semgrep qui produit des faux positifs dans leur équipe, ils le savent avant toi.
-- **Des contributions reconnues** : un champion qui écrit une règle, améliore le template de service ou présente un retour d'expérience le fait au nom du réseau, et c'est visible.
+## Mesurer l'adoption
 
-<Callout kind="warn">
-Trois dérives classiques. Le champion **boîte aux lettres**, à qui l'AppSec envoie tous les tickets de l'équipe et qui les transmet : il n'apporte rien et s'use. Le champion **alibi**, dont l'existence sert à dire « l'équipe a quelqu'un pour ça » pendant que le reste de l'équipe s'en désintéresse. Le champion **épuisé**, dont le temps réservé a été mangé par les échéances du sprint sans que personne ne le défende : c'est précisément le rôle du captain et du manager.
+| Indicateur | Ce qu'il dit |
+| --- | --- |
+| Part des nouveaux services créés avec le template | Le chemin est-il attractif ? |
+| Nombre et raisons des sorties du chemin | Ce qui manque au produit |
+| Temps de création d'un service prêt pour la production | La promesse de rapidité est-elle tenue ? |
+| Âge de la version des bibliothèques et du workflow dans chaque service | La dérive est-elle maîtrisée ? |
+| Vulnérabilités par service, dans et hors du chemin | L'effet sur la sécurité |
+
+Les **sorties du chemin** sont l'indicateur le plus riche. Chaque équipe qui sort a une raison : un besoin non couvert (une file de messages, un service Python), une contrainte de performance, une mauvaise expérience. Chacune est un ticket pour le produit, pas une faute.
+
+<Callout kind="debate">
+Faut-il rendre le paved road obligatoire ? Pour : ce qui n'est pas obligatoire finit par être contourné sous la pression des délais, et une plateforme unique simplifie la surveillance. Contre : un chemin obligatoire n'a plus besoin d'être bon, et l'équipe plateforme perd le signal le plus précieux (les gens qui en sortent). Team Topologies propose l'idée de *Thinnest Viable Platform* : la plateforme la plus mince qui rende les équipes plus rapides. Une position courante : obligatoire pour une poignée de contrôles non négociables (le pipeline minimal, l'identité AWS par OIDC), attractif et optionnel pour tout le reste.
 </Callout>
 
-## Anticiper les départs
+## Vérifier que ça tient : la Security Chaos Engineering
 
-Les champions changent d'équipe, sont promus ou partent. Le guide OWASP en fait un principe à part entière, parce qu'un programme qui repose sur quelques personnes clés s'effondre à leur départ. Les parades :
+Kelly Shortridge et Aaron Rinehart (*Security Chaos Engineering*, O'Reilly, 2023) proposent d'appliquer à la sécurité la démarche du chaos engineering : formuler une **hypothèse** sur le comportement du système (« si une clé AWS fuite dans un dépôt public, elle est révoquée et l'alerte part en moins de 10 minutes »), l'**expérimenter** de façon contrôlée, puis **apprendre** de l'écart. C'est une excellente façon de vérifier que les contrôles du paved road fonctionnent réellement, pas seulement sur le papier.
 
-- **deux champions** dans les équipes les plus sensibles ;
-- une **documentation** du rôle et des pratiques de l'équipe (son threat model, ses exceptions en cours) qui ne vit pas seulement dans la tête du champion ;
-- une **passation** prévue quand un champion quitte son rôle, comme pour toute responsabilité ;
-- un rôle **officiellement reconnu**, aligné avec les RH, pour qu'il puisse figurer dans les recrutements et les promotions.
+Un paved road accumule des promesses implicites : « le client HTTP bloque les adresses internes », « un service sans alarme ne passe pas la synthèse CDK », « un secret poussé est bloqué ». Chacune est une hypothèse testable :
 
-## Mesurer
-
-Mesure l'effet **dans les équipes** plutôt que l'activité du réseau :
-
-| Indicateur | Ce qu'il montre |
-| --- | --- |
-| Threat models réalisés sur les nouvelles fonctionnalités sensibles | La sécurité entre dans la conception |
-| Part des vulnérabilités trouvées en revue plutôt qu'en test ou en production | Les défauts sont attrapés plus tôt |
-| Délai de correction des findings de l'équipe | Le triage et le suivi fonctionnent |
-| Questions posées à l'AppSec avant plutôt qu'après la livraison | Le réflexe de consulter s'installe |
-| Rétention des champions sur un an | Le rôle est tenable et valorisé |
-
-Et demande aux champions eux-mêmes, deux fois par an, ce qui les aide et ce qui les freine. Leurs réponses sont souvent la meilleure feuille de route du programme.
+<Steps items={[
+  { title: "Formuler", text: "« Un appel du client HTTP interne vers l'adresse de métadonnées de l'instance est refusé et produit un événement ssrf.blocked visible dans Elastic en moins de 5 minutes. »" },
+  { title: "Délimiter", text: "En préproduction, sur un service de test, avec l'équipe prévenue et un moyen d'arrêter l'expérience." },
+  { title: "Expérimenter", text: "Déclencher l'appel depuis un endpoint de test, et observer : refus, journal, alerte, délai." },
+  { title: "Apprendre", text: "Chaque écart est un résultat, pas un échec : l'appel est bloqué mais l'événement n'arrive pas dans Elastic, parce que le champ attendu par la règle de détection a été renommé." },
+  { title: "Automatiser", text: "Une fois l'hypothèse vérifiée, l'expérience devient un test périodique qui alerte si le comportement change." },
+]} />
 
 <Callout kind="novafact">
-Novafact démarre avec cinq champions, un par équipe, sur la base du volontariat et avec 15 % de leur temps, inscrit dans les objectifs validés par leurs managers. Premier objectif commun : un threat model léger pour chaque nouvelle fonctionnalité du trimestre, animé par le champion avec l'appui de l'AppSec. Au deuxième trimestre, l'équipe Paiement ajoute un second champion après que le premier, en congé trois semaines, a laissé les PR sensibles sans relecteur.
+Première expérience chez Novafact, sur l'hypothèse « le client HTTP bloque les adresses internes ». Résultat : l'adresse IPv4 des métadonnées est bien bloquée, mais un service qui n'utilise pas le client interne (un worker ajouté hors template) fait l'appel sans aucune restriction. L'expérience n'a pas trouvé un bug du paved road : elle a trouvé un service qui n'était pas dessus, et donné à l'équipe plateforme la raison de sa sortie (un besoin de streaming non couvert).
 </Callout>
 
 <Recap items={[
-  "Un champion est un multiplicateur dans son équipe, pas un auditeur de plus ni un délégataire de toute la sécurité.",
-  "Trois conditions : un cadre (vision, soutien, captain), des personnes motivées et mandatées, un programme qui dure.",
-  "Volontariat, temps réservé et accord du manager sont indispensables.",
-  "CODEOWNERS inscrit le rôle dans l'outil, avec des équipes plutôt que des individus.",
-  "Éviter les champions boîte aux lettres, alibi ou épuisés ; anticiper les départs.",
-  "On mesure l'effet dans les équipes, pas l'activité du réseau.",
+  "Le paved road est un produit : besoins, rapidité, documentation, mesure de l'adoption.",
+  "Template de service, pipeline réutilisable, bibliothèques internes et infrastructure standard.",
+  "Le template assemble, il ne contient pas : ce qui porte un contrôle vit dans un composant versionné, sinon il dérive.",
+  "Un workflow réutilisable épinglé par empreinte ne peut que réduire les permissions de l'appelant.",
+  "Sortir du chemin reste possible, avec un coût assumé ; chaque sortie est un retour produit.",
+  "La Security Chaos Engineering vérifie par l'expérience que les promesses du paved road tiennent.",
 ]} />
 
 <Sources items={[
-  { title: "OWASP Security Champions Guide", url: "https://securitychampions.owasp.org/" },
-  { title: "OWASP Security Champions Guide : Nominate a dedicated captain", url: "https://securitychampions.owasp.org/principles/04_Nominate_a_dedicated_captain/" },
-  { title: "OWASP Security Champions Guide : Anticipate personnel changes", url: "https://securitychampions.owasp.org/principles/10_Anticipate_personnel_changes/" },
-  { title: "OWASP SAMM : Education & Guidance", url: "https://owaspsamm.org/model/governance/education-and-guidance/" },
-  { title: "GitHub Docs : About code owners", url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners" },
+  { title: "Kelly Shortridge & Aaron Rinehart, Security Chaos Engineering (O'Reilly, 2023)", url: "https://kellyshortridge.com/book.html" },
+  { title: "Team Topologies : Thinnest Viable Platform", url: "https://teamtopologies.com/key-concepts" },
+  { title: "Spotify Engineering : How We Use Golden Paths to Solve Fragmentation (2020)", url: "https://engineering.atspotify.com/2020/08/how-we-use-golden-paths-to-solve-fragmentation-in-our-software-ecosystem" },
+  { title: "GitHub Docs : Reusing workflows", url: "https://docs.github.com/en/actions/sharing-automations/reusing-workflows" },
+  { title: "GitHub Changelog : Requiring workflows with repository rules (GA, 2023)", url: "https://github.blog/changelog/2023-10-11-requiring-workflows-with-repository-rules-is-generally-available/" },
+  { title: "npm Docs : npm init", url: "https://docs.npmjs.com/cli/commands/npm-init" },
 ]} />

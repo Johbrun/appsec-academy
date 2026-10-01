@@ -55,8 +55,8 @@ Chez Novafact, cela se traduit par :
 - des comptes AWS séparés (dev, staging, production) ; les développeurs n'ont un rôle que dans le compte de dev ;
 - des identifiants **temporaires** via IAM Identity Center, jamais de clé d'accès dans `~/.aws/credentials` ;
 - le déploiement en production uniquement par le pipeline (environnement protégé, OIDC) ;
-- un accès d'urgence (*break-glass*) distinct, journalisé et rarement utilisé (M15) ;
-- des données de test générées ou pseudonymisées, jamais une copie de la base de production (M13).
+- un accès d'urgence (*break-glass*) distinct, journalisé et rarement utilisé (M19) ;
+- des données de test générées ou pseudonymisées, jamais une copie de la base de production (M17).
 
 <Code file="~/.aws/config">
 
@@ -87,7 +87,7 @@ region = eu-west-3
 | Clés d'API des outils d'IA | variables, fichiers de configuration | Clés dédiées, plafonnées, révocables sans casser le reste |
 | Clé SSH | `~/.ssh/` | Clé liée à une clé matérielle FIDO, ou protégée par phrase de passe et agent |
 
-Cet inventaire sert deux fois : pour réduire l'exposition aujourd'hui, et pour savoir **quoi révoquer** le jour où un poste est touché (leçon 10).
+Cet inventaire sert deux fois : pour réduire l'exposition aujourd'hui, et pour savoir **quoi révoquer** le jour où un poste est touché (leçon 11).
 
 ## Vérifier les outils avant de les installer
 
@@ -112,7 +112,7 @@ Kohnfelder conseille un environnement isolé pour les essais et les travaux ponc
 | Environnement cloud (Codespaces, etc.) | Machine distante jetable | Les secrets configurés pour l'environnement y sont présents ; le jeton GitHub de la session aussi |
 | VM locale jetable | Noyau séparé | Plus lourde, mais la seule vraiment adaptée pour un paquet suspect |
 
-Pour analyser un paquet douteux (M13, leçon 9) : VM ou conteneur **sans aucun identifiant**, réseau surveillé, `--ignore-scripts` pour une première lecture statique.
+Pour analyser un paquet douteux (M17, leçon 9) : VM ou conteneur **sans aucun identifiant**, réseau surveillé, `--ignore-scripts` pour une première lecture statique.
 
 ## Des postes à jour et configurés
 

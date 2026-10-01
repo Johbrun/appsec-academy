@@ -1,209 +1,177 @@
 export const questions = [
   {
-    q: "Comment traiter les fichiers téléversés par les clients (pièces jointes de factures) ?",
+    q: "Quelles sont les six étapes d'une Security Design Review selon Kohnfelder ?",
     options: [
-      "Réception par l'API, analyse antivirus en ligne, puis écriture dans le bucket des factures",
-      "Stockage dans le bucket des factures, servi par des URL présignées de courte durée",
-      "Envoi direct vers un bucket de quarantaine, traitement isolé, service depuis un autre domaine",
-      "Contrôle du type MIME et de la signature magique avant tout enregistrement",
-    ],
-    answer: 2,
-    explain: "Chaque étape isole une conséquence : le fichier n'atteint jamais le processus de l'API, le traitement se fait à l'écart avec des droits minimaux, et le contenu est servi depuis une autre origine pour qu'un HTML piégé ne s'exécute pas dans le domaine de l'application. Analyser à la volée dans l'API est le schéma le plus répandu, et il place l'analyseur — le composant le plus exposé — au cœur du service. Vérifier type et signature est nécessaire mais ne dit rien du contenu.",
-  },
-  {
-    q: "Qu'apporte la tokenisation des données de carte ?",
-    options: [
-      "Le numéro est chiffré avec une clé propre au client, que Novafact conserve",
-      "Novafact ne manipule qu'un jeton sans valeur hors du prestataire qui l'a émis",
-      "Le numéro est remplacé par ses quatre derniers chiffres et le nom du réseau",
-      "Le prestataire signe la transaction, ce qui dispense de conserver la carte",
-    ],
-    answer: 1,
-    explain: "Un jeton n'a de valeur que pour le prestataire qui l'a émis : une fuite chez Novafact ne révèle aucune carte, et le périmètre PCI se réduit d'autant. La confusion classique est avec le chiffrement — si tu détiens la clé, tu détiens les cartes, et le périmètre reste entier — et avec le masquage, qui protège bien mais ne permet plus de rejouer un paiement.",
-  },
-  {
-    q: "L'API gateway de Novafact vérifie le JWT et transmet l'identité aux services dans un en-tête X-User-Id. Quel est le risque principal ?",
-    options: [
-      "Si un service est joignable hors de la gateway, n'importe qui peut forger cet en-tête",
-      "La gateway devient un point unique de panne pour l'authentification de tous les services",
-      "Les services ne peuvent plus vérifier l'expiration du jeton d'origine",
-      "Un proxy intermédiaire peut normaliser l'en-tête et en altérer la casse",
+      "Study, Inquire, Identify, Collaborate, Write, Follow up",
+      "Scoping, Modeling, Enumerating, Rating, Mitigating, Verifying",
+      "Read, Rate, Report, Remediate, Retest, Release",
+      "Plan, Do, Check, Act, Review, Close",
     ],
     answer: 0,
-    explain: "Un en-tête non signé ne vaut que par la topologie du réseau : il suffit d'un service compromis, d'une SSRF ou d'un port oublié pour que l'affirmation « je suis l'utilisateur 42 » devienne gratuite. Le point unique de panne est réel, mais c'est une question de disponibilité, et la gateway doit de toute façon rester le seul chemin. La réponse est un jeton interne signé, avec une audience, que chaque service vérifie où qu'il soit.",
+    explain: "Étudier le document, poser les questions qui manquent, identifier les parties critiques, collaborer sur les mitigations, écrire le rapport, suivre les changements. Les séquences en « énumérer puis noter » décrivent un threat model ou un pentest : une revue de conception commence par lire et interroger, et se termine par un suivi, pas par une note de gravité.",
   },
   {
-    q: "Pourquoi le worker qui convertit les PDF envoyés par les clients n'a-t-il ni rôle IAM large, ni accès réseau sortant, ni accès aux métadonnées d'instance en IMDSv1 ?",
+    q: "Comment Kohnfelder recommande-t-il de prioriser les constats d'une revue de conception ?",
     options: [
-      "Parce que la bibliothèque de conversion n'a pas besoin du réseau pour fonctionner",
-      "Parce que le worker traite des données personnelles soumises au RGPD",
-      "Parce qu'IMDSv1 est déprécié par AWS et disparaîtra des nouvelles instances",
-      "Parce qu'un analyseur de format complexe est le point d'exécution le plus probable",
+      "Par score CVSS, du plus élevé au plus faible, comme dans un rapport de pentest",
+      "En trois niveaux Must, Ought, Should, selon le degré de contrainte",
+      "En rouge, orange et vert, selon la gravité estimée par le relecteur",
+      "Par effort d'implémentation, pour livrer d'abord les corrections les moins coûteuses",
     ],
-    answer: 3,
-    explain: "On suppose la compromission du composant le plus exposé et on borne ce qu'elle permet : pas de rôle large à voler, pas de canal d'exfiltration, pas d'identifiants au bout d'une simple requête vers 169.254.169.254. Dire que la conversion n'a pas besoin du réseau est vrai et c'est ce qui rend la mesure indolore, mais ce n'est pas ce qui la justifie : on la prendrait même si elle coûtait. Et IMDSv2 n'est pas qu'une question de cycle de vie, il exige un jeton obtenu par PUT, ce qu'une SSRF simple ne sait pas produire.",
+    answer: 1,
+    explain: "Must : pas le choix, souvent urgent. Ought : le relecteur penche pour Must, mais c'est discutable. Should : recommandation facultative. L'essentiel de l'effort et du rapport porte sur les Must. Le CVSS est le réflexe importé du pentest et il ne s'applique pas ici : il note une vulnérabilité exploitable dans un système existant, alors qu'une revue de conception porte sur des décisions, dont beaucoup n'ont rien à noter.",
+  },
+  {
+    q: "Le concepteur refuse une recommandation mineure du relecteur. Que prévoit Kohnfelder ?",
+    options: [
+      "Retirer la recommandation, puisque le concepteur assume la décision",
+      "Escalader au responsable sécurité, qui tranchera le désaccord avant la mise en production",
+      "Consigner le désaccord et sa raison dans le rapport, puis laisser décider le concepteur",
+      "Conditionner la validation de la revue à la correction, même mineure",
+    ],
+    answer: 2,
+    explain: "Le concepteur a le dernier mot, mais la trace reste : le rapport garde une section « recommandations déclinées », avec la raison de la recommandation et les conséquences possibles. Retirer purement et simplement la recommandation est la tentation relationnelle, et c'est elle qui fait perdre la mémoire du choix le jour de l'incident. L'escalade est réservée aux désaccords majeurs, avec un mémo où chacun expose sa position.",
+  },
+  {
+    q: "L'équipe ajoute un cache Redis devant l'API des factures et juge inutile de repasser en revue : « c'est un petit changement ». Que faire ?",
+    options: [
+      "Rien : un cache ne modifie pas les contrôles d'accès de l'API des factures",
+      "Refaire une revue complète de la conception, puisque l'architecture a changé",
+      "Une revue incrémentale du delta : le cache crée une copie de données sensibles",
+      "Un test de charge, le risque propre à un cache étant la cohérence des données",
+    ],
+    answer: 2,
+    explain: "Un cache crée une copie de données sensibles, avec ses propres clés, durées de vie et droits d'accès — et en multi-tenant, une clé construite sans le tenant finit par servir la facture d'un client à un autre. Refaire toute la revue est l'autre erreur : c'est si coûteux que personne ne le fera la fois suivante, alors que la revue incrémentale porte sur le delta et met simplement à jour le rapport existant.",
   },
 ];
 
 <YouKnow>
-Tu as exploité des architectures où la passerelle faisait confiance à tout ce qui venait de l'intérieur, ou des uploads servis depuis le domaine principal. Cette leçon rassemble les patterns qui rendent ces erreurs difficiles à commettre.
+Une revue de conception ressemble à un pentest sur papier, mais sans exploit : on raisonne sur un document, avant que le code existe. C'est là que chaque correctif coûte le moins cher.
 </YouKnow>
 
-## Les patterns d'architecture de Novafact
+## Pourquoi et quand
 
-| Pattern | Rôle en sécurité | Point d'attention |
-| --- | --- | --- |
-| **API gateway** | Authentification, limitation de débit, journalisation à l'entrée | Ne dispense pas les services de vérifier l'autorisation (Accept Security Responsibility) |
-| **BFF** (Backend for Frontend) | Garde les jetons OAuth côté serveur ; le navigateur n'a qu'un cookie de session | Protection CSRF sur le BFF (M9) |
-| **Services internes** | Chacun avec ses données et son rôle IAM | Authentification entre services, jamais « tout ce qui est interne est fiable » |
-| **Événements et files** (SQS, EventBridge) | Découplage, résilience | Valider le schéma des messages, contrôler qui peut publier, idempotence |
-| **Tokenisation** | Remplacer une donnée sensible par un jeton sans valeur hors du système émetteur | Le système de tokenisation devient critique |
+Une **Security Design Review** (SDR) trouve les problèmes avant qu'ils existent dans le code : une autorisation mal placée, une donnée collectée sans raison, une dépendance critique. Kohnfelder (K7), qui dit en avoir mené quelques centaines, affirme qu'aucune ne lui a paru inutile : elle prend une fraction minime du temps de conception, et produit soit des améliorations, soit une **assurance** documentée que la conception tient. Elle attire aussi des points de vue que la conception oublie (support, juridique, expérience utilisateur), notamment sur les abus possibles.
 
-Chaque pattern **déplace** un contrôle vers un point où il est plus facile à appliquer uniformément. Le risque symétrique est de croire que le contrôle a disparu des autres endroits. Les sections suivantes regardent ce que chaque pattern fait vraiment, et ce qu'il ne fait pas.
+Le bon moment : quand la conception est **complète et stable**, en général après la revue fonctionnelle, mais avant qu'elle soit figée. Kohnfelder déconseille de fusionner les deux revues : l'état d'esprit et les points d'attention diffèrent trop, et la discussion dérive vers le fonctionnement. Pour une conception complexe ou critique, une **revue préliminaire** plus légère, quand l'architecture commence à prendre forme, permet de discuter tôt des grandes menaces et des compromis.
 
-## La gateway : un filtre, pas une autorité
+Le relecteur idéal n'a pas participé à la conception (recul, objectivité) mais connaît le contexte. Ce n'est pas un prérequis absolu : Kohnfelder insiste sur le fait qu'un développeur qui connaît bien un système fera souvent une meilleure revue qu'un expert en sécurité qui le découvre.
 
-Une API gateway fait bien ce qui est **uniforme** : terminer TLS, vérifier qu'un jeton est valide, limiter le débit, appliquer un WAF, journaliser, rejeter les requêtes hors schéma. Elle fait mal ce qui dépend du **métier** : savoir si la facture demandée appartient au tenant de l'appelant. Kohnfelder avertit contre la conception en « coque dure, intérieur mou » : elle ne tient que si rien ne contourne la coque.
+## La documentation est indispensable
 
-Le piège classique est l'en-tête d'identité posé par la gateway (`X-User-Id`, `X-Tenant-Id`) et cru sur parole par les services. Il suffit qu'un service soit joignable par un autre chemin (un autre service compromis, une SSRF, un port exposé par erreur) pour que n'importe qui forge l'en-tête. Novafact transmet plutôt un **jeton interne signé**, de courte durée, avec une audience par service, que chaque service vérifie :
+Une revue sérieuse exige un **document écrit à jour**. Une affirmation vague (« les données clients sont stockées de manière sécurisée ») est un signal d'alerte en soi. Quand la documentation manque ou date, se plaindre de sa qualité ne sert à rien ; Kohnfelder conseille des alternatives : un prototype interne, le code et les revues de code, ou assister à une réunion d'équipe. À défaut de tout, le relecteur dessine lui-même un schéma de blocs, le fait valider, et relit ça.
 
-<Code file="services/billing/src/auth/internalToken.ts" hl="8,9">
-
-```ts
-import { createRemoteJWKSet, jwtVerify } from 'jose';
-
-const JWKS = createRemoteJWKSet(new URL('https://auth.internal.novafact.example/.well-known/jwks.json'));
-
-export async function verifyInternalToken(token: string) {
-  const { payload } = await jwtVerify(token, JWKS, {
-    issuer: 'https://auth.internal.novafact.example',
-    audience: 'billing',         // un jeton émis pour le service PDF ne vaut rien ici
-    maxTokenAge: '2m',
-    algorithms: ['EdDSA'],
-  });
-  return { userId: payload.sub!, tenantId: payload.tenant_id as string, scopes: payload.scope as string };
-}
-```
-
-</Code>
-
-## Authentifier entre services
-
-« C'est dans le VPC, donc c'est fiable » est un reflux de confiance en puissance. Les options :
-
-- **IAM** : les services AWS s'appellent avec leurs rôles (SigV4) ;
-- **jetons de service** courts, signés par un émetteur interne, avec audience (comme ci-dessus) ;
-- **mTLS** avec des identités de charge de travail (SPIFFE), pour des architectures plus larges.
-
-Et chaque service vérifie l'autorisation pour le compte de l'utilisateur d'origine, en propageant son contexte (anti *confused deputy*, leçon 3). Quand un service doit en appeler un autre au nom de l'utilisateur, l'échange de jetons (RFC 8693, M9) produit un jeton pour le service suivant, avec une audience et des droits réduits, plutôt que de relayer le jeton reçu.
-
-## Les événements et les files
-
-Un message dans une file est une **entrée non fiable** comme une autre : quelqu'un l'a publié, et ce quelqu'un a peut-être été compromis. Trois règles chez Novafact : la politique de la file SQS n'autorise que le producteur attendu à publier ; le consommateur valide chaque message avec un schéma ; et le traitement est **idempotent**, parce que SQS garantit au moins une livraison, pas exactement une.
-
-<Code file="services/notifications/src/handler.ts" hl="15,16,17">
-
-```ts
-import type { SQSEvent, SQSBatchResponse } from 'aws-lambda';
-import { z } from 'zod';
-
-const InvoiceSent = z.object({
-  eventId: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  invoiceId: z.string().uuid(),
-}).strict();
-
-export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
-  const failures: { itemIdentifier: string }[] = [];
-  for (const record of event.Records) {
-    let body: unknown = null;
-    try { body = JSON.parse(record.body); } catch { /* corps malformé : traité comme invalide */ }
-    const parsed = InvoiceSent.safeParse(body);
-    if (!parsed.success) { logger.warn({ id: record.messageId }, 'message invalide'); continue; } // pas de rejeu infini
-    try { await notifyOnce(parsed.data); }                      // idempotent sur eventId
-    catch { failures.push({ itemIdentifier: record.messageId }); } // seul ce message sera relivré
-  }
-  return { batchItemFailures: failures };
-}
-```
-
-</Code>
-
-Un message invalide n'est pas relivré en boucle : il est journalisé (ou envoyé dans une file de lettres mortes) pour investigation. Un message valide dont le traitement échoue est signalé individuellement, pour ne pas rejouer tout le lot.
-
-## Le pipeline de téléversement
+## Les six étapes
 
 <Steps items={[
-  { title: "Envoi direct", text: "Le navigateur envoie le fichier vers un bucket de quarantaine grâce à une URL présignée, limitée en taille, en type et en durée. Le fichier ne passe jamais par l'API." },
-  { title: "Analyse isolée", text: "Une fonction sans accès réseau sortant analyse le fichier (antivirus, type réel, taille) et le convertit si besoin (PDF aplati, image réencodée)." },
-  { title: "Publication", text: "Les fichiers validés sont copiés dans un bucket distinct ; la quarantaine est purgée automatiquement." },
-  { title: "Service", text: "Les fichiers sont servis depuis un domaine séparé (novafact-usercontent.example), avec Content-Disposition: attachment et un type forcé." },
+  { title: "Study", text: "Lire le document une première fois pour comprendre, puis une seconde fois avec le « chapeau sécurité ». Noter les idées, sans analyser en profondeur." },
+  { title: "Inquire", text: "Poser des questions pour clarifier et compléter le document. Demander à l'équipe ce qui l'inquiète le plus ; si rien ne l'inquiète, demander pourquoi." },
+  { title: "Identify", text: "Repérer les parties les plus critiques : interfaces, stockage, communications. Aller des surfaces les plus exposées vers les actifs les plus précieux, comme un attaquant." },
+  { title: "Collaborate", text: "Discuter des risques et des mitigations avec le designer. Proposer plusieurs solutions, illustrer par des scénarios, accepter que le designer ait le dernier mot." },
+  { title: "Write", text: "Un rapport organisé autour de changements de conception concrets, priorisé en Must / Ought / Should, avec l'essentiel de l'effort sur les priorités hautes." },
+  { title: "Follow up", text: "Vérifier que les changements ont été intégrés avant de valider. Documenter les désaccords restants comme questions ouvertes." },
 ]} />
 
-Pour l'envoi, un **POST présigné** est plus strict qu'un PUT présigné : sa politique signée peut imposer une plage de taille et un type de contenu, que S3 vérifie lui-même.
+Pour une petite conception, tout tient en une séance ; pour une grande, chaque étape peut en demander plusieurs (suivre la revue comme un ticket du projet évite qu'elle se perde). Kohnfelder préfère travailler par étapes sur quelques jours, pour laisser mûrir, plutôt qu'en marathon. Pendant la préparation, il trie ses notes en quatre catégories : les questions à poser **avant** la réunion, celles dont il peut trouver la réponse seul, les sujets à explorer **en** réunion, et les observations qui iront directement au rapport.
 
-<Code file="apps/api/src/uploads/presign.ts" hl="9,10">
+## Les quatre questions comme fil conducteur
 
-```ts
-import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
-import { randomUUID } from 'node:crypto';
+Sans threat model formel, les quatre questions du threat modeling (M11) guident la revue :
 
-export async function presignAttachment(tenantId: TenantId) {
-  const key = `quarantine/${tenantId}/${randomUUID()}`; // nom choisi par le serveur, jamais par le client
-  return createPresignedPost(s3, {
-    Bucket: 'novafact-uploads-quarantine',
-    Key: key,
-    Conditions: [
-      ['content-length-range', 1, 10 * 1024 * 1024], // 10 Mo maximum
-      { 'Content-Type': 'application/pdf' },
-    ],
-    Fields: { 'Content-Type': 'application/pdf' },
-    Expires: 300,
-  });
-}
+| Question | Ce que le relecteur cherche |
+| --- | --- |
+| Sur quoi travaille-t-on ? | Le but de chaque élément : on peut proposer de supprimer ce qui crée du risque sans servir, et on évite de casser ce qui est nécessaire |
+| Qu'est-ce qui peut mal tourner ? | Les menaces sous-estimées ou ignorées |
+| Que fait-on contre ? | Faire correspondre menaces et mitigations, repérer les trous |
+| A-t-on bien travaillé ? | Les mitigations suffisent-elles ? Le verdict d'ensemble |
+
+Un risque **accepté** n'est pas un problème, à condition qu'il le soit consciemment. Le rapport l'écrit, avec la raison et la condition qui obligerait à le reconsidérer. Chez Novafact : « Les exports ne sont pas notifiés aux utilisateurs non administrateurs : risque accepté, car seul un administrateur de tenant peut exporter. À revoir si l'export est ouvert aux experts-comptables externes. »
+
+Le relecteur regarde aussi l'excès inverse : un mécanisme de sécurité réinventé alors qu'une bibliothèque standard existe, ou une protection redondante coûteuse (chiffrer au niveau applicatif des données déjà protégées par TLS, sans menace qui le justifie).
+
+## Où creuser
+
+On ne relit pas tout avec la même attention. Kohnfelder conseille de **suivre son intuition** : repérer les zones qui semblent fragiles, puis y revenir avec les quatre questions. Quand on est enfermé dehors, on vérifie les fenêtres et les portes, on n'inspecte pas chaque centimètre de façade. Les suspects habituels :
+
+- les **interfaces**, surtout celles qui franchissent une frontière de confiance, et plus encore quand elles sont accessibles anonymement depuis Internet ;
+- le **stockage** des données sensibles ;
+- les **communications** entre composants ;
+- tout ce qui touche à l'**authentification**, à l'**autorisation** et à l'**audit**.
+
+## Un rapport utile
+
+Le rapport commence par un **verdict d'ensemble** en une phrase : la conception est sûre en l'état ; elle est sûre, avec quelques améliorations suggérées ; ou elle soulève des inquiétudes, et voici les recommandations. Suivent les constats, organisés autour de **changements de conception** et priorisés :
+
+| Priorité | Sens | Exemple sur l'export comptable |
+| --- | --- | --- |
+| **Must** | Pas de choix possible, souvent urgent | L'export filtre par le tenant de la session, jamais par un paramètre de la requête |
+| **Ought** | Le relecteur penche pour Must, mais c'est discutable | Le fichier d'export est chiffré et son lien expire en 15 minutes |
+| **Should** | Recommandation facultative | Un e-mail informe les autres administrateurs du tenant qu'un export a eu lieu |
+
+Quelques règles d'écriture tirées du chapitre : consacrer l'essentiel de l'effort aux priorités hautes ; expliquer la menace et pourquoi elle compte, avec des pistes, sans faire le travail du concepteur à sa place ; mentionner ce qui est bien fait, pour que ces décisions soient protégées lors des évolutions ; ne jamais conclure par un simple « ça me semble bon », mais citer les éléments de la conception dont la sécurité dépend.
+
+<Code file="docs/sdr/2026-09-export-comptable.md">
+
+```md
+# SDR : export comptable (design doc v1.3)
+
+Verdict : conception globalement saine ; deux changements requis avant la mise en production.
+
+## Points forts
+- Traitement asynchrone isolé du chemin des requêtes ; aucune donnée de paiement dans le périmètre.
+
+## Constats
+- [Must] E1 n'est pas testé : ajouter un test d'isolation inter-tenant sur l'endpoint de création d'export.
+- [Ought] Le fichier reste 24 h dans le bucket : réduire à 1 h ou justifier le besoin.
+- [Should] Neutraliser les formules CSV (Q1) : accord de principe, à valider avec le produit.
+
+## Risques acceptés
+- Pas de notification aux non-administrateurs (voir condition de réexamen).
+
+## Recommandations déclinées
+- (aucune à ce stade)
 ```
 
 </Code>
 
-Le type déclaré reste une déclaration : c'est l'analyse isolée qui vérifie le type **réel** du contenu.
+## Gérer le désaccord et l'escalade
 
-## Isoler ce qui est risqué
+Kohnfelder consacre une part importante du chapitre au facteur humain : une revue consiste à pointer des faiblesses dans un travail où les gens ont investi, et un relecteur perçu comme un censeur jamais satisfait devient inefficace, même quand il a raison. Ses conseils, tirés d'une revue qu'il décrit comme particulièrement difficile : présenter ses retours comme **son point de vue** plutôt que comme des exigences ; commencer et finir par du positif ; demander d'abord comment transmettre un retour volumineux (pas de courriel de 97 points ni de pluie de tickets sans prévenir) ; et limiter le retour aux points significatifs.
 
-Tout traitement de contenu non fiable complexe (rendu de PDF, conversion d'images, templates clients, code généré par l'IA) s'exécute **à l'écart** : une fonction ou un conteneur dédié, sans secrets, sans accès réseau inutile, avec des limites de temps et de mémoire. C'est la conclusion commune des modules 2 et 3 : l'isolation se fait au niveau du processus. Le raisonnement est celui de la leçon 1 : on **suppose** que l'analyseur le plus exposé finira par être compromis, et on borne ce que cette compromission permet.
+Quand le désaccord persiste :
 
-<Callout kind="case">
-**Capital One (2019)**. Un pare-feu applicatif mal configuré, hébergé sur EC2, permettait des requêtes de type SSRF. L'attaquante s'en est servie pour interroger le service de métadonnées de l'instance, en récupérer les identifiants temporaires du rôle IAM associé, puis lire des buckets S3. Capital One a annoncé environ 100 millions de personnes touchées aux États-Unis et 6 millions au Canada. Deux mesures structurelles auraient borné l'incident : un rôle IAM limité au strict besoin du pare-feu, et **IMDSv2**, qui exige un jeton de session obtenu par une requête PUT, ce qu'une SSRF simple ne sait généralement pas produire.
-</Callout>
-
-## La tokenisation
-
-La **tokenisation** remplace une donnée sensible par un jeton qui n'a de sens que pour le système qui l'a émis. Pour les cartes, Novafact utilise les champs de paiement hébergés de son prestataire : le numéro de carte ne transite jamais par ses serveurs, qui ne reçoivent qu'un jeton. Le périmètre PCI DSS se réduit fortement, sans disparaître : la page qui intègre le formulaire du prestataire reste concernée, notamment pour les scripts qu'elle charge (leçon 3).
-
-Le même pattern sert en interne pour les IBAN : un petit **service coffre-fort**, avec sa propre base, sa propre clé KMS et un rôle IAM que lui seul possède, stocke les IBAN et renvoie des jetons (`ibantok_…`). Les autres services manipulent des jetons ; seul le service de virement peut demander la valeur en clair, et chaque demande est journalisée. Une fuite de la base principale ne révèle plus aucun IBAN. Le coffre-fort devient en revanche un composant critique : sa disponibilité conditionne les virements, et son périmètre doit rester minuscule pour rester auditable.
-
-## Les propriétés non fonctionnelles
-
-La conception précise aussi les propriétés attendues sous contrainte : comportement en cas de panne d'un service (échec sûr), limites de charge, délais d'expiration, reprise après incident. Un appel sans délai d'expiration vers un service lent bloque des ressources jusqu'à l'épuisement ; un disjoncteur qui, en cas de panne du service d'autorisation, « laisse passer pour ne pas bloquer » transforme une panne en faille (leçon 2).
-
-L'**architecture opérationnelle** (topologie de déploiement, pipeline, accès d'exploitation) fait partie de la conception au même titre que le code (M14 et M17) : le pipeline qui déploie en production a plus de pouvoir que n'importe quel service, et mérite la même revue.
-
-<Recap items={[
-  "Chaque pattern déplace un contrôle ; il ne dispense pas les autres composants d'assumer leur part.",
-  "La gateway filtre, les services décident : un jeton interne signé avec audience plutôt qu'un en-tête d'identité cru sur parole.",
-  "Les messages de file sont des entrées non fiables : producteurs restreints, schéma validé, traitement idempotent.",
-  "Téléversement : POST présigné avec taille et type, quarantaine, analyse isolée sans réseau ni droits, domaine séparé.",
-  "Tokenisation (cartes chez le prestataire, IBAN dans un coffre-fort interne) et isolation bornent le pire cas.",
+<Steps items={[
+  { title: "Désaccord mineur", text: "Le relecteur le consigne dans une section « Recommandations déclinées » : la recommandation, sa raison, les conséquences possibles. Le concepteur a le dernier mot." },
+  { title: "Désaccord majeur", text: "Chacun rédige sa position, en partant de ce sur quoi ils s'accordent ; les deux textes forment un mémo qui expose le risque, les options et leurs coûts." },
+  { title: "Décision", text: "Le mémo sert de base à une décision de la direction. La décision et le mémo rejoignent le rapport de revue." },
 ]} />
 
-<Lab id="ps-file-upload" />
+Kohnfelder note que les désaccords forts viennent presque toujours d'une **hypothèse divergente** (sur l'usage réel du logiciel, ou sur la sensibilité des données) : l'identifier règle souvent le conflit. Une question aide à trancher : si l'on change d'avis après la mise en production, à quel point ce sera plus difficile ?
+
+<Callout kind="debate">
+**Le relecteur doit-il avoir un droit de veto ?** Kohnfelder donne le dernier mot au concepteur, responsable de sa conception, en reconnaissant que les organisations réglementées ajoutent des validations multiples (comité d'architecture, conformité). Certaines équipes AppSec préfèrent un veto limité aux Must. L'argument en faveur de sa position : un veto utilisé souvent pousse les équipes à contourner la revue, alors qu'un désaccord documenté et escaladable garde tout le monde à la table.
+</Callout>
+
+## Vie privée et évolutions
+
+La même démarche s'applique à la **vie privée** : parcourir la politique de confidentialité, relever les passages qui concernent la conception (collecte, usage, stockage, partage), et vérifier que la conception les respecte ; faire valider par les spécialistes ce qui dépasse la compétence du relecteur.
+
+Pour les **évolutions**, le design doc doit rester un document vivant et versionné. La revue incrémentale porte sur le **delta** depuis la revue précédente et met à jour le rapport existant, qui raconte ainsi toute l'histoire. Kohnfelder rappelle que sous-estimer un « petit changement » est une invitation classique au désastre ; si le changement est vraiment anodin, le relecteur le confirmera en quelques minutes.
+
+<Callout kind="tip">
+Le jeu **Design Review Simulator** te fait relire le design doc de l'export comptable en suivant ces six étapes, puis défendre tes constats face au designer.
+</Callout>
+
+<Recap items={[
+  "Une SDR se fait sur un document écrit, quand la conception est stable mais pas figée, séparément de la revue fonctionnelle.",
+  "Six étapes : Study, Inquire, Identify, Collaborate, Write, Follow up ; les quatre questions guident l'analyse.",
+  "Un rapport qui commence par un verdict, priorise en Must / Ought / Should, et cite ce qui est bien fait.",
+  "Le concepteur a le dernier mot : désaccords mineurs documentés, désaccords majeurs escaladés avec un mémo à deux voix.",
+  "Les évolutions se revoient par delta, y compris les « petits changements ».",
+]} />
 
 <Sources items={[
-  { title: "OWASP Cheat Sheet : File Upload", url: "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html" },
-  { title: "OWASP Cheat Sheet : Microservices Security", url: "https://cheatsheetseries.owasp.org/cheatsheets/Microservices_Security_Cheat_Sheet.html" },
-  { title: "AWS : URL présignées S3", url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html" },
-  { title: "AWS : politique d'un POST S3 (conditions)", url: "https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-HTTPPOSTConstructPolicy.html" },
-  { title: "AWS Lambda : erreurs partielles de lot SQS", url: "https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-errorhandling.html" },
-  { title: "AWS : configurer IMDSv2", url: "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html" },
-  { title: "Krebs on Security : What We Can Learn from the Capital One Hack", url: "https://krebsonsecurity.com/2019/08/what-we-can-learn-from-the-capital-one-hack/" },
-  { title: "SPIFFE", url: "https://spiffe.io/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 7 et annexe D" },
+  { title: "OWASP SAMM : Architecture Assessment", url: "https://owaspsamm.org/model/verification/architecture-assessment/" },
+  { title: "OWASP Cheat Sheet : Threat Modeling", url: "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html" },
 ]} />

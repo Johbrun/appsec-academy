@@ -8,7 +8,7 @@ classe de bugs. C'est cette troisième ligne qui est l'objet du parcours — le 
 
 ---
 
-## M2 · Vulnérabilités web, écosystème JS
+## M7 · Vulnérabilités web, écosystème JS
 
 ### nosql-auth · injection NoSQL dans la connexion
 
@@ -22,7 +22,7 @@ route, on le contourne par un opérateur imbriqué, et rien ne signale la régre
 **Le correctif.** Un schéma (zod, ajv) qui affirme `typeof string` avant la couche de données, et un
 framework qui rend l'absence de schéma impossible : une route sans schéma déclaré ne se monte pas. La
 validation ne doit pas être quelque chose qu'on pense à faire, mais quelque chose qu'on ne peut pas ne pas
-faire. C'est le *paved road* du module M1, appliqué à une classe entière.
+faire. C'est le *paved road* du module M3, appliqué à une classe entière.
 
 ### mass-assignment · mise à jour du profil
 
@@ -118,7 +118,7 @@ niveau de l'instance — IMDSv2 réclame un `PUT` préalable, qu'une SSRF simple
 
 ---
 
-## M3 · Web avancé
+## M9 · Web avancé
 
 ### race-credit · l'avoir dépensé deux fois
 
@@ -173,7 +173,7 @@ CloudFront, liste des en-têtes qui entrent dans la clé — plutôt que subie.
 
 ---
 
-## M4 · Côté client & scripts tiers
+## M8 · Côté client & scripts tiers
 
 ### dom-xss · note de facture
 
@@ -205,7 +205,7 @@ complément. Et pour le paiement : l'isoler dans l'**iframe du prestataire**, ce
 
 ---
 
-## M10 · Anti-abus, ATO & fraude
+## M15 · Anti-abus, ATO & fraude
 
 ### no-rate-limit · credential stuffing
 
@@ -237,7 +237,7 @@ Journal d'audit et rapprochement complètent le dispositif — l'invariant doit 
 
 ---
 
-## M19 · Sécurité de l'IA
+## M27 · Sécurité de l'IA
 
 ### prompt-injection · injection indirecte dans « Ask Novafact »
 
@@ -259,7 +259,7 @@ le compte de quelqu'un d'autre. Les patterns de conception à connaître : dual 
 
 ---
 
-## M14 · Pipeline, supply chain & fournisseurs
+## M18 · Pipeline, supply chain & fournisseurs
 
 Les dix-neuf challenges de ce module se corrigent dans le dépôt fixture `novafact/`. Le corrigé complet est
 dans `solutions/novafact/`, aux mêmes chemins — le diff se lit fichier par fichier :
@@ -290,7 +290,7 @@ première condition et échoue à la seconde : une équipe qui doit relire chaqu
 Trois prolongements, qui sont le vrai travail du métier :
 
 1. **Écris la règle.** Transforme un de ces défauts en règle Semgrep qui trouve *toutes* ses variantes dans le
-   dépôt, pas seulement l'instance corrigée. C'est la *variant analysis* du module M13.
+   dépôt, pas seulement l'instance corrigée. C'est la *variant analysis* du module M17.
 2. **Garde le test.** Les tests de `verify/` sont des tests de régression de sécurité : ils ont leur place dans
    la CI, pas dans un dossier d'exercices.
 3. **Remonte d'un cran.** Pour chaque correctif, demande-toi où il aurait dû être décidé : dans le code, dans

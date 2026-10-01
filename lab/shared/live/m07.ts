@@ -1,4 +1,4 @@
-// M7 · Fondations, exigences & vie privée — challenges jouables.
+// m07 · Fondations, exigences & vie privée — challenges jouables.
 //
 // Tous de type « artifact » : l'apprenant produit un livrable dans
 // `workspace/`, et le harnais le confronte au dépôt plutôt qu'à lui-même.
@@ -18,12 +18,12 @@ import type { ExerciseDef } from '../exercises.ts';
 
 export const m07: ExerciseDef[] = [
   {
-    id: 'trust-inventory', module: 'm07', title: 'À qui fait-on confiance, au juste',
+    id: 'trust-inventory', module: 'm01', title: 'À qui fait-on confiance, au juste',
     status: 'live', kind: 'artifact', level: 1, csslp: ['D1', 'D3'], cwe: 'CWE-1059',
     brief: 'Novafact fait implicitement confiance à des dizaines de parties : registre npm, CDN, prestataire de paiement, fournisseur d’IA, runner de CI, poste des développeurs. Aucune liste n’existe.',
     goal: 'Établir l’inventaire des composants implicitement fiables, avec ce que chacun pourrait faire s’il se retournait.',
     file: 'requirements/trust.yaml',
-    lessons: ['m07/l01', 'm08/l03'],
+    lessons: ['m01/l02', 'm08/l04'],
     hints: [
       'La liste ne s’invente pas : elle se relève dans le dépôt. Trois sources — les dépendances déclarées, les actions employées par les workflows, les origines externes que ces workflows contactent.',
       'Le format attendu : une clé `parties`, et pour chacune `partie`, `type` (`dependance`, `action-ci` ou `origine-externe`), `ce-qu-il-pourrait-faire` et `mitigation`.',
@@ -32,12 +32,12 @@ export const m07: ExerciseDef[] = [
     fix: 'Le harnais confronte l’inventaire au code : chaque origine externe chargée, chaque dépendance directe, chaque action de CI doit y figurer, et rien d’imaginaire. La confiance est un spectre, et le premier geste de conception est de réduire le nombre de parties à qui l’on est obligé de faire confiance.',
   },
   {
-    id: 'gold-standard-audit', module: 'm07', title: 'Authentifier, autoriser, journaliser',
+    id: 'gold-standard-audit', module: 'm01', title: 'Authentifier, autoriser, journaliser',
     status: 'live', kind: 'artifact', level: 1, csslp: ['D1', 'D5'], cwe: 'CWE-778',
     brief: 'Le Gold Standard demande trois choses de chaque opération sensible. Les routes de Novafact en offrent une, deux, ou zéro, sans logique apparente.',
     goal: 'Établir pour chaque route mutante ce qui est présent et ce qui manque — et faire tomber l’écart à zéro.',
     file: 'requirements/gold-standard.csv',
-    lessons: ['m07/l02', 'm18/l01'],
+    lessons: ['m01/l03', 'm18/l01'],
     hints: [
       'Le périmètre est déclaré — les routes mutantes de `server/routes/invoices.ts`, `credits.ts` et `profile.ts` — mais la liste se lit dans le code. Une route ajoutée demain y entre d’elle-même.',
       'Colonnes attendues : `route,methode,authentification,autorisation,audit,manque`. Les trois contrôles valent `oui` ou `non`, et `manque` répète exactement ceux qui valent `non` (ou `-`).',
@@ -51,7 +51,7 @@ export const m07: ExerciseDef[] = [
     brief: 'ASVS compte plusieurs centaines d’exigences. Les appliquer toutes est impossible, les ignorer toutes est confortable.',
     goal: 'Choisir les exigences de niveau L2 qui s’appliquent réellement à Novafact, et les inscrire dans le dépôt.',
     file: 'requirements/asvs.yaml',
-    lessons: ['m07/l03', 'm07/l04'],
+    lessons: ['m07/l01', 'm07/l02'],
     hints: [
       'Le standard est embarqué dans `fixtures/m07/asvs-5.0.json` : les identifiants, leur chapitre et leur niveau s’y lisent. Aucune exigence inventée ne passe.',
       'Format : une clé `exigences`, et pour chacune `id` et `justification` (au moins quarante caractères). Entre huit et vingt-cinq exigences — en deçà c’est un échantillon, au-delà plus personne ne les tient.',
@@ -65,7 +65,7 @@ export const m07: ExerciseDef[] = [
     brief: 'Les exigences sont écrites. Rien ne dit lesquelles sont réellement tenues, ni par quoi.',
     goal: 'Relier chaque exigence retenue au test qui l’établit — et dire honnêtement lequel passe.',
     file: 'requirements/traceability.csv',
-    lessons: ['m07/l04', 'm13/l01'],
+    lessons: ['m07/l02', 'm13/l01'],
     hints: [
       'La matrice se trace sur `requirements/asvs.yaml` : chaque exigence retenue a sa ligne, et rien d’autre n’en a.',
       'Colonnes attendues : `exigence,fichier,test,statut`. Le fichier est un chemin du dépôt, le test est le nom exact tel que `node --test` l’affiche, le statut vaut `tenue` ou `non-tenue`.',
@@ -79,7 +79,7 @@ export const m07: ExerciseDef[] = [
     brief: 'Novafact manipule des IBAN, des adresses, des notes internes et des secrets. Aucun dictionnaire de données, donc aucune règle de traitement.',
     goal: 'Classer chaque champ réellement manipulé — sensibilité, propriétaire, base légale, durée — et vérifier que rien d’interne ne sort par l’API.',
     file: 'privacy/data-classification.yaml',
-    lessons: ['m07/l05', 'm07/l06'],
+    lessons: ['m07/l03', 'm07/l04'],
     hints: [
       'Les champs se lisent dans `interface User`, `Invoice`, `Client` et `Mail` de `server/store.ts`. Tous, sans exception, et aucun inventé.',
       'Énumérations fermées : la sensibilité vaut `public`, `client`, `interne` ou `secret` ; la base légale est l’une des six du règlement ; le propriétaire est un handle d’équipe existant ; la conservation est une durée (`36 mois`, `3 ans`, `duree-du-compte`, `illimitee`).',
@@ -93,7 +93,7 @@ export const m07: ExerciseDef[] = [
     brief: 'La suppression d’un compte pose un drapeau. Les exports, la boîte d’envoi et les journaux gardent tout.',
     goal: 'Écrire la politique de rétention, puis le test qui cherche les données du compte supprimé dans tous les magasins et n’en trouve aucune.',
     file: 'verify/erasure.test.ts',
-    lessons: ['m07/l06', 'm13/l02'],
+    lessons: ['m07/l04', 'm13/l02'],
     hints: [
       'Deux livrables : `privacy/retention.yaml` d’abord — une durée par classe de données sous la clé `conservation` — puis le test.',
       'Les magasins où la donnée se propage sont listés dans `fixtures/m07/magasins.yaml`, et chacun correspond à un champ de `interface State`. Ils sont cinq, pas trois.',
@@ -107,7 +107,7 @@ export const m07: ExerciseDef[] = [
     brief: 'PCI DSS, RGPD, NIS2, CRA : quatre textes cités en réunion, aucune trace de ce qu’ils imposent concrètement à Novafact.',
     goal: 'Établir la matrice exigence réglementaire → contrôle technique → preuve dans le dépôt.',
     file: 'requirements/compliance.yaml',
-    lessons: ['m07/l07', 'm04/l07'],
+    lessons: ['m07/l05', 'm04/l08'],
     hints: [
       'Les obligations sont embarquées dans `fixtures/m07/obligations.yaml`, avec le texte réglementaire dont chacune vient. Toutes doivent être traitées.',
       'Format : une clé `obligations`, et pour chacune `id`, `controle-technique` (au moins quarante caractères, et propre à cette obligation), `couverte` (`oui` ou `non`), puis `preuves` — des chemins qui existent — ou `plan` si elle n’est pas couverte.',
@@ -121,7 +121,7 @@ export const m07: ExerciseDef[] = [
     brief: 'Des comptes de service et des comptes humains ont des droits que personne n’a revus depuis leur création. Certains n’ont jamais servi.',
     goal: 'Produire la revue : qui a quoi, qui s’en est servi, ce qui doit être retiré.',
     file: 'requirements/access-review.csv',
-    lessons: ['m07/l08', 'm15/l05'],
+    lessons: ['m07/l06', 'm15/l05'],
     hints: [
       'Deux fixtures : `fixtures/m07/comptes.json` donne les comptes, leurs droits et la période de revue ; `fixtures/m07/journal-acces.json` donne les exercices de droits.',
       'Colonnes attendues : `compte,droit,derniere-utilisation,decision`. Une ligne par couple compte/droit accordé — et seulement pour des droits réellement accordés.',

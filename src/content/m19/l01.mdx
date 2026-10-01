@@ -109,7 +109,7 @@ Réponds en français, de façon concise.`;
 export const systemPrompt = (tenantName: string) => `
 Tu es l'assistant de facturation de ${tenantName}.
 Réponds en français, de façon concise.`;
-// La clé reste côté serveur, dans l'outil d'envoi (Secrets Manager, M17).
+// La clé reste côté serveur, dans l'outil d'envoi (Secrets Manager, M21).
 // Le filtre par tenant est appliqué par chaque outil, à partir de la session (leçon 4).
 ```
 
@@ -126,7 +126,7 @@ L'assistant « Ask Novafact » combine un RAG sur les factures du tenant, deux o
 | LLM01 Prompt Injection | Factures et e-mails importés, lus par le RAG | Architecture : règle de deux, confirmation humaine (leçons 2 et 3) |
 | LLM02 Sensitive Information Disclosure | Réponses qui citent des données d'un autre client | Filtrage par tenant au moment de la récupération, pas dans la réponse |
 | LLM03 Excessive Agency | Outil d'envoi d'e-mail vers n'importe quelle adresse | Destinataires limités aux contacts du tenant, montant d'avoir plafonné |
-| LLM04 Supply Chain | Fournisseur de modèle, paquets npm du SDK, serveurs MCP tiers | Revue d'intégration, versions figées, AI SBOM (leçon 8) |
+| LLM04 Supply Chain | Fournisseur de modèle, paquets npm du SDK, serveurs MCP tiers | Revue d'intégration, versions figées, AI SBOM (leçon 7) |
 | LLM05 Data and Model Poisoning | Corpus RAG alimenté par des documents clients | Provenance marquée, corpus partagés relus |
 | LLM06 Unbounded Consumption | Un compte d'essai qui enchaîne les requêtes longues | Quotas de jetons par tenant, plafond d'étapes, alarmes de coût |
 | LLM07 Misinformation | Un montant de TVA inventé dans un résumé | Chiffres recalculés par le code, sources citées |
@@ -145,9 +145,9 @@ Le Top 10 est un document de **sensibilisation** et un vocabulaire commun, pas u
 <Steps items={[
   { title: "Threat model", text: "Pars du diagramme de flux de l'assistant (M11) et, pour chaque flux, demande-toi lesquels des dix risques s'y appliquent. Le tableau ci-dessus en est le résultat." },
   { title: "Exigences", text: "Transforme chaque risque retenu en exigence vérifiable : « l'outil d'envoi refuse tout destinataire hors des contacts du tenant » plutôt que « se protéger de l'agence excessive »." },
-  { title: "Tests", text: "Les outils de red teaming (leçon 7) proposent des jeux de tests rangés par entrée du Top 10 : ils te donnent une base, à compléter par tes propres cas." },
+  { title: "Tests", text: "Les outils de red teaming (leçon 6) proposent des jeux de tests rangés par entrée du Top 10 : ils te donnent une base, à compléter par tes propres cas." },
   { title: "Correspondance", text: "Garde dans ton registre de risques l'identifiant 2025 à côté de l'identifiant 2026 tant que des rapports, des outils ou des clients utilisent encore l'ancienne numérotation." },
-  { title: "Agents", text: "Dès que l'application enchaîne des actions de façon autonome, complète avec l'OWASP Top 10 for Agentic Applications (ASI01 à ASI10, leçon 5)." },
+  { title: "Agents", text: "Dès que l'application enchaîne des actions de façon autonome, complète avec l'OWASP Top 10 for Agentic Applications (ASI01 à ASI10, leçon 1 de M28)." },
 ]} />
 
 <Callout kind="debate">

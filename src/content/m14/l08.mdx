@@ -1,162 +1,140 @@
 export const questions = [
   {
-    q: "Un fournisseur envoie un rapport SOC 2 Type I daté d'il y a deux ans. Pourquoi est-ce insuffisant pour un fournisseur critique ?",
+    q: "Dans la compromission de tj-actions/changed-files (mars 2025), quel contrôle côté consommateur aurait empêché l'exécution du code malveillant ?",
     options: [
-      "Parce qu'un Type I juge la conception à une date, sans tester le fonctionnement",
-      "Parce qu'un Type I ne couvre que le critère de sécurité, sans la disponibilité",
-      "Parce qu'un Type I est produit par le fournisseur lui-même, sans auditeur externe",
-      "Parce que SOC 2 ne s'applique pas aux fournisseurs européens, soumis à l'ISO 27001",
-    ],
-    answer: 0,
-    explain: "Un Type I est bien émis par un auditeur indépendant, le choix des critères (sécurité, disponibilité, confidentialité…) ne dépend pas du type, et rien n'oppose SOC 2 à l'ISO 27001 selon la géographie. La différence est ailleurs : un Type I atteste de la conception des contrôles à une date donnée, là où un Type II teste leur efficacité opérationnelle sur une période, souvent 6 à 12 mois. Et un rapport de deux ans ne dit rien de l'état actuel — on demande le dernier, plus une lettre de continuité pour la période non couverte.",
-  },
-  {
-    q: "Le rapport SOC 2 du prestataire de paiement liste des « complementary user entity controls ». Qu'est-ce que cela implique pour Novafact ?",
-    options: [
-      "Que l'auditeur a relevé des exceptions dans le fonctionnement des contrôles",
-      "Que le fournisseur délègue ces contrôles à ses propres sous-traitants",
-      "Que Novafact doit faire auditer à son tour les contrôles qu'elle applique",
-      "Que certains contrôles supposés par l'auditeur incombent au client",
+      "Utiliser la dernière version majeure publiée, plutôt qu'une version figée",
+      "Masquer les secrets dans les journaux du workflow avec add-mask",
+      "Limiter les permissions du GITHUB_TOKEN du job à la lecture du contenu",
+      "Épingler l'action par SHA complet : les tags avaient été réécrits",
     ],
     answer: 3,
-    explain: "La confusion la plus fréquente est avec les sous-traitants du fournisseur, qui figurent ailleurs dans le rapport (subservice organizations), et avec les exceptions relevées par l'auditeur, qui sont encore autre chose. Les CUEC sont la traduction écrite de la responsabilité partagée : si Novafact ne les applique pas — gestion des clés d'API, revue des accès au tableau de bord —, les conclusions du rapport ne tiennent plus pour elle. Ils vont donc dans la checklist d'intégration du fournisseur.",
+    explain: "Limiter le GITHUB_TOKEN est un bon durcissement, mais l'action lisait la mémoire du runner : elle y trouvait tous les secrets du job, pas seulement ce jeton. Le masquage, lui, avait été contourné par un double encodage base64. Quant à suivre la dernière version majeure, c'est précisément ce qui a exposé les victimes — les tags `v1` à `v45.0.7` pointaient soudain vers un autre commit, et seuls les dépôts épinglés par SHA exécutaient encore l'ancien code.",
   },
   {
-    q: "Quelle clause est la plus importante pour l'assistant IA de Novafact, qui envoie des extraits de factures à un fournisseur de modèles ?",
+    q: "Qu'ont en commun Ultralytics (2024), Nx (2025) et TanStack (2026) ?",
     options: [
-      "Les garanties de disponibilité et les pénalités en cas de dépassement de latence",
-      "L'usage des données : entraînement, rétention, région, sous-traitants, incidents",
-      "La propriété intellectuelle des sorties générées par le modèle, et leur réutilisation",
-      "La réversibilité : la possibilité de changer de fournisseur sans réécrire le code",
+      "Un jeton de publication npm volé sur le poste d'un des mainteneurs",
+      "Un workflow privilégié déclenché par une contribution externe",
+      "Un mainteneur piégé par un courriel de hameçonnage ciblé",
+      "Une dépendance transitive compromise en amont de la chaîne",
     ],
     answer: 1,
-    explain: "La propriété des sorties, la réversibilité et les engagements de disponibilité sont de vraies clauses, et elles se négocient. Mais aucune ne traite ce qui sort réellement du périmètre de Novafact : les données de facturation de ses clients. Le contrat doit fixer ce que le fournisseur peut en faire (pas d'entraînement), combien de temps il les conserve, où elles sont traitées, avec quels sous-traitants ultérieurs, et sous quel délai de notification en cas d'incident.",
+    explain: "Les trois autres scénarios existent bel et bien, et ils décrivent d'autres compromissions de 2024-2026 — mais pas celles-ci. Ici, rien n'a été volé sur un poste ni obtenu par hameçonnage : le point commun est un workflow qui mêle des données ou du code venus d'une PR aux privilèges de publication, exploité par injection ou par empoisonnement de cache. C'est pourquoi GitHub a durci `pull_request_target` et `actions/checkout` en 2025-2026.",
+  },
+  {
+    q: "Quelle évolution distingue les vers de la famille Shai-Hulud des compromissions ponctuelles précédentes ?",
+    options: [
+      "Ils se propagent seuls : chaque jeton volé sert à republier d'autres paquets",
+      "Ils ciblent les mainteneurs les plus populaires par hameçonnage automatisé",
+      "Ils s'installent dans les runners de CI plutôt que sur les postes de travail",
+      "Ils restent dormants plusieurs mois avant de déclencher leur charge utile",
+    ],
+    answer: 0,
+    explain: "Les trois autres propositions décrivent des techniques connues, mais aucune n'est la rupture : la nouveauté n'est ni la cible, ni le vecteur, ni la temporisation. C'est l'automatisation de la propagation — chaque jeton npm volé sert à republier les autres paquets du mainteneur, chaque jeton GitHub à persister dans ses dépôts. Un compte compromis devient des centaines de paquets en quelques heures, d'où l'urgence de sortir les jetons de publication des postes et des runners.",
+  },
+  {
+    q: "Pourquoi l'incident polyfill.io (2024) concerne-t-il aussi un SaaS qui n'utilise pas ce service ?",
+    options: [
+      "Parce que le paquet npm polyfill.io se retrouve en dépendance transitive",
+      "Parce que la vulnérabilité touchait Node.js et donc tous les serveurs",
+      "Parce qu'un script tiers exécute le code de qui contrôle son domaine",
+      "Parce qu'un CDN compromis peut servir des dépendances npm altérées au build",
+    ],
+    answer: 2,
+    explain: "polyfill.io n'était ni un paquet npm, ni une faille de Node : c'était un domaine racheté. La confusion avec un CDN de build est plus subtile, mais elle déplace le problème vers la chaîne de construction alors qu'il se joue dans le navigateur du client. Le fait générique est celui-ci : la confiance accordée à un domaine se transmet à son futur propriétaire — ce qui vaut pour le tag manager, l'analytics et le widget de chat de Novafact. Auto-héberger, épingler avec SRI ou isoler les scripts tiers (M8) sont les réponses.",
   },
 ];
 
 <YouKnow>
-En pentest, le périmètre s'arrête souvent là où commence un tiers : « le paiement, c'est le prestataire ». Côté AppSec, ce tiers fait partie de ta surface d'attaque. Cette leçon donne la méthode pour l'évaluer, le contractualiser et le surveiller, sans en faire une usine à questionnaires.
+Ces incidents, tu les as sûrement suivis en direct sur les réseaux. Relus à froid, ils racontent la même histoire en quelques variantes : une confiance implicite quelque part dans la chaîne, et un contrôle simple qui l'aurait rendue explicite. Le détail technique de chaque charge n'a pas d'intérêt ici ; la cause racine et le contrôle qui casse la chaîne, si.
 </YouKnow>
 
-## Qui sont les tiers de Novafact
+## La grille de lecture
 
-| Tiers | Ce qu'il voit ou fait | Criticité |
-| --- | --- | --- |
-| Prestataire de paiement | Données de carte (dans son iframe), statut des paiements, webhooks | Critique |
-| Fournisseur de modèles d'IA | Extraits de factures et questions des utilisateurs de l'assistant | Critique |
-| AWS | Toute l'infrastructure et les données | Critique |
-| GitHub | Code source, CI/CD, secrets de déploiement | Critique |
-| Elastic (SIEM) | Journaux applicatifs et d'infrastructure | Élevée |
-| Tag manager, analytics, widget de chat | Code exécuté sur les pages de l'application | Élevée (M4) |
-| Société de pentest | Accès temporaire à des environnements et à des findings sensibles | Moyenne, ponctuelle |
+| Année | Incident | Point d'entrée | Cause racine | Contrôle qui casse la chaîne le plus tôt |
+| --- | --- | --- | --- | --- |
+| 2018 | event-stream | Maintenance cédée à un inconnu | Confiance dans un mainteneur non vérifié | Revue des nouvelles dépendances transitives, délai d'adoption |
+| 2021 | ua-parser-js | Compte npm détourné | Publication possible sans second facteur | MFA résistante au phishing, trusted publishing |
+| 2021 | Codecov | Script d'upload modifié | Script téléchargé et exécuté sans vérification | Épinglage et vérification d'empreinte ou de signature |
+| 2024 | xz utils | Mainteneur de longue date malveillant | Archive publiée différente du dépôt relu | Builds reproductibles, provenance (M17, leçon 9) |
+| 2024 | polyfill.io | Domaine et projet rachetés | Script servi par un domaine tiers | Auto-hébergement, SRI (M8) |
+| 2024 | Ultralytics | Workflow `pull_request_target` | Injection et cache partagé avec la release | Pas de code de PR privilégié, pas de cache en release |
+| 2025 | tj-actions/changed-files | Jeton d'un mainteneur volé en cascade | Tags mobiles, PAT puissants | Épinglage SHA imposé |
+| 2025 | chalk, debug | Hameçonnage d'un mainteneur | 2FA contournable par un faux site | MFA résistante au phishing, staged publishing |
+| 2025 | Nx « s1ngularity » | Titre de PR injecté | Expression interpolée dans un workflow privilégié | Passage par `env`, zizmor |
+| 2025-2026 | Shai-Hulud et ses vagues | Jetons npm et GitHub volés | Jetons de publication sur les postes et runners, scripts d'installation | Trusted et staged publishing, scripts désactivés, délai d'adoption |
 
-La criticité se déduit de trois questions : **quelles données** le tiers traite-t-il, **quel accès** a-t-il à tes systèmes (ou toi aux siens), et **à quel point es-tu dépendant** de lui (remplaçabilité, impact d'une panne). Elle fixe le niveau d'évaluation : on ne demande pas le même dossier au widget de chat et au prestataire de paiement.
+## Mainteneurs et confiance
 
-## Un cycle de vie, pas un questionnaire
+**event-stream (2018)** : le mainteneur, qui ne s'occupait plus du paquet, en a confié la gestion à un inconnu qui s'était proposé. Celui-ci a ajouté une dépendance, `flatmap-stream`, dont une version contenait un code visant une application de portefeuille Bitcoin précise. Rien n'était techniquement « piraté » : la confiance a été transférée, sans que les millions d'utilisateurs en soient informés.
 
-Le **NIST SP 800-161r1** (gestion des risques cyber de la chaîne d'approvisionnement, mis à jour en novembre 2024) et la série **ISO/IEC 27036** (sécurité des relations fournisseurs, avec des parties dédiées à la chaîne TIC et aux services cloud) décrivent la même logique : le risque fournisseur se gère sur toute la durée de la relation. Côté ISO 27001:2022, ce sont les mesures 5.19 à 5.23 de l'annexe A.
+**xz utils (2024)**, détaillé en M17 (leçon 9), pousse la logique à l'extrême : deux ans de contributions légitimes pour obtenir les droits de publication, puis une porte dérobée présente dans les archives de release mais pas dans le dépôt Git.
 
-<Steps items={[
-  { title: "Planifier", text: "Définir le besoin, les données concernées et la criticité. Décider du niveau d'évaluation." },
-  { title: "Évaluer", text: "Attestations (SOC 2, ISO 27001, PCI DSS), questionnaire (CAIQ), revue d'architecture de l'intégration pour les tiers critiques." },
-  { title: "Contractualiser", text: "Clauses de sécurité, de notification, d'audit, de sortie ; annexe de protection des données." },
-  { title: "Intégrer", text: "Appliquer les contrôles à la charge de Novafact : moindre privilège, clés d'API en coffre, journaux vers le SIEM." },
-  { title: "Suivre", text: "Réévaluation annuelle pour les critiques, veille sur les incidents du fournisseur, revue des accès." },
-  { title: "Sortir", text: "Récupération et suppression des données, révocation des accès et des clés, attestation de destruction." },
-]} />
+La leçon défensive commune : la santé d'un projet (nombre de mainteneurs, changement de propriétaire) est un signal de risque (leçon 6), et **ce qui est construit doit être ce qui est relu** (leçon 10).
 
-## Lire les attestations
+## Comptes détournés
 
-**SOC 2** (AICPA) : un auditeur indépendant évalue les contrôles du fournisseur selon les *Trust Services Criteria* (sécurité, et selon le périmètre disponibilité, intégrité du traitement, confidentialité, vie privée). Le **Type I** décrit leur conception à une date ; le **Type II** teste leur fonctionnement sur une période. Dans le rapport, lis en priorité :
+**ua-parser-js (octobre 2021)** : le compte npm du mainteneur est détourné, trois versions publiées installent un mineur de cryptomonnaie et un voleur de mots de passe. **chalk et debug (septembre 2025)** : un e-mail imitant npm, envoyé depuis un domaine sosie, pousse un mainteneur très suivi à « mettre à jour sa 2FA » sur un faux site. L'attaquant publie des versions de 18 paquets totalisant plus de deux milliards de téléchargements hebdomadaires, avec un code qui détourne des transactions de cryptomonnaie dans le navigateur. Elles sont retirées en quelques heures.
 
-- la **description du système** : le service que tu achètes est-il dans le périmètre ?
-- les **exceptions** relevées par l'auditeur et la réponse de la direction ;
-- les **sous-traitants** exclus du périmètre (*carve-out*) : l'hébergeur, par exemple, a son propre rapport ;
-- les **CUEC** (*complementary user entity controls*) : les contrôles que l'auditeur suppose appliqués **par toi**.
+Une 2FA par code est hameçonnable. Les réponses : clés FIDO (résistantes au phishing), aucune publication possible par simple mot de passe et code, et depuis 2026 une approbation par version (staged publishing, leçon 5).
 
-**ISO 27001** : un certificat ne vaut que par son **périmètre** (quel site, quel service) et sa date ; la déclaration d'applicabilité dit quelles mesures sont retenues. **CSA STAR** et le couple **CCM / CAIQ v4.1** (Cloud Security Alliance) fournissent une grille de contrôles cloud et un questionnaire standard, souvent déjà rempli et publié par le fournisseur : demande-le avant d'envoyer ton propre questionnaire. Pour le paiement, l'**attestation de conformité PCI DSS** (AOC) du prestataire est la pièce clé, en lien avec le périmètre réduit de la page de paiement (M4).
+## Pipelines compromis
 
-## La responsabilité partagée
+**Codecov (2021)** a montré que le pipeline exécute volontiers du code tiers non vérifié (leçon 1). Les incidents suivants visent directement les workflows GitHub Actions :
 
-| Relation | Ce que fait le fournisseur | Ce qui reste à Novafact |
-| --- | --- | --- |
-| AWS | Sécurité **du** cloud : matériel, hyperviseur, services managés | Sécurité **dans** le cloud : IAM, configuration, données, code |
-| Prestataire de paiement | Traitement des cartes dans son iframe, conformité PCI DSS | Page qui embarque l'iframe, vérification des webhooks, montants calculés côté serveur |
-| Fournisseur d'IA | Sécurité de la plateforme, isolation entre clients | Données envoyées, droits des outils de l'agent, filtrage des sorties (M19) |
-| GitHub | Plateforme, runners hébergés | Workflows, permissions, secrets, règles de l'organisation (leçons 1 à 4) |
+- **Ultralytics (décembre 2024)** : une injection dans un workflow `pull_request_target`, combinée à l'empoisonnement du cache GitHub Actions, fait publier sur PyPI deux versions contenant un mineur. Les versions suivantes sont publiées avec un jeton d'API PyPI resté valide. La provenance, qui attestait que les deux premières venaient bien du workflow officiel, a servi à l'enquête : elle prouve **où** un paquet a été construit, pas que la construction était saine.
+- **Nx « s1ngularity » (août 2025)** : un workflow ajouté quelques jours plus tôt interpole le titre des PR dans un script, sous `pull_request_target`. Le jeton de publication npm est volé ; des versions malveillantes de Nx sont publiées pendant environ quatre heures. Leur script d'installation cherche des secrets, tente d'utiliser les CLI d'assistants d'IA installées localement pour fouiller le disque, et publie le butin dans un dépôt public créé sur le compte GitHub de la victime.
+- **TanStack (mai 2026)** : *pwn request*, cache empoisonné, puis le code malveillant obtient le jeton OIDC du workflow de release et publie 84 versions de 42 paquets en six minutes, malgré le trusted publishing (leçon 5).
 
-Les incidents naissent souvent dans les interstices : un contrôle que chacun croit à la charge de l'autre. Les CUEC et ce tableau se relisent ensemble.
-
-## Les clauses qui comptent
-
-| Clause | Ce que Novafact demande |
-| --- | --- |
-| **Notification d'incident** | Délai court et chiffré (par exemple 24 à 48 heures après détection), contenu minimal, contact joignable. Novafact a elle-même des délais : 72 heures vers la CNIL pour une violation de données personnelles, obligations CRA et NIS2 selon les cas (M1) |
-| **Notification de vulnérabilité** | Information sur les vulnérabilités affectant le service ou les composants livrés, avec calendrier de correction |
-| **Données** | Finalités, pas d'entraînement de modèles sans accord, rétention, région, chiffrement, suppression en fin de contrat (annexe de sous-traitance RGPD, article 28) |
-| **Sous-traitants ultérieurs** | Liste, information préalable des changements, droit d'objection |
-| **Droit d'audit** | Audit sur pièces (rapports récents) par défaut, audit sur place pour les critiques ou après incident |
-| **Journaux** | Accès aux journaux d'audit du service (API ou export), rétention suffisante |
-| **Propriété intellectuelle** | Code développé par un prestataire cédé à Novafact ; propriété des sorties de l'IA |
-| **Séquestre de code** | Pour un logiciel propriétaire critique : dépôt du code chez un tiers de confiance, remis si l'éditeur disparaît |
-| **Responsabilité** | Plafonds d'indemnisation, en particulier pour une violation de données |
-| **SLA** | Disponibilité, temps de réponse du support, délai de correction des vulnérabilités |
-| **Réversibilité** | Export des données dans un format exploitable, assistance à la migration |
-
-## Brancher les tiers sur le SIEM
-
-Un fournisseur critique dont tu ne vois aucun journal est un angle mort. Pour chaque tiers, la question est : **quel événement chez lui doit déclencher une alerte chez moi ?** Connexion d'un administrateur depuis un pays inhabituel sur le tableau de bord du paiement, création d'une clé d'API, changement de l'URL de webhook, pic de consommation chez le fournisseur d'IA, runner self-hosted enregistré sur GitHub.
-
-<Code file="vendors/ai-provider.yaml">
-
-```yaml
-vendor: fournisseur-modeles-ia          # fiche du registre des tiers (fictive)
-owner: equipe-assistant
-criticality: critical
-data:
-  categories: [extraits-de-factures, questions-utilisateurs]
-  training_on_customer_data: false      # clause contractuelle vérifiée
-  retention_days: 30
-  region: eu
-evidence:
-  soc2_type2: { period_end: 2026-06-30, exceptions: 1, reviewed_by: appsec }
-  caiq_version: "4.1"
-contract:
-  incident_notification_hours: 48
-  subprocessors_notice_days: 30
-  audit: documents-annuels
-integration:
-  api_keys: secrets-manager/novafact/ai-provider   # rotation trimestrielle
-  logs: usage-api -> s3 -> elastic                  # alerte sur pic de consommation
-review:
-  next: 2027-06-30
-```
-
-</Code>
-
-L'intégration GitHub d'Elastic collecte le journal d'audit par l'API ou via un flux (S3, SQS, Event Hubs, Cloud Storage) ; CloudTrail couvre AWS ; pour les autres tiers, on commence par ce que leur API d'audit expose. Un tiers qui n'expose aucun journal d'audit est un critère de choix, pas un détail.
-
-<Callout kind="novafact">
-Évaluation du fournisseur d'IA (fictive). Rapport SOC 2 Type II récent avec une exception (revue d'accès trimestrielle manquée, corrigée) ; CAIQ v4.1 publié ; traitement en région UE disponible en option ; pas d'entraînement sur les données des clients API par défaut, confirmé dans l'annexe contractuelle ; notification d'incident portée de « sans délai injustifié » à 48 heures après négociation. Mitigations côté Novafact : pseudonymisation des noms de clients avant envoi, clés d'API séparées par environnement, journal d'usage dans Elastic. Décision signée par le CTO et le DPO, réexamen dans un an.
+<Callout kind="case">
+**tj-actions/changed-files (mars 2025).** La chaîne commence fin 2024 : un workflow `pull_request_target` du projet SpotBugs laisse fuiter le jeton personnel d'un mainteneur, qui a aussi des droits sur le projet reviewdog. En mars 2025, l'attaquant réécrit le tag `v1` de `reviewdog/action-setup` ; cette action est utilisée, via une autre action, dans la CI de tj-actions, qui y expose son propre jeton. Le 14 mars, les tags de `tj-actions/changed-files` (utilisée par plus de 20 000 dépôts) sont redirigés vers un commit qui lit la mémoire du runner et écrit les secrets dans les logs, encodés deux fois en base64 pour échapper au masquage. Sur les dépôts publics, ces logs sont publics. La cible initiale était un projet de Coinbase. Leçons : épinglage par SHA (le seul contrôle qui neutralisait l'attaque côté consommateur), PAT remplacés par des GitHub Apps à portée limitée, et surveillance réseau des runners, qui a permis la détection.
 </Callout>
 
-<Callout kind="debate">
-Les questionnaires de sécurité fatiguent tout le monde : des centaines de questions, des réponses copiées d'une année sur l'autre, peu de vérification. Certains les remplacent par des notations externes en continu, qui mesurent la surface visible d'Internet ; d'autres jugent ces notes superficielles. Un compromis pragmatique : attestations standard (SOC 2, ISO, CAIQ) plutôt que questionnaire maison, quelques questions ciblées sur l'intégration réelle, et un effort concentré sur les tiers critiques.
+## La distribution
+
+**polyfill.io (2024)** : un service de polyfills très utilisé, chargé par `<script>` depuis son propre domaine, est racheté avec son domaine. Quelques mois plus tard, le CDN sert à certains visiteurs mobiles un code qui les redirige vers des sites frauduleux ; plus de 100 000 sites l'intègrent. La confiance accordée à un domaine se transmet à son futur propriétaire. C'est le sujet de M8 : auto-héberger ce qui peut l'être, épingler avec SRI ce qui ne l'est pas, inventorier les scripts de la page de paiement.
+
+## Les vers : Shai-Hulud et ses vagues
+
+| Vague | Date | Ce qui change |
+| --- | --- | --- |
+| Shai-Hulud | septembre 2025 | Plus de 500 paquets ; script `postinstall` qui cherche les secrets (avec TruffleHog), les publie dans un dépôt public du compte de la victime, ajoute un workflow d'exfiltration et se republie avec les jetons npm trouvés |
+| Shai-Hulud 2.0 | novembre 2025 | Script `preinstall` (plus tôt, avant les contrôles), runtime Bun téléchargé pour échapper aux détections centrées sur Node ; environ 800 paquets ; machine enregistrée comme runner self-hosted pour garder un accès ; effacement de données en l'absence d'identifiants |
+| « Mini Shai-Hulud » | mai 2026 | TanStack et plus de 160 paquets npm et PyPI, entrée par un workflow de release (voir plus haut) |
+| CHAINDROP | août 2026 | Compte d'un mainteneur de `keyv` et de paquets voisins ; plus de 400 paquets en quelques heures ; persistance dans les dépôts via des configurations d'éditeur et d'assistant de code |
+
+Chaque vague a répondu aux défenses de la précédente, et l'écosystème a répondu à son tour : plan de sécurisation de npm annoncé en septembre 2025, jetons classiques révoqués, trusted publishing généralisé, staged publishing (mai 2026), npm 12 et ses scripts désactivés par défaut (juillet 2026), restriction des jetons qui contournent la 2FA (août 2026).
+
+## Ce qui se répète
+
+- Des **références mobiles** (tags, plages de versions, domaines) là où une référence immuable était possible.
+- Des **jetons longue durée et trop larges** (PAT, jetons npm, clés d'API) sur des postes et des runners.
+- Des **points d'exécution implicites** : scripts d'installation, tâches d'éditeur, hooks.
+- Des **workflows qui mêlent code non fiable et privilèges**.
+- Une détection venue **de l'extérieur** (un chercheur, un éditeur de sécurité) en quelques minutes ou heures, d'où l'efficacité du délai d'adoption.
+
+<Callout kind="novafact">
+Rétrospective (fictive) demandée par la direction : « aurions-nous été touchés ? ». tj-actions : oui, deux workflows l'utilisaient par tag, sans secret sensible heureusement. chalk et debug : oui, en dépendances transitives du front ; le lockfile relu et le délai d'adoption auraient évité les versions piégées. Nx : non. Shai-Hulud : trois développeurs avaient un jeton npm de publication dans `~/.npmrc`. Chaque ligne débouche sur un contrôle des leçons 2 à 5 et sur une entrée du playbook de la leçon 11.
+</Callout>
+
+<Callout kind="tip">
+Le jeu **Supply Chain Kill Chain** te fait remettre dans l'ordre les étapes d'incidents réels, puis placer le contrôle qui casse la chaîne le plus tôt : le même exercice que le tableau ci-dessus, en plus rapide.
 </Callout>
 
 <Recap items={[
-  "La criticité d'un tiers dépend des données, de l'accès et de la dépendance ; elle fixe le niveau d'évaluation.",
-  "Le risque fournisseur se gère sur tout le cycle de vie (NIST SP 800-161r1, ISO/IEC 27036), de la planification à la sortie.",
-  "SOC 2 Type II, périmètre ISO 27001, CAIQ v4.1, AOC PCI DSS : lire le périmètre, les exceptions et les CUEC.",
-  "Clauses clés : notification d'incident et de vulnérabilité, données, sous-traitants, audit, journaux, PI, séquestre, responsabilité, SLA, réversibilité.",
-  "Chaque tiers critique alimente le SIEM : sans journal, pas de détection.",
+  "Les incidents se rangent en cinq familles : mainteneurs, comptes, pipelines, distribution, vers.",
+  "Les références mobiles et les jetons longue durée reviennent dans presque tous les cas.",
+  "`pull_request_target` mal utilisé est à l'origine d'Ultralytics, Nx et TanStack ; tj-actions a été neutralisé par l'épinglage SHA.",
+  "La provenance prouve où un paquet a été construit, pas que la construction était saine.",
+  "Les vers Shai-Hulud industrialisent la propagation ; les réponses sont le trusted et staged publishing, les scripts désactivés et le délai d'adoption.",
 ]} />
 
 <Sources items={[
-  { title: "NIST SP 800-161 Rev. 1 (mise à jour 1) : C-SCRM", url: "https://csrc.nist.gov/pubs/sp/800/161/r1/upd1/final" },
-  { title: "CSA : Cloud Controls Matrix et CAIQ v4.1", url: "https://cloudsecurityalliance.org/artifacts/cloud-controls-matrix-v4-1" },
-  { title: "AICPA : SOC 2", url: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2" },
-  { title: "ENISA : Good practices for supply chain cybersecurity", url: "https://www.enisa.europa.eu/publications/good-practices-for-supply-chain-cybersecurity" },
-  { title: "RGPD (règlement 2016/679), articles 28 et 33", url: "https://eur-lex.europa.eu/eli/reg/2016/679/oj" },
-  { title: "Elastic : intégration GitHub (journal d'audit)", url: "https://www.elastic.co/docs/reference/integrations/github" },
+  { title: "CISA : tj-actions/changed-files et reviewdog (mars 2025)", url: "https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-tj-actionschanged-files-cve-2025-30066-and-reviewdogaction" },
+  { title: "PyPI : analyse de l'attaque Ultralytics", url: "https://blog.pypi.org/posts/2024-12-11-ultralytics-attack-analysis/" },
+  { title: "Nx : postmortem s1ngularity", url: "https://nx.dev/blog/s1ngularity-postmortem" },
+  { title: "TanStack : postmortem (mai 2026)", url: "https://tanstack.com/blog/npm-supply-chain-compromise-postmortem" },
+  { title: "CISA : Shai-Hulud (septembre 2025)", url: "https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem" },
+  { title: "Elastic Security Labs : CHAINDROP (août 2026)", url: "https://www.elastic.co/security-labs/shai-hulud-chaindrop-npm-supply-chain" },
+  { title: "Sansec : polyfill.io", url: "https://sansec.io/research/polyfill-supply-chain-attack" },
 ]} />

@@ -53,9 +53,9 @@ Tu contournes les contrôles côté client depuis toujours : un proxy, et le Jav
 
 Tout ce qui s'exécute dans le navigateur peut être lu, modifié, rejoué ou contourné : la logique, les vérifications, les appels d'API. Kohnfelder l'exprime avec la notion de **frontière de confiance** (K2) : le front est du côté non fiable. Trois conséquences directes pour Novafact :
 
-- une **validation côté client** sert le confort de l'utilisateur ; le serveur refait tout (M2) ;
+- une **validation côté client** sert le confort de l'utilisateur ; le serveur refait tout (M7) ;
 - une **règle métier** (remise maximale, droits d'un rôle) qui n'existe que dans le front n'existe pas ;
-- masquer un bouton n'est pas une **autorisation** : l'API l'impose (M8).
+- masquer un bouton n'est pas une **autorisation** : l'API l'impose (M14).
 
 Côté développeur, le piège est plus subtil qu'un simple oubli. Dans une SPA React, la logique métier se construit naturellement dans les composants : c'est là qu'on calcule un total pour l'afficher, qu'on grise un bouton selon le rôle, qu'on applique une remise pour montrer le prix final. Le serveur finit par **recevoir le résultat** au lieu de le calculer. Le jour où quelqu'un rejoue la requête avec `curl`, l'API accepte ce que le front aurait calculé, sans jamais l'avoir calculé elle-même.
 
@@ -67,7 +67,7 @@ Côté développeur, le piège est plus subtil qu'un simple oubli. Dans une SPA 
 | Autorisation d'une action | Bouton masqué, route React protégée par un garde | Middleware d'autorisation de l'API, à chaque requête |
 | Accès à une fonctionnalité payante | Feature flag évalué dans le navigateur | Flag évalué côté serveur, vérifié par l'endpoint |
 | Limites (quotas, taille, nombre de lignes) | Attribut `maxLength`, compteur dans le formulaire | Schéma de validation de l'API et limites de l'infrastructure |
-| Workflow d'une facture (brouillon, émise, payée) | Écran qui n'affiche pas l'action « annuler » | Machine à états côté serveur (M10) |
+| Workflow d'une facture (brouillon, émise, payée) | Écran qui n'affiche pas l'action « annuler » | Machine à états côté serveur (M15) |
 
 Le garde de route React (`<ProtectedRoute>` et ses variantes) mérite une mention : il évite d'afficher un écran vide à un utilisateur non connecté, c'est tout. Le code de l'écran d'administration est déjà dans le bundle, et les appels d'API qu'il ferait sont visibles. Ce qui protège, c'est la réponse 403 de l'API.
 

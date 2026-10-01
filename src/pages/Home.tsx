@@ -19,9 +19,9 @@ const ciLines = [
   { time: '14:02:32', st: 'add', label: 'NOTE', who: 'review', msg: <>PR #482 · <em>changes requested</em></> },
 ];
 const readings = [
-  { id: 'CWE-943', what: 'Injection NoSQL', where: 'M02' },
-  { id: 'CICD-SEC-3', what: 'Dependency chain abuse', where: 'M14' },
-  { id: 'A03:2025', what: 'Supply chain failures', where: 'M13' },
+  { id: 'CWE-943', what: 'Injection NoSQL', where: 'M07' },
+  { id: 'CICD-SEC-3', what: 'Dependency chain abuse', where: 'M18' },
+  { id: 'A03:2025', what: 'Supply chain failures', where: 'M17' },
 ];
 
 function TerminalFeed() {

@@ -1,251 +1,193 @@
 export const questions = [
   {
-    q: "Quel contrôle élimine le mieux la classe « route sans validation d'entrée » dans une API Express ?",
+    q: "Une Server Action Next.js supprime une facture. Où doit se faire le contrôle d'autorisation ?",
     options: [
-      "Une règle Semgrep qui signale tout accès à req.body dans un handler",
-      "Un middleware de validation monté globalement sur le routeur de l'API",
-      "Un defineRoute qui exige un schéma, plus un lint qui interdit l'autre chemin",
-      "Un test qui parcourt la table de routage et échoue si une route n'a pas de schéma",
-    ],
-    answer: 2,
-    explain: "Le test qui parcourt la table de routage est le meilleur des distracteurs : il bloque vraiment, et c'est un bon filet. Mais il constate après coup au lieu de rendre l'erreur impossible à écrire, et il faut penser à le maintenir quand le routage change. Le middleware global ne connaît le schéma d'aucune route en particulier, donc ne valide rien d'utile. Semgrep signale sans fermer. La hiérarchie ne change pas : impossible vaut mieux que bloqué, qui vaut mieux que signalé.",
-  },
-  {
-    q: "À quoi sert un type « marqué » (branded type) comme TenantId en TypeScript ?",
-    options: [
-      "À garantir à l'exécution que l'identifiant vient bien de la session",
-      "À documenter l'intention, sans effet sur la compilation",
-      "À obliger Prisma à filtrer chaque requête sur le tenant courant",
-      "À interdire une chaîne quelconque là où un tenant vérifié est attendu",
+      "Dans le proxy (ex-middleware), qui voit toutes les requêtes avant routage",
+      "Dans le Server Component qui rend la page, avant d'afficher le bouton",
+      "Dans l'action, en s'appuyant sur la vérification Origin/Host de Next.js",
+      "Dans l'action, ou la couche d'accès aux données qu'elle appelle",
     ],
     answer: 3,
-    explain: "« Garanti à l'exécution » est le contresens à éviter : les types marqués disparaissent à la compilation et ne vérifient rien au runtime. Ce n'est pas non plus de la simple documentation — le compilateur refuse la mauvaise valeur, ce qui force le code à passer par la fonction qui fabrique un TenantId depuis la session. Le point faible reste le `as`, qu'on traite comme les autres échappatoires : fabrication centralisée, et une règle qui signale les `as TenantId` écrits ailleurs.",
+    explain: "Le proxy est le placement le plus courant et le plus fragile : c'est exactement celui que CVE-2025-29927 a contourné avec un simple en-tête. Le Server Component décide de ce qui est affiché, pas de qui peut appeler. Et la comparaison Origin/Host de Next.js est une protection CSRF, pas une autorisation : elle vérifie d'où vient la requête, pas qui l'envoie. Une Server Action est un endpoint POST public.",
   },
   {
-    q: "Novafact active la sécurité au niveau des lignes (RLS) de PostgreSQL sur la table invoice, mais l'API se connecte avec le rôle propriétaire de la table. Que se passe-t-il ?",
+    q: "Quelle leçon d'architecture tirer de CVE-2025-29927 ?",
     options: [
-      "Le propriétaire contourne les politiques : il faut FORCE, ou un rôle applicatif",
-      "La RLS s'applique : seul un superutilisateur contourne les politiques",
-      "La RLS s'applique en lecture, mais pas aux écritures faute de WITH CHECK",
-      "Les requêtes échouent tant que app.tenant_id n'est pas positionné",
+      "Les en-têtes HTTP ne sont jamais fiables pour décider d'un routage",
+      "Le middleware doit refuser toute requête portant un en-tête interne",
+      "Un contrôle unique en amont se contourne : l'autorisation vit près des données",
+      "Une application auto-hébergée doit reproduire le routage de son hébergeur",
+    ],
+    answer: 2,
+    explain: "« Les en-têtes ne sont pas fiables » est vrai, et c'est la leçon du bug ; ce n'est pas la leçon d'architecture. Filtrer x-middleware-subrequest corrige ce contournement-là et laisse intacte la fragilité qui l'a rendu grave : tous les contrôles d'accès vivaient au même endroit, en amont. L'hébergement explique pourquoi les déploiements auto-hébergés étaient exposés et pas Vercel — c'est une donnée d'inventaire, pas un principe de conception.",
+  },
+  {
+    q: "Pourquoi React2Shell (CVE-2025-55182) touchait-il des applications dont aucune Server Action n'avait de bug ?",
+    options: [
+      "Parce que les identifiants d'actions chiffrés étaient prévisibles d'un build à l'autre",
+      "Parce que la vérification Origin/Host n'était pas appliquée aux Server Actions",
+      "Parce que le proxy Next.js exposait les endpoints d'actions sans authentification",
+      "Parce que la faille était dans la désérialisation Flight, avant tout code applicatif",
+    ],
+    answer: 3,
+    explain: "Les trois autres cherchent le défaut dans la façon dont l'application expose ses actions : identifiants devinés, endpoint non protégé, contrôle CSRF absent. Or aucune ligne de code applicatif n'était nécessaire — le bug était dans la désérialisation du protocole Flight, exécutée par les paquets React Server Components avant d'atteindre quoi que ce soit que tu aies écrit. La seule présence d'un endpoint de Server Function suffisait, d'où une réponse qui passe par l'inventaire et la montée de version en heures.",
+  },
+  {
+    q: "La page /admin vérifie que l'utilisateur est administrateur, puis affiche un formulaire dont l'action inline ('use server') supprime des données sans autre vérification. Est-ce sûr ?",
+    options: [
+      "Non : l'action est un endpoint POST distinct, qui doit revérifier elle-même",
+      "Oui : l'identifiant de l'action n'existe que dans le bundle de la page protégée",
+      "Oui : la comparaison Origin/Host garantit que l'appel provient bien de /admin",
+      "Non, mais l'élimination des actions non référencées suffit en production",
     ],
     answer: 0,
-    explain: "« Seul un superutilisateur contourne » est l'erreur presque universelle : le propriétaire de la table est exempté lui aussi, tant qu'on n'a pas écrit FORCE ROW LEVEL SECURITY. L'histoire du WITH CHECK est un vrai piège, mais un autre : sans lui, une écriture peut créer des lignes hors périmètre — ici rien ne s'applique, ni en lecture ni en écriture. C'est tout le danger d'un contrôle déclaratif mal branché : il rassure sans protéger, d'où le test qui prouve l'isolation.",
-  },
-  {
-    q: "La règle no-restricted-imports interdit d'importer exec depuis 'child_process'. Pourquoi n'est-ce pas suffisant seul ?",
-    options: [
-      "Parce qu'ESLint n'analyse ni les fichiers de test ni les scripts de build du dépôt",
-      "Parce que d'autres chemins mènent au même appel : préfixe node:, require, alias",
-      "Parce que la règle n'empêche pas execFile, tout aussi dangereux",
-      "Parce qu'ESLint ne voit pas le code des dépendances, qui peuvent appeler exec",
-    ],
-    answer: 1,
-    explain: "« execFile est tout aussi dangereux » confond les deux : appelé avec un tableau d'arguments et sans shell: true, execFile est justement la forme sûre qu'on cherche à imposer. Le périmètre d'analyse et le code des dépendances sont de vrais sujets, mais étrangers à cette règle. Le défaut est ailleurs : une règle syntaxique voit une forme, pas une intention — elle rate require('child_process').exec, le préfixe node: si tu ne l'as pas listé, et tout alias réexporté.",
+    explain: "Origin/Host est le piège le plus subtil : il vérifie que la requête vient bien de ton site, pas qu'elle vient de la page /admin ni qu'elle émane d'un administrateur — n'importe quel utilisateur connecté la passe, depuis n'importe quelle page. L'identifiant dans le bundle relève de l'obscurité, puisqu'il est lisible par quiconque charge la page. Et l'élimination ne retire que les actions référencées nulle part ; celle-ci l'est. La page décide de l'affichage, pas de l'appel.",
   },
 ];
 
 <YouKnow>
-Tu as vu la même vulnérabilité revenir de mission en mission, corrigée à un endroit et réintroduite ailleurs. Cette leçon rassemble les outils qui empêchent la réintroduction.
+Tu as l'habitude de chercher des endpoints dans le JavaScript d'une SPA. Avec les React Server Components et les Server Actions, une partie des endpoints n'apparaît plus comme des routes classiques, mais elle existe bel et bien.
 </YouKnow>
 
-## Du correctif ponctuel au contrôle de classe
+## Le modèle mental
 
-Chaque leçon de ce module a fini par la même idée : corriger l'instance ne suffit pas. Il existe quatre familles d'outils pour rendre une classe de bugs **impossible** ou **immédiatement visible**.
+Avec l'App Router de Next.js, le code se répartit entre **Server Components** (exécutés sur le serveur, jamais envoyés au navigateur), **Client Components** (`'use client'`) et **Server Actions** ou Server Functions (`'use server'`), des fonctions serveur appelables depuis le client. La frontière entre serveur et client se lit dans le code, pas dans une liste de routes, ce qui la rend facile à franchir par erreur.
 
-| Famille | Principe | Exemples |
+Pour une revue, commence par l'inventaire des **points d'entrée**, qui ne se limitent pas aux routes visibles :
+
+| Point d'entrée | Où le trouver | Ce qui arrive du client |
 | --- | --- | --- |
-| Frameworks sûrs par défaut | Le chemin normal est sûr | Échappement React, requêtes paramétrées de Prisma, erreurs async gérées par Express 5 |
-| Wrappers et API sûres | Une seule façon de faire, et elle est sûre | `defineRoute`, client HTTP anti-SSRF, composant `SafeHtml` |
-| Types | Le compilateur refuse la mauvaise donnée | Types marqués, `unknown` en entrée, schémas qui produisent des types |
-| Lint et SAST | Le chemin dangereux est signalé ou bloqué | `eslint-plugin-security`, `no-unsanitized`, règles `no-restricted-syntax`, règles Semgrep maison |
+| Pages et layouts | `app/**/page.tsx` | `params` (les dossiers entre crochets sont des entrées), `searchParams`, cookies, en-têtes |
+| Route Handlers | `app/**/route.ts` | Toute la requête HTTP |
+| Server Actions | Toute fonction exportée d'un fichier `'use server'`, ou action inline | Les arguments, sérialisés par le client |
+| Proxy (ex-middleware) | `proxy.ts` à la racine | Toute la requête, avant le routage |
 
-Le livre blanc *Secure by Design at Google* (Christoph Kern, 2024) formule le principe qui relie ces familles : la sécurité d'une application ne doit pas reposer sur la vigilance de chaque développeur à chaque ligne, mais sur un **écosystème de développement** (bibliothèques, frameworks, types, outillage) qui garantit certaines propriétés par construction. La question de revue change alors : on ne demande plus « ce code est-il sûr ? », mais « ce code utilise-t-il le chemin sûr, et peut-il seulement faire autrement ? ».
+L'article de l'équipe Next.js *How to Think About Security in Next.js* recommande une **couche d'accès aux données** (Data Access Layer) unique : toutes les lectures et écritures passent par elle, et c'est elle qui vérifie l'authentification et l'autorisation. La documentation actuelle précise le contrat : la DAL ne s'exécute que côté serveur, fait les vérifications d'autorisation, renvoie des **DTO** minimaux, et c'est le seul endroit du code qui lit `process.env`.
 
-Les contrôles ne se valent pas. Du plus fort au plus faible :
-
-1. **Impossible** : le code dangereux ne compile pas ou n'existe pas (une API qui n'offre pas de variante non sûre).
-2. **Bloqué** : il compile, mais la CI le refuse (règle de lint en erreur).
-3. **Signalé** : un outil le remonte, quelqu'un doit trier (SAST en avertissement).
-4. **Documenté** : une règle écrite, une formation. Utile, mais c'est le niveau qui a laissé passer le bug.
-
-## Un wrapper de route
-
-<Code file="apps/api/src/lib/defineRoute.ts">
+<Code file="apps/admin/data/invoices.ts">
 
 ```ts
-import type { Request, Response } from 'express';
-import { z, type ZodType } from 'zod';
+import 'server-only';
+import { cache } from 'react';
+import { cookies } from 'next/headers';
 
-type Permission = 'invoice:read' | 'invoice:write' | 'admin';
+export const getSession = cache(async () => {
+  const token = (await cookies()).get('__Host-sid')?.value;
+  const session = token ? await verifySession(token) : null;
+  if (!session) throw new AuthError();
+  return session; // { userId, tenantId, role }
+});
 
-export function defineRoute<B extends ZodType, Q extends ZodType>(opts: {
-  body?: B; query?: Q;
-  permission: Permission;                      // obligatoire : pas de route sans décision d'autorisation
-  handler: (ctx: { body: z.infer<B>; query: z.infer<Q>; user: AuthUser }, res: Response) => Promise<unknown>;
-}) {
-  return async (req: Request, res: Response) => {
-    const user = requireUser(req);                                  // 401 sinon
-    await authorize(user, opts.permission);                         // 403 sinon
-    const body = opts.body ? opts.body.parse(req.body) : undefined; // 400 sinon
-    const query = opts.query ? opts.query.parse(req.query) : undefined;
-    await opts.handler({ body, query, user } as never, res);
-  };
+export async function listInvoices() {
+  const s = await getSession();
+  const rows = await db.invoice.findMany({ where: { tenantId: s.tenantId }, orderBy: { issuedAt: 'desc' }, take: 50 });
+  return rows.map((r) => ({ id: r.id, number: r.number, totalCents: r.totalCents, status: r.status })); // DTO
+}
+
+export async function removeInvoice(id: string) {
+  const s = await getSession();
+  if (s.role !== 'owner') throw new ForbiddenError();
+  await db.invoice.delete({ where: { id, tenantId: s.tenantId } });
 }
 ```
 
 </Code>
 
-Avec ce wrapper, une route sans schéma ou sans permission **ne compile pas**. Il reste à empêcher qu'on déclare une route sans lui : c'est le rôle du lint.
+`cache` de React déduplique la lecture de session sur une même requête : les composants appellent `getSession()` autant de fois qu'ils veulent sans se passer l'objet de main en main, ce qui réduit le risque de le transmettre par erreur à un Client Component. Le `where` qui combine `id` et `tenantId` est accepté depuis Prisma 5 (filtres supplémentaires à côté d'un champ unique) : si la facture appartient à un autre tenant, Prisma lève une erreur au lieu de supprimer.
 
-Remarque ce que le wrapper fait **pour** le développeur : il reçoit un `ctx.body` typé et validé, un `ctx.user` authentifié, et il n'a plus rien à écrire pour les cas d'erreur. C'est ce qui fait qu'un contrôle de classe est adopté : le chemin sûr est aussi le plus court. Un wrapper qui ajoute de la cérémonie sans rien retirer sera contourné, et le module 6 (leçon 7) traite ce point comme une question de produit.
+## Les Server Actions sont des endpoints publics
 
-## Sécurité déclarative ou impérative
+Chaque Server Action reçoit un identifiant et devient un point d'entrée HTTP (POST). Masquer le bouton dans l'interface ne protège rien : l'action reste appelable.
 
-Le `permission: 'invoice:write'` du wrapper est un contrôle **déclaratif** : la route dit ce qu'elle exige, et un mécanisme commun l'applique. Le contrôle **impératif**, c'est le `if (user.role !== 'owner')` écrit à la main dans chaque handler. Le premier se relit d'un coup d'œil, se liste automatiquement (quelles routes exigent `admin` ?) et ne peut pas être oublié sans que ça se voie ; le second se disperse et se perd.
-
-Le même raisonnement s'applique à l'isolation des tenants, qu'on peut descendre jusque dans la base avec la **sécurité au niveau des lignes** de PostgreSQL :
-
-<Code file="db/migrations/0042_invoice_rls.sql">
-
-```sql
-ALTER TABLE invoice ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoice FORCE ROW LEVEL SECURITY;   -- s'applique aussi au propriétaire de la table
-
-CREATE POLICY tenant_isolation ON invoice
-  USING (tenant_id = current_setting('app.tenant_id')::uuid)
-  WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-```
-
-</Code>
-
-<Code file="apps/api/src/db/tenantClient.ts">
+<Diff file="apps/admin/app/invoices/actions.ts" hlBefore="3" hlAfter="4-7">
 
 ```ts
-// Chaque requête Prisma passe dans une transaction qui fixe le tenant pour cette transaction seulement.
-export const forTenant = (tenantId: TenantId) =>
-  prisma.$extends({
-    query: {
-      $allModels: {
-        async $allOperations({ args, query }) {
-          const [, result] = await prisma.$transaction([
-            prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, TRUE)`,
-            query(args),
-          ]);
-          return result;
-        },
-      },
-    },
-  });
+'use server';
+
+export async function deleteInvoice(id: string) {
+  await db.invoice.delete({ where: { id } });
+  revalidatePath('/invoices');
+}
 ```
 
-</Code>
+```ts
+'use server';
+import { z } from 'zod';
 
-Même si un développeur oublie le filtre `tenantId` dans une requête, la base ne renvoie que les lignes du tenant courant. Deux pièges à connaître : les politiques ne s'appliquent ni aux superutilisateurs ni, sans `FORCE`, au propriétaire de la table, donc l'API doit se connecter avec un rôle applicatif dédié ; et un contrôle déclaratif mal branché donne une fausse assurance, d'où un test d'intégration qui prouve qu'une requête sans tenant ne renvoie rien. Le module 8 compare cette approche aux autres modèles d'autorisation.
-
-## Interdire le chemin non outillé
-
-ESLint suffit pour beaucoup de règles de classe, sans outil supplémentaire :
-
-<Code file="eslint.config.js">
-
-```js
-export default [
-  {
-    rules: {
-      'no-restricted-syntax': ['error',
-        { selector: "CallExpression[callee.property.name='$queryRawUnsafe']", message: 'SQL brut interdit : passe par la DAL.' },
-        { selector: "CallExpression[callee.object.name='router'][callee.property.name=/^(get|post|put|patch|delete)$/][arguments.1.callee.name!='defineRoute']", message: 'Déclare les routes avec defineRoute.' },
-        { selector: "MemberExpression[object.name='req'][property.name=/^(body|query|params)$/]", message: 'Lis ctx.body et ctx.query, validés par defineRoute.' },
-      ],
-      'no-restricted-imports': ['error', { paths: [
-        { name: 'child_process', importNames: ['exec'], message: 'Utilise execFile avec un tableau d’arguments.' },
-        { name: 'node:child_process', importNames: ['exec'], message: 'Utilise execFile avec un tableau d’arguments.' },
-      ] }],
-    },
-  },
-  // Les échappatoires revues vivent à un seul endroit.
-  { files: ['apps/api/src/db/raw/**', 'apps/api/src/lib/defineRoute.ts'], rules: { 'no-restricted-syntax': 'off' } },
-];
+export async function deleteInvoice(rawId: unknown) {
+  const id = z.string().uuid().parse(rawId);
+  await removeInvoice(id); // la DAL vérifie session, tenant et rôle
+  revalidatePath('/invoices');
+}
 ```
 
-</Code>
+</Diff>
 
-Complète avec `eslint-plugin-security` (fonctions de fichiers avec chemin non littéral, regex dangereuses…) et `eslint-plugin-no-unsanitized` de Mozilla (affectations à `innerHTML` et équivalents). Pour les règles qui demandent de suivre les flux de données, Semgrep et CodeQL prennent le relais : c'est le module 13.
+Next.js ajoute des protections, utiles mais qu'il faut connaître pour ne pas les surestimer :
 
-Ces règles sont **syntaxiques** : elles voient une forme de code, pas une intention. La règle sur `exec` ne voit ni `require('child_process').exec`, ni un alias réexporté par un module utilitaire ; d'où la seconde entrée pour le préfixe `node:`, que l'on oublie souvent. La règle sur les routes impose aussi une convention : `defineRoute` doit être le deuxième argument, donc un middleware intercalé (`router.post('/x', auth, defineRoute(…))`) est refusé. C'est voulu : l'authentification passe dans `defineRoute`, pas à côté. Chaque règle doit être testée sur des exemples positifs et négatifs, exactement comme du code.
+- **Identifiants chiffrés et non déterministes**, recalculés entre les builds, et **élimination** des actions qui ne sont référencées nulle part. Cela réduit l'exposition d'une action oubliée, mais une action utilisée par l'interface reste appelable par quiconque en connaît l'identifiant, visible dans le bundle client.
+- **POST uniquement, et comparaison de l'en-tête `Origin` avec `Host`** (ou `X-Forwarded-Host`) : une requête dont l'origine ne correspond pas est rejetée. C'est une protection CSRF, pas une autorisation.
+- **Chiffrement des variables capturées** par une action définie dans un composant (closure). La documentation elle-même déconseille de compter sur ce seul chiffrement pour protéger une valeur sensible.
 
-<Callout kind="debate">
-`eslint-plugin-security` est utile mais bruyant. Sa règle `detect-object-injection` signale presque chaque accès `obj[key]`, y compris les boucles les plus innocentes. Activée en erreur, elle génère des dizaines de désactivations et apprend aux développeurs à ignorer le lint de sécurité. La pratique courante : n'activer en erreur que les règles au taux de faux positifs faible, garder les autres en avertissement dans l'IDE, et remplacer les plus bruyantes par des règles maison précises (comme les sélecteurs ci-dessus) qui ne visent que les sinks réellement dangereux chez toi.
+Le piège le plus fréquent en revue : une page qui vérifie le rôle, puis définit une action inline qui ne revérifie rien. La vérification de la page décide de ce qui est **affiché** ; l'action est un point d'entrée distinct, et la documentation de Next.js le rappelle explicitement. Même raisonnement pour les **valeurs de retour** : elles sont sérialisées vers le client, donc on renvoie `{ ok: true }` ou un DTO, jamais l'enregistrement mis à jour.
+
+<Callout kind="warn">
+Novafact auto-héberge son back-office sur ECS, derrière CloudFront et un ALB, avec plusieurs tâches. Deux conséquences. D'abord, la comparaison `Origin`/`Host` dépend de ce que les proxys transmettent : si le domaine public diffère de celui que voit Next.js, on configure `serverActions.allowedOrigins` avec la liste exacte, plutôt que de désactiver la vérification. Ensuite, chaque instance génère sa propre clé de chiffrement des actions : il faut fournir la même à toutes via `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, stockée dans Secrets Manager et pas dans le dépôt.
 </Callout>
 
-## Gérer les exceptions sans perdre la classe
+## Fuites par la sérialisation
 
-Un contrôle de classe a toujours des exceptions légitimes : un rapport comptable qui a besoin de SQL brut, un composant qui affiche du HTML déjà sanitisé côté serveur. Le risque n'est pas l'exception, c'est l'exception **invisible**. Trois mécanismes la rendent visible :
+Tout ce qu'un Server Component passe en **props à un Client Component** est sérialisé dans la réponse. Passer l'objet utilisateur complet pour afficher un prénom envoie aussi le hash du mot de passe ou le secret MFA au navigateur. On passe des objets réduits (DTO), et le paquet `server-only` fait échouer le build si un module serveur est importé côté client.
 
-- **Un seul endroit** : les échappatoires vivent dans un dossier dédié (`db/raw/`, `SafeHtml.tsx`), exclu de la règle par configuration plutôt que par commentaire.
-- **Une revue obligatoire** : le fichier `CODEOWNERS` de GitHub désigne l'équipe AppSec comme relecteur requis de ces chemins. Ajouter une requête brute reste possible, mais jamais en silence.
-- **Des désactivations justifiées** : la règle `require-description` de `@eslint-community/eslint-plugin-eslint-comments` exige une explication sur chaque `eslint-disable`, et l'option `linterOptions.reportUnusedDisableDirectives` de la configuration signale celles qui ne servent plus.
+Deux filets supplémentaires :
 
-```text
-# .github/CODEOWNERS
-/apps/api/src/db/raw/          @novafact/appsec
-/apps/api/src/lib/defineRoute.ts  @novafact/appsec
-/apps/web/src/components/SafeHtml.tsx  @novafact/appsec
-```
+- Les **API de taint** de React (`experimental_taintObjectReference`, `experimental_taintUniqueValue`, activées par `experimental.taint` dans `next.config.js`) empêchent un objet ou une valeur marqués d'atteindre un Client Component. Elles sont expérimentales et la documentation les présente comme une couche en plus de la DAL, pas à sa place.
+- Les **variables d'environnement** ne sont disponibles que côté serveur, sauf celles préfixées `NEXT_PUBLIC_`, qui sont intégrées au bundle client. Une revue du fichier `.env` qui cherche ce préfixe sur un secret (`NEXT_PUBLIC_STRIPE_SECRET`) prend deux minutes et trouve régulièrement quelque chose.
 
-## Des types qui portent la sécurité
+## Trois CVE à connaître
 
-TypeScript peut encoder une vérification dans un type. Un `TenantId` « marqué » ne peut être produit que par la fonction qui lit le tenant de la session : impossible de passer par erreur l'identifiant venu du corps de la requête.
+| CVE | Ce qui s'est passé | Leçon |
+| --- | --- | --- |
+| **CVE-2024-34351** | SSRF dans les Server Actions via l'en-tête Host, sur les déploiements auto-hébergés (corrigée en 14.1.1) | Le framework fait lui-même des requêtes : l'en-tête Host n'est pas une donnée de confiance (M9) |
+| **CVE-2025-29927** (mars 2025, CVSS 9.1) | Un en-tête interne permettait de sauter le middleware, donc les contrôles d'accès qui y étaient placés (corrigée en 15.2.3, 14.2.25, 13.5.9, 12.3.5) | Un point de contrôle unique en amont est fragile ; défense en profondeur dans la DAL |
+| **CVE-2025-55182** « React2Shell » (décembre 2025, CVSS 10) | Désérialisation non sûre dans le protocole Flight des Server Components : exécution de code à distance sans authentification, exploitée dans les 24 h | Les mécanismes internes d'un framework sont une surface d'attaque ; il faut un inventaire et une capacité de correction en heures (M26) |
 
-```ts
-type TenantId = string & { readonly __brand: 'TenantId' };
-export const tenantOf = (session: Session): TenantId => session.tenantId as TenantId;
-export const listInvoices = (tenant: TenantId) => db.invoice.findMany({ where: { tenantId: tenant } });
-```
+Le postmortem de Vercel sur CVE-2025-29927 est instructif au-delà du bug. L'en-tête en cause, `x-middleware-subrequest`, servait en interne à éviter qu'un middleware s'appelle lui-même en boucle, et il n'était pas documenté. Les déploiements auto-hébergés (`next start`, sortie `standalone`) étaient exposés, alors que l'hébergement Vercel ne l'était pas grâce à un routage séparé. Autrement dit, la même application avait deux profils de risque selon son hébergement : une donnée à intégrer dans l'inventaire, au même titre que la version.
 
-Le point faible de cette technique est le `as` : n'importe qui peut écrire `req.body.tenantId as TenantId`. On le traite comme les autres échappatoires : la fabrication des types marqués vit dans un seul module, et une recherche du motif `as TenantId` ailleurs (règle `no-restricted-syntax` sur `TSAsExpression`, ou Semgrep) le signale. Le même principe s'applique à d'autres invariants de Novafact : `SanitizedHtml` produit uniquement par `SafeHtml`, `Cents` produit uniquement par la fonction de conversion de la leçon 3.
+<Callout kind="case">
+Pour React2Shell, les paquets React Server Components 19.0.0, 19.1.0, 19.1.1 et 19.2.0 étaient touchés, corrigés en 19.0.1, 19.1.2 et 19.2.1. Aucune ligne de code applicatif n'était nécessaire à l'exploitation : seule la présence d'un endpoint de Server Function comptait. Amazon a observé des tentatives d'exploitation par plusieurs groupes liés à l'État chinois dans les heures suivant la divulgation du 3 décembre 2025. L'histoire ne s'arrête pas là : l'examen du même code a produit des avis complémentaires (déni de service avec CVE-2025-55184, CVE-2025-67779 et CVE-2026-23864, exposition de code source avec CVE-2025-55183), sans nouvelle exécution de code, et un premier correctif du déni de service s'est révélé incomplet. Les versions sûres sont finalement 19.0.4, 19.1.5 et 19.2.4. Le module 26 s'en sert comme cas d'école de la gestion de crise à J+0.
+</Callout>
 
-## Déployer un contrôle de classe
+La leçon opérationnelle de cette séquence : une première CVE critique sur un composant attire les chercheurs, et les avis suivants arrivent en quelques jours ou semaines. Prévois de mettre à jour **plusieurs fois**, et garde la chaîne de build capable de livrer une montée de version de React ou de Next.js en quelques heures, tests compris.
 
-Activer une nouvelle règle en erreur sur une base existante casse la CI de toutes les équipes le jour même. Le déploiement se fait par étapes :
+## Checklist Next.js pour Novafact
 
 <Steps items={[
-  { title: "Mesurer", text: "Compter les occurrences existantes de la classe (routes sans schéma, appels à $queryRawUnsafe) : c'est la ligne de base." },
-  { title: "Livrer le chemin sûr", text: "Le wrapper, le composant ou le client HTTP, documenté, avec un exemple de migration." },
-  { title: "Bloquer le neuf", text: "La règle en erreur sur le code nouveau ou modifié uniquement (mode diff ou baseline de l'outil), en avertissement sur l'existant." },
-  { title: "Migrer l'existant", text: "Par service, en commençant par le plus exposé ; la ligne de base doit décroître à chaque sprint." },
-  { title: "Généraliser", text: "Quand l'existant est à zéro, la règle passe en erreur partout et l'exclusion de base disparaît." },
+  { title: "Une DAL unique", text: "Toutes les données passent par une couche qui authentifie et autorise, importée avec server-only. Aucun import de Prisma ni lecture de process.env ailleurs." },
+  { title: "Chaque action se protège", text: "Session, autorisation et validation de schéma dans chaque Server Action, y compris les actions inline d'une page déjà protégée." },
+  { title: "Des DTO vers le client", text: "Jamais d'objet de base complet en props d'un Client Component ni en valeur de retour d'une action." },
+  { title: "Le proxy en plus, pas à la place", text: "Le middleware (renommé proxy.ts depuis Next.js 16) redirige et filtre, mais la DAL reste le contrôle de référence." },
+  { title: "Configuration serrée", text: "images.remotePatterns restreint aux domaines utiles, pour ne pas transformer l'optimiseur d'images en proxy ouvert ; en Next.js 16, laisser images.dangerouslyAllowLocalIP désactivé." },
+  { title: "Auto-hébergement", text: "serverActions.allowedOrigins exact derrière les proxys, clé de chiffrement des actions partagée et stockée dans Secrets Manager." },
+  { title: "Versions suivies", text: "React et Next.js dans l'inventaire (SBOM), alertes sur leurs avis de sécurité, et une montée de version testable en quelques heures." },
 ]} />
-
-## Mesurer que ça marche
-
-Un contrôle de classe se juge à la **récurrence** : le nombre de nouvelles occurrences de la classe après sa mise en place (leçon M1-6). Si des injections SQL apparaissent encore après l'interdiction de `$queryRawUnsafe`, c'est que la règle est contournée ou incomplète : c'est une information, pas un échec.
-
-Trois indicateurs complètent la récurrence : la **ligne de base** restante (occurrences anciennes pas encore migrées), le **nombre d'exceptions** (désactivations et fichiers dans les dossiers d'échappatoires), et la **source des findings** de la classe (s'ils viennent encore du pentest plutôt que du lint, le contrôle arrive trop tard).
-
-<Callout kind="novafact">
-Premier paved road de Novafact : un template de service Express 5 avec `defineRoute`, la DAL multi-tenant, le client HTTP anti-SSRF, `helmet`, les logs pino et la configuration ESLint ci-dessus. Tout nouveau service part de là ; les services existants migrent route par route, en commençant par l'API de facturation. Six mois plus tard (chiffres fictifs), la ligne de base est passée de 41 routes sans schéma à 3, aucune nouvelle requête brute n'est apparue hors de `db/raw/`, et le dernier pentest n'a remonté aucun BOLA sur les services migrés.
-</Callout>
 
 <Recap items={[
-  "Quatre familles de contrôles de classe : frameworks sûrs, wrappers, types, lint et SAST ; impossible vaut mieux que bloqué, qui vaut mieux que signalé.",
-  "Un wrapper comme defineRoute rend schéma et permission obligatoires, et le chemin sûr doit être le plus court.",
-  "Le déclaratif (permission sur la route, RLS en base) se relit et s'inventorie ; il doit être prouvé par un test.",
-  "no-restricted-syntax et no-restricted-imports interdisent le chemin non outillé, mais ne voient que la syntaxe : couvre les variantes et complète par Semgrep ou CodeQL.",
-  "Les exceptions vivent à un seul endroit, sous CODEOWNERS, avec des désactivations justifiées.",
-  "Les types marqués encodent une vérification dans le compilateur ; leur fabrication est centralisée.",
-  "On déploie par étapes (mesurer, livrer, bloquer le neuf, migrer, généraliser) et on mesure la récurrence.",
+  "Server Components, Client Components et Server Actions : la frontière serveur/client se lit dans le code ; l'inventaire des points d'entrée inclut actions, route.ts, proxy.ts et paramètres dynamiques.",
+  "Une Server Action est un endpoint public : elle authentifie, autorise et valide elle-même ; les protections intégrées (identifiants, Origin/Host, chiffrement) ne sont pas une autorisation.",
+  "Les props passées à un Client Component et les valeurs de retour des actions sont sérialisées : n'envoie que des DTO ; NEXT_PUBLIC_ publie la variable.",
+  "CVE-2025-29927 montre la fragilité d'un contrôle unique en amont ; la DAL porte l'autorisation, et l'hébergement change le profil de risque.",
+  "React2Shell : un mécanisme interne du framework exploité sans code applicatif, suivi d'avis complémentaires ; il faut pouvoir mettre à jour plusieurs fois, vite.",
 ]} />
 
-<Lab id="semgrep-academy" note="Commence les cours d'écriture de règles : tu t'en serviras dès le module 13." />
-
 <Sources items={[
-  { title: "eslint-plugin-security", url: "https://github.com/eslint-community/eslint-plugin-security" },
-  { title: "eslint-plugin-no-unsanitized (Mozilla)", url: "https://github.com/mozilla/eslint-plugin-no-unsanitized" },
-  { title: "ESLint : no-restricted-syntax", url: "https://eslint.org/docs/latest/rules/no-restricted-syntax" },
-  { title: "eslint-comments : require-description", url: "https://eslint-community.github.io/eslint-plugin-eslint-comments/rules/require-description.html" },
-  { title: "PostgreSQL : Row Security Policies", url: "https://www.postgresql.org/docs/current/ddl-rowsecurity.html" },
-  { title: "GitHub : à propos des propriétaires de code (CODEOWNERS)", url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners" },
-  { title: "Google, Secure by Design at Google", url: "https://research.google/pubs/secure-by-design-at-google/" },
+  { title: "Next.js : How to Think About Security in Next.js", url: "https://nextjs.org/blog/security-nextjs-server-components-actions" },
+  { title: "Next.js : How to think about data security (documentation)", url: "https://nextjs.org/docs/app/guides/data-security" },
+  { title: "Next.js 16 : proxy.ts et changements de configuration", url: "https://nextjs.org/blog/next-16" },
+  { title: "Vercel : postmortem CVE-2025-29927", url: "https://vercel.com/blog/postmortem-on-next-js-middleware-bypass" },
+  { title: "GitHub Advisory : CVE-2024-34351", url: "https://github.com/advisories/GHSA-fr5h-rqp8-mj6g" },
+  { title: "Rapid7 : React2Shell CVE-2025-55182", url: "https://www.rapid7.com/blog/post/etr-react2shell-cve-2025-55182-critical-unauthenticated-rce-affecting-react-server-components/" },
+  { title: "React : déni de service et exposition de code source dans les Server Components", url: "https://react.dev/blog/2025/12/11/denial-of-service-and-source-code-exposure-in-react-server-components" },
+  { title: "AWS : exploitation rapide de React2Shell par des groupes liés à la Chine", url: "https://aws.amazon.com/blogs/security/china-nexus-cyber-threat-groups-rapidly-exploit-react2shell-vulnerability-cve-2025-55182/" },
+  { title: "Microsoft : défendre contre React2Shell", url: "https://www.microsoft.com/en-us/security/blog/2025/12/15/defending-against-the-cve-2025-55182-react2shell-vulnerability-in-react-server-components/" },
 ]} />

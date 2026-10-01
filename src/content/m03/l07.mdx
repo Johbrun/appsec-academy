@@ -141,7 +141,7 @@ router.post('/invoices/search', async (req, res) => {
 
 Le filtre est **construit côté serveur** à partir d'une liste blanche de champs et d'opérateurs. Au passage, la version vulnérable illustre un autre piège : l'étalement de `req.body.where` pouvait aussi imbriquer une condition qui contourne le filtre de tenant.
 
-La variante la plus sournoise ne ressemble même pas à un filtre générique. elttam cite un cas Prisma de ce type : une route de réinitialisation qui cherche l'utilisateur par `where: { resetToken: req.body.token }`. Le développeur suppose une chaîne ; mais un corps JSON peut transporter un **objet d'opérateurs** Prisma à cet endroit, et l'égalité devient une recherche partielle. C'est la cousine de l'injection d'opérateurs Mongo (M2) : même cause (un type non validé), même correctif (`z.string()` sur chaque valeur qui entre dans un `where`). Stocker le jeton haché et le comparer après hachage ferme la porte une seconde fois.
+La variante la plus sournoise ne ressemble même pas à un filtre générique. elttam cite un cas Prisma de ce type : une route de réinitialisation qui cherche l'utilisateur par `where: { resetToken: req.body.token }`. Le développeur suppose une chaîne ; mais un corps JSON peut transporter un **objet d'opérateurs** Prisma à cet endroit, et l'égalité devient une recherche partielle. C'est la cousine de l'injection d'opérateurs Mongo (M7) : même cause (un type non validé), même correctif (`z.string()` sur chaque valeur qui entre dans un `where`). Stocker le jeton haché et le comparer après hachage ferme la porte une seconde fois.
 
 | Idée reçue | Réalité |
 | --- | --- |

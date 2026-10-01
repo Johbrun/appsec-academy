@@ -1,177 +1,251 @@
 export const questions = [
   {
-    q: "Le parseur XML de Novafact ne résout jamais les entités externes. Pourquoi l'import de factures peut-il quand même être mis à genoux par un DOCTYPE ?",
+    q: "Quel contrôle élimine le mieux la classe « route sans validation d'entrée » dans une API Express ?",
     options: [
-      "Parce que le DOCTYPE force le parseur à ouvrir une connexion sortante vers l'URL déclarée",
-      "Parce qu'un DOCTYPE désactive la limite de taille du corps lue par Express",
-      "Parce qu'une entité interne volumineuse, citée cent fois, gonfle le texte sans récursion",
-      "Parce que la déclaration d'une entité paramètre suffit à rendre le parseur synchrone",
+      "Une règle Semgrep qui signale tout accès à req.body dans un handler",
+      "Un middleware de validation monté globalement sur le routeur de l'API",
+      "Un defineRoute qui exige un schéma, plus un lint qui interdit l'autre chemin",
+      "Un test qui parcourt la table de routage et échoue si une route n'a pas de schéma",
     ],
     answer: 2,
-    explain: "Ne pas résoudre les entités externes supprime la lecture de fichiers et la SSRF, pas l'amplification : une entité interne de quelques milliers de caractères, citée cent fois, gonfle le document sans aucune récursion, donc sans déclencher les détecteurs de boucle. C'est le mécanisme de CVE-2026-26278 dans fast-xml-parser, qui ne lit pourtant aucun fichier. La limite de taille d'Express s'applique au corps reçu, avant le parsing, et ne dépend pas du DOCTYPE ; la connexion sortante est le propre des entités externes, justement absentes ici.",
+    explain: "Le test qui parcourt la table de routage est le meilleur des distracteurs : il bloque vraiment, et c'est un bon filet. Mais il constate après coup au lieu de rendre l'erreur impossible à écrire, et il faut penser à le maintenir quand le routage change. Le middleware global ne connaît le schéma d'aucune route en particulier, donc ne valide rien d'utile. Semgrep signale sans fermer. La hiérarchie ne change pas : impossible vaut mieux que bloqué, qui vaut mieux que signalé.",
   },
   {
-    q: "Pour contrer l'XXE, un développeur rejette tout document contenant le mot SYSTEM. Quel document passe pourtant ce filtre et lit un fichier du serveur ?",
+    q: "À quoi sert un type « marqué » (branded type) comme TenantId en TypeScript ?",
     options: [
-      "Une entité déclarée avec PUBLIC, suivie d'un identifiant et de l'URI file:// du fichier",
-      "Une entité déclarée avec le mot system en minuscules, que XML tolère",
-      "Un document dont le DOCTYPE est placé après l'élément racine",
-      "Une entité interne dont la valeur contient le chemin du fichier à lire",
-    ],
-    answer: 0,
-    explain: "Une entité externe peut se déclarer avec SYSTEM ou avec PUBLIC : dans le second cas, l'URI du fichier suit l'identifiant public et est résolue de la même façon. Le filtre porte donc sur un mot, alors que la propriété dangereuse est « le parseur accepte un DOCTYPE qui déclare des entités ». XML distingue les majuscules des minuscules : le mot system en minuscules n'est pas une déclaration valide. Un DOCTYPE après la racine est rejeté comme mal formé, et une entité interne ne contient que du texte : elle ne lit rien.",
-  },
-  {
-    q: "Avec libxmljs2, pourquoi parseXml(xml, { noent: true, nonet: true }) ne protège-t-il pas contre la lecture de /etc/passwd ?",
-    options: [
-      "Parce que nonet est ignoré dès que noent est activé",
-      "Parce que nonet n'agit que sur les DTD, jamais sur les entités du document",
-      "Parce que noent ne résout que les entités déclarées dans un DTD externe",
-      "Parce que nonet interdit les accès réseau, alors que file:// n'en est pas un",
+      "À garantir à l'exécution que l'identifiant vient bien de la session",
+      "À documenter l'intention, sans effet sur la compilation",
+      "À obliger Prisma à filtrer chaque requête sur le tenant courant",
+      "À interdire une chaîne quelconque là où un tenant vérifié est attendu",
     ],
     answer: 3,
-    explain: "nonet coupe les chargements par le réseau (la SSRF et l'exfiltration hors bande), mais une entité file:///etc/passwd est une lecture locale, que noent substitue dans le document. Mesuré sur libxmljs2 0.37.0 : le contenu du fichier se retrouve dans le texte de l'élément, avec ou sans nonet. Les deux options sont indépendantes, et ni l'une ni l'autre n'est la bonne : le réglage qui compte est de ne pas activer noent, ou mieux, de refuser le DOCTYPE avant que le parseur ne le voie.",
+    explain: "« Garanti à l'exécution » est le contresens à éviter : les types marqués disparaissent à la compilation et ne vérifient rien au runtime. Ce n'est pas non plus de la simple documentation — le compilateur refuse la mauvaise valeur, ce qui force le code à passer par la fonction qui fabrique un TenantId depuis la session. Le point faible reste le `as`, qu'on traite comme les autres échappatoires : fabrication centralisée, et une règle qui signale les `as TenantId` écrits ailleurs.",
   },
   {
-    q: "Comment un test automatisé détecte-t-il une expansion d'entités quadratique avant la production ?",
+    q: "Novafact active la sécurité au niveau des lignes (RLS) de PostgreSQL sur la table invoice, mais l'API se connecte avec le rôle propriétaire de la table. Que se passe-t-il ?",
     options: [
-      "Il mesure la mémoire du processus après un unique import volumineux",
-      "Il double la taille de l'entrée et vérifie que le temps ou la mémoire ne quadruple pas",
-      "Il compare le nombre d'entités déclarées à un maximum fixé dans le test",
-      "Il vérifie qu'un document avec DOCTYPE renvoie bien une erreur 400",
+      "Le propriétaire contourne les politiques : il faut FORCE, ou un rôle applicatif",
+      "La RLS s'applique : seul un superutilisateur contourne les politiques",
+      "La RLS s'applique en lecture, mais pas aux écritures faute de WITH CHECK",
+      "Les requêtes échouent tant que app.tenant_id n'est pas positionné",
+    ],
+    answer: 0,
+    explain: "« Seul un superutilisateur contourne » est l'erreur presque universelle : le propriétaire de la table est exempté lui aussi, tant qu'on n'a pas écrit FORCE ROW LEVEL SECURITY. L'histoire du WITH CHECK est un vrai piège, mais un autre : sans lui, une écriture peut créer des lignes hors périmètre — ici rien ne s'applique, ni en lecture ni en écriture. C'est tout le danger d'un contrôle déclaratif mal branché : il rassure sans protéger, d'où le test qui prouve l'isolation.",
+  },
+  {
+    q: "La règle no-restricted-imports interdit d'importer exec depuis 'child_process'. Pourquoi n'est-ce pas suffisant seul ?",
+    options: [
+      "Parce qu'ESLint n'analyse ni les fichiers de test ni les scripts de build du dépôt",
+      "Parce que d'autres chemins mènent au même appel : préfixe node:, require, alias",
+      "Parce que la règle n'empêche pas execFile, tout aussi dangereux",
+      "Parce qu'ESLint ne voit pas le code des dépendances, qui peuvent appeler exec",
     ],
     answer: 1,
-    explain: "Un coût non linéaire ne se voit pas sur un seul point : il se voit dans le rapport entre deux tailles. Si doubler l'entrée double le coût, la croissance est linéaire ; si elle le quadruple, elle est quadratique, et l'extrapolation donne la taille qui dépasse le budget. Une mesure isolée ne dit pas si 80 Mo est acceptable ou le premier point d'une explosion. Compter les entités manque l'attaque quadratique, qui n'en utilise qu'une ; et le test du 400 vérifie un contrôle précis, pas l'absence de croissance non linéaire ailleurs.",
+    explain: "« execFile est tout aussi dangereux » confond les deux : appelé avec un tableau d'arguments et sans shell: true, execFile est justement la forme sûre qu'on cherche à imposer. Le périmètre d'analyse et le code des dépendances sont de vrais sujets, mais étrangers à cette règle. Le défaut est ailleurs : une règle syntaxique voit une forme, pas une intention — elle rate require('child_process').exec, le préfixe node: si tu ne l'as pas listé, et tout alias réexporté.",
   },
 ];
 
 <YouKnow>
-Tu as déjà lu `/etc/passwd` par un `<!ENTITY xxe SYSTEM …>` et exfiltré des données par un DTD hébergé chez toi. On voit ici ce qui reste exploitable dans les parseurs Node actuels (surtout la disponibilité) et le correctif qui ne dépend d'aucun réglage oublié.
+Tu as vu la même vulnérabilité revenir de mission en mission, corrigée à un endroit et réintroduite ailleurs. Cette leçon rassemble les outils qui empêchent la réintroduction.
 </YouKnow>
 
-## Ce que XML sait faire et que JSON ne sait pas
+## Du correctif ponctuel au contrôle de classe
 
-Un document XML peut déclarer, dans un **DTD**, des **entités** : des noms remplacés par du texte. Une entité **interne** porte sa valeur ; une entité **externe** pointe vers une ressource (`SYSTEM "file:///…"`, ou `PUBLIC` suivi d'un identifiant puis de l'URI). Les **entités paramètres** (`%nom;`) ne vivent que dans le DTD : la spécification interdit leur référence hors du DTD, et un DTD externe peut les composer, ce que le sous-ensemble interne n'autorise pas. D'où le XXE aveugle.
+Chaque leçon de ce module a fini par la même idée : corriger l'instance ne suffit pas. Il existe quatre familles d'outils pour rendre une classe de bugs **impossible** ou **immédiatement visible**.
 
-Deux mécanismes voisins : **XInclude**, qui assemble un document à partir de fichiers, et **XSLT**, dont `import`, `include` et `document()` chargent des ressources. L'OWASP les range dans le même durcissement : la façon la plus sûre d'empêcher l'XXE est de **désactiver complètement les DTD**. La spécification n'oblige d'ailleurs pas un processeur non validant à lire les entités externes : les défauts varient, il faut nommer le parseur et sa version.
-
-## Du payload à l'impact
-
-Trois points côté défense.
-
-- **Lecture de fichier** (CWE-611) : le contenu réapparaît là où l'entité est citée, chez Novafact dans le champ `<note>` d'une facture ensuite affichée ou exportée.
-- **SSRF** : une entité `http://` fait appeler une adresse interne. C'est le parseur, pas ton code, qui émet la requête : il échappe aux garde-fous de ton client HTTP (leçon 4, M3 leçon 11).
-- **Aveugle** : une entité paramètre charge un DTD distant qui lit le fichier et l'envoie dans une URL (**hors bande**), ou provoque une erreur qui le contient. Un import qui répond seulement « 201 » reste exposé.
-
-Le XML arrive aussi **dans un autre format** : une facture Factur-X est un PDF/A-3 qui embarque un XML, et le SVG, le DOCX ou l'XFA d'un PDF en contiennent.
-
-## L'expansion : la disponibilité d'abord
-
-La CWE-776 décrit l'**expansion d'entités**. Le **billion laughs** imbrique des entités qui se citent dix fois chacune : quelques centaines d'octets deviennent des gigaoctets. Les parseurs détectent souvent cela. Le **quadratic blowup** l'évite : une seule entité de quelques milliers de caractères, citée des milliers de fois. Pas de récursion, pas d'alarme, un coût quadratique, et une boucle d'événements gelée (leçon 4).
-
-C'est le cas d'école du **test de croissance non linéaire** (M13, leçon 12) : on mesure temps et mémoire pour n, 2n, 4n. Un rapport de 2 est linéaire, de 4 quadratique, et l'extrapolation donne la taille où le budget saute.
-
-## Ce que font vraiment les parseurs Node
-
-Versions npm au 1er octobre 2026, vérifiées dans la documentation, le code et un essai sur Node 22 :
-
-| Parseur | DOCTYPE et entités | À savoir |
+| Famille | Principe | Exemples |
 | --- | --- | --- |
-| **libxmljs2** 0.37.0 (libxml2 2.9.9 embarqué) | `noent` substitue les entités, **`file://` compris** ; `dtdload` charge le DTD externe ; `nonet` ne coupe que le réseau ; `huge` lève les garde-fous | Par défaut, l'entité externe reste vide, mais une entité interne est développée à la lecture : 65 Ko d'entrée, 250 Mo de texte en une seconde. Avec `noent`, libxml2 détecte l'amplification ; avec `huge`, 136 s |
-| **fast-xml-parser** 5.11.2 | Entité `SYSTEM` ou paramètre : exception, **même avec `processEntities: false`** ; entités internes développées par défaut | `maxEntitySize` (10 000), `maxExpandedLength` (100 000), `maxTotalExpansions` (illimité par défaut) |
-| **xml2js** 0.6.2 | Appuyé sur sax strict : DOCTYPE toléré, citer une entité déclarée lève une erreur | Pas de lecture ni d'expansion ; son seul avis npm répertorié est une pollution de prototype |
-| **saxes** 6.0.0, **sax** 1.6.1 | Aucune entité de DTD développée (README de saxes) ; l'événement `doctype` permet de refuser | `sax` offre `strictEntities` |
-| **@xmldom/xmldom** 0.9.12 | Entités déclarées non développées : `&a;` reste du texte, avec une erreur « entity not found » | Pas d'XXE, mais des avis de coûts quadratiques corrigés en 0.9.12 (8 septembre 2026) |
+| Frameworks sûrs par défaut | Le chemin normal est sûr | Échappement React, requêtes paramétrées de Prisma, erreurs async gérées par Express 5 |
+| Wrappers et API sûres | Une seule façon de faire, et elle est sûre | `defineRoute`, client HTTP anti-SSRF, composant `SafeHtml` |
+| Types | Le compilateur refuse la mauvaise donnée | Types marqués, `unknown` en entrée, schémas qui produisent des types |
+| Lint et SAST | Le chemin dangereux est signalé ou bloqué | `eslint-plugin-security`, `no-unsanitized`, règles `no-restricted-syntax`, règles Semgrep maison |
 
-**« Non résolu » n'est pas « sûr »** : le même `&a;` donne `AAA` dans libxmljs2 avec `noent` et `&a;` dans xmldom. Deux composants qui lisent le même document ne voient plus la même chose : c'est le terrain des divergences de parseurs du SAML (M9, leçon 6), sans signature cette fois.
+Le livre blanc *Secure by Design at Google* (Christoph Kern, 2024) formule le principe qui relie ces familles : la sécurité d'une application ne doit pas reposer sur la vigilance de chaque développeur à chaque ligne, mais sur un **écosystème de développement** (bibliothèques, frameworks, types, outillage) qui garantit certaines propriétés par construction. La question de revue change alors : on ne demande plus « ce code est-il sûr ? », mais « ce code utilise-t-il le chemin sûr, et peut-il seulement faire autrement ? ».
 
-## Dans le code de Novafact
+Les contrôles ne se valent pas. Du plus fort au plus faible :
 
-L'import UBL part d'un réglage copié d'un exemple « pour que les entités soient remplacées ».
+1. **Impossible** : le code dangereux ne compile pas ou n'existe pas (une API qui n'offre pas de variante non sûre).
+2. **Bloqué** : il compile, mais la CI le refuse (règle de lint en erreur).
+3. **Signalé** : un outil le remonte, quelqu'un doit trier (SAST en avertissement).
+4. **Documenté** : une règle écrite, une formation. Utile, mais c'est le niveau qui a laissé passer le bug.
 
-<Diff file="apps/api/src/routes/imports.ts" hlBefore="2" hlAfter="4,8,10">
+## Un wrapper de route
 
-```ts
-router.post('/imports/invoice', express.text({ type: 'application/xml', limit: '2mb' }), (req, res) => {
-  const doc = parseXml(req.body, { noent: true, dtdload: true });
-  res.status(201).json({ ref: doc.get('//ref')?.text(), note: doc.get('//note')?.text() });
-});
-```
+<Code file="apps/api/src/lib/defineRoute.ts">
 
 ```ts
-import { SaxesParser } from 'saxes';
+import type { Request, Response } from 'express';
+import { z, type ZodType } from 'zod';
 
-export function parseInvoice(body: Buffer): Record<string, string> {
-  if (body.length > 256 * 1024) throw new HttpError(413, 'document trop volumineux');
-  const fields: Record<string, string> = {};
-  const path: string[] = [];
-  const parser = new SaxesParser({ xmlns: true });
-  parser.on('doctype', () => { throw new HttpError(400, 'DOCTYPE refusé'); });
-  parser.on('opentag', (tag) => {
-    if (path.length >= 32) throw new HttpError(400, 'imbrication excessive');
-    path.push(tag.local);
-  });
-  parser.on('text', (s) => { const k = path.join('/'); fields[k] = (fields[k] ?? '') + s; });
-  parser.on('closetag', () => { path.pop(); });
-  parser.on('error', (e) => { throw new HttpError(400, e.message); });
-  parser.write(body.toString('utf8')).close();
-  return fields; // route : express.raw({ type: 'application/xml', limit: '256kb' })
+type Permission = 'invoice:read' | 'invoice:write' | 'admin';
+
+export function defineRoute<B extends ZodType, Q extends ZodType>(opts: {
+  body?: B; query?: Q;
+  permission: Permission;                      // obligatoire : pas de route sans décision d'autorisation
+  handler: (ctx: { body: z.infer<B>; query: z.infer<Q>; user: AuthUser }, res: Response) => Promise<unknown>;
+}) {
+  return async (req: Request, res: Response) => {
+    const user = requireUser(req);                                  // 401 sinon
+    await authorize(user, opts.permission);                         // 403 sinon
+    const body = opts.body ? opts.body.parse(req.body) : undefined; // 400 sinon
+    const query = opts.query ? opts.query.parse(req.query) : undefined;
+    await opts.handler({ body, query, user } as never, res);
+  };
 }
 ```
 
-</Diff>
+</Code>
 
-La **taille est bornée avant** le parsing (le parseur a déjà dépensé le budget quand il se plaint), le **DOCTYPE est refusé** plutôt que filtré, la **profondeur** est comptée, et une seule analyse produit à la fois la validation et les valeurs, comme en SAML.
+Avec ce wrapper, une route sans schéma ou sans permission **ne compile pas**. Il reste à empêcher qu'on déclare une route sans lui : c'est le rôle du lint.
 
-Ce qui casse les mauvais correctifs, essayé sur libxmljs2 0.37.0 :
+Remarque ce que le wrapper fait **pour** le développeur : il reçoit un `ctx.body` typé et validé, un `ctx.user` authentifié, et il n'a plus rien à écrire pour les cas d'erreur. C'est ce qui fait qu'un contrôle de classe est adopté : le chemin sûr est aussi le plus court. Un wrapper qui ajoute de la cérémonie sans rien retirer sera contourné, et le module 30 (leçon 5) traite ce point comme une question de produit.
 
-- **Filtrer le mot `SYSTEM`** : `<!ENTITY x PUBLIC "-//N//F" "file:///tmp/secret.txt">` est lu pareil, et le fichier atterrit dans l'élément.
-- **Chercher `<!DOCTYPE` dans `body.toString('utf8')`** : un document UTF-16 avec BOM n'a pas ces octets, mais le parseur le décode. Le garde ci-dessus décode en UTF-8 et laisse le parseur juger : un UTF-16 est rejeté comme mal formé.
-- **`nonet: true` seul** : coupe SSRF et hors bande, pas `file://`. Mesuré : le fichier est toujours lu.
-- **Compter les entités déclarées** : le quadratic blowup n'en utilise qu'une.
+## Sécurité déclarative ou impérative
 
-<Callout kind="case">
-**fast-xml-parser, 2026.** Cette bibliothèque ne lit aucune entité externe, et pourtant : CVE-2026-26278 (CVSS 7.5, CWE-776) décrit un déni de service par une entité interne unique citée plusieurs fois, aux remplacements non bornés. Scénario publié : une entité de 1 000 caractères citée 100 fois, environ 1,3 Ko de XML, bloque le parseur de 4 à 8 secondes. Touchées : 4.1.3 à 4.5.3 et 5.0.0 à 5.3.5 ; corrigées en 4.5.4 et 5.3.6. Un mois plus tard, CVE-2026-33036 montre le correctif incomplet : les références numériques (`&#NNN;`) contournaient toutes les limites (corrigé en 4.5.5 et 5.5.6). **Apache Tika** : XXE critique (CVE-2025-66516, publiée le 4 décembre 2025) par un fichier XFA dans un PDF, dans `tika-core` jusqu'à la 3.2.1 (corrigée en 3.2.2) ; mettre à jour le seul module PDF laissait la faille ouverte.
+Le `permission: 'invoice:write'` du wrapper est un contrôle **déclaratif** : la route dit ce qu'elle exige, et un mécanisme commun l'applique. Le contrôle **impératif**, c'est le `if (user.role !== 'owner')` écrit à la main dans chaque handler. Le premier se relit d'un coup d'œil, se liste automatiquement (quelles routes exigent `admin` ?) et ne peut pas être oublié sans que ça se voie ; le second se disperse et se perd.
+
+Le même raisonnement s'applique à l'isolation des tenants, qu'on peut descendre jusque dans la base avec la **sécurité au niveau des lignes** de PostgreSQL :
+
+<Code file="db/migrations/0042_invoice_rls.sql">
+
+```sql
+ALTER TABLE invoice ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invoice FORCE ROW LEVEL SECURITY;   -- s'applique aussi au propriétaire de la table
+
+CREATE POLICY tenant_isolation ON invoice
+  USING (tenant_id = current_setting('app.tenant_id')::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
+```
+
+</Code>
+
+<Code file="apps/api/src/db/tenantClient.ts">
+
+```ts
+// Chaque requête Prisma passe dans une transaction qui fixe le tenant pour cette transaction seulement.
+export const forTenant = (tenantId: TenantId) =>
+  prisma.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ args, query }) {
+          const [, result] = await prisma.$transaction([
+            prisma.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, TRUE)`,
+            query(args),
+          ]);
+          return result;
+        },
+      },
+    },
+  });
+```
+
+</Code>
+
+Même si un développeur oublie le filtre `tenantId` dans une requête, la base ne renvoie que les lignes du tenant courant. Deux pièges à connaître : les politiques ne s'appliquent ni aux superutilisateurs ni, sans `FORCE`, au propriétaire de la table, donc l'API doit se connecter avec un rôle applicatif dédié ; et un contrôle déclaratif mal branché donne une fausse assurance, d'où un test d'intégration qui prouve qu'une requête sans tenant ne renvoie rien. Le module 14 compare cette approche aux autres modèles d'autorisation.
+
+## Interdire le chemin non outillé
+
+ESLint suffit pour beaucoup de règles de classe, sans outil supplémentaire :
+
+<Code file="eslint.config.js">
+
+```js
+export default [
+  {
+    rules: {
+      'no-restricted-syntax': ['error',
+        { selector: "CallExpression[callee.property.name='$queryRawUnsafe']", message: 'SQL brut interdit : passe par la DAL.' },
+        { selector: "CallExpression[callee.object.name='router'][callee.property.name=/^(get|post|put|patch|delete)$/][arguments.1.callee.name!='defineRoute']", message: 'Déclare les routes avec defineRoute.' },
+        { selector: "MemberExpression[object.name='req'][property.name=/^(body|query|params)$/]", message: 'Lis ctx.body et ctx.query, validés par defineRoute.' },
+      ],
+      'no-restricted-imports': ['error', { paths: [
+        { name: 'child_process', importNames: ['exec'], message: 'Utilise execFile avec un tableau d’arguments.' },
+        { name: 'node:child_process', importNames: ['exec'], message: 'Utilise execFile avec un tableau d’arguments.' },
+      ] }],
+    },
+  },
+  // Les échappatoires revues vivent à un seul endroit.
+  { files: ['apps/api/src/db/raw/**', 'apps/api/src/lib/defineRoute.ts'], rules: { 'no-restricted-syntax': 'off' } },
+];
+```
+
+</Code>
+
+Complète avec `eslint-plugin-security` (fonctions de fichiers avec chemin non littéral, regex dangereuses…) et `eslint-plugin-no-unsanitized` de Mozilla (affectations à `innerHTML` et équivalents). Pour les règles qui demandent de suivre les flux de données, Semgrep et CodeQL prennent le relais : c'est le module 17.
+
+Ces règles sont **syntaxiques** : elles voient une forme de code, pas une intention. La règle sur `exec` ne voit ni `require('child_process').exec`, ni un alias réexporté par un module utilitaire ; d'où la seconde entrée pour le préfixe `node:`, que l'on oublie souvent. La règle sur les routes impose aussi une convention : `defineRoute` doit être le deuxième argument, donc un middleware intercalé (`router.post('/x', auth, defineRoute(…))`) est refusé. C'est voulu : l'authentification passe dans `defineRoute`, pas à côté. Chaque règle doit être testée sur des exemples positifs et négatifs, exactement comme du code.
+
+<Callout kind="debate">
+`eslint-plugin-security` est utile mais bruyant. Sa règle `detect-object-injection` signale presque chaque accès `obj[key]`, y compris les boucles les plus innocentes. Activée en erreur, elle génère des dizaines de désactivations et apprend aux développeurs à ignorer le lint de sécurité. La pratique courante : n'activer en erreur que les règles au taux de faux positifs faible, garder les autres en avertissement dans l'IDE, et remplacer les plus bruyantes par des règles maison précises (comme les sélecteurs ci-dessus) qui ne visent que les sinks réellement dangereux chez toi.
 </Callout>
 
-## Défense en couches
+## Gérer les exceptions sans perdre la classe
+
+Un contrôle de classe a toujours des exceptions légitimes : un rapport comptable qui a besoin de SQL brut, un composant qui affiche du HTML déjà sanitisé côté serveur. Le risque n'est pas l'exception, c'est l'exception **invisible**. Trois mécanismes la rendent visible :
+
+- **Un seul endroit** : les échappatoires vivent dans un dossier dédié (`db/raw/`, `SafeHtml.tsx`), exclu de la règle par configuration plutôt que par commentaire.
+- **Une revue obligatoire** : le fichier `CODEOWNERS` de GitHub désigne l'équipe AppSec comme relecteur requis de ces chemins. Ajouter une requête brute reste possible, mais jamais en silence.
+- **Des désactivations justifiées** : la règle `require-description` de `@eslint-community/eslint-plugin-eslint-comments` exige une explication sur chaque `eslint-disable`, et l'option `linterOptions.reportUnusedDisableDirectives` de la configuration signale celles qui ne servent plus.
+
+```text
+# .github/CODEOWNERS
+/apps/api/src/db/raw/          @novafact/appsec
+/apps/api/src/lib/defineRoute.ts  @novafact/appsec
+/apps/web/src/components/SafeHtml.tsx  @novafact/appsec
+```
+
+## Des types qui portent la sécurité
+
+TypeScript peut encoder une vérification dans un type. Un `TenantId` « marqué » ne peut être produit que par la fonction qui lit le tenant de la session : impossible de passer par erreur l'identifiant venu du corps de la requête.
+
+```ts
+type TenantId = string & { readonly __brand: 'TenantId' };
+export const tenantOf = (session: Session): TenantId => session.tenantId as TenantId;
+export const listInvoices = (tenant: TenantId) => db.invoice.findMany({ where: { tenantId: tenant } });
+```
+
+Le point faible de cette technique est le `as` : n'importe qui peut écrire `req.body.tenantId as TenantId`. On le traite comme les autres échappatoires : la fabrication des types marqués vit dans un seul module, et une recherche du motif `as TenantId` ailleurs (règle `no-restricted-syntax` sur `TSAsExpression`, ou Semgrep) le signale. Le même principe s'applique à d'autres invariants de Novafact : `SanitizedHtml` produit uniquement par `SafeHtml`, `Cents` produit uniquement par la fonction de conversion de la leçon 2.
+
+## Déployer un contrôle de classe
+
+Activer une nouvelle règle en erreur sur une base existante casse la CI de toutes les équipes le jour même. Le déploiement se fait par étapes :
 
 <Steps items={[
-  { title: "Choisir le format", text: "Pour un partenaire libre du choix, du JSON validé par schéma : ni DTD, ni entités, ni XInclude. L'XML reste imposé pour UBL et Factur-X." },
-  { title: "Borner avant de parser", text: "Taille du corps, profondeur, nombre d'éléments : le contrôle précède le parseur." },
-  { title: "Refuser le DOCTYPE", text: "Un réglage ou un refus d'événement, pas un filtre sur des mots." },
-  { title: "Isoler le parsing", text: "Pour les formats qui exigent un parseur complet (XSD, XSLT) : un `worker_threads` ou un processus enfant avec délai et mémoire plafonnés, sans accès réseau sortant (leçon 4)." },
-  { title: "Tester", text: "Un test qui envoie un DOCTYPE et exige un refus, un test de croissance (n, 2n, 4n), et un test que la facture légitime passe encore." },
+  { title: "Mesurer", text: "Compter les occurrences existantes de la classe (routes sans schéma, appels à $queryRawUnsafe) : c'est la ligne de base." },
+  { title: "Livrer le chemin sûr", text: "Le wrapper, le composant ou le client HTTP, documenté, avec un exemple de migration." },
+  { title: "Bloquer le neuf", text: "La règle en erreur sur le code nouveau ou modifié uniquement (mode diff ou baseline de l'outil), en avertissement sur l'existant." },
+  { title: "Migrer l'existant", text: "Par service, en commençant par le plus exposé ; la ligne de base doit décroître à chaque sprint." },
+  { title: "Généraliser", text: "Quand l'existant est à zéro, la règle passe en erreur partout et l'exclusion de base disparaît." },
 ]} />
 
-La règle de K10 vue en leçon 2 vaut ici : définir ce qui est valide et **rejeter** le reste.
+## Mesurer que ça marche
+
+Un contrôle de classe se juge à la **récurrence** : le nombre de nouvelles occurrences de la classe après sa mise en place (M31, leçon 4). Si des injections SQL apparaissent encore après l'interdiction de `$queryRawUnsafe`, c'est que la règle est contournée ou incomplète : c'est une information, pas un échec.
+
+Trois indicateurs complètent la récurrence : la **ligne de base** restante (occurrences anciennes pas encore migrées), le **nombre d'exceptions** (désactivations et fichiers dans les dossiers d'échappatoires), et la **source des findings** de la classe (s'ils viennent encore du pentest plutôt que du lint, le contrôle arrive trop tard).
 
 <Callout kind="novafact">
-Novafact reçoit des UBL de partenaires, des Factur-X de clients et des assertions SAML. L'équipe AppSec livre `parseInvoice` comme **paved road**, interdit par lint l'import direct de `libxmljs2` et `xml2js`, et garde un test qui envoie un DOCTYPE à chaque route acceptant `application/xml`.
+Premier paved road de Novafact : un template de service Express 5 avec `defineRoute`, la DAL multi-tenant, le client HTTP anti-SSRF, `helmet`, les logs pino et la configuration ESLint ci-dessus. Tout nouveau service part de là ; les services existants migrent route par route, en commençant par l'API de facturation. Six mois plus tard (chiffres fictifs), la ligne de base est passée de 41 routes sans schéma à 3, aucune nouvelle requête brute n'est apparue hors de `db/raw/`, et le dernier pentest n'a remonté aucun BOLA sur les services migrés.
 </Callout>
 
 <Recap items={[
-  "XXE (CWE-611) : lecture de fichier, SSRF, exfiltration hors bande même sans réponse visible ; l'expansion (CWE-776) attaque la disponibilité.",
-  "Le quadratic blowup, une entité citée des milliers de fois, évite les détecteurs de boucle ; un test de croissance (n, 2n, 4n) le trouve.",
-  "Dans nos essais, libxmljs2 (noent) est le seul parseur qui lit des fichiers ; les autres ne résolvent pas les entités externes, mais « non résolu » crée des divergences.",
-  "Mauvais correctifs : filtrer SYSTEM (PUBLIC passe), chercher le DOCTYPE en UTF-8 (UTF-16 passe), nonet seul (file:// reste), compter les entités.",
-  "Correctif : format sans DTD si possible, sinon taille et profondeur bornées avant le parsing, DOCTYPE refusé, parsing isolé, une seule analyse.",
+  "Quatre familles de contrôles de classe : frameworks sûrs, wrappers, types, lint et SAST ; impossible vaut mieux que bloqué, qui vaut mieux que signalé.",
+  "Un wrapper comme defineRoute rend schéma et permission obligatoires, et le chemin sûr doit être le plus court.",
+  "Le déclaratif (permission sur la route, RLS en base) se relit et s'inventorie ; il doit être prouvé par un test.",
+  "no-restricted-syntax et no-restricted-imports interdisent le chemin non outillé, mais ne voient que la syntaxe : couvre les variantes et complète par Semgrep ou CodeQL.",
+  "Les exceptions vivent à un seul endroit, sous CODEOWNERS, avec des désactivations justifiées.",
+  "Les types marqués encodent une vérification dans le compilateur ; leur fabrication est centralisée.",
+  "On déploie par étapes (mesurer, livrer, bloquer le neuf, migrer, généraliser) et on mesure la récurrence.",
 ]} />
 
-<Lab id="ps-xxe" note="Fais les labs XXE Practitioner et Expert en notant quel réglage de parseur ou refus de DOCTYPE aurait bloqué chacun." />
-<Lab id="novafact-lab" note="Les défis XXE et expansion d'entités portent sur un parseur permissif écrit à la main : corrige-le, puis vérifie que la facture légitime passe encore." />
+<Lab id="semgrep-academy" note="Commence les cours d'écriture de règles : tu t'en serviras dès le module 17." />
 
 <Sources items={[
-  { title: "OWASP : XML External Entity Prevention", url: "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html" },
-  { title: "W3C : XML 1.0", url: "https://www.w3.org/TR/xml/" },
-  { title: "CWE-611", url: "https://cwe.mitre.org/data/definitions/611.html" },
-  { title: "CWE-776", url: "https://cwe.mitre.org/data/definitions/776.html" },
-  { title: "PortSwigger : XXE injection", url: "https://portswigger.net/web-security/xxe" },
-  { title: "PortSwigger : Blind XXE", url: "https://portswigger.net/web-security/xxe/blind" },
-  { title: "fast-xml-parser, CVE-2026-26278", url: "https://github.com/NaturalIntelligence/fast-xml-parser/security/advisories/GHSA-jmr7-xgp7-cmfj" },
-  { title: "fast-xml-parser, CVE-2026-33036", url: "https://github.com/NaturalIntelligence/fast-xml-parser/security/advisories/GHSA-8gc5-j5rx-235r" },
-  { title: "Apache Tika, CVE-2025-66516", url: "https://github.com/advisories/GHSA-f58c-gq56-vjjf" },
-  { title: "saxes (README)", url: "https://github.com/lddubeau/saxes" },
-  { title: "libxmljs2", url: "https://github.com/marudor/libxmljs2" },
-  { title: "Factur-X / ZUGFeRD (PDFlib)", url: "https://pdflib.com/pdf-knowledge-base/zugferd-and-factur-x" },
+  { title: "eslint-plugin-security", url: "https://github.com/eslint-community/eslint-plugin-security" },
+  { title: "eslint-plugin-no-unsanitized (Mozilla)", url: "https://github.com/mozilla/eslint-plugin-no-unsanitized" },
+  { title: "ESLint : no-restricted-syntax", url: "https://eslint.org/docs/latest/rules/no-restricted-syntax" },
+  { title: "eslint-comments : require-description", url: "https://eslint-community.github.io/eslint-plugin-eslint-comments/rules/require-description.html" },
+  { title: "PostgreSQL : Row Security Policies", url: "https://www.postgresql.org/docs/current/ddl-rowsecurity.html" },
+  { title: "GitHub : à propos des propriétaires de code (CODEOWNERS)", url: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners" },
+  { title: "Google, Secure by Design at Google", url: "https://research.google/pubs/secure-by-design-at-google/" },
 ]} />

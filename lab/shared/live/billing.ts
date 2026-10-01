@@ -20,7 +20,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le contrôle d’appartenance au tenant est monté sur la lecture d’une facture, mais pas sur sa suppression.',
     goal: 'Supprimer une facture appartenant à un autre tenant.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m02/l02', 'm08/l07'],
+    lessons: ['m02/l01', 'm09/l02'],
     hints: [
       'Le contrôle d’appartenance au tenant est bien posé sur GET et sur PATCH d’une facture.',
       'Énumère les méthodes que la route accepte, pas seulement celles que l’interface utilise.',
@@ -35,7 +35,7 @@ export const billing: ExerciseDef[] = [
     brief: 'La création de facture vérifie le tenant de l’appelant, mais pas celui du client auquel la facture est rattachée.',
     goal: 'Créer une facture rattachée au client d’un autre tenant.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m02/l02', 'm08/l07'],
+    lessons: ['m02/l01', 'm09/l02'],
     hints: [
       'La création de facture accepte un `clientId` en plus des lignes.',
       'Le tenant de l’appelant est vérifié ; celui du client rattaché ne l’est jamais.',
@@ -50,7 +50,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Une promesse non gérée dans la création de facture laisse la trace d’exécution remonter au client, et la facture à moitié écrite.',
     goal: 'Obtenir une trace d’exécution du serveur, et laisser une facture dans un état impossible.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m02/l05', 'm17/l01'],
+    lessons: ['m02/l04', 'm17/l01'],
     hints: [
       'POST /api/invoices/:id/reissue prend un champ `spec` qui doit contenir du JSON.',
       'La facture est écrite AVANT que la validation n’ait lieu : si l’étape jette, elle reste à mi-chemin.',
@@ -66,7 +66,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le produit quantité × prix est calculé en nombre flottant : passé la limite des entiers sûrs, l’addition cesse d’incrémenter.',
     goal: 'Faire émettre une facture dont le total est inférieur au prix d’un seul article.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m02/l03', 'm10/l06'],
+    lessons: ['m02/l02', 'm10/l06'],
     hints: [
       'Le total est une somme de flottants. Au-delà de 2^53, l’addition cesse d’incrémenter.',
       'Il faut une ligne assez grosse pour que la suivante disparaisse dans l’arrondi.',
@@ -82,7 +82,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le montant est converti par `Number()`, qui accepte la notation exponentielle, l’hexadécimal, les espaces, et produit `Infinity` ou `NaN`.',
     goal: 'Persister une facture dont le total n’est ni fini ni comparable.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m02/l03', 'm02/l05'],
+    lessons: ['m02/l02', 'm02/l04'],
     hints: [
       'Les quantités et les prix passent par `Number()` avant d’être additionnés.',
       '`Number()` ne refuse presque rien : notation exponentielle, hexadécimal, espaces — et il rend `Infinity` ou `NaN` sans jamais lever.',
@@ -98,7 +98,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le filtre de recherche est passé à l’ORM presque tel quel, et les relations jointes reviennent en entier.',
     goal: 'Lire, via une relation, un champ qu’aucune route n’expose — l’empreinte du mot de passe d’un utilisateur.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m03/l07', 'm07/l05'],
+    lessons: ['m03/l07', 'm07/l03'],
     hints: [
       'POST /api/invoices/query prend un `where` et un `include`.',
       'Le `where` est étalé APRÈS la clause de tenant, et les relations demandées reviennent avec toutes leurs colonnes.',
@@ -113,7 +113,7 @@ export const billing: ExerciseDef[] = [
     brief: 'La syntaxe de tableau de la query string transforme une chaîne attendue en tableau, qui traverse une validation fondée sur la longueur et atterrit dans le filtre de recherche.',
     goal: 'Faire remonter dans la recherche des factures d’un tenant auquel tu n’appartiens pas.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m03/l07', 'm02/l02'],
+    lessons: ['m03/l07', 'm02/l01'],
     hints: [
       'GET /api/invoices/lookup accepte un paramètre `tenant`, et le valide avant de filtrer.',
       'La validation s’appuie sur `.length` et `.includes()` — un tableau répond aux deux, et pas de la même façon.',
@@ -144,7 +144,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Un compte fraîchement créé peut envoyer autant de factures qu’il veut, avec un texte libre, depuis le domaine de Novafact.',
     goal: 'Envoyer cent messages de phishing depuis un domaine légitime et authentifié SPF/DKIM.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m10/l05', 'm07/l07'],
+    lessons: ['m10/l05', 'm07/l05'],
     hints: [
       'POST /api/invoices/:id/send prend un destinataire, un sujet et un corps entièrement libres.',
       'Rien ne compte les envois. Le domaine expéditeur, lui, est authentifié SPF/DKIM.',
@@ -159,7 +159,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le lien de consultation d’une facture porte le jeton d’accès en paramètre de requête.',
     goal: 'Récupérer un jeton valide dans l’en-tête Referer d’un script tiers, puis dans les journaux d’accès.',
     file: 'server/routes/invoices.ts',
-    lessons: ['m09/l02', 'm18/l01'],
+    lessons: ['m09/l04', 'm18/l01'],
     hints: [
       'GET /api/invoices/:id/share fabrique un lien de consultation. Regarde où le jeton y est posé.',
       'Une URL part en `Referer` vers tout ce que la page charge — et elle est écrite telle quelle dans le journal d’accès.',
@@ -189,7 +189,7 @@ export const billing: ExerciseDef[] = [
     brief: 'L’émission d’un avoir se fait en trois requêtes ; seule la première vérifie le rôle comptable.',
     goal: 'Faire émettre un avoir validé sans jamais avoir eu le rôle comptable.',
     file: 'server/routes/credits.ts',
-    lessons: ['m02/l02', 'm10/l06'],
+    lessons: ['m02/l01', 'm10/l06'],
     hints: [
       'L’émission d’un avoir passe par POST /credits/drafts, puis /drafts/:id/lines, puis /drafts/:id/issue.',
       'Seule la première étape regarde le rôle — et les deux autres n’exigent pas qu’elle ait eu lieu.',
@@ -204,7 +204,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Une même route sert les réglages du tenant et ceux de la plateforme, discriminés par un champ du corps de la requête.',
     goal: 'Modifier un réglage global de la plateforme depuis un compte tenant ordinaire.',
     file: 'server/routes/settings.ts',
-    lessons: ['m02/l02', 'm08/l09'],
+    lessons: ['m02/l01', 'm08/l06'],
     hints: [
       'PUT /api/settings ne sert pas que les réglages du tenant.',
       'Un champ du corps de la requête décide du périmètre de l’écriture.',
@@ -219,7 +219,7 @@ export const billing: ExerciseDef[] = [
     brief: 'La formule de pénalité de retard, configurable par le tenant, est évaluée avec `eval()` pour calculer le montant.',
     goal: 'Faire exécuter du JavaScript arbitraire côté serveur depuis la formule d’un tenant.',
     file: 'server/routes/settings.ts',
-    lessons: ['m02/l04', 'm02/l08'],
+    lessons: ['m02/l03', 'm02/l09'],
     hints: [
       'La formule de pénalité est un réglage du tenant, et elle finit dans un interpréteur.',
       'Cet interpréteur est le langage entier, pas un évaluateur d’expressions : tout ce que Node sait faire est à portée.',
@@ -234,7 +234,7 @@ export const billing: ExerciseDef[] = [
     brief: 'La même formule est « isolée » dans `vm.runInNewContext`, dont on s’échappe en remontant par `this.constructor.constructor`.',
     goal: 'Depuis la formule, lire une valeur du processus hôte hors du contexte — le secret de signature des jetons.',
     file: 'server/routes/settings.ts',
-    lessons: ['m02/l04', 'm03/l08'],
+    lessons: ['m02/l03', 'm03/l08'],
     hints: [
       'Le mode `sandbox` évalue la même formule dans `vm.runInNewContext`. Le contexte n’a ni `process` ni `require`.',
       'L’objet passé en contexte vient du realm hôte : `this.constructor` y renvoie son `Object`, et `Object.constructor` son `Function`.',
@@ -249,7 +249,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Les pièces jointes sont servies depuis l’origine de Novafact, sans en-tête de non-reniflage ni disposition de téléchargement, avec un type deviné.',
     goal: 'Exécuter du script sur l’origine de Novafact dans la session d’un utilisateur qui ouvre une pièce jointe.',
     file: 'server/routes/attachments.ts',
-    lessons: ['m04/l06', 'm08/l10'],
+    lessons: ['m04/l07', 'm08/l05'],
     hints: [
       'Les pièces jointes sont servies depuis l’origine de l’application, avec le type annoncé au téléversement.',
       'Ni `X-Content-Type-Options: nosniff`, ni `Content-Disposition` : le navigateur parse ce qu’on lui dit de parser.',
@@ -264,7 +264,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le logo du tenant accepte le format SVG et le sert tel quel, avec ses scripts et ses gestionnaires d’événements.',
     goal: 'Exécuter du script dans la session d’un administrateur plateforme qui consulte la fiche du tenant.',
     file: 'server/routes/attachments.ts',
-    lessons: ['m04/l05', 'm08/l10'],
+    lessons: ['m04/l06', 'm08/l05'],
     hints: [
       'POST /api/attachments/logo accepte n’importe quel type, SVG compris, et le sert tel quel.',
       'Un SVG rendu comme document exécute ses `<script>` ; le même SVG dans une balise `<img>`, non.',
@@ -279,7 +279,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le fichier est écrit sur disque et rendu accessible, puis validé et supprimé s’il ne convient pas.',
     goal: 'Télécharger le contenu d’un fichier que la validation a ensuite refusé.',
     file: 'server/routes/attachments.ts',
-    lessons: ['m03/l01', 'm08/l10'],
+    lessons: ['m03/l01', 'm08/l05'],
     hints: [
       'POST /api/attachments répond immédiatement, en annonçant une analyse « en cours ».',
       'L’URL rendue est utilisable tout de suite ; la validation, elle, arrive quelques centaines de millisecondes plus tard.',
@@ -295,7 +295,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Les pièces jointes sont stockées et servies depuis la même origine que l’application, avec le `Content-Type` annoncé par le client.',
     goal: 'Faire servir un fichier qui s’exécute dans l’origine de l’application.',
     file: 'server/routes/attachments.ts',
-    lessons: ['m08/l10', 'm04/l06'],
+    lessons: ['m08/l05', 'm04/l07'],
     hints: [
       'Le pipeline de téléversement ne regarde ni le contenu ni l’extension avant de servir.',
       'Le `Content-Type` servi est exactement celui que le client a annoncé, sans confrontation avec le fichier.',
@@ -325,7 +325,7 @@ export const billing: ExerciseDef[] = [
     brief: 'L’export comptable produit un PDF en appelant un binaire externe, avec un nom de fichier construit à partir du client.',
     goal: 'Faire exécuter une commande arbitraire par le serveur via le nom de l’export.',
     file: 'server/routes/export.ts',
-    lessons: ['m02/l04', 'm02/l08'],
+    lessons: ['m02/l03', 'm02/l09'],
     hints: [
       'La réponse te rend la commande exacte que le serveur a lancée. Lis comment elle est assemblée.',
       'Le nom du document est placé entre guillemets doubles — un shell y interprète encore la substitution de commande.',
@@ -340,7 +340,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le nom du client est écrit tel quel dans la cellule du CSV comptable, sans neutralisation.',
     goal: 'Obtenir un export dont une cellule commence par un caractère de formule, depuis un champ saisi dans l’application.',
     file: 'server/routes/export.ts',
-    lessons: ['m02/l02', 'm07/l05'],
+    lessons: ['m02/l01', 'm07/l03'],
     hints: [
       'L’export CSV recopie les champs texte de la facture sans rien leur faire.',
       'Une cellule qui commence par `=`, `+`, `-` ou `@` n’est plus une donnée pour le tableur qui l’ouvre.',
@@ -355,7 +355,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le PDF de facture est rendu depuis du HTML dont le tenant contrôle un bloc, et le moteur de rendu accepte les schémas locaux et les cadres.',
     goal: 'Faire apparaître dans le PDF produit le contenu d’un fichier local du serveur.',
     file: 'server/routes/export.ts',
-    lessons: ['m03/l11', 'm08/l10'],
+    lessons: ['m03/l11', 'm08/l05'],
     hints: [
       'Le bloc d’en-tête du PDF est du HTML que tu fournis, et le moteur de rendu le suit.',
       'Un moteur de rendu est un navigateur : il va chercher les `src` des `<img>` et des `<iframe>`, quel que soit le schéma.',
@@ -370,7 +370,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Les paramètres de requête sont étalés dans les options de rendu de la vue, ce qui laisse le client injecter une option de compilation du moteur.',
     goal: 'Obtenir une exécution de code serveur sans jamais toucher au contenu du gabarit.',
     file: 'server/routes/export.ts',
-    lessons: ['m03/l08', 'm02/l02'],
+    lessons: ['m03/l08', 'm02/l01'],
     hints: [
       'Le gabarit est en dur, le client n’y touche jamais. Regarde plutôt d’où viennent les options passées au moteur.',
       'Les valeurs d’`outputFunctionName` et d’`escape` sont recopiées verbatim dans la source compilée.',
@@ -385,7 +385,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Aucune limite d’expansion ni de profondeur sur le parseur XML : un document de quelques kilo-octets en produit des gigaoctets.',
     goal: 'Faire dépasser au parseur le budget mémoire et temps que le serveur mesure sur la requête d’import.',
     file: 'server/routes/import.ts',
-    lessons: ['m02/l02', 'm13/l05'],
+    lessons: ['m02/l01', 'm13/l05'],
     hints: [
       'Le même parseur n’a aucune limite d’expansion — et le serveur, lui, mesure ce qu’il produit.',
       'Une entité qui en référence dix, sur plusieurs niveaux, multiplie la taille par dix à chaque niveau.',
@@ -401,7 +401,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le parseur XML des factures entrantes (format Factur-X) a les entités externes et le DOCTYPE activés.',
     goal: 'Faire apparaître le contenu d’un fichier local du serveur dans un champ de la facture créée.',
     file: 'server/routes/import.ts',
-    lessons: ['m02/l02', 'm03/l07'],
+    lessons: ['m02/l01', 'm03/l07'],
     hints: [
       'L’import Factur-X attend un document XML brut (Content-Type: application/xml).',
       'Le DOCTYPE est accepté, et les entités déclarées SYSTEM sont résolues par le parseur.',
@@ -417,7 +417,7 @@ export const billing: ExerciseDef[] = [
     brief: 'L’archive d’import est extraite en concaténant le nom de chaque entrée au dossier cible, sans normaliser ni vérifier le résultat.',
     goal: 'Faire écrire par le serveur un fichier hors du dossier d’import, et écraser la configuration d’un autre tenant.',
     file: 'server/routes/import.ts',
-    lessons: ['m02/l04', 'm08/l10'],
+    lessons: ['m02/l03', 'm08/l05'],
     hints: [
       'L’import d’archive écrit chaque entrée dans le dossier du tenant, sous le nom que porte l’entrée.',
       '`path.join` résout les `..` : le chemin final peut sortir du dossier, et rien ne le vérifie après coup.',
@@ -432,7 +432,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le schéma valide le corps brut par une passe textuelle, puis l’analyseur JSON retient la dernière occurrence de chaque clé.',
     goal: 'Créer une ligne de facture dont le montant stocké est précisément celui que le schéma venait de refuser.',
     file: 'server/lib/validate.ts',
-    lessons: ['m02/l02', 'm03/l07'],
+    lessons: ['m02/l01', 'm03/l07'],
     hints: [
       'POST /api/import/invoice-json prend le document en text/plain, et le schéma le regarde avant JSON.parse.',
       'La passe de schéma s’arrête à la première occurrence d’une clé ; JSON.parse, lui, retient la dernière.',
@@ -464,7 +464,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le gabarit d’e-mail éditable par le tenant est compilé par le moteur de template : l’entrée arrive dans la partie *gabarit*, pas dans les données.',
     goal: 'Faire apparaître dans le message rendu une valeur du processus serveur — le secret de signature des jetons.',
     file: 'server/routes/templates.ts',
-    lessons: ['m03/l08', 'm08/l09'],
+    lessons: ['m03/l08', 'm08/l06'],
     hints: [
       'PUT /api/templates/TPL-1 laisse réécrire le gabarit de relance, et l’aperçu le compile.',
       'Ce que tu écris entre `{{` et `}}` n’est pas une donnée du rendu : c’est une expression du programme qui rend.',
@@ -479,7 +479,7 @@ export const billing: ExerciseDef[] = [
     brief: 'La recherche de clients relaie la requête vers une API interne en concaténant les paramètres reçus.',
     goal: 'Injecter un paramètre supplémentaire dans l’appel interne pour obtenir des champs non prévus.',
     file: 'server/routes/clients.ts',
-    lessons: ['m03/l03', 'm08/l09'],
+    lessons: ['m03/l03', 'm08/l06'],
     hints: [
       'GET /api/clients relaie ta recherche vers un service interne — et la réponse te montre la requête sortante.',
       'Elle est construite par concaténation : un `&` dans ton terme de recherche y devient un séparateur de paramètres.',

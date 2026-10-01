@@ -19,7 +19,7 @@ export const questions = [
       "Elle calcule la liste des sinks atteignables depuis les routes exposées de l'application",
     ],
     answer: 1,
-    explain: "La confusion la plus fréquente est avec le marquage à l'exécution, à la manière d'un RASP : Semgrep n'exécute rien, il raisonne sur le code au repos. Et il ne signale pas tout sink non littéral — ce serait une règle purement syntaxique, et le bruit la rendrait inutilisable. Sources, sinks, sanitizers : c'est le modèle de la revue manuelle de M12, rendu automatique.",
+    explain: "La confusion la plus fréquente est avec le marquage à l'exécution, à la manière d'un RASP : Semgrep n'exécute rien, il raisonne sur le code au repos. Et il ne signale pas tout sink non littéral — ce serait une règle purement syntaxique, et le bruit la rendrait inutilisable. Sources, sinks, sanitizers : c'est le modèle de la revue manuelle de M16, rendu automatique.",
   },
   {
     q: "Ta règle de taint sur db.raw signale aussi `db.raw('… WHERE id = $1', [req.params.id])`, où la valeur est passée en paramètre lié. Comment corriger la règle ?",
@@ -156,7 +156,7 @@ rules:
 Le filtre sur `$PATH` (une chaîne qui commence par `/`) et l'exigence d'un second argument évitent de signaler `cache.get(key)` ou `req.get('x-request-id')`. C'est typiquement le genre d'ajustement que les tests `ok:` révèlent dès la première exécution.
 
 <Callout kind="warn">
-Connais les limites de ce que tu écris. La **Community Edition** de Semgrep suit le taint à l'intérieur d'une fonction : si `req.query.sort` est passé à un helper `buildOrderBy(sort)` défini dans un autre fichier, qui appelle `db.raw`, la règle ne voit pas le flux. Deux parades : déclarer aussi les helpers intermédiaires comme sinks, ou confier ces flux à un moteur inter-fichiers (Semgrep Pro, CodeQL). Et aucun motif ne résiste à tout : un alias (`const run = db.raw`) ou un appel dynamique échappe à la règle. La revue (M12) garde sa place.
+Connais les limites de ce que tu écris. La **Community Edition** de Semgrep suit le taint à l'intérieur d'une fonction : si `req.query.sort` est passé à un helper `buildOrderBy(sort)` défini dans un autre fichier, qui appelle `db.raw`, la règle ne voit pas le flux. Deux parades : déclarer aussi les helpers intermédiaires comme sinks, ou confier ces flux à un moteur inter-fichiers (Semgrep Pro, CodeQL). Et aucun motif ne résiste à tout : un alias (`const run = db.raw`) ou un appel dynamique échappe à la règle. La revue (M16) garde sa place.
 </Callout>
 
 ## CodeQL : models as data
@@ -182,7 +182,7 @@ extensions:
 
 </Code>
 
-Le second modèle est aussi utile que le premier : il déclare que les messages de file sont des **entrées non fiables**, ce que M12 (leçon 5) recommande pour les workers. Le dossier devient un *model pack* avec un fichier `codeql-pack.yml` qui déclare `library: true`, la cible `codeql/javascript-all` dans `extensionTargets`, et le chemin des fichiers dans `dataExtensions`. Vérifie dans la documentation de GitHub quels langages le default setup charge automatiquement : en septembre 2026, cette détection automatique (en préversion) ne liste pas JavaScript, et Novafact passe donc par l'advanced setup ou la CLI (option `--model-packs`).
+Le second modèle est aussi utile que le premier : il déclare que les messages de file sont des **entrées non fiables**, ce que M16 (leçon 5) recommande pour les workers. Le dossier devient un *model pack* avec un fichier `codeql-pack.yml` qui déclare `library: true`, la cible `codeql/javascript-all` dans `extensionTargets`, et le chemin des fichiers dans `dataExtensions`. Vérifie dans la documentation de GitHub quels langages le default setup charge automatiquement : en septembre 2026, cette détection automatique (en préversion) ne liste pas JavaScript, et Novafact passe donc par l'advanced setup ou la CLI (option `--model-packs`).
 
 ## Semgrep ou CodeQL pour ta règle ?
 
@@ -198,12 +198,12 @@ Les deux outils se recouvrent, mais ne se remplacent pas. Le choix dépend de la
 
 Chez Novafact, la règle par défaut est simple : Semgrep pour tout ce qui s'exprime comme un motif ou une absence de motif, models as data pour apprendre les abstractions maison à CodeQL, et une vraie requête CodeQL seulement quand un flux complexe le justifie.
 
-Un jeu de règles vieillit comme du code. Mesure pour chacune le nombre de résultats et la part de faux positifs, et retire celles qui ne se déclenchent plus depuis que la classe a été éliminée par un contrôle de classe (M2) : elles ralentissent l'analyse sans rien protéger, sauf si tu les gardes volontairement comme garde-fou contre un retour en arrière.
+Un jeu de règles vieillit comme du code. Mesure pour chacune le nombre de résultats et la part de faux positifs, et retire celles qui ne se déclenchent plus depuis que la classe a été éliminée par un contrôle de classe (M7) : elles ralentissent l'analyse sans rien protéger, sauf si tu les gardes volontairement comme garde-fou contre un retour en arrière.
 
 ## La variant analysis au quotidien
 
 <Steps items={[
-  { title: "Un finding arrive", text: "Pentest, bug bounty, revue, incident, lecture d'un correctif de CVE (M12, leçon 4)." },
+  { title: "Un finding arrive", text: "Pentest, bug bounty, revue, incident, lecture d'un correctif de CVE (M16, leçon 4)." },
   { title: "On écrit la règle", text: "Elle doit détecter le cas d'origine : c'est son premier test ruleid. Les formes sûres voisines deviennent des tests ok." },
   { title: "On la lance sur tout le code", text: "Elle trouve souvent deux ou trois variantes. On trie, et on ajuste la règle sur les faux positifs." },
   { title: "On corrige et on garde la règle", text: "En informatif le temps de résorber l'existant, puis en bloquant : la classe est désormais surveillée." },

@@ -46,7 +46,7 @@ export const questions = [
 ];
 
 <YouKnow>
-Tu connais le SAST sur le code applicatif (M13). Les scanners IaC appliquent la même idée à l'infrastructure : des règles qui repèrent les configurations dangereuses dans Terraform, CloudFormation ou le CDK avant le déploiement. Les mêmes problèmes aussi : bruit, faux positifs, et une adoption qui dépend de là où on les place.
+Tu connais le SAST sur le code applicatif (M17). Les scanners IaC appliquent la même idée à l'infrastructure : des règles qui repèrent les configurations dangereuses dans Terraform, CloudFormation ou le CDK avant le déploiement. Les mêmes problèmes aussi : bruit, faux positifs, et une adoption qui dépend de là où on les place.
 </YouKnow>
 
 ## Le paysage
@@ -192,7 +192,7 @@ Le premier scan d'un dépôt existant produit des centaines de findings. Trois l
 | **Règles bloquantes courtes** | Cinq à quinze règles choisies (exposition publique, chiffrement des données clients, IAM) | Chaque blocage est compris et rare |
 | **Suppressions justifiées en ligne** | `#checkov:skip=CKV_AWS_18:Bucket de logs, pas de journalisation de lui-même` dans la ressource concernée | L'exception vit à côté du code, visible en revue |
 
-La dette mise en baseline ne disparaît pas : elle devient un backlog suivi, avec un propriétaire par composant et un objectif trimestriel, dans le même outil que les findings applicatifs (M13).
+La dette mise en baseline ne disparaît pas : elle devient un backlog suivi, avec un propriétaire par composant et un objectif trimestriel, dans le même outil que les findings applicatifs (M17).
 
 <Callout kind="warn">
 Une suppression sans justification, ou copiée d'un autre fichier, est une porte ouverte. Fais échouer la CI si une suppression Checkov n'a pas de texte après l'identifiant, et relis les suppressions dans les PR avec la même attention que le code.

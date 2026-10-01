@@ -41,7 +41,7 @@ export const questions = [
       "Parce que la bascule est trop rapide : la régression est déjà à 100 % quand l'alarme sort",
     ],
     answer: 0,
-    explain: "Le canary protège contre ce qui se voit dans les métriques : pannes, taux d'erreur, latence. Une BOLA renvoie la mauvaise facture avec un code 200 et un temps de réponse normal — rien ne bouge, quel que soit le pourcentage de trafic envoyé au canary. L'argument du volume est séduisant et rate le point : même à 100 % du trafic, la métrique resterait plate. Ce sont les tests d'autorisation (M13) qui attrapent cela. Des signaux de sécurité (403 anormaux, alertes WAF, rapports CSP) aident à instrumenter un canary, sans jamais remplacer ces tests.",
+    explain: "Le canary protège contre ce qui se voit dans les métriques : pannes, taux d'erreur, latence. Une BOLA renvoie la mauvaise facture avec un code 200 et un temps de réponse normal — rien ne bouge, quel que soit le pourcentage de trafic envoyé au canary. L'argument du volume est séduisant et rate le point : même à 100 % du trafic, la métrique resterait plate. Ce sont les tests d'autorisation (M17) qui attrapent cela. Des signaux de sécurité (403 anormaux, alertes WAF, rapports CSP) aident à instrumenter un canary, sans jamais remplacer ces tests.",
   },
 ];
 
@@ -183,7 +183,7 @@ export function assertPermissionModel(): void {
 
 </Code>
 
-Les limites sont documentées, et il faut les connaître avant de s'y fier. La documentation parle d'une **ceinture de sécurité**, pas d'un bac à sable : le modèle fait confiance au code qu'il exécute et vise à empêcher les accès involontaires. Les liens symboliques sont suivis même hors des chemins autorisés, les descripteurs de fichiers déjà ouverts échappent au contrôle, et certaines options (`--env-file`) s'appliquent avant son initialisation. Enfin, sur Node 24, le **réseau n'est pas couvert** : `--allow-net` n'existe qu'à partir de Node 25, en développement actif. Le filtrage des sorties reste l'affaire des groupes de sécurité et du proxy de sortie (M3).
+Les limites sont documentées, et il faut les connaître avant de s'y fier. La documentation parle d'une **ceinture de sécurité**, pas d'un bac à sable : le modèle fait confiance au code qu'il exécute et vise à empêcher les accès involontaires. Les liens symboliques sont suivis même hors des chemins autorisés, les descripteurs de fichiers déjà ouverts échappent au contrôle, et certaines options (`--env-file`) s'appliquent avant son initialisation. Enfin, sur Node 24, le **réseau n'est pas couvert** : `--allow-net` n'existe qu'à partir de Node 25, en développement actif. Le filtrage des sorties reste l'affaire des groupes de sécurité et du proxy de sortie (M9).
 
 ## Détecter à l'exécution : Falco et GuardDuty
 
@@ -207,7 +207,7 @@ Les contrôles précédents préviennent ; il faut aussi **voir**. **Falco** obs
 
 </Code>
 
-Falco a besoin d'accéder au noyau de l'hôte : il se déploie en DaemonSet sur les nœuds EC2 d'EKS, et ses alertes rejoignent Elastic (par exemple via Falcosidekick). Sur Fargate, il n'y a pas d'accès au noyau ; **GuardDuty Runtime Monitoring** y déploie un agent géré en conteneur annexe de chaque tâche, sans modifier les définitions, mais seulement pour les tâches lancées après son activation. Les deux sources alimentent les détections de M18.
+Falco a besoin d'accéder au noyau de l'hôte : il se déploie en DaemonSet sur les nœuds EC2 d'EKS, et ses alertes rejoignent Elastic (par exemple via Falcosidekick). Sur Fargate, il n'y a pas d'accès au noyau ; **GuardDuty Runtime Monitoring** y déploie un agent géré en conteneur annexe de chaque tâche, sans modifier les définitions, mais seulement pour les tâches lancées après son activation. Les deux sources alimentent les détections de M24.
 
 ## Tourner les secrets sans coupure
 
@@ -243,7 +243,7 @@ export async function verifyPspSignature(rawBody: Buffer, signatureHex: string):
 Le cache de la leçon 1 (cinq minutes) fixe la durée minimale de la fenêtre : le champ `previous` doit rester valide plus longtemps que le cache le plus long de la flotte.
 
 <Callout kind="novafact">
-Runbook J+0 retenu après l'exercice React2Shell (scénario fictif) : à H+1, règles gérées vérifiées en version 1.24 ou plus et règle de traitement des corps volumineux activée sur les routes Server Actions ; à H+2, kill switch des fonctionnalités non essentielles du back-office ; à H+6, correctif déployé en canary à 10 % avec alarmes WAF et 5xx ; à H+8, bascule complète, chasse aux IOC dans Elastic (M18), rotation des secrets accessibles au processus Next.js ; à J+3, virtual patch retiré et post-mortem.
+Runbook J+0 retenu après l'exercice React2Shell (scénario fictif) : à H+1, règles gérées vérifiées en version 1.24 ou plus et règle de traitement des corps volumineux activée sur les routes Server Actions ; à H+2, kill switch des fonctionnalités non essentielles du back-office ; à H+6, correctif déployé en canary à 10 % avec alarmes WAF et 5xx ; à H+8, bascule complète, chasse aux IOC dans Elastic (M24), rotation des secrets accessibles au processus Next.js ; à J+3, virtual patch retiré et post-mortem.
 </Callout>
 
 <Recap items={[

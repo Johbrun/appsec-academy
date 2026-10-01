@@ -26,3 +26,10 @@ export const writtenLessons = (moduleId: string) =>
   (modules.find((m) => m.id === moduleId)?.lessons ?? []).filter((l) => isWritten(moduleId, l.id)).map((l) => l.id);
 
 export const writtenCount = () => Object.keys(loaders).length;
+
+/**
+ * Modules qui ont au moins une leçon rédigée. Comme une leçon « en rédaction »
+ * ne bloque pas la validation de son module, un module encore vide ne bloque
+ * ni le certificat ni le badge de son bloc : il serait impossible à valider.
+ */
+export const openModules = () => modules.filter((m) => m.lessons.some((l) => isWritten(m.id, l.id)));

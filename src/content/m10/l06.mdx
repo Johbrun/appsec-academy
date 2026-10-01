@@ -41,7 +41,7 @@ export const questions = [
       "Parce que les montants décimaux perdent de la précision au fil des additions",
     ],
     answer: 1,
-    explain: "C'est la race condition de M3 appliquée à un invariant de relation : les deux transactions lisent l'ancienne somme, chacune conclut qu'il reste de la place, et toutes deux écrivent. Le niveau d'isolation est la piste la plus tentante, et elle est incomplète : passer en Serializable ferait bien échouer l'une des deux, au prix de réessais à gérer partout, alors qu'un SELECT … FOR UPDATE sur la facture, dans la transaction, sérialise exactement ce qu'il faut. La vérification et l'écriture doivent être atomiques.",
+    explain: "C'est la race condition de M9 appliquée à un invariant de relation : les deux transactions lisent l'ancienne somme, chacune conclut qu'il reste de la place, et toutes deux écrivent. Le niveau d'isolation est la piste la plus tentante, et elle est incomplète : passer en Serializable ferait bien échouer l'une des deux, au prix de réessais à gérer partout, alors qu'un SELECT … FOR UPDATE sur la facture, dans la transaction, sérialise exactement ce qu'il faut. La vérification et l'écriture doivent être atomiques.",
   },
 ];
 
@@ -55,13 +55,13 @@ Un **invariant métier** est une propriété qui doit **toujours** être vraie, 
 
 | Invariant | Violation typique |
 | --- | --- |
-| Un montant de ligne est positif, et un total égale la somme des lignes plus la TVA | Quantité négative, total envoyé par le client (M2, leçon 3) |
+| Un montant de ligne est positif, et un total égale la somme des lignes plus la TVA | Quantité négative, total envoyé par le client (M7, leçon 2) |
 | Une facture émise ne change plus ; seul un avoir la corrige | Modification après envoi |
-| Le total des avoirs d'une facture ne dépasse pas son montant | Plusieurs avoirs en parallèle (M3, leçon 1) |
+| Le total des avoirs d'une facture ne dépasse pas son montant | Plusieurs avoirs en parallèle (M9, leçon 1) |
 | Un paiement n'est encaissé qu'une fois | Double soumission, webhook livré deux fois |
 | Un remboursement suit un paiement réel | Remboursement d'une facture impayée |
 
-Ces invariants s'écrivent **dans le design doc** (M8) et deviennent des exigences et des tests (M7). Les classer aide à choisir où les garantir : un invariant de **valeur** (montant positif) se vérifie sur une ligne ; un invariant d'**état** (émise, donc figée) sur une transition ; un invariant de **relation** (somme des avoirs) implique plusieurs lignes et donc la concurrence ; un invariant d'**unicité** (un seul encaissement) se confie à un index unique.
+Ces invariants s'écrivent **dans le design doc** (M13) et deviennent des exigences et des tests (M12). Les classer aide à choisir où les garantir : un invariant de **valeur** (montant positif) se vérifie sur une ligne ; un invariant d'**état** (émise, donc figée) sur une transition ; un invariant de **relation** (somme des avoirs) implique plusieurs lignes et donc la concurrence ; un invariant d'**unicité** (un seul encaissement) se confie à un index unique.
 
 ### L'arithmétique d'abord
 
@@ -130,7 +130,7 @@ if (count === 0) throw new BusinessRuleError('Facture introuvable ou déjà trai
 
 </Diff>
 
-La version de droite est atomique : si deux requêtes arrivent en même temps, une seule trouve la facture à l'état `issued`, l'autre obtient `count === 0`. C'est le même motif que les coupons de M3.
+La version de droite est atomique : si deux requêtes arrivent en même temps, une seule trouve la facture à l'état `issued`, l'autre obtient `count === 0`. C'est le même motif que les coupons de M9.
 
 ## Descendre l'invariant dans la base
 

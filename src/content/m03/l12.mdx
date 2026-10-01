@@ -89,7 +89,7 @@ export const sanitizeNote = (dirty: string) => DOMPurify.sanitize(dirty, {
 | Dangling markup | Exfiltre du contenu sans script, via une balise non fermée | Échappement correct à la source, `img-src` et `form-action` restreints |
 | Plugins | Exécution hors du modèle de scripts | `object-src 'none'` |
 
-Une CSP stricte ne protège pas contre ce qui ne passe pas par un script : le dangling markup, le CSS injecté ou le DOM clobbering qui détourne la logique d'un script autorisé. C'est pourquoi elle se combine avec **Trusted Types** (`require-trusted-types-for 'script'`), qui ferme les sinks DOM côté code. Le module 4 construit cette CSP stricte pas à pas, avec Trusted Types.
+Une CSP stricte ne protège pas contre ce qui ne passe pas par un script : le dangling markup, le CSS injecté ou le DOM clobbering qui détourne la logique d'un script autorisé. C'est pourquoi elle se combine avec **Trusted Types** (`require-trusted-types-for 'script'`), qui ferme les sinks DOM côté code. Le module 8 construit cette CSP stricte pas à pas, avec Trusted Types.
 
 ## XS-Leaks
 

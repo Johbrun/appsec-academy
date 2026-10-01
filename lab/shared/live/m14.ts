@@ -1,4 +1,4 @@
-// M14 · Pipeline, supply chain & fournisseurs — challenges jouables.
+// m14 · Pipeline, supply chain & fournisseurs — challenges jouables.
 //
 // Challenges « fix » : le défaut vit dans le dépôt fixture `novafact/`, pas
 // dans une requête. On l'audite, on corrige le fichier, et on relance l'audit
@@ -43,7 +43,7 @@ export const m14: ExerciseDef[] = [
     brief: 'Un workflow `pull_request_target` fait un checkout du commit de la pull request puis lance le build — donc exécute du code de fork avec les secrets du dépôt.',
     goal: 'Faire en sorte qu’aucun code non revu ne s’exécute dans un contexte qui a les secrets.',
     file: 'novafact/.github/workflows/pr-check.yml',
-    lessons: ['m14/l02', 'm14/l07'],
+    lessons: ['m14/l02', 'm14/l08'],
     hints: [
       '`pull_request_target` s’exécute dans le contexte de la base, avec ses secrets.',
       'Le checkout du commit de la PR ramène le code de l’attaquant dans ce contexte.',
@@ -57,7 +57,7 @@ export const m14: ExerciseDef[] = [
     brief: 'Les actions tierces sont référencées par étiquette mobile, que leur mainteneur peut repointer à tout moment.',
     goal: 'Épingler chaque action tierce à un SHA de commit de 40 caractères.',
     file: 'novafact/.github/workflows/ci.yml',
-    lessons: ['m14/l02', 'm14/l09'],
+    lessons: ['m14/l02', 'm14/l10'],
     hints: [
       'Une étiquette comme `@v4` est un alias : elle bouge.',
       'Toutes les actions de tous les workflows sont concernées, pas seulement celles de la CI.',
@@ -99,7 +99,7 @@ export const m14: ExerciseDef[] = [
     brief: 'Une étape de CI télécharge un script et l’exécute directement, sans contrôle d’empreinte.',
     goal: 'Supprimer l’exécution directe d’un script téléchargé à la volée.',
     file: 'novafact/.github/workflows/ci.yml',
-    lessons: ['m14/l04', 'm14/l07'],
+    lessons: ['m14/l04', 'm14/l08'],
     hints: [
       'Cherche un tube entre un téléchargement et un interpréteur.',
       'Ce script est une dépendance que personne ne relit ni ne versionne.',
@@ -127,7 +127,7 @@ export const m14: ExerciseDef[] = [
     brief: 'Un job appelle un workflow réutilisable en lui transmettant tous les secrets du dépôt, alors qu’il n’en utilise qu’un.',
     goal: 'Ne transmettre nommément que le secret nécessaire.',
     file: 'novafact/.github/workflows/release.yml',
-    lessons: ['m14/l02', 'm14/l08'],
+    lessons: ['m14/l02', 'm14/l09'],
     hints: [
       'Le mot-clé qui transmet tout tient en un mot.',
       'Avec lui, le périmètre des secrets n’est plus lisible dans le fichier appelant.',
@@ -141,7 +141,7 @@ export const m14: ExerciseDef[] = [
     brief: 'La clé du cache contient une valeur contrôlée par l’auteur d’une PR, et ce cache est restauré par le workflow qui publie le SDK.',
     goal: 'Faire qu’aucun job de publication ne restaure un cache dont la clé dépend d’une entrée contrôlable.',
     file: 'novafact/.github/workflows/release.yml',
-    lessons: ['m14/l02', 'm14/l07'],
+    lessons: ['m14/l02', 'm14/l08'],
     hints: [
       'Le cache est un canal d’écriture entre workflows de privilèges différents.',
       'Regarde d’où vient la valeur qui compose la clé.',
@@ -155,7 +155,7 @@ export const m14: ExerciseDef[] = [
     brief: 'Le job de release publie le SDK avec un jeton de longue durée, sans provenance ni publication de confiance.',
     goal: 'Publier par OIDC avec attestation de provenance, et supprimer le jeton de longue durée.',
     file: 'novafact/.github/workflows/release.yml',
-    lessons: ['m14/l09', 'm14/l05'],
+    lessons: ['m14/l10', 'm14/l05'],
     hints: [
       'Trois choses manquent : une permission, un drapeau, et un secret à retirer.',
       'La publication de confiance s’appuie sur un jeton OIDC de courte durée.',
@@ -267,7 +267,7 @@ export const m14: ExerciseDef[] = [
     brief: 'Le `package.json` ne déclare pas ce qui doit être publié : tests, scripts et fichiers de configuration partent dans le tarball.',
     goal: 'Restreindre le contenu publié aux seuls artefacts de distribution.',
     file: 'novafact/package.json',
-    lessons: ['m14/l09', 'm14/l05'],
+    lessons: ['m14/l10', 'm14/l05'],
     hints: [
       'Un champ de `package.json` sert de liste blanche pour la publication.',
       'Sans lui, npm publie presque tout ce qui traîne.',
@@ -281,7 +281,7 @@ export const m14: ExerciseDef[] = [
     brief: 'Un paquet vendorisé livre un build « minifié » qui ne correspond pas à ses sources : une ligne s’y est ajoutée.',
     goal: 'Repérer l’écart entre le build livré et les sources, et rétablir un artefact fidèle.',
     file: 'novafact/vendor/novafact-parser/build/index.min.js',
-    lessons: ['m14/l07', 'm14/l10'],
+    lessons: ['m14/l08', 'm14/l11'],
     hints: [
       'Compare ce que font les deux fichiers du paquet, pas seulement leur taille.',
       'Le build appelle quelque chose que les sources n’appellent pas.',

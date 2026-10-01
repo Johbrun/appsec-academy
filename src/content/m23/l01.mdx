@@ -1,0 +1,164 @@
+export const questions = [
+  {
+    q: "Dans le vocabulaire de Team Topologies, quel type d'équipe correspond le mieux à une équipe AppSec qui fait monter les autres en compétence ?",
+    options: [
+      "Complicated-subsystem team : l'expertise sécurité est un sous-système à part",
+      "Enabling team : elle transmet une capacité, puis se retire",
+      "Platform team : elle fournit tous ses services en libre-service",
+      "Stream-aligned team : elle livre de la valeur de bout en bout",
+    ],
+    answer: 1,
+    explain: "Une enabling team aide une équipe à acquérir une capacité, pour une durée limitée, puis se retire : c'est exactement « faire monter en compétence ». Le mode plateforme existe bien dans une AppSec — scanners configurés, templates, paved road — mais il fournit un service consommé sans interaction, pas un apprentissage. Et traiter la sécurité en complicated-subsystem la sort des équipes : l'expertise reste chez le spécialiste, soit l'inverse du but.",
+  },
+  {
+    q: "Quel signe montre qu'une équipe AppSec est devenue un goulot d'étranglement ?",
+    options: [
+      "Les équipes produit la sollicitent sur des questions de conception",
+      "Le backlog de findings à trier grandit plus vite qu'il ne se vide",
+      "Elle publie des règles SAST que les équipes n'avaient pas demandées",
+      "Les mises en production attendent son feu vert, et les équipes contournent",
+    ],
+    answer: 3,
+    explain: "Le signal n'est pas la charge de l'AppSec, c'est sa position sur le chemin critique des autres : une validation manuelle systématique crée une file d'attente, et les équipes apprennent à découper leurs livraisons pour passer dessous. Un backlog de triage qui gonfle est un problème de capacité, réel mais interne. Être sollicitée en conception est au contraire le signe que la posture a changé : on vient avant, plus après.",
+  },
+  {
+    q: "L'AppSec a aidé l'équipe Facturation à faire ses premiers threat models pendant un trimestre. Que devrait-il se passer ensuite selon le modèle de l'enabling team ?",
+    options: [
+      "L'équipe pratique seule ; l'AppSec se retire et passe à une autre capacité",
+      "L'équipe soumet ses threat models à l'AppSec, qui les valide avant conception",
+      "L'AppSec continue d'animer, pour garantir une qualité homogène entre équipes",
+      "L'équipe recrute un ingénieur sécurité qui reprend l'animation en interne",
+    ],
+    answer: 0,
+    explain: "La facilitation est bornée dans le temps : son succès se mesure au fait que l'équipe n'en a plus besoin. Continuer à animer, même au nom de l'homogénéité, recrée la dépendance qu'on voulait lever — et l'homogénéité s'obtient par un modèle partagé et des relectures ponctuelles, pas par une présence permanente. Valider chaque threat model ferait de l'AppSec une porte, exactement ce que l'enabling team évite ; et un spécialiste par équipe ne passe pas à l'échelle.",
+  },
+  {
+    q: "Pourquoi la charge cognitive des équipes produit est-elle un argument central pour le paved road et les outils en libre-service ?",
+    options: [
+      "Parce qu'un outil en libre-service coûte moins cher qu'une formation",
+      "Parce que la sécurité doit rester invisible pour les équipes produit",
+      "Parce qu'une équipe déjà chargée ne peut pas absorber toute l'expertise",
+      "Parce que des défauts sûrs suppriment le besoin de revue de sécurité",
+    ],
+    answer: 2,
+    explain: "Team Topologies en fait le point central : une équipe qui doit maîtriser son domaine métier, son infrastructure, son observabilité et, en plus, toute la sécurité applicative décide moins bien. Le paved road ne rend pas la sécurité invisible — les équipes savent ce qu'elles utilisent et pourquoi —, il réduit ce qu'elles doivent maîtriser pour être sûres. Et il ne supprime pas la revue : il la concentre sur ce qui sort du chemin.",
+  },
+];
+
+<YouKnow>
+En mission, tu arrives, tu trouves, tu repars. Le rapport est ton livrable, et la relation avec l'équipe dure quelques semaines. En AppSec, tu restes : la relation devient l'outil principal.
+</YouKnow>
+
+## De l'auditeur au partenaire
+
+Le pentesteur est jugé sur ce qu'il trouve ; l'ingénieur AppSec est jugé sur ce qui **n'arrive plus en production** (M31). Ce changement modifie la posture :
+
+| Posture d'auditeur | Posture de partenaire |
+| --- | --- |
+| Rapport à la fin | Retour continu, dans les outils de l'équipe |
+| « Voici vos vulnérabilités » | « Voici comment on évite cette classe de bugs » |
+| Liste de findings | Correctif proposé, règle, test, paved road |
+| Valider ou refuser une mise en production | Outiller pour que l'équipe décide seule, en connaissance de cause |
+| Expert qui garde le savoir | Expert qui le transmet et se rend moins indispensable |
+
+Ce basculement a une conséquence concrète sur ta façon de mesurer ton travail. En mission, une semaine où tu trouves dix vulnérabilités est une bonne semaine. En AppSec, une semaine où l'équipe Facturation trouve elle-même une BOLA en revue de code, grâce à une règle que tu as écrite trois mois plus tôt, est une meilleure semaine, même si ton nom n'apparaît nulle part.
+
+## Ce qui change quand on passe du rapport au backlog
+
+Un rapport de pentest est un **document fermé** : il décrit un état à une date, et sa vie s'arrête à la restitution. Un backlog d'équipe produit est un **flux** : chaque ticket entre en concurrence avec des fonctionnalités, des bugs clients et de la dette technique, et il est priorisé par quelqu'un qui n'est pas toi.
+
+Trois conséquences pratiques :
+
+- **l'unité de travail change** : ce n'est plus « le rapport », c'est le ticket, la PR, la règle. Chacun doit être autoporteur (leçon suivante) ;
+- **le rythme change** : l'équipe planifie par sprint ou par flux continu. Un finding qui arrive au milieu d'un sprint sans avoir été annoncé sera traité au suivant, sauf s'il relève d'un délai court de la grille de priorisation (M26) ;
+- **la propriété change** : l'équipe possède son code et ses priorités. Tu influences, tu ne commandes pas. Les seules décisions que tu prends seul sont celles qui ont été déléguées explicitement à l'AppSec (par exemple, les conditions bloquantes de la CI décidées avec la direction, M31, leçon 3).
+
+## L'AppSec comme enabling team
+
+Le livre *Team Topologies* (Skelton et Pais) décrit quatre types d'équipes. Les équipes produit sont des **stream-aligned teams** : elles livrent de la valeur de bout en bout. Une équipe AppSec efficace se comporte comme une **enabling team** : elle aide ces équipes à acquérir une capacité (threat modeling, revue de sécurité, règles de détection) par une interaction de facilitation limitée dans le temps, puis se retire. Elle fournit aussi des services en libre-service, comme une **platform team** : scanners configurés, templates, paved road.
+
+Team Topologies définit trois **modes d'interaction**, et chaque activité AppSec relève de l'un d'eux. Choisir le bon mode, et savoir en changer, évite beaucoup de frictions :
+
+| Mode | Ce que ça veut dire | Exemple AppSec chez Novafact | Quand en sortir |
+| --- | --- | --- | --- |
+| **Collaboration** | Travailler ensemble, pour une durée définie, afin de découvrir quelque chose | Concevoir avec l'équipe IA l'isolation des outils de l'assistant « Ask Novafact » | Quand la solution est trouvée et documentée |
+| **Facilitation** | Aider et accompagner une équipe pour qu'elle acquière une capacité | Animer les premiers threat models de l'équipe Facturation, puis la laisser faire | Quand l'équipe pratique seule |
+| **X-as-a-Service** | Fournir un service consommé sans interaction | Le workflow CI réutilisable avec Semgrep et SCA, le template de service | Jamais : c'est le mode stable, à améliorer comme un produit |
+
+Le mode **collaboration** est coûteux (deux équipes mobilisées) et doit rester exceptionnel. Le mode **X-as-a-Service** est celui qui passe à l'échelle : une AppSec de trois personnes ne peut pas collaborer avec vingt équipes, mais peut leur fournir un pipeline qui marche.
+
+Le livre insiste aussi sur la **charge cognitive** des équipes : une équipe qui doit maîtriser son domaine métier, son infrastructure, son observabilité et en plus toute la sécurité applicative décide moins bien. L'argument le plus solide pour le paved road n'est pas « c'est plus sûr », c'est « tu as moins de choses à savoir pour être sûr ».
+
+Ce qu'elle évite : devenir une **porte** par laquelle tout doit passer. Kohnfelder le résume en appelant chaque développeur à **assumer sa part de responsabilité** (K4, *Accept Security Responsibility*) : la sécurité ne peut pas être « le travail de quelqu'un d'autre ».
+
+<Callout kind="debate">
+Faut-il garder une revue sécurité obligatoire avant chaque mise en production majeure ? Pour : certaines fonctionnalités (paiement, authentification, multi-tenant) méritent un regard expert systématique, et la revue rassure les clients qui posent la question. Contre : une revue systématique devient une file d'attente, et les équipes apprennent à découper leurs livraisons pour passer sous le seuil. Un compromis qui tient : des critères de déclenchement courts et publics (nouvelle donnée confidentielle, nouveau flux d'authentification, nouvel appel sortant vers une URL fournie par l'utilisateur), un créneau garanti sous 48 heures, et tout le reste en libre-service.
+</Callout>
+
+## Répartir les responsabilités
+
+Le rôle de partenaire ne veut pas dire que tout est flou. Une répartition écrite, même simple, évite que chacun pense que l'autre s'en occupe :
+
+| Activité | Équipe produit | Security Champion | AppSec |
+| --- | --- | --- | --- |
+| Corriger un finding de son code | Responsable | Aide au triage | Conseille, propose une PR si besoin |
+| Threat model d'une nouvelle fonctionnalité | Responsable | Anime | Forme, intervient sur les cas complexes |
+| Règles SAST et configuration des scanners | Consulte | Donne son avis | Responsable |
+| Accepter un risque résiduel | Propriétaire du risque (PO, puis CTO selon le niveau) | Informé | Instruit et recommande |
+| Réponse à une vulnérabilité critique | Corrige | Relais dans l'équipe | Coordonne |
+
+La colonne du milieu est détaillée dans la leçon 4 ; la dernière ligne dans le module 26.
+
+## Ton avantage de pentester
+
+Ton expérience offensive a une valeur énorme dans ce rôle, à condition de la mettre au service des équipes :
+
+- tu sais distinguer le **réellement exploitable** du théorique, ce qui rend tes priorités crédibles ;
+- tu sais trouver les **variantes** d'un bug, ce qui fait gagner un temps précieux ;
+- tu racontes des **histoires d'attaque** concrètes, bien plus convaincantes qu'un score ;
+- tu sais **tester un correctif** comme un attaquant le ferait, et repérer le correctif partiel qui laisse passer une variante.
+
+Le piège à éviter : garder le réflexe de l'auditeur qui démontre l'erreur de l'autre. Une démonstration qui humilie une équipe coûte des mois de coopération. Kohnfelder, après de nombreuses années de revues de conception, observe que la réputation de « critique jamais satisfait » colle vite aux spécialistes sécurité et empoisonne ensuite chaque échange.
+
+Un autre piège, plus subtil : **le héros**. L'expert qui corrige tout lui-même, tard le soir, devient indispensable et donc un point de défaillance unique. Chaque correctif que tu écris seul est une occasion manquée de transmettre.
+
+## Les premières semaines
+
+<Steps items={[
+  { title: "Écouter", text: "Une heure avec chaque lead d'équipe : ce qu'ils livrent, ce qui les inquiète, ce qui les ralentit. Pas d'audit, pas de scan." },
+  { title: "Cartographier", text: "Les dépôts, les pipelines, les outils de sécurité déjà en place et qui les regarde réellement, les données sensibles et où elles passent." },
+  { title: "Choisir un irritant", text: "Un problème que les équipes vivent déjà comme pénible et que tu peux résoudre vite : c'est ton premier capital de confiance." },
+  { title: "Livrer quelque chose d'utile", text: "Une PR, une configuration, un tri des faux positifs : du concret avant de demander quoi que ce soit." },
+  { title: "Ouvrir un canal", text: "Un canal de discussion et un créneau hebdomadaire de questions ouvertes, avec un délai de réponse annoncé et tenu." },
+]} />
+
+<Callout kind="novafact">
+Premier mois chez Novafact : pas de pentest ni d'audit. Une heure avec chaque lead d'équipe pour comprendre ce qu'ils livrent, ce qui les inquiète et ce qui les ralentit. Les trois irritants les plus cités (faux positifs du SAST, tickets de sécurité incompréhensibles, pentest annuel qui arrive trop tard) deviennent les premiers chantiers. Le premier livrable est une configuration Semgrep réduite aux règles pertinentes pour Express et React : le nombre d'alertes par PR chute, et les équipes recommencent à les lire.
+</Callout>
+
+## Les signes que ça marche
+
+Tu sais que la posture a changé quand :
+
+- les équipes viennent te voir **avant** de concevoir, pas après un incident ;
+- les tickets de sécurité sont fermés par les équipes sans relance ;
+- les exceptions sont demandées ouvertement plutôt que contournées en silence (`// nosemgrep` sans justification) ;
+- les champions proposent des règles ou des améliorations du paved road ;
+- ta charge de travail ne suit pas la croissance du nombre de développeurs.
+
+<Recap items={[
+  "Le pentesteur est jugé sur ce qu'il trouve, l'AppSec sur ce qui n'arrive plus en production.",
+  "Un backlog est un flux priorisé par d'autres : tickets autoporteurs, rythme de l'équipe, propriété de l'équipe.",
+  "L'AppSec comme enabling team (facilitation limitée dans le temps) et comme plateforme (libre-service).",
+  "Trois modes d'interaction : collaboration rare, facilitation temporaire, X-as-a-Service stable.",
+  "Réduire la charge cognitive des équipes est l'argument le plus solide pour le libre-service.",
+  "Éviter de devenir une porte ou un héros : une file d'attente pousse au contournement, un héros ne transmet rien.",
+  "L'expérience offensive est un atout si elle sert les équipes plutôt que de les prendre en défaut.",
+]} />
+
+<Sources items={[
+  { title: "Team Topologies : concepts clés", url: "https://teamtopologies.com/key-concepts" },
+  { title: "OWASP Security Champions Guide", url: "https://securitychampions.owasp.org/" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 4, chapitre 7 et postface" },
+  { title: "OWASP SAMM : Strategy & Metrics", url: "https://owaspsamm.org/model/governance/strategy-and-metrics/" },
+]} />

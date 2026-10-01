@@ -1,67 +1,92 @@
 export const questions = [];
 
 <YouKnow>
-La fonctionnalité de paiement augmente la surface d’abus : plus de comptes, plus de connexions, plus de factures envoyées. Cette étape durcit les contrôles anti-abus de Novafact, avec le module 10.
+Le design et le threat model sont posés. Place au code : cette étape te fait relire une PR de Novafact, transformer un finding en règle et écrire les tests de régression, comme aux modules 16 et 17.
 </YouKnow>
 
-## Étape 6 : contrôles anti-abus
+## Étape 6 : revue de PR, règles et tests
 
-Trois points d’entrée concentrent l’abus sur Novafact : l’**inscription**, la **connexion** et l’**envoi de factures**. Ton livrable : pour chacun, la menace, le contrôle retenu et le compromis assumé entre bloquer l’abus et gêner les clients.
+Un développeur de Novafact ouvre la PR qui implémente le paiement par lien. Ton livrable : une **revue commentée**, une **règle** qui empêche le retour de la classe trouvée, et les **tests de régression** correspondants.
 
-## Inscription
+## Relire la PR
 
-<Steps items={[
-  { title: "Menace", text: "Création de comptes en série pour envoyer de fausses factures depuis l’infrastructure de Novafact (usurpation de marque, atteinte à la réputation d’envoi)." },
-  { title: "Contrôles", text: "Turnstile invisible, vérification de l’adresse e-mail avant le premier envoi, quota d’envoi réduit les premiers jours, détection des domaines jetables." },
-  { title: "Compromis", text: "Chaque friction coûte des inscriptions légitimes. Le quota d’ouverture gêne peu une vraie PME (rarement plus de 30 factures le premier jour) mais casse l’économie du fraudeur." },
-]} />
-
-## Connexion
+Applique la méthode du module 16 : parcours la liste des fichiers, repère les zones sensibles, lis-les en détail. Ici, les points chauds sont prévisibles à partir du threat model :
 
 <Steps items={[
-  { title: "Menace", text: "Credential stuffing (rejeu d’identifiants volés, beaucoup de comptes, une tentative chacun) et attaque ciblée sur les comptes administrateurs." },
-  { title: "Contrôles", text: "Ralentissement progressif par compte, vérification des mots de passe contre une base de fuites, signaux d’AWS WAF ATP, MFA pour les administrateurs de tenant." },
-  { title: "Compromis", text: "Une limite par IP seule punit les réseaux partagés (le cabinet comptable derrière un NAT) sans arrêter un botnet réparti. Les signaux qualitatifs valent mieux que les seuls volumes." },
+  { title: "Le lien signé", text: "Portée, durée de vie, usage unique. Le secret de signature vient-il de l’environnement ? L’algorithme est-il épinglé (M14) ?" },
+  { title: "La page de paiement", text: "Que renvoie l’API à un client non authentifié ? Le strict nécessaire, ou toute la facture avec les coordonnées ?" },
+  { title: "Le webhook", text: "Signature vérifiée avant tout traitement ? Idempotence sur l’identifiant d’événement ? Échec fermé ?" },
+  { title: "La transition d’état", text: "Le passage à « payée » passe-t-il par la machine à états, ou une route écrit-elle directement en base (M15) ?" },
+  { title: "Les dépendances", text: "La PR ajoute-t-elle un paquet ? Existe-t-il, qui le publie, depuis quand (M18) ?" },
 ]} />
 
-## Envoi de factures
+Rédige des commentaires **actionnables** : qualification (bloquant, à corriger, suggestion), explication courte, correction proposée dans les conventions de l’équipe.
 
-<Steps items={[
-  { title: "Menace", text: "Un compte compromis ou frauduleux envoie massivement des factures, ce qui dégrade la réputation du domaine d’envoi et peut viser les clients (fraude au virement)." },
-  { title: "Contrôles", text: "Quotas par tenant et par âge de compte, alerte sur les pics anormaux, journalisation vers Elastic (étape 10), séparation des domaines d’envoi." },
-  { title: "Compromis", text: "Un quota trop bas bloque une grosse PME en fin de mois ; un quota par tenant, ajusté à l’historique, est plus juste qu’un plafond global." },
-]} />
+## Du finding à la règle
 
-## Le tableau de synthèse
+Supposons que la revue trouve une route qui lit la facture par son identifiant sans filtrer par tenant : une BOLA. La corriger ne suffit pas ; il faut empêcher la classe de revenir (M17, variant analysis).
 
-| Point d’entrée | Menace principale | Contrôle retenu | Coût pour les clients |
-| --- | --- | --- | --- |
-| Inscription | Comptes de fraude en série | Turnstile + e-mail vérifié + quota d’ouverture | Faible, sauf inscriptions en masse légitimes (rare) |
-| Connexion | Credential stuffing, ATO admin | Ralentissement par compte + mots de passe fuités + MFA admin | Quasi nul si progressif |
-| Envoi | Spam de factures, fraude | Quotas par tenant + alertes + logs | Faible si calibré sur l’historique |
+<Code file="rules/novafact-invoice-tenant.yml">
 
-<Callout kind="tip">
-C’est exactement l’arbitrage que le jeu **Abuse Desk** fait manipuler : maximiser l’abus bloqué tout en minimisant les clients gênés. La bonne réponse combine des signaux qualitatifs (identifiants fuités, réputation) plutôt que des seuils de volume brutaux.
+```yaml
+rules:
+  - id: novafact-invoice-access-without-tenant
+    languages: [typescript]
+    severity: ERROR
+    message: >
+      Accès à une facture sans filtre de tenant. Passe par invoicesRepo.get(tenantOf(req), id),
+      jamais par findUnique({ where: { id } }). Voir docs/secure-coding/authz.md
+    patterns:
+      - pattern: prisma.invoice.findUnique(...)
+      - pattern-not-inside: invoicesRepo.$_(...)
+```
+
+</Code>
+
+## Les tests de régression
+
+Chaque finding devient un test qui échoue sur le code vulnérable et passe après le correctif (M17). Pour la BOLA :
+
+<Code file="apps/api/test/pay-link.authz.test.ts">
+
+```ts
+it('un lien de paiement d’un tenant ne lit pas la facture d’un autre', async () => {
+  const link = await createPayLink('inv_acme_0001');       // tenant Acme
+  const res = await request(app).get(`/pay/${forgeFor('inv_globex_0001', link)}`);
+  expect(res.status).toBe(404);                              // jamais la facture de Globex
+});
+
+it('un lien de paiement expiré est refusé', async () => {
+  const link = await createPayLink('inv_acme_0001', { ageMinutes: 31 });
+  const res = await request(app).get(`/pay/${link}`);
+  expect(res.status).toBe(410);
+});
+```
+
+</Code>
+
+## Boucler avec la matrice
+
+Reviens à la matrice de l’étape 3 : chaque exigence d’autorisation et d’intégrité doit maintenant pointer vers un **contrôle** (la DAL, la machine à états) et un **test** (ceux que tu viens d’écrire). Les cases vides de la matrice se remplissent ici.
+
+<Callout kind="novafact">
+À la fin de cette étape, Novafact a gagné trois choses durables : une règle Semgrep bloquante de plus dans la CI, deux tests de régression qui resteront, et une entrée dans CODEOWNERS pour que l’AppSec relise les routes de paiement. Le finding ponctuel est devenu une classe surveillée.
 </Callout>
-
-## Relier au reste du dossier
-
-Chaque contrôle de cette étape se rattache à une exigence (étape 1) et alimente une détection (étape 10) : un pic d’échecs de connexion, une explosion d’envois par un compte neuf. L’anti-abus n’est pas qu’un filtre en entrée, c’est aussi un signal pour la détection.
 
 ## Livrable de l’étape
 
-- Pour l’**inscription**, la **connexion** et l’**envoi**, le tableau menace / contrôle / compromis.
-- Les **seuils** retenus pour Novafact, justifiés par l’usage légitime.
-- Les **signaux** que ces contrôles enverront à la détection.
+- La **revue commentée** de la PR (commentaires qualifiés et actionnables).
+- Une ou deux **règles** maison qui verrouillent les classes trouvées.
+- Les **tests de régression** correspondants, reliés à la matrice d’exigences.
 
 <Recap items={[
-  "Trois points d’entrée à durcir : inscription, connexion, envoi de factures.",
-  "Préférer les signaux qualitatifs (identifiants fuités, réputation) aux seuils de volume aveugles.",
-  "Chaque contrôle a un coût pour les clients légitimes : l’assumer et le calibrer sur l’usage réel.",
-  "Les contrôles anti-abus alimentent aussi la détection (étape 10).",
+  "Relire la PR par les zones sensibles issues du threat model : lien signé, page publique, webhook, transition, dépendances.",
+  "Transformer chaque finding en règle qui empêche le retour de la classe (variant analysis).",
+  "Écrire les tests de régression : échec avant correctif, succès après.",
+  "Remplir les colonnes contrôle et test de la matrice d’exigences.",
 ]} />
 
 <Sources items={[
-  { title: "OWASP Automated Threats to Web Applications", url: "https://owasp.org/www-project-automated-threats-to-web-applications/" },
-  { title: "OWASP Credential Stuffing Prevention Cheat Sheet", url: "https://cheatsheetseries.owasp.org/cheatsheets/Credential_Stuffing_Prevention_Cheat_Sheet.html" },
+  { title: "OWASP Code Review Guide", url: "https://owasp.org/www-project-code-review-guide/" },
+  { title: "Semgrep : writing rules", url: "https://semgrep.dev/docs/writing-rules/overview" },
 ]} />

@@ -180,7 +180,7 @@ Les solutions anti-bot collectent souvent une **empreinte** du navigateur ou de 
 
 La règle **ePrivacy** (en France, l'article 82 de la loi Informatique et Libertés) encadre la lecture et l'écriture d'informations sur le terminal, empreinte comprise. Elle exige le consentement, sauf pour ce qui est strictement nécessaire au service. La CNIL range explicitement dans les exemptions les traceurs destinés à l'authentification, y compris ceux qui assurent la sécurité du mécanisme d'authentification, « par exemple en limitant les tentatives d'accès robotisées ou inattendues ». Un signal anti-bot sur la page de connexion peut donc relever de l'exemption ; le même signal réutilisé pour de la mesure d'audience ou du marketing, non.
 
-Le **RGPD**, lui, s'applique dans tous les cas : base légale (l'intérêt légitime de prévention de la fraude est courant), information des utilisateurs, durée de conservation limitée, minimisation, et aucune réutilisation pour une autre finalité. À documenter avec le DPO dans le registre (M7).
+Le **RGPD**, lui, s'applique dans tous les cas : base légale (l'intérêt légitime de prévention de la fraude est courant), information des utilisateurs, durée de conservation limitée, minimisation, et aucune réutilisation pour une autre finalité. À documenter avec le DPO dans le registre (M12).
 
 Toutes les empreintes ne se lisent pas sur le terminal : AWS WAF sait inspecter les empreintes TLS JA3 et JA4 de la connexion, calculées côté serveur. Elles restent des données techniques rattachables à une personne, donc à traiter avec la même prudence.
 

@@ -1,8 +1,8 @@
 // Identité & session — challenges jouables.
 //
 // Un seul fil : tout ce qui permet de devenir quelqu'un d'autre. L'inscription
-// (M2), les courses et les protocoles de jetons (M3), l'aléa des secrets (M8),
-// la fédération OAuth/OIDC/SAML (M9) et l'anti-abus (M10). Ils sont regroupés
+// (M7), les courses et les protocoles de jetons (M9), l'aléa des secrets (M13),
+// la fédération OAuth/OIDC/SAML (M14) et l'anti-abus (M15). Ils sont regroupés
 // ici parce qu'ils partagent leur code — server/routes/auth.ts, server/lib/ et
 // les deux routeurs de fédération — et non parce qu'ils partagent un module.
 //
@@ -12,7 +12,7 @@
 import type { ExerciseDef } from '../exercises.ts';
 
 export const identity: ExerciseDef[] = [
-  // ─── M2 · Vulnérabilités web, écosystème JS ───────────────────────────────
+  // ─── m02 · Vulnérabilités web, écosystème JS ───────────────────────────────
   {
     id: 'regex-unanchored',
     module: 'm02',
@@ -26,7 +26,7 @@ export const identity: ExerciseDef[] = [
       'La liste blanche de domaines d’inscription teste une expression sans ancres : elle accepte tout ce qui *contient* le domaine.',
     goal: 'Créer un compte avec une adresse que la liste blanche devait refuser, et hériter de l’appartenance au tenant.',
     file: 'server/routes/auth.ts',
-    lessons: ['m02/l02', 'm10/l02'],
+    lessons: ['m02/l01', 'm10/l02'],
     hints: [
       'POST /api/auth/register n’accepte que trois domaines. Regarde comment il les reconnaît.',
       'Sans `^` ni `$`, une expression décrit une sous-chaîne. Où peux-tu placer `acme.example` pour qu’il ne soit plus le domaine de l’adresse ?',
@@ -48,7 +48,7 @@ export const identity: ExerciseDef[] = [
       'L’adresse est vérifiée comme unique, puis normalisée et mise en minuscules — ce qui la fait collisionner avec un compte existant.',
     goal: 'Créer un second compte qui résout vers l’adresse de l’administrateur, et recevoir un message qui lui était destiné.',
     file: 'server/routes/auth.ts',
-    lessons: ['m02/l03', 'm03/l07'],
+    lessons: ['m02/l02', 'm03/l07'],
     hints: [
       'L’inscription contrôle l’unicité sur ce que tu envoies, et range autre chose. Compare les deux formes dans le code.',
       'NFKC replie beaucoup de caractères sur leur équivalent ASCII. Le contrôle de domaine, lui, travaille déjà sur la forme canonique — pas le contrôle d’unicité.',
@@ -70,7 +70,7 @@ export const identity: ExerciseDef[] = [
       'L’appel au moteur d’autorisation est enveloppé dans un `catch` vide, et l’exécution continue comme si l’accès était accordé.',
     goal: 'Provoquer l’exception par une entrée malformée, puis lire une ressource d’un autre tenant.',
     file: 'server/lib/auth.ts',
-    lessons: ['m02/l05', 'm12/l05'],
+    lessons: ['m02/l04', 'm12/l05'],
     hints: [
       'GET /api/auth/directory sert l’annuaire d’un tenant. Avec `?tenant=globex`, il refuse. Lis ce que fait `requireDirectoryAccess`.',
       'Le moteur suppose que sa ressource est une chaîne. L’analyseur de query string d’Express sait fabriquer autre chose.',
@@ -92,7 +92,7 @@ export const identity: ExerciseDef[] = [
       'L’adresse est validée, puis tronquée à la longueur de la colonne — ce qui change le domaine et donc le tenant de rattachement.',
     goal: 'S’inscrire et se retrouver rattaché au tenant d’un autre, avec ses droits.',
     file: 'server/routes/auth.ts',
-    lessons: ['m02/l05', 'm07/l03'],
+    lessons: ['m02/l04', 'm07/l01'],
     hints: [
       'POST /api/auth/register/partner accepte les sous-domaines des clients. Cherche ce qui arrive à l’adresse APRÈS le contrôle.',
       'La colonne fait 32 caractères. Compte : si la coupure tombe pile après un autre domaine client, c’est lui que la base contiendra.',
@@ -114,7 +114,7 @@ export const identity: ExerciseDef[] = [
       'Le jeton de réinitialisation est comparé avec `===`, qui s’arrête au premier octet différent.',
     goal: 'Retrouver un jeton de réinitialisation octet par octet, en mesurant le temps de réponse.',
     file: 'server/routes/auth.ts',
-    lessons: ['m02/l05', 'm08/l08'],
+    lessons: ['m02/l04', 'm08/l07'],
     hints: [
       'POST /api/auth/reset attend `{ email, token, password }`. Le jeton fait 8 caractères hexadécimaux. Chronomètre la réponse.',
       'La comparaison s’arrête au premier écart, et chaque caractère validé coûte un aller-retour : plus le préfixe est bon, plus la réponse est lente.',
@@ -125,7 +125,7 @@ export const identity: ExerciseDef[] = [
   },
   {
     id: 'open-redirect',
-    module: 'm02',
+    module: 'm04',
     title: 'Redirection ouverte après connexion',
     status: 'live',
     kind: 'exploit',
@@ -135,7 +135,7 @@ export const identity: ExerciseDef[] = [
     brief: 'Le paramètre de retour est suivi tel quel après une connexion réussie.',
     goal: 'Faire rediriger un utilisateur connecté vers un domaine que tu contrôles.',
     file: 'server/routes/auth.ts',
-    lessons: ['m02/l06', 'm09/l04'],
+    lessons: ['m04/l02', 'm09/l06'],
     hints: [
       'La connexion accepte un champ de plus que les deux que tu connais.',
       'Ce champ finit dans l’en-tête `Location` d’une réponse 303, sans que personne ne regarde où il pointe.',
@@ -144,7 +144,7 @@ export const identity: ExerciseDef[] = [
     fix: 'Chemins relatifs seulement, ou liste blanche de destinations. Une redirection ouverte est rarement isolée : elle sert de tremplin au vol de code OAuth et au contournement de filtres SSRF.',
   },
 
-  // ─── M3 · Web avancé ──────────────────────────────────────────────────────
+  // ─── m03 · Web avancé ──────────────────────────────────────────────────────
   {
     id: 'race-partial-construction',
     module: 'm03',
@@ -158,7 +158,7 @@ export const identity: ExerciseDef[] = [
       'Le compte est inséré, puis son empreinte de mot de passe écrite dans un second temps. Pendant la fenêtre, le champ est vide et la comparaison le laisse passer.',
     goal: 'Se connecter à un compte pendant sa création, sans en connaître le mot de passe.',
     file: 'server/routes/auth.ts',
-    lessons: ['m03/l01', 'm08/l06'],
+    lessons: ['m03/l01', 'm09/l01'],
     hints: [
       'L’inscription fait deux écritures, séparées par un `await`. Demande-toi à quoi ressemble l’enregistrement entre les deux.',
       'Pendant ces 40 millisecondes, le mot de passe stocké est la chaîne vide — et la connexion compare sans jamais refuser une valeur absente.',
@@ -179,7 +179,7 @@ export const identity: ExerciseDef[] = [
       'Le jeton est dérivé de l’horloge et d’un générateur non cryptographique : deux demandes dans la même milliseconde produisent le même jeton.',
     goal: 'Obtenir un jeton valide pour le compte d’un autre utilisateur en déclenchant deux réinitialisations simultanées.',
     file: 'server/routes/auth.ts',
-    lessons: ['m03/l01', 'm08/l08'],
+    lessons: ['m03/l01', 'm08/l07'],
     hints: [
       'Regarde `mintResetToken` : le générateur n’avance pas à chaque appel.',
       'Il n’avance qu’une fois par milliseconde. Deux demandes traitées dans la même milliseconde repartent donc avec la même valeur.',
@@ -201,7 +201,7 @@ export const identity: ExerciseDef[] = [
       'L’appartenance au tenant est déduite par un découpage naïf sur l’arobase, alors que la couche d’envoi lit un autre domaine dans la même adresse.',
     goal: 'Faire reconnaître comme membre du tenant Novafact une adresse dont le courrier part ailleurs.',
     file: 'server/routes/auth.ts',
-    lessons: ['m03/l07', 'm09/l04'],
+    lessons: ['m03/l07', 'm09/l06'],
     hints: [
       'Le domaine `novafact.example` donne le rôle comptable, mais l’inscription libre le refuse. Regarde AVEC QUEL découpage elle le refuse.',
       'Le garde-fou lit le domaine qui suit le premier arobase ; l’appartenance, elle, vient de celui de la fin. Rien n’interdit d’en mettre deux.',
@@ -222,7 +222,7 @@ export const identity: ExerciseDef[] = [
       'Les préférences sont un objet sérialisé, signé avec une clé faible, puis désérialisé sans liste de types autorisés.',
     goal: 'Forger un cookie qui, à la désérialisation, élève le rôle de son porteur.',
     file: 'server/lib/auth.ts',
-    lessons: ['m03/l09', 'm08/l08'],
+    lessons: ['m03/l09', 'm08/l07'],
     hints: [
       'POST /api/auth/prefs pose un cookie `novafact_prefs`. Décode-le : il commence par du base64url et finit par une signature.',
       'Le champ `$t` du document désigne le constructeur à appeler, et le désérialiseur en connaît deux. Le second n’a rien à faire dans un cookie.',
@@ -243,7 +243,7 @@ export const identity: ExerciseDef[] = [
     brief: 'L’en-tête `kid` du jeton désigne le fichier de clé à charger, sans normalisation du chemin.',
     goal: 'Forger un jeton accepté comme administrateur, en pointant l’identifiant de clé vers un fichier au contenu prévisible.',
     file: 'server/lib/jwt.ts',
-    lessons: ['m03/l10', 'm09/l03'],
+    lessons: ['m03/l10', 'm09/l05'],
     hints: [
       'Les jetons du lab portent un `kid`. Regarde `keyFor()` : que se passe-t-il quand il est inconnu du trousseau ?',
       'Il devient un chemin de fichier, sans normalisation. Il te faut donc un fichier dont tu connais les octets exacts.',
@@ -264,7 +264,7 @@ export const identity: ExerciseDef[] = [
       'Le vérificateur récupère la clé publique à l’URL indiquée dans le jeton, ou l’accepte directement en en-tête.',
     goal: 'Forger un jeton signé avec ta propre paire de clés et être accepté comme un autre utilisateur.',
     file: 'server/lib/jwt.ts',
-    lessons: ['m03/l10', 'm09/l03'],
+    lessons: ['m03/l10', 'm09/l05'],
     hints: [
       '`readToken` ne gère pas que HS256. Regarde ce qu’il fait des en-têtes `jwk` et `jku`.',
       'La clé publique de vérification est lue DANS le jeton : rien ne t’empêche d’y mettre la tienne.',
@@ -285,7 +285,7 @@ export const identity: ExerciseDef[] = [
       'Tous les tenants partagent la clé de signature, et le jeton ne porte aucune revendication d’audience ni d’émetteur.',
     goal: 'Présenter sur l’API d’un tenant un jeton émis pour un autre, et y agir.',
     file: 'server/lib/jwt.ts',
-    lessons: ['m03/l10', 'm09/l03'],
+    lessons: ['m03/l10', 'm09/l05'],
     hints: [
       'Chaque client a son déploiement : GET /api/auth/deployment/:tenantId/whoami. Décode ton jeton et cherche `aud` ou `iss`.',
       'Ils n’y sont pas, et la clé de signature est la même partout : rien ne dit à quel déploiement ce jeton était destiné.',
@@ -306,7 +306,7 @@ export const identity: ExerciseDef[] = [
       'La déconnexion efface le cookie côté client ; le jeton reste valide, et son expiration n’est pas vérifiée côté serveur.',
     goal: 'Réutiliser un jeton après déconnexion, et au-delà de sa date d’expiration.',
     file: 'server/lib/jwt.ts',
-    lessons: ['m03/l10', 'm09/l02'],
+    lessons: ['m03/l10', 'm09/l04'],
     hints: [
       'POST /api/auth/logout répond `ok`. Cherche ce qu’il change côté serveur — et ce que `readToken` consulte.',
       'Il faut les deux moitiés : un jeton réutilisé après déconnexion, ET un jeton dont `exp` est dépassé.',
@@ -315,7 +315,7 @@ export const identity: ExerciseDef[] = [
     fix: 'Un jeton sans état ne se révoque pas : durée de vie courte, rotation du jeton de rafraîchissement, et liste de révocation pour les cas qui comptent (changement de mot de passe, compromission). Se déconnecter doit avoir un effet côté serveur.',
   },
 
-  // ─── M8 · Conception sécurisée & architecture ─────────────────────────────
+  // ─── m08 · Conception sécurisée & architecture ─────────────────────────────
   {
     id: 'weak-random',
     module: 'm08',
@@ -329,7 +329,7 @@ export const identity: ExerciseDef[] = [
       'Le jeton de réinitialisation vient de `Math.random()`. Le générateur de V8 n’est pas cryptographique et son état se reconstruit.',
     goal: 'Prédire le prochain jeton de réinitialisation après en avoir observé quelques-uns.',
     file: 'server/routes/auth.ts',
-    lessons: ['m08/l08', 'm02/l03'],
+    lessons: ['m08/l07', 'm02/l02'],
     hints: [
       'Le jeton fait 8 caractères hexadécimaux — soit exactement 32 bits. Lis `mintResetToken`.',
       'La sortie EST l’état du générateur : une seule valeur observée suffit à calculer toutes les suivantes (xorshift32 : `x ^= x<<13; x >>>= 0; x ^= x>>>17; x ^= x<<5; x >>>= 0`).',
@@ -339,7 +339,7 @@ export const identity: ExerciseDef[] = [
     k: [5],
   },
 
-  // ─── M9 · OAuth 2.x / OIDC / SAML ─────────────────────────────────────────
+  // ─── m09 · OAuth 2.x / OIDC / SAML ─────────────────────────────────────────
   {
     id: 'oauth-redirect',
     module: 'm09',
@@ -352,7 +352,7 @@ export const identity: ExerciseDef[] = [
     brief: 'Le serveur d’autorisation du lab accepte toute `redirect_uri` qui commence par l’URL enregistrée.',
     goal: 'Détourner un code d’autorisation vers une destination que tu contrôles.',
     file: 'server/routes/oauth.ts',
-    lessons: ['m09/l01', 'm09/l04'],
+    lessons: ['m09/l03', 'm09/l06'],
     hints: [
       'Le client `novafact-web` est enregistré avec `http://127.0.0.1:5199/oauth/callback`. Regarde comment /api/oauth/authorize compare.',
       '`startsWith` n’est pas une égalité : tout ce que tu ajoutes À LA SUITE de l’URI enregistrée passe le contrôle.',
@@ -372,7 +372,7 @@ export const identity: ExerciseDef[] = [
     brief: 'Le flux Authorization Code n’émet ni ne vérifie de `state`.',
     goal: 'Lier le compte fédéré de l’attaquant à la session d’un autre utilisateur (login CSRF).',
     file: 'server/routes/oauth.ts',
-    lessons: ['m09/l01', 'm09/l04'],
+    lessons: ['m09/l03', 'm09/l06'],
     hints: [
       'GET /api/oauth/start renvoie `state: null`, et /api/oauth/callback ne compare rien au retour.',
       'Rien ne lie donc un code à la session qui l’a demandé : un code obtenu dans TA session sera consommé dans n’importe quelle autre.',
@@ -393,7 +393,7 @@ export const identity: ExerciseDef[] = [
       'Le rapprochement de comptes se fait sur le claim `email` du fournisseur, sans regarder `email_verified`.',
     goal: 'Prendre le contrôle d’un compte existant en déclarant son adresse chez un fournisseur complaisant.',
     file: 'server/routes/oauth.ts',
-    lessons: ['m09/l04', 'm08/l06'],
+    lessons: ['m09/l06', 'm09/l01'],
     hints: [
       'POST /api/oauth/idp/register te laisse déclarer l’adresse de ton choix chez le fournisseur. Ce n’est pas le défaut — c’est la réalité du modèle fédéré.',
       'Le défaut est dans /api/oauth/callback, qui retrouve le compte local sur le claim `email` sans jamais regarder `email_verified`.',
@@ -414,7 +414,7 @@ export const identity: ExerciseDef[] = [
       'Le SSO entreprise accepte une assertion SAML dont la signature est valide — mais le traitement lit un autre nœud que celui qui a été signé.',
     goal: 'Se connecter en tant qu’un autre utilisateur avec une assertion dont la signature reste parfaitement valide.',
     file: 'server/routes/saml.ts',
-    lessons: ['m09/l06', 'm03/l07'],
+    lessons: ['m09/l08', 'm03/l07'],
     hints: [
       'POST /api/saml/idp/assert te signe une assertion, mais seulement pour une adresse `@acme.example`. Pars de celle-là, sans y toucher.',
       'La vérification suit `Reference URI` et ne valide que ce nœud-là ; l’extraction du sujet, elle, reprend le premier `<saml:NameID>` du DOCUMENT.',
@@ -423,7 +423,7 @@ export const identity: ExerciseDef[] = [
     fix: 'Vérifier la signature ne suffit pas : il faut vérifier que ce qu’on lit est **ce qui a été signé**, et refuser les documents à plusieurs assertions. Bibliothèque à jour, schéma strict, et certificats gérés. C’est la famille de SAMLStorm et de *The Fragile Lock*.',
   },
 
-  // ─── M10 · Anti-abus, ATO & fraude ────────────────────────────────────────
+  // ─── m10 · Anti-abus, ATO & fraude ────────────────────────────────────────
   {
     id: 'user-enumeration',
     module: 'm10',
@@ -437,7 +437,7 @@ export const identity: ExerciseDef[] = [
       'L’inscription, la connexion et la réinitialisation répondent différemment selon que le compte existe.',
     goal: 'Déterminer, parmi une liste de mille adresses, lesquelles ont un compte.',
     file: 'server/routes/auth.ts',
-    lessons: ['m10/l02', 'm08/l06'],
+    lessons: ['m10/l02', 'm09/l01'],
     hints: [
       'Compare la réponse de POST /api/auth/register pour une adresse libre et pour une adresse déjà prise.',
       '409 « cette adresse est déjà utilisée » contre 201 : c’est un oracle d’existence, et il ne coûte rien à interroger.',

@@ -51,7 +51,7 @@ La BOLA est probablement ton finding critique le plus fréquent. En revue de cod
 
 ## Pourquoi la revue est indispensable ici
 
-Lire une facture par son identifiant est une opération **légitime**. Ce qui fait la faille, c'est que la facture appartient à un autre tenant : une information métier qu'aucun outil générique ne possède. Les failles d'autorisation de l'OWASP API Security Top 10 (API1 pour les objets, API3 pour les propriétés, API5 pour les fonctions, M2) sont la catégorie où la revue apporte le plus.
+Lire une facture par son identifiant est une opération **légitime**. Ce qui fait la faille, c'est que la facture appartient à un autre tenant : une information métier qu'aucun outil générique ne possède. Les failles d'autorisation de l'OWASP API Security Top 10 (API1 pour les objets, API3 pour les propriétés, API5 pour les fonctions, M7) sont la catégorie où la revue apporte le plus.
 
 <Callout kind="case">
 En mai 2019, KrebsOnSecurity révélait que le site de First American Financial, assureur de titres immobiliers américain, exposait environ 885 millions de documents remontant à 2003 : relevés bancaires, numéros de sécurité sociale, pièces d'identité. Il suffisait de modifier un chiffre dans l'URL d'un document pour obtenir celui d'un autre client. Une vérification d'appartenance manquante, sur une seule route de consultation. La SEC a ensuite infligé une amende à l'entreprise pour des défaillances de ses procédures d'information (*disclosure controls*) autour de la faille.
@@ -89,13 +89,13 @@ export const can = (role: Role, permission: Permission) =>
 
 </Code>
 
-La revue devient alors double : la table est-elle juste (question métier, à valider avec le produit) ? Chaque route déclare-t-elle la bonne permission (question de code) ? Et les tests paramétrés de M13 (leçon 2) parcourent la même table.
+La revue devient alors double : la table est-elle juste (question métier, à valider avec le produit) ? Chaque route déclare-t-elle la bonne permission (question de code) ? Et les tests paramétrés de M17 (leçon 2) parcourent la même table.
 
 ## Ce que l'on vérifie pour chaque accès à un objet
 
 <Steps items={[
   { title: "D'où vient l'identifiant ?", text: "D'un paramètre de la requête, d'un corps, d'un message de file : il est contrôlé par quelqu'un d'autre que toi." },
-  { title: "D'où vient le tenant ?", text: "De la session ou du jeton vérifié, jamais d'un paramètre ou d'un en-tête (M3, M8)." },
+  { title: "D'où vient le tenant ?", text: "De la session ou du jeton vérifié, jamais d'un paramètre ou d'un en-tête (M9, M14)." },
   { title: "La requête filtre-t-elle par tenant ?", text: "findFirst({ where: { id, tenantId } }) plutôt que findUnique({ where: { id } }) ; ou la DAL, ou la RLS de Postgres." },
   { title: "Le rôle est-il vérifié pour cette action ?", text: "Pas seulement l'authentification : la permission précise (BFLA)." },
   { title: "Les propriétés sont-elles filtrées ?", text: "En entrée (mass assignment) et en sortie (exposition excessive) : API3." },
@@ -143,13 +143,13 @@ Les BOLA se cachent là où l'on ne regarde pas :
 - les **webhooks**, qui identifient souvent l'objet par un identifiant externe (un identifiant de paiement Stripe) qu'il faut rattacher au bon tenant ;
 - les **exports asynchrones** et les **URL présignées S3** : une clé d'objet dérivée de l'identifiant de la facture, signée sans vérifier l'appartenance, est une BOLA avec une date d'expiration ;
 - les **résolveurs GraphQL** imbriqués, et les caches de type DataLoader instanciés une fois pour toute l'application au lieu d'une fois par requête, qui servent à l'un ce qu'ils ont chargé pour l'autre ;
-- les **outils de l'assistant IA** (M19), qui appellent l'API avec quels droits ?
+- les **outils de l'assistant IA** (M28), qui appellent l'API avec quels droits ?
 
 La méthode de la leçon 2 (lister tout ce qui ne passe pas par le contrôle central) les fait apparaître.
 
 ## Les machines à états
 
-Pour la logique métier, relis les **transitions** : chaque changement d'état d'une facture passe-t-il par la fonction qui vérifie la transition (M10) ? Une route qui écrit directement `status: 'paid'` est un cas limite à examiner. Écris les transitions permises comme la table de décision :
+Pour la logique métier, relis les **transitions** : chaque changement d'état d'une facture passe-t-il par la fonction qui vérifie la transition (M15) ? Une route qui écrit directement `status: 'paid'` est un cas limite à examiner. Écris les transitions permises comme la table de décision :
 
 | De \ Vers | issued | paid | cancelled |
 | --- | --- | --- | --- |
@@ -180,7 +180,7 @@ export async function issueInvoice(tenantId: string, id: string) {
   { title: "Lister les accès aux objets", text: "Une recherche Semgrep sur les lectures et écritures par id (leçon 2), plus les workers, webhooks et exports." },
   { title: "Vérifier chaque accès", text: "Origine de l'identifiant et du tenant, filtre, permission, propriétés." },
   { title: "Relire les transitions", text: "Table des transitions, fonction unique, écriture conditionnelle atomique." },
-  { title: "Laisser des tests", text: "Un test de refus par ligne sensible de la table (M13)." },
+  { title: "Laisser des tests", text: "Un test de refus par ligne sensible de la table (M17)." },
 ]} />
 
 <Recap items={[

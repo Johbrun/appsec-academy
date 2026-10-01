@@ -99,7 +99,7 @@ Côté vie privée, une adresse IP ou un identifiant d'utilisateur restent des *
 
 ## pino au format ECS
 
-Pour qu'un événement applicatif se croise avec CloudTrail et le WAF, il doit parler la même langue : l'**Elastic Common Schema** (ECS). Elastic fournit `@elastic/ecs-pino-format`, qui configure les options `formatters`, `messageKey` et `timestamp` de pino. Le kit de service de Novafact (M2, M6) l'active par défaut :
+Pour qu'un événement applicatif se croise avec CloudTrail et le WAF, il doit parler la même langue : l'**Elastic Common Schema** (ECS). Elastic fournit `@elastic/ecs-pino-format`, qui configure les options `formatters`, `messageKey` et `timestamp` de pino. Le kit de service de Novafact (M7, M30) l'active par défaut :
 
 <Code file="packages/service-kit/src/logger.ts" hl="5,6,7,8,9,10,11,12,13,14,15,16,17">
 
@@ -170,7 +170,7 @@ export function securityEvent(
 
 </Code>
 
-Quelques choix à relever : `organization.id` (un champ ECS existant) porte le tenant, ce qui permettra de filtrer toute une enquête sur un client ; `url.path` remplace l'URL complète pour ne jamais embarquer la query string ; les champs propres à Novafact vivent sous un préfixe `novafact.*` pour ne jamais entrer en collision avec ECS ; `req.ip` n'est fiable que si `trust proxy` est réglé sur le nombre exact de proxys devant l'API (M10).
+Quelques choix à relever : `organization.id` (un champ ECS existant) porte le tenant, ce qui permettra de filtrer toute une enquête sur un client ; `url.path` remplace l'URL complète pour ne jamais embarquer la query string ; les champs propres à Novafact vivent sous un préfixe `novafact.*` pour ne jamais entrer en collision avec ECS ; `req.ip` n'est fiable que si `trust proxy` est réglé sur le nombre exact de proxys devant l'API (M15).
 
 <Callout kind="warn">
 L'option `convertReqRes: true` d'`ecsFormat` transforme un `req` Node en champs ECS, **tous en-têtes compris**, sous `http.request.headers`. Les chemins de redaction en `req.headers.*` ne s'appliquent plus : il faut alors viser `http.request.headers.cookie` et `http.request.headers.authorization`. Vérifie la sortie réelle dans un test plutôt que de supposer.
@@ -203,7 +203,7 @@ export const httpLogger = pinoHttp({
 
 </Code>
 
-L'identifiant est renvoyé au client : c'est lui que le support demande quand un utilisateur signale une erreur (M17). L'identifiant entrant n'est accepté que s'il a la forme d'un UUID ; sinon, n'importe quel client pourrait choisir la valeur, réutiliser celle d'une autre requête ou y glisser du texte arbitraire.
+L'identifiant est renvoyé au client : c'est lui que le support demande quand un utilisateur signale une erreur (M21). L'identifiant entrant n'est accepté que s'il a la forme d'un UUID ; sinon, n'importe quel client pourrait choisir la valeur, réutiliser celle d'une autre requête ou y glisser du texte arbitraire.
 
 Pour les traces distribuées, **OpenTelemetry** fait le reste. L'instrumentation `@opentelemetry/instrumentation-pino` ajoute l'identifiant de trace et de span à chaque log émis dans le contexte d'un span actif ; son option `logKeys` permet de les nommer `trace.id` et `span.id`, les champs ECS. Elastic a d'ailleurs donné ECS à OpenTelemetry en 2023, pour faire converger les deux schémas vers les conventions sémantiques d'OTel.
 
@@ -212,8 +212,8 @@ Pour les traces distribuées, **OpenTelemetry** fait le reste. L'instrumentation
 Les logs sont une cible :
 
 - **Injection** (CWE-117) : un retour à la ligne dans un champ peut fabriquer une fausse ligne dans un journal texte. Le JSON de pino échappe les caractères de contrôle ; c'est une raison de plus de ne jamais écrire de logs en texte libre.
-- **Intégrité** : l'application écrit sur `stdout` et n'a aucun droit de lecture ni de suppression sur Elastic. L'agent qui collecte utilise une clé d'API limitée à l'écriture dans ses flux (leçon 2).
-- **Accès** : Kibana est une interface de données (M8, leçon 9). Les rôles de lecture sont restreints, et les accès aux journaux sont eux-mêmes journalisés.
+- **Intégrité** : l'application écrit sur `stdout` et n'a aucun droit de lecture ni de suppression sur Elastic. L'agent qui collecte utilise une clé d'API limitée à l'écriture dans ses flux (leçon 3).
+- **Accès** : Kibana est une interface de données (M13, leçon 6). Les rôles de lecture sont restreints, et les accès aux journaux sont eux-mêmes journalisés.
 - **Disponibilité** : un attaquant peut noyer les logs sous le bruit. Plafonne la taille des champs libres (le `slice(0, 512)` sur le user-agent) et prévois un échantillonnage des logs techniques, jamais des événements de sécurité.
 
 <Recap items={[

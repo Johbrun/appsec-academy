@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
-import { HashRouter, Route, Routes, useParams } from 'react-router-dom';
+import { HashRouter, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import './styles.css';
 import './appsec.css';
 import { ProgressProvider } from './store/progress';
@@ -61,11 +61,13 @@ const gameComponents: Record<string, React.LazyExoticComponent<() => JSX.Element
 
 function GameRoute() {
   const { gameId = '' } = useParams();
+  const [params] = useSearchParams();
   const Game = gameComponents[gameId];
   if (!Game) return <NotFound />;
+  // Remonté quand `?serie=` change : la série demandée n'est lue qu'au montage.
   return (
     <Suspense fallback={<section className="block"><p className="muted">Chargement du jeu…</p></section>}>
-      <Game />
+      <Game key={params.get('serie') ?? ''} />
     </Suspense>
   );
 }

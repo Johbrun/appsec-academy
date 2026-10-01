@@ -1,174 +1,198 @@
 export const questions = [
   {
-    q: "Selon Kohnfelder, comment réduire le risque lié aux composants implicitement fiables (OS, runtime, bibliothèques, cloud) ?",
+    q: "Quel niveau d'ASVS 5.0 viser pour l'API de facturation de Novafact ?",
     options: [
-      "Vérifier soi-même le code de chaque composant avant de l'adopter",
-      "Savoir explicitement à qui l'on fait confiance, et réduire leur nombre",
-      "Remplacer les composants tiers par des implémentations internes",
-      "Exiger de chaque fournisseur une attestation de conformité annuelle",
+      "L1 : Novafact ne stocke ni mot de passe ni donnée de carte en propre",
+      "L2, le niveau prévu pour les applications qui traitent des données sensibles",
+      "L3, puisque la plateforme traite les données de facturation de ses clients",
+      "Le niveau exigé par le client le plus exigeant, quel qu'il soit",
     ],
     answer: 1,
-    explain: "On ne peut pas tout vérifier : ni lire le code de 1 400 paquets transitifs, ni auditer AWS. Ce qui reste possible, c'est de tenir la liste consciente de ce qu'on considère comme fiable et de limiter le nombre de fournisseurs, puisque chacun est une occasion de plus d'être déçu. Réécrire en interne ne supprime pas le problème, il le déplace vers ce qu'il faudra construire et sécuriser ; et une attestation annuelle documente la confiance sans la réduire.",
+    explain: "L1 est un minimum de départ, L2 couvre la plupart des applications qui manipulent des données sensibles — des factures multi-tenant en font partie —, et L3 vise celles qui doivent démontrer le plus haut niveau de sécurité. Viser L3 partout coûte cher pour un gain faible sur les zones ordinaires : l'usage est de prendre L2 comme référence contractuelle et d'aller chercher quelques exigences L3 là où le threat model le justifie, comme la double validation d'un changement d'IBAN. Caler le niveau sur le client le plus exigeant, c'est laisser un tiers fixer ton référentiel.",
   },
   {
-    q: "Que signifie « faire confiance, mais vérifier » en logiciel ?",
+    q: "Qu'est-ce qu'une abuse case ?",
     options: [
-      "Refuser toute action qui n'a pas été validée à l'avance par un tiers",
-      "Faire confiance au fournisseur, en s'appuyant sur ses certifications",
-      "Autoriser l'action, et garder un audit fiable qui permet de la vérifier",
-      "Exiger une double approbation humaine sur chaque action sensible",
-    ],
-    answer: 2,
-    explain: "La confiance est un spectre : entre l'accès permanent et le refus pur et simple, l'autorisation bornée couplée à un audit fiable permet de vérifier après coup, automatiquement sur le volume et par échantillonnage à la main. La double approbation est un contrôle préventif — utile, mais coûteux, et il bloque le support au lieu de l'outiller. Quant à s'appuyer sur des certifications, c'est faire confiance sans rien vérifier chez soi.",
-  },
-  {
-    q: "Novafact ajoute un petit paquet npm de formatage de dates. À qui fait-elle confiance, en réalité ?",
-    options: [
-      "Au paquet, à ses dépendances, à leurs mainteneurs présents et futurs",
-      "Au code de ce paquet, tel qu'on l'a lu et figé dans le lockfile",
-      "Au registre npm, qui vérifie les paquets publiés par signature",
-      "À l'écosystème open source, dont la relecture publique fait la sécurité",
-    ],
-    answer: 0,
-    explain: "La confiance est transitive : elle s'étend à tout ce que le paquet importe, à toute personne capable d'en publier la prochaine version et à la sécurité de leurs comptes. Le lockfile fige bien ce qu'on a lu — c'est ce qui rend l'objection tentante —, mais il sera mis à jour, et c'est à ce moment-là que la décision de confiance se rejoue sans que personne la prenne. C'est exactement l'affaire event-stream, en 2018 : un changement de mainteneur que personne n'avait approuvé, et que la relecture publique n'a pas vu pendant plus de deux mois.",
-  },
-  {
-    q: "Que signifie « zero trust » dans le sens de NIST SP 800-207 ?",
-    options: [
-      "Ne faire confiance à aucun composant, y compris le système d'exploitation",
-      "Chiffrer et authentifier tous les flux, y compris entre services internes",
-      "Supprimer les dépendances externes et internaliser les composants critiques",
-      "Ne pas accorder de confiance implicite selon l'emplacement réseau",
+      "Un scénario de test qui rejoue une attaque connue contre l'application",
+      "Une entrée du threat model, décrivant une menace sur un flux de données",
+      "Un cas d'erreur utilisateur à gérer proprement dans l'interface",
+      "Un acteur détourne une fonctionnalité, et le contrôle qui l'en empêche",
     ],
     answer: 3,
-    explain: "Le modèle du NIST retire la confiance accordée parce qu'une requête « vient de l'intérieur » : chaque accès est authentifié et autorisé pour lui-même. Il ne supprime pas les décisions de confiance — un système zero trust fait toujours confiance à son fournisseur d'identité, à son moteur de politiques et à ses clés. Chiffrer et authentifier les flux internes en est une conséquence fréquente, pas la définition : on peut avoir du mTLS partout et continuer d'autoriser sur la seule foi du sous-réseau d'origine.",
+    explain: "L'abuse case est le miroir de la user story — « en tant qu'escroc, je veux… » — et elle se termine par l'exigence qu'elle fait apparaître. Elle se rédige avant le code, ce qui la distingue d'un test rejouant une attaque connue, et elle part d'une fonctionnalité et d'un acteur, là où le threat model part de l'architecture et des flux. Le mauvais usage involontaire, 50 000 lignes collées dans un champ, mérite le même traitement sous le nom de misuse case.",
+  },
+  {
+    q: "Laquelle de ces exigences est bien formulée ?",
+    options: [
+      "« L'authentification suit les recommandations de l'OWASP ASVS niveau 2 »",
+      "« Aucune vulnérabilité critique ne subsiste au moment de la mise en production »",
+      "« Une facture d'un autre tenant répond 404, comme une facture inexistante »",
+      "« Les développeurs vérifient l'autorisation à chaque accès à un objet »",
+    ],
+    answer: 2,
+    explain: "Une bonne exigence se reconnaît au test qu'on sait écrire pour la prouver : ici, deux requêtes et une comparaison de réponses. Renvoyer à « ASVS niveau 2 » paraît précis, mais ne contraint rien de vérifiable tant que les exigences n'ont pas été traduites une à une. L'absence de vulnérabilité critique est une politique de mise en production, pas une propriété du système. Et demander aux développeurs de « vérifier » décrit une intention humaine, pas un comportement de l'application.",
+  },
+  {
+    q: "L'équipe propose d'importer les ~350 exigences d'ASVS 5.0 comme tickets dans le backlog. Quel est le risque principal ?",
+    options: [
+      "Un backlog noyé : il faut sélectionner, puis rattacher aux stories concernées",
+      "Des exigences redondantes avec ce que le paved road couvre déjà",
+      "Une numérotation qui changera à la prochaine version d'ASVS",
+      "Des chapitres hors sujet, comme WebRTC, qu'il faudra fermer un à un",
+    ],
+    answer: 0,
+    explain: "ASVS est un catalogue, pas un backlog : 350 tickets sans propriétaire ni contexte deviennent un bruit que l'équipe apprend à ignorer, et la couverture apparente se substitue au travail réel. La valeur vient de la sélection — chapitres pertinents, niveau, quelques exigences L3 choisies par le risque — puis de la traduction en critères d'acceptation rattachés aux stories. Les chapitres hors sujet et l'instabilité de la numérotation sont des difficultés réelles mais secondaires : la première se règle par la sélection, la seconde par des identifiants internes stables.",
   },
 ];
 
 <YouKnow>
-En pentest, tu cherches les endroits où un système fait confiance à ce qu'il ne devrait pas. Kohnfelder place la confiance au fondement même de la sécurité logicielle : c'est le point de départ du bloc Concevoir.
+En pentest, tu testes souvent sans exigences : tu cherches ce qui ne va pas. En AppSec, les exigences disent ce qui doit être vrai, et permettent de vérifier au lieu de chercher.
 </YouKnow>
 
-## Tout repose sur la confiance
+## Fonctionnelles et non fonctionnelles
 
-Aucun système ne se construit seul, du silicium à l'application. Novafact fait confiance à AWS, au système d'exploitation, au runtime Node, à des centaines de paquets npm, à GitHub, au prestataire de paiement. Kohnfelder (K1) en tire trois idées qui structurent la suite du parcours.
+- **Exigences fonctionnelles de sécurité** : des comportements visibles. « Un utilisateur peut activer une passkey », « un administrateur de tenant peut révoquer une session ».
+- **Exigences non fonctionnelles** : des propriétés. « Les mots de passe sont stockés avec argon2id », « le service reste disponible sous un afflux de 1 000 inscriptions par minute », « les journaux d'audit sont conservés un an ».
 
-Vu du côté offensif, presque toutes les vulnérabilités que tu as exploitées sont des **erreurs de confiance** : une entrée utilisateur traitée comme du code (injection), un identifiant fourni par le client traité comme une preuve de propriété (BOLA), un en-tête `Host` traité comme la vérité sur l'URL de l'application, un jeton dont on ne vérifie pas la signature. Concevoir, c'est d'abord décider consciemment à qui et à quoi on fait confiance, et pour quoi.
+Les deux entrent dans le backlog, avec des critères d'acceptation, comme n'importe quelle exigence.
 
-## La confiance est un spectre
+La distinction compte pour une raison pratique : les exigences fonctionnelles ont un **propriétaire naturel** (la story qui livre la fonctionnalité), les non fonctionnelles n'en ont pas. « Les journaux d'audit sont conservés un an » ne correspond à aucune story ; si personne ne la porte explicitement (l'équipe plateforme, un ticket d'infrastructure, un test périodique), elle reste une intention.
 
-On n'accorde jamais une confiance totale ou nulle : on l'accorde **dans une certaine mesure**. Une carte bancaire a un plafond, une clé de voiturier n'ouvre pas le coffre. En logiciel, l'outil qui comble l'écart entre confiance totale et défiance totale est le couple **autorisation + audit** : on permet une action, et on garde une trace fiable pour la vérifier après coup, automatiquement sur le volume et manuellement par échantillonnage.
+## Ce qui fait une bonne exigence
 
-Un exemple concret chez Novafact : l'équipe support doit parfois voir les factures d'un client pour l'aider. Refuser tout accès bloque le support ; donner un accès permanent à toutes les données fait de chaque agent une cible de choix. La solution se place au milieu du spectre : un accès **accordé par ticket**, limité à un tenant, **borné dans le temps**, et **journalisé**, avec une revue par échantillonnage chaque semaine.
+Une exigence de sécurité se juge à une seule question : **sait-on écrire le test qui la prouve ?**
 
-<Code file="apps/backoffice/src/support/grant.ts" hl="11,12,13,14,15">
+| Formulation faible | Pourquoi elle ne sert à rien | Formulation vérifiable |
+| --- | --- | --- |
+| « L'application est sécurisée » | Aucun test possible | Ne pas écrire : la décomposer en exigences précises |
+| « Utiliser un hachage robuste » | « Robuste » n'est pas mesurable | « Les mots de passe sont hachés avec argon2id, paramètres de l'ADR-012, jamais journalisés » |
+| « Protéger contre les IDOR » | Décrit une attaque, pas un comportement | « Une facture d'un autre tenant répond 404, comme une facture inexistante, et le refus est journalisé » |
+| « Limiter l'envoi d'e-mails » | Pas de seuil | « Un compte de moins de 7 jours envoie au plus 50 factures par e-mail par jour ; au-delà, l'envoi est refusé et signalé » |
 
-```ts
-import { z } from 'zod';
+Deux pièges symétriques. L'exigence **trop vague** ne contraint rien. L'exigence **qui impose une solution** (« utiliser la bibliothèque X ») contraint trop et devient fausse quand la bibliothèque change ; réserve-la aux choix délibérés, documentés dans un ADR. Les seuils chiffrés de Novafact (7 jours, 50 envois) sont des décisions produit, à revoir avec les données réelles.
 
-const SupportGrant = z.object({
-  agentId: z.string(),
-  tenantId: z.string(),
-  ticketId: z.string().regex(/^SUP-\d+$/),
-  expiresAt: z.coerce.date(),
-});
+## ASVS 5.0 comme catalogue
 
-export async function requireSupportGrant(agentId: string, tenantId: string) {
-  const raw = await grants.findActive(agentId, tenantId);
-  if (!raw) throw new ForbiddenError('aucun accès support pour ce tenant');
-  const grant = SupportGrant.parse(raw);
-  if (grant.expiresAt.getTime() <= Date.now()) throw new ForbiddenError('accès support expiré');
-  await audit.write({ action: 'support.access', actor: agentId, tenantId, ticketId: grant.ticketId });
-  return grant;
-}
-```
+Plutôt que d'inventer les exigences, pars d'**OWASP ASVS 5.0** (mai 2025) : environ 350 exigences vérifiables réparties en 17 chapitres, de l'encodage (V1) à WebRTC (V17), avec trois niveaux :
 
-</Code>
+| Niveau | Pour qui | Part des exigences |
+| --- | --- | --- |
+| **L1** | Le minimum, point de départ de toute application | Environ 20 % |
+| **L2** | La plupart des applications, en particulier celles qui traitent des données sensibles | Environ 50 % de plus (L1 + L2 : environ 70 %) |
+| **L3** | Les applications qui doivent démontrer le plus haut niveau de sécurité | Les 30 % restants |
 
-Le client, lui, voit dans son propre journal d'audit que le support a consulté son compte, pour quel ticket et quand. Cette visibilité fait partie de la confiance qu'on lui demande.
+Pour Novafact : **L2** pour l'API et le back-office, avec quelques exigences de L3 sur les zones les plus sensibles (paiement, clés, journaux d'audit).
 
-## Les composants implicitement fiables
+Les chapitres suivent la structure d'une application moderne : validation et logique métier (V2), sécurité du front (V3), API (V4), fichiers (V5), authentification (V6), sessions (V7), autorisation (V8), jetons autoporteurs (V9), OAuth et OIDC (V10), cryptographie (V11), communications (V12), configuration (V13), protection des données (V14), code et architecture (V15), journalisation et erreurs (V16). Pour Novafact, seul WebRTC (V17) est hors sujet.
 
-Une partie de la pile est **implicitement** fiable : on ne peut pas tout vérifier, donc on s'appuie sur la réputation du fournisseur. Kohnfelder recommande de :
+Quelques exigences réelles, pour sentir le niveau de précision :
 
-- **savoir** explicitement ce qui est considéré comme fiable, plutôt que de le découvrir lors d'un incident ;
-- **réduire le nombre de parties** à qui l'on fait confiance : chaque fournisseur supplémentaire est une occasion de plus d'être déçu ;
-- réfléchir avant d'**élargir** fortement ce périmètre (une nouvelle dépendance, un nouveau SaaS, un nouvel agent IA).
-
-<Callout kind="novafact">
-Exercice : lister les composants implicitement fiables de Novafact. Le résultat surprend l'équipe : 1 400 paquets npm transitifs, 11 scripts tiers sur le front, 6 SaaS avec un accès aux données de production, 3 GitHub Apps avec des droits en écriture. Chaque ligne devient un sujet des modules 4, 14 et 15.
-</Callout>
-
-L'exercice devient utile quand chaque ligne dit **pour quoi** on fait confiance et **ce qui arriverait** si cette confiance était trahie :
-
-| Composant | On lui fait confiance pour… | Si la confiance est trahie | Ce qui réduit la dépendance |
+| Identifiant | Ce qu'elle demande | Niveau | Application à Novafact |
 | --- | --- | --- | --- |
-| AWS | Isoler nos comptes, garder nos clés KMS | Tout | Rien de réaliste : confiance assumée, documentée |
-| Paquets npm | Faire ce qu'annonce leur code, à chaque version | Exécution de code en CI et en production | Lockfile, revue des nouvelles dépendances, scripts d'installation bloqués (M14) |
-| Scripts tiers du front | Ne pas lire le DOM de la page de paiement | Vol de données saisies | Inventaire, CSP, iframe du prestataire (M4) |
-| GitHub Apps en écriture | Ne modifier que ce qu'on attend | Code malveillant poussé sur `main` | Droits minimaux, protection de branche, revue des installations |
-| Fournisseur d'IA | Ne pas conserver ni réutiliser les données envoyées | Fuite de factures | Contrat, minimisation des données envoyées (M19) |
+| `v5.0.0-8.2.2` | L'accès à des données précises est réservé aux consommateurs ayant une permission explicite sur ces données (contre IDOR et BOLA) | L1 | Toute lecture de facture passe par la DAL filtrée par tenant |
+| `v5.0.0-8.4.1` | Une application multi-tenant applique des contrôles inter-tenants pour qu'aucune opération n'affecte un tenant sans permission | L2 | Y compris les workers et l'assistant IA |
+| `v5.0.0-2.4.1` | Des contrôles anti-automatisation protègent contre les appels excessifs (exfiltration, création de données parasites, épuisement de quotas, ressources coûteuses) | L2 | Quotas d'envoi d'e-mails, d'exports, d'appels à l'assistant |
+| `v5.0.0-2.3.5` | Les flux métier à forte valeur exigent l'approbation de plusieurs utilisateurs | L3 | Changer l'IBAN de réception des paiements exige la validation d'un second administrateur |
 
-## La confiance est transitive
+Le dernier exemple montre l'intérêt de piocher ponctuellement dans L3 : pour un SaaS de facturation, le changement d'IBAN est la cible favorite des fraudes au virement, et une double validation coûte peu.
 
-Faire confiance à un paquet npm, ce n'est pas faire confiance au code que tu as lu : c'est faire confiance à **toute personne capable de publier la prochaine version**, à la sécurité de son compte, et à tout ce que ce paquet importe à son tour.
+## Des exigences dans le backlog
 
-<Callout kind="case">
-En 2018, le mainteneur du paquet npm `event-stream`, très utilisé, en a confié la maintenance à un contributeur qui s'était montré utile. Celui-ci a ajouté une dépendance, `flatmap-stream`, dont une version ultérieure contenait du code malveillant chiffré, ciblant les utilisateurs d'un portefeuille de cryptomonnaie (Copay). Le code est resté en circulation plus de deux mois avant d'être signalé. Aucune des applications touchées n'avait décidé de faire confiance à ce nouveau mainteneur : elles l'avaient fait implicitement, en acceptant les mises à jour.
-</Callout>
+<Steps items={[
+  { title: "Sélectionner", text: "Les chapitres pertinents (Novafact n'utilise pas WebRTC) et le niveau, avec les quelques exigences L3 justifiées par le risque." },
+  { title: "Traduire", text: "Chaque exigence ASVS devient un critère d'acceptation vérifiable, formulé dans le vocabulaire de l'équipe." },
+  { title: "Rattacher", text: "À la définition de terminé (Definition of Done) de chaque story concernée, ou à un ticket porteur pour les exigences transverses." },
+  { title: "Vérifier", text: "Par un test automatisé quand c'est possible, sinon par la revue (leçon suivante : la traçabilité)." },
+]} />
 
-Une manière concrète de réduire cette confiance : ne pas laisser les dépendances exécuter du code **au moment de l'installation**. Depuis pnpm 10, les scripts de cycle de vie (`preinstall`, `install`, `postinstall`) des dépendances ne s'exécutent plus par défaut ; seuls les paquets explicitement autorisés le peuvent. Le réglage `allowBuilds` (depuis pnpm 10.26, il remplace `onlyBuiltDependencies`) tient cette liste, et `strictDepBuilds` fait échouer l'installation quand une nouvelle dépendance demande à exécuter un script non encore examiné :
+La traduction est l'étape où la valeur se crée. L'exigence `v5.0.0-8.4.1`, appliquée à la story « export comptable asynchrone », devient :
 
-<Code file="pnpm-workspace.yaml (extrait)">
+<Code file="docs/stories/export-comptable.feature">
 
-```yaml
-strictDepBuilds: true
-allowBuilds:
-  esbuild: true
-  "@prisma/engines": true
-  core-js: false   # script de promotion, inutile : refusé explicitement
+```text
+# language: fr
+# Exigence : NOVA-AUTHZ-04 (ASVS v5.0.0-8.4.1)
+Fonctionnalité: Export comptable asynchrone
+
+  Scénario: le worker n'exporte que le tenant de l'utilisateur qui a demandé l'export
+    Étant donné un comptable du tenant A connecté
+    Quand il demande l'export du trimestre
+    Et que le message de la file est modifié pour désigner le tenant B
+    Alors le worker refuse le message
+    Et aucun fichier n'est produit
+    Et un événement d'audit "export.denied" est écrit pour le tenant A
+
+  Scénario: l'export contient uniquement les factures du tenant A
+    Étant donné des factures dans les tenants A et B
+    Quand le comptable du tenant A obtient son export
+    Alors toutes les lignes de l'export appartiennent au tenant A
 ```
 
 </Code>
 
-Avec npm, l'équivalent grossier est `ignore-scripts=true` dans le `.npmrc`, avec l'inconvénient de devoir lancer à la main les scripts réellement nécessaires. Dans les deux cas, la liste des exceptions devient une **décision de confiance explicite**, relue en PR.
-
-## Décider de faire confiance
-
-Kohnfelder décrit les décisions de confiance comme un **arbre** : si aucun fournisseur de stockage n'est jugé fiable, il faut héberger soi-même, ce qui oblige à de nouvelles décisions (quel hébergement, quelle base de données). Refuser toute confiance ne supprime pas le problème, il le déplace vers ce qu'on devra construire et sécuriser soi-même.
-
-Pour les **entrées explicitement non fiables** (tout ce qui vient d'Internet ou d'un client), la règle est simple : suspicion et soin maximaux. C'est le pattern *Reluctance to Trust* (M8).
-
-Kohnfelder ajoute une nuance utile : même pour les entrées **jugées fiables**, ajouter un contrôle quand il ne coûte presque rien réduit la fragilité du système. Un message que l'API place dans une file pour un worker interne vient d'un composant de confiance ; le valider tout de même avec un schéma empêche un bug innocent (ou une compromission de l'API) de se propager en silence.
+Ce critère fait apparaître une décision de conception que la story n'avait pas prévue : le worker ne peut pas faire confiance au tenant écrit dans le message, il faut un contexte signé par l'API. L'exigence a joué son rôle avant la première ligne de code.
 
 <Callout kind="debate">
-« Zero trust » veut-il dire ne faire confiance à rien ? Non. Le modèle décrit par le NIST (SP 800-207) supprime la **confiance implicite accordée en fonction de l'emplacement réseau** : une requête venue du réseau interne n'est pas fiable pour autant, chaque accès est authentifié et autorisé. Mais un système zero trust fait toujours confiance à son fournisseur d'identité, à son moteur de politiques et à ses clés. Le slogan est utile contre le réflexe « c'est interne, donc c'est sûr » ; pris au pied de la lettre, il empêche de construire quoi que ce soit.
+L2 partout, ou une sélection par le risque ? Viser L2 uniformément donne une base simple à expliquer aux clients et aux auditeurs. Mais certaines exigences L2 coûtent cher pour un gain faible sur un service interne, alors que des exigences L3 sont décisives sur le paiement. Une approche courante : L2 comme référence contractuelle, des exceptions documentées là où une exigence ne s'applique pas, et un petit ensemble L3 choisi par le threat model (M11).
 </Callout>
 
-## Être digne de confiance
+## Abuse cases
 
-L'autre face : Novafact est elle-même un composant implicitement fiable pour ses clients. Être digne de confiance, c'est être **transparent** (politique de sécurité publique, divulgation des incidents, sous-traitants listés) et **tenir ses engagements** : c'est aussi ce que demandent le CRA et les questionnaires de sécurité des clients.
+Une **abuse case** est le miroir d'une user story : elle décrit comment un acteur pourrait utiliser une fonctionnalité **contre** le système ou contre d'autres utilisateurs. Chacune fait apparaître une exigence.
 
-Kohnfelder insiste sur la différence entre **affirmer** et **montrer** : les déclarations vides érodent la confiance des clients avertis, les preuves la construisent. Concrètement pour Novafact :
+| User story | Abuse case | Exigence qui en découle |
+| --- | --- | --- |
+| En tant que client, j'envoie une facture par e-mail à mon client | En tant qu'escroc, je crée un compte gratuit et j'envoie des milliers de fausses factures depuis le domaine de Novafact | Quotas d'envoi pour les nouveaux comptes, vérification du compte, signalement (M15) |
+| En tant qu'administrateur, j'exporte les factures du trimestre | En tant qu'administrateur d'un tenant, je modifie l'identifiant pour exporter celles d'un autre tenant | Toute requête est filtrée par le tenant de la session (M14) |
+| En tant qu'utilisateur, je personnalise le modèle de mes e-mails | En tant qu'utilisateur malveillant, j'insère du code dans le modèle | Langage de template limité, rendu isolé (M9) |
+| En tant qu'administrateur, je change l'IBAN de réception des paiements | En tant qu'attaquant ayant volé une session d'administrateur, je remplace l'IBAN par le mien | Réauthentification forte, validation par un second administrateur, notification à tous les administrateurs |
 
-- un **journal d'audit visible par l'administrateur du tenant** (qui a exporté quoi, qui du support a consulté le compte) ;
-- des **audits indépendants** (pentest par un prestataire qualifié, M6, leçon 8) dont une synthèse est communicable aux clients ;
-- une **liste publique des sous-traitants** qui traitent des données, tenue à jour ;
-- après un incident, une **communication franche** : ce qui s'est passé, ce qui a été fait, ce qui empêchera la récidive.
+Les termes varient selon les sources : *misuse case* et *abuse case* sont souvent employés l'un pour l'autre, certains réservant *misuse* aux mauvais usages involontaires (l'utilisateur qui colle 50 000 lignes dans un champ). Les deux méritent d'être envisagés : l'erreur de bonne foi produit souvent les mêmes dégâts que l'attaque.
+
+## Trouver les abuse cases
+
+Les meilleures viennent d'un atelier court, sur une fonctionnalité précise, avec l'équipe qui la construit. Ton expérience de pentester y est précieuse, à condition de faire parler l'équipe plutôt que de réciter ta liste :
+
+<Steps items={[
+  { title: "Nommer les acteurs", text: "Le client légitime, le client malveillant (le plus probable dans un SaaS), un utilisateur d'un autre tenant, un compte volé, un employé, un script automatisé." },
+  { title: "Pour chaque acteur, demander « que voudrait-il obtenir ? »", text: "De l'argent, des données d'autrui, une nuisance, la réputation de Novafact pour ses propres envois." },
+  { title: "Chercher le détournement le moins cher", text: "Avec quoi l'acteur part-il ? Souvent juste un compte gratuit et un navigateur." },
+  { title: "Écrire l'exigence et son test", text: "Chaque abuse case retenue produit un critère d'acceptation, et si possible un test automatisé." },
+]} />
+
+L'abuse case du spammeur, par exemple, devient un test qui vivra aussi longtemps que la fonctionnalité :
+
+<Code file="apps/api/test/invoices.send.abuse.test.ts">
+
+```ts
+// @requirement NOVA-ABUSE-02 Quota d'envoi des nouveaux comptes (ASVS v5.0.0-2.4.1)
+it('un compte de moins de 7 jours ne peut pas dépasser 50 envois par jour', async () => {
+  const { user, invoices } = await seedTenant({ ageDays: 2, invoices: 51 });
+  for (const inv of invoices.slice(0, 50)) {
+    await asUser(user).post(`/invoices/${inv.id}/send`).expect(202);
+  }
+  const res = await asUser(user).post(`/invoices/${invoices[50].id}/send`);
+  expect(res.status).toBe(429);
+  expect(await auditEvents(user.tenantId, 'invoice.send_quota_exceeded')).toHaveLength(1);
+});
+```
+
+</Code>
+
+<Callout kind="warn">
+Une abuse case n'est pas une chaîne d'exploitation. L'objectif est de faire apparaître une exigence et un test, pas de documenter comment attaquer. Garde les scénarios au niveau « qui, pour obtenir quoi, avec quels moyens » : c'est suffisant pour concevoir le contrôle.
+</Callout>
 
 <Recap items={[
-  "Presque toutes les vulnérabilités sont des erreurs de confiance : concevoir, c'est décider consciemment à qui l'on fait confiance, et pour quoi.",
-  "La confiance est un spectre ; autorisation bornée et audit permettent de faire confiance en vérifiant.",
-  "Connaître explicitement les composants implicitement fiables, ce qu'on leur confie et ce qui arriverait s'ils trahissaient.",
-  "La confiance est transitive : un paquet, c'est aussi ses futurs mainteneurs ; bloquer les scripts d'installation rend la confiance explicite.",
-  "Refuser la confiance déplace le problème ; même les entrées fiables méritent un contrôle peu coûteux.",
-  "Zero trust supprime la confiance implicite liée au réseau, pas les décisions de confiance.",
-  "Novafact doit montrer, pas affirmer, qu'elle est digne de confiance.",
+  "Exigences fonctionnelles (comportements) et non fonctionnelles (propriétés) ; les secondes ont besoin d'un propriétaire explicite.",
+  "Une bonne exigence se reconnaît au test qu'on sait écrire pour la prouver.",
+  "ASVS 5.0 : environ 350 exigences, 17 chapitres, trois niveaux ; L2 pour la plupart des applications, un peu de L3 choisi par le risque.",
+  "Sélectionner, traduire en critères d'acceptation, rattacher à la Definition of Done, vérifier.",
+  "Chaque abuse case, trouvée en atelier avec l'équipe, fait apparaître une exigence et un test.",
 ]} />
 
 <Sources items={[
-  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 1, Trust" },
-  { title: "Snyk : post-mortem de la backdoor event-stream", url: "https://snyk.io/blog/a-post-mortem-of-the-malicious-event-stream-backdoor/" },
-  { title: "pnpm : réglages de build (strictDepBuilds, allowBuilds)", url: "https://pnpm.io/settings" },
-  { title: "NIST SP 800-207 : Zero Trust Architecture", url: "https://csrc.nist.gov/pubs/sp/800/207/final" },
+  { title: "OWASP ASVS 5.0", url: "https://github.com/OWASP/ASVS" },
+  { title: "OWASP ASVS 5.0 : chapitre V8 Authorization", url: "https://github.com/OWASP/ASVS/blob/master/5.0/en/0x17-V8-Authorization.md" },
+  { title: "OWASP Cheat Sheet : Abuse Case", url: "https://cheatsheetseries.owasp.org/cheatsheets/Abuse_Case_Cheat_Sheet.html" },
 ]} />

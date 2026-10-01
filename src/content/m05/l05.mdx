@@ -115,7 +115,7 @@ Un SLA ne vaut que s'il est **suivi et visible**. La grille de la leçon 3 donne
 
 - une **alerte** au propriétaire à mi-délai ;
 - une **escalade** automatique au dépassement ;
-- une **exception** formelle (M1, leçon 5) si le délai ne peut pas être tenu : justification, propriétaire du risque, date de revue.
+- une **exception** formelle (M31, leçon 3) si le délai ne peut pas être tenu : justification, propriétaire du risque, date de revue.
 
 Le registre des exceptions mérite autant de soin que le backlog. Une exception sans date d'expiration est une acceptation de risque permanente qui ne dit pas son nom ; une exception expirée sans revue est une dette que personne ne voit. DefectDojo gère les acceptations de risque avec une date d'expiration : à l'échéance, le finding redevient actif et remonte dans les tableaux de bord. L'indicateur qui compte n'est pas le nombre d'exceptions, mais leur **âge** et leur taux de renouvellement sans changement.
 
@@ -162,7 +162,7 @@ L'override ci-dessus s'applique à **toutes** les occurrences de `xml-parser-lit
 | --- | --- |
 | `overrides` (npm) ou `pnpm.overrides` | La version corrigée de la dépendance transitive est compatible : on l'impose, les tests valident |
 | `patch-package` ou `pnpm patch` | Pas de version corrigée : on applique le correctif en local, versionné et revu |
-| Remplacer la dépendance | Paquet abandonné ou correctif trop lent (l'anti-pattern *unpatchable component* de Kohnfelder, M8) |
+| Remplacer la dépendance | Paquet abandonné ou correctif trop lent (l'anti-pattern *unpatchable component* de Kohnfelder, M13) |
 | Mesure compensatoire | Le code vulnérable est atteignable mais on peut bloquer l'entrée (validation, WAF) en attendant |
 | VEX `not_affected` | Le code vulnérable n'est pas atteignable, et c'est démontré |
 
@@ -172,7 +172,7 @@ Chaque `override` ou patch local est une dette : documente pourquoi il existe et
 
 ## Mettre à jour vite, mais pas n'importe quoi
 
-Renovate ou Dependabot proposent les mises à jour de sécurité sous forme de PR, avec les notes de version. Le réglage délicat est le **délai avant adoption** d'une nouvelle version (`minimumReleaseAge` dans Renovate et dans pnpm) : il protège contre un paquet piégé retiré du registre dans les heures qui suivent (leçon 8 du module 4), mais il retarde aussi l'arrivée d'un correctif de sécurité. L'arbitrage chez Novafact : un délai par défaut de trois jours, et une dérogation explicite, après lecture du diff du paquet, pour une vulnérabilité classée Act ou Attend.
+Renovate ou Dependabot proposent les mises à jour de sécurité sous forme de PR, avec les notes de version. Le réglage délicat est le **délai avant adoption** d'une nouvelle version (`minimumReleaseAge` dans Renovate et dans pnpm) : il protège contre un paquet piégé retiré du registre dans les heures qui suivent (leçon 9 du module 8), mais il retarde aussi l'arrivée d'un correctif de sécurité. L'arbitrage chez Novafact : un délai par défaut de trois jours, et une dérogation explicite, après lecture du diff du paquet, pour une vulnérabilité classée Act ou Attend.
 
 ## Publier un correctif pour les autres
 

@@ -159,7 +159,7 @@ module.exports = {
 
 ## Le cas de l'infrastructure
 
-Sur AWS, l'endpoint de métadonnées des instances (`169.254.169.254`) délivre les identifiants temporaires du rôle attaché. C'est ce qui a transformé une SSRF en fuite de données massive chez Capital One en 2019. **IMDSv2** exige un jeton obtenu par une requête `PUT` avec un en-tête dédié, ce qu'une SSRF classique ne peut pas faire, et une limite de sauts réglée à 1 empêche les conteneurs d'atteindre l'endpoint quand ils n'en ont pas besoin. Le module 15 approfondit ce point.
+Sur AWS, l'endpoint de métadonnées des instances (`169.254.169.254`) délivre les identifiants temporaires du rôle attaché. C'est ce qui a transformé une SSRF en fuite de données massive chez Capital One en 2019. **IMDSv2** exige un jeton obtenu par une requête `PUT` avec un en-tête dédié, ce qu'une SSRF classique ne peut pas faire, et une limite de sauts réglée à 1 empêche les conteneurs d'atteindre l'endpoint quand ils n'en ont pas besoin. Le module 19 approfondit ce point.
 
 <Code file="infra/ec2-pdf-worker.tf">
 

@@ -1,4 +1,4 @@
-// M11 · Threat modeling & MITRE — challenges jouables.
+// m11 · Threat modeling & MITRE — challenges jouables.
 //
 // Challenges « artifact » : l'apprenant PRODUIT un fichier dans `workspace/`,
 // et c'est ce fichier qui est jugé. Le chemin donné par `file` est relatif à
@@ -38,7 +38,7 @@ export const m11: ExerciseDef[] = [
     goal:
       'Dans `threats/stride.yaml`, énumérer pour chaque élément du schéma de référence (fixtures/m11/stride-elements.json) les catégories STRIDE applicables, la mitigation, et le fichier qui l’implémente.',
     file: 'threats/stride.yaml',
-    lessons: ['m11/l02', 'm08/l01'],
+    lessons: ['m11/l02', 'm08/l02'],
     hints: [
       'Le format : `elements: [{id, type, file?, route?, threats: [{category, threat, mitigation, control}]}]`. Les catégories s’écrivent S, T, R, I, D, E.',
       'La règle STRIDE-par-élément n’est pas au choix : une entité externe porte deux catégories, un flux trois — pas d’élévation de privilège sur un flux —, un magasin quatre, un processus les six.',
@@ -55,7 +55,7 @@ export const m11: ExerciseDef[] = [
     goal:
       'Construire dans `threats/tenant-breach.deciduous.yaml` l’arbre qui mène au vol d’une facture d’un autre tenant, et montrer que chaque chemin est coupé par une mitigation réellement implémentée.',
     file: 'threats/tenant-breach.deciduous.yaml',
-    lessons: ['m11/l03', 'm08/l05'],
+    lessons: ['m11/l03', 'm08/l10'],
     hints: [
       'Le format, dans l’esprit de Deciduous : `facts: [{id, label}]`, `attacks: [{id, label, from: [], challenge?}]`, `goals: [{id, label, from: []}]`, `mitigations: [{id, mitigates: [], implemented_by, evidence}]`.',
       'Une mitigation ne compte que si elle est faite : `implemented_by` doit désigner un fichier du corrigé (`solutions/…`) et `evidence` un fragment de code qu’on y retrouve vraiment.',
@@ -72,7 +72,7 @@ export const m11: ExerciseDef[] = [
     goal:
       'Remonter, pour cinq challenges jouables du lab, du défaut au motif d’attaque puis à la technique ATT&CK, dans un CSV `threats/attack-chain.csv` aux colonnes challenge, cwe, capec, attack, attack_name.',
     file: 'threats/attack-chain.csv',
-    lessons: ['m11/l04', 'm18/l04'],
+    lessons: ['m11/l04', 'm28/l03'],
     hints: [
       'Le CWE d’un challenge n’est pas à deviner : il est dans le registre du lab, sur la page du challenge.',
       'Les correspondances sont embarquées dans fixtures/m11/mitre.json — CWE → CAPEC par les « Related Weaknesses », CAPEC → ATT&CK par les « Taxonomy Mappings ».',
@@ -89,7 +89,7 @@ export const m11: ExerciseDef[] = [
     goal:
       'Dans `threats/linddun.yaml`, analyser chaque flux du parcours de facturation qui transporte une donnée personnelle, et proposer la mesure pour chacun.',
     file: 'threats/linddun.yaml',
-    lessons: ['m11/l03', 'm07/l06'],
+    lessons: ['m11/l03', 'm07/l04'],
     hints: [
       'Le format : `flows: [{route, personal_data: [], categories: [], measure, control}]`. Les sept catégories s’écrivent L, I, NR, D, DD, U, NC.',
       'Le périmètre se déduit du code : une route en fait partie si son gestionnaire touche une collection du parcours (fixtures/m11/data-classification.json dit lesquelles, et quelles données personnelles chacune porte).',
@@ -106,7 +106,7 @@ export const m11: ExerciseDef[] = [
     goal:
       'Écrire `scripts/tm-drift.mjs`, appelé « node tm-drift.mjs <dossier-server> <modele.json> » : sortie 0 si toute route montée sous ce dossier figure dans le modèle, sortie non nulle sinon, en nommant les routes manquantes.',
     file: 'scripts/tm-drift.mjs',
-    lessons: ['m11/l05', 'm01/l05'],
+    lessons: ['m11/l05', 'm32/l03'],
     hints: [
       'Le modèle est un JSON `{ "routes": ["GET /api/invoices", …] }`. Le dossier passé en argument contient `index.ts` et `routes/`.',
       'Il faut retrouver les préfixes de montage (`app.use(\'/api/x\', xRoutes)`) puis les routes de chaque routeur, et recomposer « MÉTHODE /chemin/complet ».',
@@ -123,7 +123,7 @@ export const m11: ExerciseDef[] = [
     goal:
       'Produire `threats/agent.yaml`, `threats/supply-chain.yaml` et `threats/workstation.yaml`, avec pour chacun les frontières de confiance et les menaces que les deux autres ne couvrent pas.',
     file: 'threats/',
-    lessons: ['m11/l06', 'm19/l05'],
+    lessons: ['m11/l06', 'm30/l01'],
     hints: [
       'Chaque fichier porte `threats: [{threat, boundary, control}]` et une clé d’inventaire qui lui est propre : `tools:` pour l’agent, `pipeline:` pour la chaîne, `secrets:` pour le poste.',
       'Les trois inventaires se lisent dans le dépôt : les outils dans le code de l’assistant, les étapes sous la forme « fichier.yml:job » dans les workflows de `novafact/`, les secrets dans ces mêmes workflows et dans `.npmrc`.',

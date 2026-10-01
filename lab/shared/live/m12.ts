@@ -1,4 +1,4 @@
-// M12 · Revue de code sécurité — challenges jouables.
+// m12 · Revue de code sécurité — challenges jouables.
 //
 // Challenges « artifact » : l'apprenant produit un fichier dans `workspace/`.
 // `review/pr-42.yaml` signifie `workspace/review/pr-42.yaml`.

@@ -56,7 +56,7 @@ Quel que soit le SDK (Vercel AI SDK, LangChain.js, SDK officiels d'OpenAI ou d'A
 | Où va la sortie | Faille classique | Contrôle |
 | --- | --- | --- |
 | Rendu HTML ou Markdown | XSS, exfiltration par image ou lien | Pas de HTML brut, images externes bloquées, domaines de liens en liste blanche, CSP |
-| URL passée à un outil | SSRF | Liste blanche d'hôtes, proxy de sortie, blocage des adresses internes et des métadonnées cloud (M3) |
+| URL passée à un outil | SSRF | Liste blanche d'hôtes, proxy de sortie, blocage des adresses internes et des métadonnées cloud (M9) |
 | Requête SQL ou filtre | Injection, BOLA | Filtre structuré validé, tenant imposé par le code, rôle en lecture seule |
 | Arguments d'outil | BOLA, BFLA, agence excessive | Schéma strict, identité prise dans la session, autorisation revérifiée dans l'outil |
 | Commande, code, `eval` | RCE | Ne pas le faire ; sinon bac à sable sans réseau ni secrets |
@@ -95,7 +95,7 @@ export function AssistantMessage({ text }: { text: string }) {
 
 </Code>
 
-La CSP (M4) ferme la porte une seconde fois : un `img-src` limité à ton origine et à ton CDN empêche le chargement d'une image externe même si un composant l'oublie. Les liens restent un canal (l'utilisateur peut cliquer) : n'autorise que tes domaines et affiche l'URL complète.
+La CSP (M8) ferme la porte une seconde fois : un `img-src` limité à ton origine et à ton CDN empêche le chargement d'une image externe même si un composant l'oublie. Les liens restent un canal (l'utilisateur peut cliquer) : n'autorise que tes domaines et affiche l'URL complète.
 
 <Callout kind="case">
 En août 2024, PromptArmor a montré qu'on pouvait faire fuiter des données de canaux privés via Slack AI : une consigne placée dans un canal public amenait l'assistant, lors d'une recherche d'un autre utilisateur, à produire un lien cliquable contenant des données privées. MITRE ATLAS l'a intégré comme étude de cas (AML.CS0035). La même mécanique a été démontrée sur plusieurs assistants grand public : ce n'est pas un bug d'un produit, c'est une propriété du rendu.
@@ -142,9 +142,9 @@ export function runAssistant(session: Session, messages: ModelMessage[]) {
 
 Deux décisions font l'essentiel du travail. L'outil d'envoi prend un **`contactId`** et non une adresse : le modèle ne peut choisir qu'un destinataire déjà connu du tenant, ce qui retire l'exfiltration par e-mail. Et l'**approbation** est déclarée à l'appel (dans l'AI SDK 7, `toolApproval` remplace l'option `needsApproval` des versions précédentes) : le SDK suspend l'exécution jusqu'à la décision de l'utilisateur. LangChain.js et les SDK des fournisseurs offrent des mécanismes équivalents ; l'important est que la décision soit prise par du code, pas par le modèle.
 
-Si un outil doit récupérer une URL (lire une page de conditions générales, par exemple), c'est une SSRF en puissance : liste blanche d'hôtes, résolution DNS vérifiée, proxy de sortie, aucune redirection suivie aveuglément, exactement comme en M3.
+Si un outil doit récupérer une URL (lire une page de conditions générales, par exemple), c'est une SSRF en puissance : liste blanche d'hôtes, résolution DNS vérifiée, proxy de sortie, aucune redirection suivie aveuglément, exactement comme en M9.
 
-Enfin, **journalise chaque appel d'outil** comme un événement de sécurité : utilisateur, tenant, nom de l'outil, arguments, décision (exécuté, approuvé, refusé) et identifiant de la conversation. Sans ces traces, une injection réussie ressemble à un usage normal ; avec elles, une détection Elastic (M18) peut signaler un outil d'écriture appelé juste après la lecture d'un document importé, ou un utilisateur dont les refus d'approbation s'accumulent.
+Enfin, **journalise chaque appel d'outil** comme un événement de sécurité : utilisateur, tenant, nom de l'outil, arguments, décision (exécuté, approuvé, refusé) et identifiant de la conversation. Sans ces traces, une injection réussie ressemble à un usage normal ; avec elles, une détection Elastic (M24) peut signaler un outil d'écriture appelé juste après la lecture d'un document importé, ou un utilisateur dont les refus d'approbation s'accumulent.
 
 ## Text-to-SQL sans donner les clés
 
@@ -213,7 +213,7 @@ LLM06:2026 décrit une attaque sans malware : du trafic légitime en apparence, 
 | Étapes d'outils | 5 par requête | `stopWhen` |
 | Durée | 30 s | `abortSignal` |
 | Quota | 200 000 jetons par utilisateur et par jour, 2 M par tenant | Compteur Redis, réponse 429 |
-| Coût global | Alerte à 120 % de la moyenne horaire | AWS Budgets et alarme CloudWatch (M18) |
+| Coût global | Alerte à 120 % de la moyenne horaire | AWS Budgets et alarme CloudWatch (M23) |
 
 <Lab id="ps-llm" note="Pour chaque lab, identifie le sink (outil, rendu, API) et écris le contrôle de cette leçon qui l'aurait neutralisé." />
 

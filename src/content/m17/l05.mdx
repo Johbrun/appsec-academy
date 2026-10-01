@@ -46,7 +46,7 @@ export const questions = [
 ];
 
 <YouKnow>
-En M4, tu as conçu la politique : CSP stricte à nonce ou à hash, COOP, CORP, `Permissions-Policy`, cookies `__Host-`. Une politique bien écrite ne protège rien tant qu'elle n'est pas servie, sur **toutes** les réponses, par **un seul** propriétaire, et vérifiée à chaque déploiement.
+En M8, tu as conçu la politique : CSP stricte à nonce ou à hash, COOP, CORP, `Permissions-Policy`, cookies `__Host-`. Une politique bien écrite ne protège rien tant qu'elle n'est pas servie, sur **toutes** les réponses, par **un seul** propriétaire, et vérifiée à chaque déploiement.
 </YouKnow>
 
 ## Cartographier les réponses avant de poser des en-têtes
@@ -75,7 +75,7 @@ En bordure ou dans l'application ? Les équipes plateforme préfèrent la bordur
 
 Une **response headers policy** ajoute, remplace ou retire des en-têtes dans les réponses que CloudFront envoie aux navigateurs, qu'elles viennent du cache ou de l'origine. Pour chaque en-tête, le réglage **Origin override** décide qui gagne : à `true`, la valeur de la politique remplace celle de l'origine ; à `false`, l'en-tête de l'origine est conservé s'il existe, et la politique ne sert que de valeur par défaut.
 
-La politique gérée **SecurityHeadersPolicy** est tentante, mais elle ne correspond pas à ce que tu as conçu en M4 : pas de CSP, HSTS d'un an sans `includeSubDomains`, `X-XSS-Protection: 1; mode=block` (le filtre historique des navigateurs est déconseillé ; helmet pose `0`), et `Override` à `false` sauf pour `nosniff`. Écris ta propre politique :
+La politique gérée **SecurityHeadersPolicy** est tentante, mais elle ne correspond pas à ce que tu as conçu en M8 : pas de CSP, HSTS d'un an sans `includeSubDomains`, `X-XSS-Protection: 1; mode=block` (le filtre historique des navigateurs est déconseillé ; helmet pose `0`), et `Override` à `false` sauf pour `nosniff`. Écris ta propre politique :
 
 <Code file="infra/terraform/edge/headers-spa.tf" hl="6,7,11,12,31,32">
 
@@ -139,7 +139,7 @@ Trois limites à connaître. La valeur de `Content-Security-Policy` est limitée
 
 ## Dans l'application : les pages dynamiques
 
-Pour le back-office et la page de paiement, l'application pose la CSP, car elle seule connaît le nonce. Depuis Next.js 16, le fichier `middleware.ts` s'appelle `proxy.ts` et exporte une fonction `proxy` ; le principe est inchangé : générer le nonce, le mettre dans la CSP de la réponse et dans un en-tête de requête `x-nonce`, que Next.js relit pour l'appliquer à ses propres scripts (M4, leçon 4).
+Pour le back-office et la page de paiement, l'application pose la CSP, car elle seule connaît le nonce. Depuis Next.js 16, le fichier `middleware.ts` s'appelle `proxy.ts` et exporte une fonction `proxy` ; le principe est inchangé : générer le nonce, le mettre dans la CSP de la réponse et dans un en-tête de requête `x-nonce`, que Next.js relit pour l'appliquer à ses propres scripts (M8, leçon 5).
 
 Deux conséquences d'exploitation, souvent oubliées :
 
@@ -191,7 +191,7 @@ console.log(`En-têtes conformes sur ${targets.length} URL`);
 
 </Code>
 
-Le test de la virgule repose sur deux faits : `fetch` fusionne les en-têtes répétés avec une virgule, et une virgule sépare des politiques distinctes dans une CSP. Le double appel sur les pages dynamiques détecte un nonce réutilisé, donc une page servie depuis un cache. Pour la page de paiement, ce contrôle horaire sert aussi de preuve pour l'exigence PCI DSS 11.6.1, qui demande de détecter les modifications non autorisées des en-têtes de sécurité de la page (M4, leçon 7).
+Le test de la virgule repose sur deux faits : `fetch` fusionne les en-têtes répétés avec une virgule, et une virgule sépare des politiques distinctes dans une CSP. Le double appel sur les pages dynamiques détecte un nonce réutilisé, donc une page servie depuis un cache. Pour la page de paiement, ce contrôle horaire sert aussi de preuve pour l'exigence PCI DSS 11.6.1, qui demande de détecter les modifications non autorisées des en-têtes de sécurité de la page (M8, leçon 8).
 
 ## Les rapports jusqu'à Elastic
 
@@ -232,7 +232,7 @@ reports.post('/api/reports', express.json({ type: ['application/reports+json', '
 
 </Code>
 
-Les logs pino au format ECS partent vers Elastic (M18). La requête utile n'est pas « combien de rapports », mais « quelle **nouvelle** source bloquée sur quelle page » :
+Les logs pino au format ECS partent vers Elastic (M23). La requête utile n'est pas « combien de rapports », mais « quelle **nouvelle** source bloquée sur quelle page » :
 
 <Code file="elastic/esql/csp-paiement.esql">
 
@@ -248,7 +248,7 @@ FROM logs-novafact.api-*
 Une extension de navigateur produit du bruit dispersé (quelques utilisateurs, sources variées). Un skimmer injecté produit l'inverse : une seule source inconnue, sur la page de paiement, chez beaucoup de visiteurs à la fois. C'est cette forme que la règle de détection doit chercher.
 
 <Callout kind="novafact">
-Incident évité (scénario fictif) : après l'ajout d'un comportement CloudFront pour accélérer la page de paiement, le contrôle horaire échoue sur « nonce absent ou réutilisé ». Le nouveau comportement utilisait la politique de cache par défaut au lieu de `CachingDisabled`. Retour arrière en 12 minutes, et une règle Checkov maison (M16) interdit désormais toute politique de cache autre que `CachingDisabled` sur les chemins `/checkout/*` et `/admin/*`.
+Incident évité (scénario fictif) : après l'ajout d'un comportement CloudFront pour accélérer la page de paiement, le contrôle horaire échoue sur « nonce absent ou réutilisé ». Le nouveau comportement utilisait la politique de cache par défaut au lieu de `CachingDisabled`. Retour arrière en 12 minutes, et une règle Checkov maison (M20) interdit désormais toute politique de cache autre que `CachingDisabled` sur les chemins `/checkout/*` et `/admin/*`.
 </Callout>
 
 <Recap items={[

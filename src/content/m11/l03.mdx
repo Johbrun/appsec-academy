@@ -57,7 +57,7 @@ En pentest, tu raisonnes naturellement en arbres d'attaque : un objectif, plusie
 | **Arbres d'attaque** | Un objectif en racine, des chemins en branches (OU, ET) | Pour analyser un objectif précis en profondeur : « lire les factures d'un autre tenant » |
 | **PASTA** | Sept étapes orientées risque, des objectifs métier à l'analyse des vulnérabilités et des attaques | Pour un système critique, quand le lien avec le risque métier doit être explicite |
 | **Hybrid Threat Modeling Method** (SEI) | Combine SQUARE, les Security Cards et les *personas non grata* | Quand on veut écarter les menaces improbables et impliquer des non-spécialistes |
-| **LINDDUN** | Menaces sur la vie privée | Pour les traitements de données personnelles (M7) |
+| **LINDDUN** | Menaces sur la vie privée | Pour les traitements de données personnelles (M12) |
 
 Aucune n'est « la bonne ». Elles diffèrent par leur point de départ : le **système** (STRIDE part du DFD), l'**attaquant** (les arbres et les personas partent de ses objectifs), le **risque métier** (PASTA part des objectifs de l'entreprise), la **personne concernée** (LINDDUN part de ce qui peut lui nuire). Choisir une méthode, c'est choisir par où commencer à regarder.
 
@@ -80,7 +80,7 @@ Lire les factures d'un autre tenant
 
 La logique des nœuds guide la défense. Sous un **ET**, l'attaquant a besoin de tous les enfants : en couper un seul suffit. Sous un **OU**, un seul enfant lui suffit : il faut tous les couper. La branche BOLA est un ET : une autorisation par tenant dans la DAL la ferme, même si l'inscription reste gratuite et les identifiants devinables. La branche « voler la session » est un OU : il faut à la fois une CSP stricte contre la XSS et la MFA contre le credential stuffing.
 
-On voit ainsi où une mitigation coupe **plusieurs** branches : l'autorisation dans la DAL, la MFA, IMDSv2. C'est le même raisonnement que les chaînes de M3.
+On voit ainsi où une mitigation coupe **plusieurs** branches : l'autorisation dans la DAL, la MFA, IMDSv2. C'est le même raisonnement que les chaînes de M9.
 
 ### Annoter les feuilles
 
@@ -104,17 +104,17 @@ Une méthode trouve des menaces ; encore faut-il se demander **qui** les portera
 
 | Profil | Chez Novafact | Ce que ça change |
 | --- | --- | --- |
-| Automates opportunistes | Scanners, credential stuffing, bots d'inscription | Volume, faible sophistication : limites et hygiène (M10) |
+| Automates opportunistes | Scanners, credential stuffing, bots d'inscription | Volume, faible sophistication : limites et hygiène (M15) |
 | Fraudeurs | Fausses factures, changement d'IBAN | Motivation financière, patience : invariants et détection |
 | Initié malveillant | Agent du support avec l'outil d'administration, ancien employé | Moindre privilège, double validation, audit des accès aux données |
-| Fournisseur tiers | Prestataire e-mail, paquet npm, outil de support SaaS | Confiance transitive : M14, contrats, isolation des accès |
+| Fournisseur tiers | Prestataire e-mail, paquet npm, outil de support SaaS | Confiance transitive : M18, contrats, isolation des accès |
 | Attaquant ciblé (APT) | Viser Novafact pour atteindre les données comptables de ses clients | Rare pour une PME, mais Novafact concentre des données de milliers d'entreprises |
 
 La dernière ligne est souvent écartée trop vite : un SaaS n'intéresse pas un attaquant ciblé pour lui-même, mais comme **point d'accès** à ses clients. C'est le raisonnement de la supply chain (leçon 6).
 
 ## Prioriser sans DREAD
 
-Kohnfelder présente DREAD (dommage, reproductibilité, exploitabilité, utilisateurs affectés, découvrabilité), qu'il a promu chez Microsoft, mais avec deux réserves : il préfère des **tailles de t-shirt** à des notes, parce que la gravité n'est pas linéaire, et il déconseille d'**additionner** les cinq dimensions, ce qui revient à comparer des pommes et des oranges. Microsoft a de son côté abandonné DREAD pour sa subjectivité (M5).
+Kohnfelder présente DREAD (dommage, reproductibilité, exploitabilité, utilisateurs affectés, découvrabilité), qu'il a promu chez Microsoft, mais avec deux réserves : il préfère des **tailles de t-shirt** à des notes, parce que la gravité n'est pas linéaire, et il déconseille d'**additionner** les cinq dimensions, ce qui revient à comparer des pommes et des oranges. Microsoft a de son côté abandonné DREAD pour sa subjectivité (M26).
 
 Pour prioriser les menaces d'un threat model, une grille **qualitative** simple suffit souvent : **impact** (faible, moyen, élevé) × **vraisemblance** (faible, moyenne, élevée), avec une justification d'une phrase. Pour ceux qui veulent plus de structure, l'OWASP Risk Rating Methodology décompose vraisemblance et impact en facteurs. L'important est la cohérence dans le temps, pas la précision : une grille appliquée de la même façon d'un trimestre à l'autre permet de comparer ; une grille réinventée à chaque séance ne permet rien.
 

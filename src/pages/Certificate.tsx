@@ -3,11 +3,12 @@ import { Check, Lock, Printer } from 'lucide-react';
 import { PageHead } from '../components/ui';
 import { Seal } from '../components/Marks';
 import { useProgress, levelFor, badgeDefs } from '../store/progress';
-import { modules, totalLessons } from '../data/catalog';
+import { totalLessons } from '../data/catalog';
+import { openModules } from '../lib/content';
 
 // Conditions d'obtention du certificat.
 const requirements = [
-  { id: 'modules', label: 'Valider les 20 modules du parcours', check: (p: ReturnType<typeof useProgress>['progress']) => modules.every((m) => p.modules.includes(m.id)) },
+  { id: 'modules', label: 'Valider tous les modules ouverts du parcours', check: (p: ReturnType<typeof useProgress>['progress']) => openModules().every((m) => p.modules.includes(m.id)) },
   { id: 'final', label: 'Réussir l’examen final (≥ 75 %)', check: (p: ReturnType<typeof useProgress>['progress']) => (p.scores['exam-final'] ?? 0) >= 75 },
   { id: 'csslp', label: 'Réussir l’examen blanc CSSLP (≥ 70 %)', check: (p: ReturnType<typeof useProgress>['progress']) => (p.scores['exam-csslp'] ?? 0) >= 70 },
 ];

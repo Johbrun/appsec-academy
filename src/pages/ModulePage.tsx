@@ -1,12 +1,13 @@
 import { Suspense, lazy } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowRight, Check, Clock } from 'lucide-react';
+import { ArrowRight, Check, Clock, Lock } from 'lucide-react';
 import { Block, CsslpTags, Difficulty, Icon, Orb, PageHead } from '../components/ui';
 import { useProgress } from '../store/progress';
-import { formatDuration, lessonKey, lessonMinutes, moduleById, moduleMinutes, modules, pad2 } from '../data/catalog';
+import { formatDuration, lessonKey, lessonMinutes, moduleById, moduleMinutes, pad2 } from '../data/catalog';
 import { games } from '../data/games';
 import { labsForModule } from '../data/labs';
 import { isWritten, writtenLessons } from '../lib/content';
+import { lessonsUnlocked } from '../lib/diagnostic';
 import NotFound from './NotFound';
 
 // Les cent questions de diagnostic pèsent une soixantaine de kilo-octets : sans
@@ -23,11 +24,9 @@ export default function ModulePage() {
   const ok = m.lessons.filter((l) => progress.lessons[lessonKey(m.id, l.id)]).length;
   const written = writtenLessons(m.id);
   const validated = progress.modules.includes(m.id);
-  const firstTodo = m.lessons.find((l) => isWritten(m.id, l.id) && !progress.lessons[lessonKey(m.id, l.id)]);
+  const unlocked = lessonsUnlocked(progress, m);
   const modGames = games.filter((g) => g.modules.includes(m.id));
   const modLabs = labsForModule(m.id);
-  const idx = modules.findIndex((x) => x.id === m.id);
-  const nextModule = modules[idx + 1];
   // Le diagnostic de sortie s'ouvre quand tout ce qui est EN LIGNE a été validé :
   // attendre la validation du module entier le rendrait inatteignable tant que
   // des leçons restent à écrire.
@@ -37,6 +36,16 @@ export default function ModulePage() {
   return (
     <>
       <PageHead eyebrow={<>Module {pad2(m.num)} <span className="sep">/</span> {m.short}</>} title={m.title}
+        below={(
+          <div className="module-progress">
+            <Orb palette={m.palette} className="module-orb" />
+            <div className="module-banner-text">
+              <span className="label">Progression · {Math.round((ok / m.lessons.length) * 100)} %</span>
+              <div className="meter lg" style={{ margin: '12px 0 10px' }}><div style={{ width: `${(ok / m.lessons.length) * 100}%` }} /></div>
+              <div className="small dim">{written.length < m.lessons.length ? `${written.length} leçon${written.length > 1 ? 's' : ''} en ligne sur ${m.lessons.length}. Le module se valide quand toutes ses leçons sont validées.` : 'Toutes les leçons sont en ligne. Valide-les pour valider le module (+100 XP).'}</div>
+            </div>
+          </div>
+        )}
         aside={(
           <dl className="spec">
             <div><dt>Durée</dt><dd>{formatDuration(moduleMinutes(m))}</dd></div>
@@ -47,25 +56,15 @@ export default function ModulePage() {
         {m.summary}
       </PageHead>
 
-      <Block className="tight">
-        <div className="module-banner">
-          <Orb palette={m.palette} className="module-orb" />
-          <div className="module-banner-text">
-            <span className="label">Progression</span>
-            <div className="meter lg" style={{ margin: '12px 0 10px' }}><div style={{ width: `${(ok / m.lessons.length) * 100}%` }} /></div>
-            <div className="small dim">{written.length < m.lessons.length ? `${written.length} leçon${written.length > 1 ? 's' : ''} en ligne sur ${m.lessons.length}. Le module se valide quand toutes ses leçons sont validées.` : 'Toutes les leçons sont en ligne. Valide-les pour valider le module (+100 XP).'}</div>
-          </div>
-          {firstTodo
-            ? <Link to={`/modules/${m.id}/${firstTodo.id}`} className="btn primary">{ok ? 'Continuer' : 'Commencer'} <ArrowRight size={16} className="arrow" /></Link>
-            : nextModule && <Link to={`/modules/${nextModule.id}`} className="btn">Module suivant <ArrowRight size={16} className="arrow" /></Link>}
-        </div>
-      </Block>
+      {/* Un module encore vide n'a pas de diagnostic : il s'écrit avec ses premières leçons. */}
+      {written.length > 0 && (
+        <Block className="tight">
+          <Suspense fallback={null}><Checkpoint moduleId={m.id} phase="avant" /></Suspense>
+        </Block>
+      )}
 
-      <Block className="tight">
-        <Suspense fallback={null}><Checkpoint moduleId={m.id} phase="avant" /></Suspense>
-      </Block>
-
-      <Block eyebrow="Leçons" title="Au programme">
+      <Block eyebrow="Leçons" title="Au programme"
+        lead={unlocked || !written.length ? undefined : 'Les leçons s’ouvrent une fois le diagnostic d’entrée passé : il mesure ton point de départ, avant toute lecture.'}>
         <div className="lesson-list">
           {m.lessons.map((l, i) => {
             const done = !!progress.lessons[lessonKey(m.id, l.id)];
@@ -79,19 +78,19 @@ export default function ModulePage() {
                   <span className="lesson-tags">
                     <Difficulty level={l.level} prefix />
                     <CsslpTags domains={l.csslp} />
-                    {l.k && <span className="tag mono" title="Chapitres de Designing Secure Software">Kohnfelder {l.k.map((c) => `K${c}`).join(', ')}</span>}
+                    {l.k && <span className="ref" title="Chapitres de Designing Secure Software">Kohnfelder {l.k.map((c) => `K${c}`).join(', ')}</span>}
                   </span>
                 </span>
                 <span className="lesson-meta">
                   {live
-                    ? <span className="label"><Clock size={12} style={{ display: 'inline', verticalAlign: '-2px' }} /> {lessonMinutes(l)} min</span>
+                    ? <span className="duration">{unlocked ? <Clock size={14} /> : <Lock size={14} aria-label="verrouillée" />} {lessonMinutes(l)} min</span>
                     : <span className="tag flat">En rédaction</span>}
                 </span>
               </>
             );
-            return live
+            return live && unlocked
               ? <Link key={l.id} to={`/modules/${m.id}/${l.id}`} className={`lesson-row ${done ? 'done' : ''}`}>{inner}</Link>
-              : <div key={l.id} className="lesson-row off">{inner}</div>;
+              : <div key={l.id} className={`lesson-row ${live ? 'locked' : 'off'}`} title={live ? 'Passe d’abord le diagnostic d’entrée' : undefined}>{inner}</div>;
           })}
         </div>
       </Block>
@@ -132,9 +131,11 @@ export default function ModulePage() {
         </Block>
       )}
 
-      <Block className="tight">
-        <Suspense fallback={null}><Checkpoint moduleId={m.id} phase="apres" deverrouille={toutLuEnLigne} /></Suspense>
-      </Block>
+      {written.length > 0 && (
+        <Block className="tight">
+          <Suspense fallback={null}><Checkpoint moduleId={m.id} phase="apres" deverrouille={toutLuEnLigne} /></Suspense>
+        </Block>
+      )}
     </>
   );
 }

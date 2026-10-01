@@ -71,7 +71,7 @@ Novafact utilise **Terraform** pour le socle (organisation, comptes, réseau, r�
 | Bucket sans TLS imposé | Accès en clair | (politique de bucket, leçon 3) | AwsSolutions-S10 |
 | Security group ouvert à `0.0.0.0/0` sur SSH | Exposition directe | CKV_AWS_24 | AwsSolutions-EC23 |
 | RDS publique ou non chiffrée | Fuite de base | CKV_AWS_17, CKV_AWS_16 | AwsSolutions-RDS2 |
-| IMDSv1 autorisé | Vol d'identifiants par SSRF (M15, leçon 3) | CKV_AWS_79 | |
+| IMDSv1 autorisé | Vol d'identifiants par SSRF (M19, leçon 3) | CKV_AWS_79 | |
 | Politique IAM qui permet une escalade | Compromission du compte | CKV_AWS_286 | AwsSolutions-IAM5 (jokers) |
 | CloudTrail désactivé dans certaines régions | Angle mort de détection | CKV_AWS_67 | |
 
@@ -99,7 +99,7 @@ const exportsBucket = new s3.Bucket(this, 'Exports', {
 
 ## Les secrets dans le code et dans le state
 
-Un secret dans un fichier `.tf` ou `.ts` est dans Git pour toujours (M13, leçon 7). Le piège plus sournois est le **state** : Terraform y enregistre tous les attributs des ressources gérées. L'option `sensitive = true` masque une valeur dans la sortie de la CLI, **pas** dans le state, qui reste un document JSON lisible par quiconque peut lire le bucket du backend.
+Un secret dans un fichier `.tf` ou `.ts` est dans Git pour toujours (M17, leçon 7). Le piège plus sournois est le **state** : Terraform y enregistre tous les attributs des ressources gérées. L'option `sensitive = true` masque une valeur dans la sortie de la CLI, **pas** dans le state, qui reste un document JSON lisible par quiconque peut lire le bucket du backend.
 
 <Diff file="infra/terraform/accounts-db.tf" hlBefore="7,8,9" hlAfter="7,8,9,10" stack>
 
@@ -150,7 +150,7 @@ La **dérive** est l'écart entre le code et la réalité. Ses causes sont banal
   { title: "Détecter côté Terraform", text: "Un job planifié exécute `terraform plan -refresh-only` ou `terraform plan -detailed-exitcode` (code de sortie 2 quand il y a des changements) sur chaque workspace, et ouvre un ticket en cas d'écart." },
   { title: "Détecter côté CloudFormation", text: "`aws cloudformation detect-stack-drift` puis `describe-stack-resource-drifts` sur les piles de production, planifié." },
   { title: "Détecter en continu", text: "AWS Config enregistre chaque changement de configuration et l'identité qui l'a fait (leçon 5)." },
-  { title: "Prévenir", text: "En production, les humains n'ont qu'un accès en lecture (M15, leçon 2) : tout changement passe par le pipeline, y compris l'urgence, avec un chemin accéléré plutôt qu'un contournement." },
+  { title: "Prévenir", text: "En production, les humains n'ont qu'un accès en lecture (M19, leçon 2) : tout changement passe par le pipeline, y compris l'urgence, avec un chemin accéléré plutôt qu'un contournement." },
 ]} />
 
 ## Une configuration de référence
@@ -161,7 +161,7 @@ La **baseline** est la liste des propriétés que toute ressource d'un type donn
 | --- | --- | --- |
 | Tout bucket bloque l'accès public et impose TLS | CKV2_AWS_6, AwsSolutions-S2, S10, règle Rego | Contrôle Security Hub CSPM et AWS Config |
 | Toute base est chiffrée par une clé KMS gérée par Novafact et non publique | CKV_AWS_16, CKV_AWS_17 | AWS Config |
-| Aucune instance n'accepte IMDSv1 | CKV_AWS_79 | Politique déclarative EC2 (M15, leçon 6) |
+| Aucune instance n'accepte IMDSv1 | CKV_AWS_79 | Politique déclarative EC2 (M19, leçon 6) |
 | Aucune politique IAM n'accorde d'action d'escalade | CKV_AWS_286, Access Analyzer | Analyseur d'accès non utilisés, règles CloudTrail |
 
 <Callout kind="tip">

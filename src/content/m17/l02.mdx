@@ -102,7 +102,7 @@ CMD ["dist/server.js"]
 Chaque ligne a une raison :
 
 - **`npm ci`** installe exactement le lockfile et échoue s'il ne correspond pas à `package.json` ; **`--omit=dev`** laisse dehors les outils de build, de test et de lint, qui ne servent à rien en production et alourdissent le scan.
-- **`--ignore-scripts`** empêche les scripts `postinstall` de s'exécuter pendant le build, vecteur classique des paquets malveillants (M14). Si une dépendance native en a réellement besoin, autorise-la explicitement par un `npm rebuild <paquet>` ciblé.
+- **`--ignore-scripts`** empêche les scripts `postinstall` de s'exécuter pendant le build, vecteur classique des paquets malveillants (M18). Si une dépendance native en a réellement besoin, autorise-la explicitement par un `npm rebuild <paquet>` ciblé.
 - **Le montage secret BuildKit** rend le `.npmrc` (jeton du registre privé `@novafact`) disponible le temps d'une instruction `RUN`, sans l'écrire dans aucune couche. La commande de build le fournit : `docker build --secret id=npmrc,src=$HOME/.npmrc .`
 - **Deux étapes pour les dépendances** : l'étape `deps` produit un `node_modules` de production propre, l'étape `build` a besoin de TypeScript. L'image finale ne reçoit que le premier.
 - **L'image distroless** a `node` pour point d'entrée : le `CMD` est le chemin du script. Le tag `:nonroot` exécute tout sous l'UID 65532.
@@ -179,15 +179,15 @@ grype novafact/api:${GIT_SHA} --fail-on high
 
 Quelques règles rendent le scan utile plutôt que bruyant :
 
-- **bloquer sur ce qui se corrige** (`--ignore-unfixed`) ; le reste entre dans la gestion des vulnérabilités (M5), avec un VEX quand le composant n'est pas atteignable ;
+- **bloquer sur ce qui se corrige** (`--ignore-unfixed`) ; le reste entre dans la gestion des vulnérabilités (M26), avec un VEX quand le composant n'est pas atteignable ;
 - **scanner aussi en continu** : une image propre le jour du build ne l'est plus trois semaines plus tard. Le scan amélioré d'ECR (Amazon Inspector) rescanne les images déjà poussées quand une nouvelle CVE sort ;
-- **garder le SBOM** de l'image (`trivy image --format cyclonedx`), pour répondre en minutes à la question « sommes-nous touchés ? » (M13).
+- **garder le SBOM** de l'image (`trivy image --format cyclonedx`), pour répondre en minutes à la question « sommes-nous touchés ? » (M17).
 
 <Callout kind="case">
 **Trivy (mars 2026)**. Du 19 au 23 mars 2026, un attaquant a publié une version piégée du binaire Trivy (v0.69.4, puis des images v0.69.5 et v0.69.6), réécrit 76 des 77 tags de l'action `aquasecurity/trivy-action` et les 7 tags de `setup-trivy`. Le code ajouté s'exécutait avant le scan légitime : il lisait la mémoire du processus du runner et une cinquantaine d'emplacements de fichiers pour voler clés SSH, identifiants cloud et jetons, pendant que le pipeline semblait fonctionner normalement. L'avis GHSA-69fq-xp46-6x23 recommande de tourner tous les secrets exposés et d'épingler les actions par SHA de commit.
 </Callout>
 
-La leçon pour Novafact : le job de scan est un job comme un autre (M14). Action épinglée par SHA, version du binaire fixée, et surtout **aucun secret de déploiement** dans ce job : il lit l'image, il ne pousse rien.
+La leçon pour Novafact : le job de scan est un job comme un autre (M18). Action épinglée par SHA, version du binaire fixée, et surtout **aucun secret de déploiement** dans ce job : il lit l'image, il ne pousse rien.
 
 <Callout kind="novafact">
 Migration de l'API vers le Dockerfile de référence (chiffres fictifs) : image passée de 1,1 Go (`node:20`, EOL depuis avril 2026) à 190 Mo ; findings Trivy HIGH et CRITICAL passés de 212 à 4, tous dans des dépendances npm ; un `.env` de recette retrouvé dans l'ancienne image et révoqué. Deux ajustements : un volume `/tmp` pour la génération des PDF de factures, et un `npm rebuild` explicite pour le module natif de hachage des mots de passe.

@@ -135,7 +135,7 @@ En 2019, une attaquante a exploité une SSRF permise par un pare-feu applicatif 
 
 **IMDSv2** impose une session : le client obtient d'abord un jeton par une requête `PUT` sur `/latest/api/token` avec l'en-tête `X-aws-ec2-metadata-token-ttl-seconds`, puis le présente dans l'en-tête `X-aws-ec2-metadata-token`. Une SSRF qui ne fait que des `GET` sans contrôler les en-têtes échoue. Le **hop limit** (TTL IP de la réponse au `PUT`) vaut 1 par défaut, sauf pour les AMI marquées IMDSv2 où il vaut 2 : à 1, la réponse ne traverse pas un saut supplémentaire, comme le pont réseau d'un conteneur. AWS recommande 2 quand l'instance héberge des conteneurs qui ont légitimement besoin d'IMDS.
 
-IMDSv2 **réduit** le risque, il ne l'élimine pas : une SSRF qui maîtrise la méthode et les en-têtes, ou une exécution de code, lit toujours les identifiants. La défense complète combine IMDSv2, un rôle minimal, un proxy de sortie (M3) et la détection.
+IMDSv2 **réduit** le risque, il ne l'élimine pas : une SSRF qui maîtrise la méthode et les en-têtes, ou une exécution de code, lit toujours les identifiants. La défense complète combine IMDSv2, un rôle minimal, un proxy de sortie (M9) et la détection.
 
 <Code file="scripts/aws/imds-defaults.sh">
 
@@ -155,7 +155,7 @@ aws ec2 modify-instance-metadata-defaults \
 
 </Code>
 
-À l'échelle de l'organisation, une **politique déclarative** EC2 applique ces paramètres à tous les comptes et toutes les régions (leçon 6). Côté détection, GuardDuty signale l'usage hors d'AWS d'identifiants d'instance (`UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS`) : route ce finding vers Elastic (M18).
+À l'échelle de l'organisation, une **politique déclarative** EC2 applique ces paramètres à tous les comptes et toutes les régions (leçon 6). Côté détection, GuardDuty signale l'usage hors d'AWS d'identifiants d'instance (`UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS`) : route ce finding vers Elastic (M23).
 
 ## La chaîne d'identifiants du SDK v3
 
@@ -201,7 +201,7 @@ Un **identity pool** Cognito échange un jeton (du user pool, d'un IdP social, o
 IAM refuse désormais d'enregistrer une trust policy qui fait confiance à `cognito-identity.amazonaws.com` sans condition sur `aud` (l'ID du pool), mais d'anciens rôles non conformes peuvent subsister : ils ne sont simplement plus modifiables sans ajouter la condition.
 
 <Callout kind="novafact">
-Novafact utilisait un identity pool pour que la SPA dépose les pièces jointes directement dans S3, avec la politique ci-dessous limitée au préfixe `${cognito-identity.amazonaws.com:sub}/*`. Ça isole les **identités**, pas les **tenants** : deux comptables d'un même client ne partageaient rien, et l'API devait deviner à quel tenant rattacher le fichier. L'équipe est passée aux **URL présignées** générées par l'API après contrôle d'autorisation (M8, leçon 10) : l'identity pool a été supprimé, et avec lui une surface AWS exposée au navigateur.
+Novafact utilisait un identity pool pour que la SPA dépose les pièces jointes directement dans S3, avec la politique ci-dessous limitée au préfixe `${cognito-identity.amazonaws.com:sub}/*`. Ça isole les **identités**, pas les **tenants** : deux comptables d'un même client ne partageaient rien, et l'API devait deviner à quel tenant rattacher le fichier. L'équipe est passée aux **URL présignées** générées par l'API après contrôle d'autorisation (M13, leçon 5) : l'identity pool a été supprimé, et avec lui une surface AWS exposée au navigateur.
 </Callout>
 
 <Code file="infra/iam/identity-pool-authenticated.json">

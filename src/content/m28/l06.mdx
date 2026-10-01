@@ -30,7 +30,7 @@ export const questions = [
       "Noter la maturité d’un fournisseur de SIEM avant de le retenir en appel d’offres",
     ],
     answer: 1,
-    explain: "Comme SAMM pour l’AppSec, le DEBMM donne des repères pour faire progresser une capacité dans la durée : passer de détections ad hoc à des détections versionnées, documentées, testées et mesurées. Ce n’est pas un instrument de mesure de couverture — la carte ATT&CK joue ce rôle, et on a vu (leçon 4) qu’elle mesure des associations, pas de l’efficacité. Ce n’est pas davantage un classement des règles par fiabilité ni une grille d’évaluation d’éditeurs : il porte sur la pratique de l’équipe, pas sur son outillage.",
+    explain: "Comme SAMM pour l’AppSec, le DEBMM donne des repères pour faire progresser une capacité dans la durée : passer de détections ad hoc à des détections versionnées, documentées, testées et mesurées. Ce n’est pas un instrument de mesure de couverture — la carte ATT&CK joue ce rôle, et on a vu (leçon 3) qu’elle mesure des associations, pas de l’efficacité. Ce n’est pas davantage un classement des règles par fiabilité ni une grille d’évaluation d’éditeurs : il porte sur la pratique de l’équipe, pas sur son outillage.",
   },
 ];
 
@@ -40,7 +40,7 @@ Tu as sûrement été du côté attaquant d’un exercice où l’équipe défen
 
 ## Mesurer la maturité de la détection
 
-Écrire des détections (leçon 4) est une chose ; construire une **capacité** qui s’améliore en est une autre. Le **DEBMM** (Detection Engineering Behavior Maturity Model, publié par Elastic) décrit des comportements d’équipe, du plus artisanal au plus mûr :
+Écrire des détections (leçon 3) est une chose ; construire une **capacité** qui s’améliore en est une autre. Le **DEBMM** (Detection Engineering Behavior Maturity Model, publié par Elastic) décrit des comportements d’équipe, du plus artisanal au plus mûr :
 
 | Niveau | Comportement typique |
 | --- | --- |
@@ -49,11 +49,11 @@ Tu as sûrement été du côté attaquant d’un exercice où l’équipe défen
 | **Élevé** | Tests automatisés (rejeu d’événements), couverture ATT&CK suivie, métriques de qualité (taux de faux positifs, délai de détection) |
 | **Avancé** | Boucle continue : chaque incident et chaque exercice produit une détection nouvelle ou améliorée |
 
-C’est l’équivalent défensif de SAMM (M3) : un repère pour progresser, pas une note. La question utile n’est pas « avons-nous une règle ? » mais « comment cette règle est-elle née, testée et mesurée ? ».
+C’est l’équivalent défensif de SAMM (M5) : un repère pour progresser, pas une note. La question utile n’est pas « avons-nous une règle ? » mais « comment cette règle est-elle née, testée et mesurée ? ».
 
 ## Les métriques de détection
 
-Quelques indicateurs qui orientent l’effort, à manier comme ceux de M6 (attention à la loi de Goodhart) :
+Quelques indicateurs qui orientent l’effort, à manier comme ceux de M30 (attention à la loi de Goodhart) :
 
 - **MTTD** (délai moyen de détection) et **MTTR** (délai de réponse) ;
 - le **taux de faux positifs** par règle, qui décide de ce qu’on garde ;
@@ -65,13 +65,13 @@ Quelques indicateurs qui orientent l’effort, à manier comme ceux de M6 (atten
 Le cadre classique (NIST SP 800-61) tient en quatre temps. Le piège le plus fréquent est d’**éradiquer avant d’avoir compris**, ce qui détruit les preuves et masque l’étendue.
 
 <Steps items={[
-  { title: "Préparer", text: "Runbooks, accès break-glass (M15), journaux immuables et centralisés (leçon 1), rôles définis. Se prépare avant l’incident, pas pendant." },
+  { title: "Préparer", text: "Runbooks, accès break-glass (M19), journaux immuables et centralisés (leçon 1 de M23), rôles définis. Se prépare avant l’incident, pas pendant." },
   { title: "Détecter et analyser", text: "Confirmer l’alerte, qualifier la gravité, reconstituer la chronologie. Qu’est-ce qui a été atteint, depuis quand, comment ?" },
   { title: "Contenir", text: "Couper l’accès sans détruire les preuves : révoquer les sessions, restreindre le rôle, isoler l’instance (la mettre en quarantaine plutôt que la terminer)." },
   { title: "Éradiquer et rétablir", text: "Retirer l’accès de l’attaquant (rotation des secrets, correction de la faille), restaurer depuis une base saine, surveiller le retour." },
 ]} />
 
-Un cinquième temps, souvent sauté : le **retour d’expérience**. Chaque incident produit une détection nouvelle ou améliorée (la boucle du DEBMM) et souvent une exigence ou une règle (M6, M13).
+Un cinquième temps, souvent sauté : le **retour d’expérience**. Chaque incident produit une détection nouvelle ou améliorée (la boucle du DEBMM) et souvent une exigence ou une règle (M30, M17).
 
 ## Enquêter dans CloudTrail
 
@@ -90,7 +90,7 @@ Pour Novafact, CloudTrail est le journal de référence de tout ce qui touche AW
 
 </Code>
 
-ES|QL (leçon 3) sur l’index CloudTrail rend cette enquête rapide :
+ES|QL (leçon 4 de M23) sur l’index CloudTrail rend cette enquête rapide :
 
 <Code file="hunt-cloudtrail.esql">
 
@@ -130,7 +130,7 @@ Révoquer une session IAM est subtil : les **identifiants temporaires déjà ém
 
 </Code>
 
-Attachée au rôle compromis, elle invalide immédiatement les jetons volés tout en laissant les nouvelles sessions légitimes fonctionner, sans détruire le rôle ni les preuves. En parallèle : rotation des secrets exposés (M13, leçon 7), restriction de la politique de confiance, et enquête sur ce que le jeton a fait.
+Attachée au rôle compromis, elle invalide immédiatement les jetons volés tout en laissant les nouvelles sessions légitimes fonctionner, sans détruire le rôle ni les preuves. En parallèle : rotation des secrets exposés (M17, leçon 7), restriction de la politique de confiance, et enquête sur ce que le jeton a fait.
 
 <Callout kind="novafact">
 Le runbook « accès AWS suspect » de Novafact tient en une page : appliquer la politique de révocation horodatée sur le rôle, geler ses clés, ouvrir un tableau de bord Kibana filtré sur l’identité, prévenir l’astreinte, et n’éradiquer (rotation, correction) qu’une fois la chronologie établie. Les instantanés des volumes concernés sont pris avant toute action destructive.

@@ -3,14 +3,18 @@ import { ApiError, api, messageOf } from '../lib/api';
 import { setFlusher } from '../lib/flush';
 import { Screen } from '../components/ui';
 import { mergeProgress } from './merge';
+import { migrateV1, type V1 } from './migrate';
 import { useSession } from './session';
-import { blocks, lessonKey, modules } from '../data/catalog';
+import { seriesKey } from '../lib/series';
+import { blocks, lessonKey, lessonSeries, modules } from '../data/catalog';
 import { availableGames, games } from '../data/games';
+import { exams } from '../data/exams';
+import { openModules } from '../lib/content';
 
 export interface LeitnerCard { box: number; due: string }
 
 export interface Progress {
-  version: 1;
+  version: 2;
   name: string;
   xp: number;
   lessons: Record<string, string>;      // clé "m02-l03" → date de validation
@@ -30,7 +34,7 @@ export interface Progress {
 }
 
 const empty: Progress = {
-  version: 1, name: '', xp: 0, lessons: {}, modules: [], scores: {},
+  version: 2, name: '', xp: 0, lessons: {}, modules: [], scores: {},
   labs: [], leitner: {}, badges: [], checkpoints: {},
 };
 /** Taille au-delà de laquelle le serveur refuse le document (256 Ko) : on prévient avant d'envoyer. */
@@ -59,6 +63,16 @@ export const lessonXp = (level: 1 | 2 | 3) => (level === 1 ? 20 : level === 2 ? 
 export const MODULE_XP = 100;
 export const LAB_XP = 10;
 
+/**
+ * Score minimal d'une série exigée par une leçon. Finir la série ne suffit
+ * pas : on la finit aussi en cliquant au hasard.
+ */
+export const SERIES_PASS = 70;
+
+/** Les séries exigées par une leçon qui ne sont pas encore réussies. */
+export const pendingSeries = (p: Progress, moduleId: string, lessonId: string) =>
+  lessonSeries(moduleId, lessonId).filter((r) => (p.scores[seriesKey(r.game, r.series)] ?? 0) < SERIES_PASS);
+
 export interface BadgeDef {
   id: string;
   name: string;
@@ -67,8 +81,10 @@ export interface BadgeDef {
   check: (p: Progress) => boolean;
 }
 
-const blockDone = (p: Progress, block: string) =>
-  modules.filter((m) => m.block === block).every((m) => p.modules.includes(m.id));
+const blockDone = (p: Progress, block: string) => {
+  const open = openModules().filter((m) => m.block === block);
+  return open.length > 0 && open.every((m) => p.modules.includes(m.id));
+};
 const lessonsDone = (p: Progress) => Object.keys(p.lessons).length;
 
 export const badgeDefs: BadgeDef[] = [
@@ -93,7 +109,7 @@ export const badgeDefs: BadgeDef[] = [
   { id: 'perfect', name: 'Sans faute', description: 'Obtenir 100 % à un jeu', icon: 'Star', check: (p) => Object.values(p.scores).some((s) => s >= 100) },
   { id: 'gamer', name: 'Touche-à-tout', description: 'Jouer à tous les jeux disponibles', icon: 'Gamepad2', check: (p) => availableGames.every((g) => g.id in p.scores) },
   { id: 'capstone', name: 'Architecte', description: 'Terminer le capstone', icon: 'Trophy', check: (p) => p.modules.includes('m20') },
-  { id: 'exams', name: 'Certifié maison', description: 'Réussir les quatre examens de bloc', icon: 'BadgeCheck', check: (p) => ['a', 'b', 'c', 'd'].every((b) => (p.scores[`exam-${b}`] ?? 0) >= 75) },
+  { id: 'exams', name: 'Certifié maison', description: 'Réussir tous les examens de bloc', icon: 'BadgeCheck', check: (p) => exams.filter((e) => e.kind === 'block').every((e) => (p.scores[e.id] ?? 0) >= e.pass) },
   { id: 'final-exam', name: 'Diplômé AppSec', description: 'Réussir l’examen final', icon: 'ScrollText', check: (p) => (p.scores['exam-final'] ?? 0) >= 75 },
   { id: 'csslp-mock', name: 'Prêt pour le CSSLP', description: 'Réussir l’examen blanc CSSLP', icon: 'GraduationCap', check: (p) => (p.scores['exam-csslp'] ?? 0) >= 70 },
 ];
@@ -123,8 +139,10 @@ const ProgressContext = createContext<Ctx | null>(null);
 
 export function sanitize(raw: unknown): Progress | null {
   if (!raw || typeof raw !== 'object') return null;
-  const r = raw as Partial<Progress>;
-  if (r.version !== 1) return null;
+  const doc = raw as { version?: unknown };
+  // Format 1 : avant la restructuration en blocs A à H, des clés de leçons ont bougé.
+  const r = (doc.version === 1 ? migrateV1(raw as V1) : raw) as Partial<Progress>;
+  if (r.version !== 2) return null;
   return {
     ...empty,
     ...r,
@@ -299,9 +317,11 @@ function ProgressEngine({ initial, initialRev, children }: { initial: Progress; 
   }, [flush]);
 
   // Valide une leçon ; le module est validé quand toutes ses leçons rédigées le sont.
+  // L'interface désactive déjà le bouton tant que des séries exigées manquent ;
+  // la garde est ici pour qu'aucun autre appelant ne la contourne.
   const completeLesson = useCallback((moduleId: string, lessonId: string, xp: number, writtenLessons: string[]) => {
     const key = lessonKey(moduleId, lessonId);
-    if (progress.lessons[key]) return;
+    if (progress.lessons[key] || pendingSeries(progress, moduleId, lessonId).length) return;
     const lessons = { ...progress.lessons, [key]: today() };
     const mod = modules.find((m) => m.id === moduleId);
     const moduleDone = !!mod && !progress.modules.includes(moduleId)
@@ -314,7 +334,7 @@ function ProgressEngine({ initial, initialRev, children }: { initial: Progress; 
       lessons: { ...p.lessons, [key]: today() },
       modules: moduleDone ? [...p.modules, moduleId] : p.modules,
     }), { amount: gain, reason: moduleDone ? 'Leçon et module validés' : 'Leçon validée' });
-  }, [update, progress.lessons, progress.modules]);
+  }, [update, progress]);
 
   // L'XP n'est accordée que sur l'amélioration du meilleur score.
   const recordScore = useCallback((gameId: string, pct: number) => {

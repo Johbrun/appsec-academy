@@ -41,7 +41,7 @@ const c = (module: string, n: number, level: Level, front: string, back: string,
   ({ id: `${module}-c${n}`, module, level, front, back, ...(avoid ? { avoid } : {}) });
 
 export const cards: Card[] = [
-  // ── M1 · Programme AppSec ────────────────────────────────────────────────
+  // ── m01 · Programme AppSec ────────────────────────────────────────────────
   c('m01', 1, 1, 'Quelles sont les quatre questions à poser face à chaque finding ?', 'Cause racine, variantes, contrôle de classe, détection.'),
   c('m01', 2, 2, 'OWASP Top 10, ASVS, SAMM, BSIMM : à quoi sert chacun ?', 'Top 10 pour sensibiliser, ASVS pour exiger et vérifier, SAMM pour piloter la maturité, BSIMM pour se comparer.'),
   c('m01', 3, 1, 'Qu’est-ce qu’un paved road ?', 'Un chemin de développement outillé et sûr par défaut, plus facile à suivre que les alternatives.'),
@@ -55,7 +55,7 @@ export const cards: Card[] = [
   c('m01', 11, 1, 'CRA : délais de signalement d’une vulnérabilité activement exploitée ?', 'Alerte sous 24 h, notification sous 72 h, rapport final sous 14 jours après disponibilité d’une mesure corrective.', ['m07-c8']),
   c('m01', 12, 1, 'CRA : à partir de quelle date le signalement est-il obligatoire ?', 'Le 11/09/2026, via la plateforme unique de signalement d’ENISA.'),
 
-  // ── M2 · Vulnérabilités web, écosystème JS ───────────────────────────────
+  // ── m02 · Vulnérabilités web, écosystème JS ───────────────────────────────
   c('m02', 1, 1, 'Les deux nouvelles catégories du Top 10:2025 ?', 'A03 Software Supply Chain Failures et A10 Mishandling of Exceptional Conditions.'),
   c('m02', 2, 1, 'Où est passée la SSRF dans le Top 10:2025 ?', 'Elle est intégrée à A01 Broken Access Control.'),
   c('m02', 3, 2, 'API1, API3, API5 de l’API Security Top 10 2023 ?', 'BOLA, Broken Object Property Level Authorization, BFLA : trois problèmes d’autorisation.'),
@@ -73,7 +73,7 @@ export const cards: Card[] = [
   c('m02', 15, 3, 'Une Server Action Next.js est-elle privée ?', 'Non : c’est un endpoint POST public. Elle authentifie, autorise et valide elle-même.'),
   c('m02', 16, 1, 'React2Shell : CVE et versions corrigées ?', 'CVE-2025-55182, corrigée en React 19.0.1, 19.1.2 et 19.2.1.'),
 
-  // ── M3 · Web avancé ──────────────────────────────────────────────────────
+  // ── m03 · Web avancé ──────────────────────────────────────────────────────
   c('m03', 1, 1, 'Qu’a changé la single-packet attack ?', 'Plusieurs requêtes arrivent quasi simultanément : des fenêtres de quelques millisecondes deviennent exploitables.'),
   c('m03', 2, 2, 'Contrôle qui garantit « au plus N utilisations » ?', 'Une mise à jour conditionnelle atomique côté base (WHERE used < max).', ['m07-c3']),
   c('m03', 3, 2, 'D’où vient l’URL d’un lien de réinitialisation ?', 'D’une configuration (APP_URL), jamais de Host ou de X-Forwarded-Host.'),
@@ -91,7 +91,7 @@ export const cards: Card[] = [
   c('m03', 15, 1, 'Bibliothèque au cœur de SAMLStorm ?', 'xml-crypto (CVE-2025-29775), corrigée en 6.0.1.'),
   c('m03', 16, 3, 'Défense SSRF qui ne dépend pas des astuces ?', 'Vérifier l’adresse IP réellement contactée à chaque connexion, sans redirections implicites.', ['m15-c5']),
 
-  // ── M4 · Côté client & scripts tiers ─────────────────────────────────────
+  // ── m04 · Côté client & scripts tiers ─────────────────────────────────────
   c('m04', 1, 1, 'Que deviennent les variables VITE_* ou NEXT_PUBLIC_* au build ?', 'Elles sont inlinées dans le bundle envoyé au navigateur : jamais de secret dedans, et un scan de secrets sur le bundle construit.'),
   c('m04', 2, 2, 'Validation côté client, validation côté serveur : laquelle protège, et à quoi sert l’autre ?', 'Seul le serveur protège : on rejoue la requête sans le formulaire. La validation client est un confort ; le serveur recalcule montants et droits au lieu de les recevoir.'),
   c('m04', 3, 1, 'Que garantit l’attribut integrity (SRI) sur un script ?', 'Que le fichier reçu a exactement l’empreinte attendue, sinon le navigateur refuse de l’exécuter. Pour une autre origine, il faut aussi CORS (attribut crossorigin).'),
@@ -106,7 +106,7 @@ export const cards: Card[] = [
   c('m04', 12, 1, 'Que dit l’en-tête Sec-Fetch-Site ?', 'D’où vient la requête par rapport à la cible : same-origin, same-site, cross-site ou none. Une resource isolation policy refuse le cross-site sur les ressources privées.'),
   c('m04', 13, 1, 'Cookie préfixé __Host- : quelles contraintes ?', 'Secure, Path=/ et aucun attribut Domain : un sous-domaine ne peut ni le poser ni l’écraser.'),
 
-  // ── M5 · Gestion des vulnérabilités ──────────────────────────────────────
+  // ── m05 · Gestion des vulnérabilités ──────────────────────────────────────
   c('m05', 1, 1, 'Les sept étapes du cycle de vie d’une vulnérabilité ?', 'Découverte, dédoublonnage, triage, priorisation, correction, vérification, reporting.'),
   c('m05', 2, 1, 'Nouvelle métrique d’exploitabilité de CVSS 4.0 ?', 'Attack Requirements (AT).'),
   c('m05', 3, 1, 'Que signifie CVSS-BTE ?', 'Un score calculé avec les métriques Base, Threat et Environmental.'),
@@ -122,13 +122,13 @@ export const cards: Card[] = [
   c('m05', 13, 3, 'npm audit ne remonte rien. Pourquoi n’est-ce pas une garantie ?', 'Il compare l’arbre installé aux avis publiés : un paquet malveillant publié il y a une heure n’a pas encore d’avis. Contre ce risque : délai d’adoption, scripts d’installation désactivés, analyse comportementale.'),
   c('m05', 14, 2, 'VEX : que faut-il fournir avec un statut not_affected ?', 'Une justification (code vulnérable absent, non atteignable, non exécuté…). C’est un engagement à maintenir : il devient faux si le code change.'),
 
-  // ── M6 · Faire adopter la sécurité ───────────────────────────────────────
+  // ── m06 · Faire adopter la sécurité ───────────────────────────────────────
   c('m06', 1, 2, 'Enabling team contre plateforme : quelle différence pour une équipe AppSec ?', 'L’enabling team accompagne une équipe pendant un temps limité pour la rendre autonome ; la plateforme offre un service stable en libre-service. Aucune des deux n’est une file d’attente.'),
   c('m06', 2, 1, 'Les cinq éléments d’un finding qui sera corrigé ?', 'Un titre qui dit l’impact, une reproduction minimale, une priorité justifiée, un correctif dans le style de l’équipe, un test de régression.'),
   c('m06', 3, 3, 'Mesure compensatoire proposée : « on ajoute une alerte ». Pourquoi est-ce souvent insuffisant ?', 'Une mesure compensatoire doit changer le risque, en probabilité ou en impact : une alerte que personne ne traite ne change rien. Et le correctif définitif garde une date et un propriétaire.'),
   c('m06', 4, 2, 'Pentest, bug bounty, red team : quelle question pose chacun ?', 'Pentest : quelles failles sur ce périmètre, dans ce temps ? Bug bounty : que trouvent des chercheurs variés, en continu, sur ce qui est exposé ? Red team : la détection et la réponse arrêtent-elles un attaquant qui vise un objectif ?'),
 
-  // ── M7 · Fondations, exigences & vie privée ──────────────────────────────
+  // ── m07 · Fondations, exigences & vie privée ──────────────────────────────
   c('m07', 1, 1, 'Les trois piliers du Gold Standard ?', 'Authentification, autorisation, audit — pour tous les principaux, y compris les services et les agents IA.'),
   c('m07', 2, 2, 'C-I-A contre Gold Standard ?', 'C-I-A décrit les objectifs (confidentialité, intégrité, disponibilité) ; le Gold Standard décrit les moyens d’y parvenir (authentification, autorisation, audit).'),
   c('m07', 3, 3, 'Le code lit le solde, vérifie qu’il suffit, puis écrit. Pourquoi l’invariant n’est-il pas garanti ?', 'Entre la lecture et l’écriture, une autre requête peut modifier la donnée. L’invariant se vérifie dans l’écriture elle-même : mise à jour conditionnelle, contrainte CHECK, verrou de ligne.', ['m03-c2']),
@@ -138,7 +138,7 @@ export const cards: Card[] = [
   c('m07', 7, 3, 'Le compte SSO d’un salarié parti est désactivé. Pourquoi son accès n’est-il pas forcément coupé ?', 'Le SSO ne coupe ni les jetons personnels, ni les clés d’API, ni les secrets qu’il connaissait, ni les JWT déjà émis, valides jusqu’à leur expiration.'),
   c('m07', 8, 1, 'NIS2 : délais de notification d’un incident important ?', 'Alerte précoce sous 24 h, notification sous 72 h, rapport final sous un mois.', ['m01-c11']),
 
-  // ── M8 · Conception sécurisée ────────────────────────────────────────────
+  // ── m08 · Conception sécurisée ────────────────────────────────────────────
   c('m08', 1, 1, 'Les trois stratégies de mitigation structurelle ?', 'Réduire la surface d’attaque, la fenêtre de vulnérabilité et l’exposition des données.'),
   c('m08', 2, 2, 'Confused deputy contre backflow of trust ?', 'Confused deputy : un composant privilégié agit au-delà des droits de celui qui le sollicite. Backflow of trust : un composant peu fiable pilote un composant très fiable.'),
   c('m08', 3, 3, 'Deux couches reposent sur la même vérification. Est-ce de la défense en profondeur ?', 'Non : la défense en profondeur ne vaut que pour des couches indépendantes : si elles partagent le même contrôle ou la même donnée, une seule erreur les fait tomber ensemble.'),
@@ -148,7 +148,7 @@ export const cards: Card[] = [
   c('m08', 7, 3, 'Un MAC authentifie le webhook. Pourquoi ne suffit-il pas contre le rejeu ?', 'Le MAC prouve l’origine et l’intégrité, pas la fraîcheur : un message capturé reste valide. Il faut un horodatage signé, une fenêtre courte et les identifiants déjà vus mémorisés.'),
   c('m08', 8, 2, 'RBAC, ABAC, ReBAC : à quoi sert chacun chez Novafact ?', 'RBAC pour la base (rôles dans le tenant), ABAC pour les cas sensibles (montant, statut de la facture), ReBAC pour le partage (qui a accès à quel dossier).'),
 
-  // ── M9 · OAuth / OIDC / SAML ─────────────────────────────────────────────
+  // ── m09 · OAuth / OIDC / SAML ─────────────────────────────────────────────
   c('m09', 1, 1, 'Que supprime OAuth 2.1 ?', 'Les flux Implicit et Resource Owner Password Credentials ; PKCE devient obligatoire et les redirect_uri se comparent exactement.'),
   c('m09', 2, 2, 'state, nonce, code_verifier : contre quoi protège chacun ?', 'state : le CSRF de connexion. nonce : le rejeu de l’ID token. code_verifier (PKCE) : l’interception du code d’autorisation.'),
   c('m09', 3, 2, 'ID token, access token, refresh token : à qui est destiné chacun ?', 'L’ID token au client, l’access token à l’API, le refresh token au serveur d’autorisation.'),
@@ -157,26 +157,26 @@ export const cards: Card[] = [
   c('m09', 6, 1, 'Que lie DPoP, et comment ?', 'Le jeton à une clé du client : chaque requête porte une preuve signée (méthode, URL, horodatage, jti, empreinte du jeton). Un jeton volé seul ne sert à rien.'),
   c('m09', 7, 2, 'OAuth contre OpenID Connect ?', 'OAuth autorise un client à accéder à une API ; OIDC ajoute l’authentification : l’ID token dit au client qui est l’utilisateur.'),
 
-  // ── M10 · Anti-abus ──────────────────────────────────────────────────────
+  // ── m10 · Anti-abus ──────────────────────────────────────────────────────
   c('m10', 1, 2, 'Credential cracking contre credential stuffing ?', 'Cracking (OAT-007) : beaucoup d’essais sur peu de comptes, arrêté par une limite par compte. Stuffing (OAT-008) : deux ou trois essais sur des milliers de comptes, avec des identifiants volés ailleurs.'),
   c('m10', 2, 3, 'Snowflake (2024) : pourquoi aucune limite de tentatives n’a-t-elle vu venir les intrusions ?', 'Les identifiants, volés par des infostealers, étaient valides : il n’y avait aucune série d’échecs à détecter. Les comptes touchés n’avaient pas de MFA, le seul contrôle qui arrêtait l’attaque.'),
   c('m10', 3, 3, 'La requête contient un jeton Turnstile. Pourquoi ne prouve-t-il rien tel quel ?', 'Il ne vaut qu’après validation côté serveur, avec contrôle du hostname et de l’action ; il est à usage unique et expire vite.'),
   c('m10', 4, 2, 'API4 contre API6 de l’API Security Top 10 ?', 'API4 : épuiser une ressource technique (CPU, mémoire, facture cloud). API6 : un préjudice métier causé par un flux sensible utilisé à la mauvaise échelle, parfois à faible volume.'),
   c('m10', 5, 3, 'SPF, DKIM et DMARC en place : empêchent-ils un client d’envoyer du phishing par Novafact ?', 'Non : ils empêchent l’usurpation du domaine, pas l’abus par un client légitime. Contre l’abus : confiance fondée sur des preuves coûteuses, quotas, isolation de la réputation d’envoi.'),
 
-  // ── M11 · Threat modeling & MITRE ────────────────────────────────────────
+  // ── m11 · Threat modeling & MITRE ────────────────────────────────────────
   c('m11', 1, 1, 'STRIDE : les six menaces et la propriété violée ?', 'Spoofing (authentification), Tampering (intégrité), Repudiation (non-répudiation), Information disclosure (confidentialité), Denial of service (disponibilité), Elevation of privilege (autorisation).'),
   c('m11', 2, 2, 'STRIDE par élément : quelles menaces pour un flux de données ?', 'Tampering, Information disclosure, Denial of service. Une entité externe : S et R ; un stockage : T, R, I, D ; un processus : les six.'),
   c('m11', 3, 2, 'Arbre d’attaque : que faut-il couper sous un nœud ET ? Sous un OU ?', 'Sous un ET, couper un seul enfant suffit ; sous un OU, il faut les couper tous.'),
   c('m11', 4, 1, 'La chaîne CWE → CAPEC → ATT&CK ?', 'CWE nomme la faiblesse, CAPEC le motif d’attaque qui l’exploite, ATT&CK le comportement de l’attaquant ; D3FEND décrit les contre-mesures.'),
 
-  // ── M12 · Revue de code ──────────────────────────────────────────────────
+  // ── m12 · Revue de code ──────────────────────────────────────────────────
   c('m12', 1, 2, 'Dans un diff, pourquoi les lignes supprimées méritent-elles le plus d’attention ?', 'Un contrôle retiré ne laisse aucune trace dans le code ajouté : pour chaque vérification supprimée, demander où elle est reprise.'),
   c('m12', 2, 3, 'Pourquoi un scanner ne trouve-t-il presque jamais une BOLA ?', 'Il ignore la règle métier « cette facture appartient à ce tenant » : la requête est bien formée et renvoie 200. Il faut une table de décision et un test à deux tenants.'),
   c('m12', 3, 1, 'Qu’est-ce que la variant analysis ?', 'Partir d’un bug corrigé, en extraire le motif sans nom de produit, chercher toutes ses variantes dans la base, puis en faire une règle.'),
   c('m12', 4, 1, 'Qu’est-ce que le slopsquatting ?', 'Publier sur un registre les noms de paquets que les assistants de code inventent : ces noms hallucinés sont nombreux et reviennent d’une génération à l’autre.'),
 
-  // ── M13 · Tests & analyse ────────────────────────────────────────────────
+  // ── m13 · Tests & analyse ────────────────────────────────────────────────
   c('m13', 1, 1, 'Les quatre couches de l’analyse statique en JavaScript ?', 'Types stricts, lint, SAST par motifs, SAST par flux (taint).'),
   c('m13', 2, 2, 'Semgrep Community Edition contre CodeQL ?', 'Semgrep est rapide et lisible, mais sa Community Edition reste intra-fonction ; CodeQL suit les données entre fonctions et fichiers, plus lentement.'),
   c('m13', 3, 3, 'GotoFail (Apple, 2014) : pourquoi aucun test n’a-t-il vu que TLS ne refusait plus rien ?', 'Un goto fail; dupliqué sautait la vérification de signature, et les tests ne couvraient que le chemin heureux. Chaque contrôle mérite au moins un test qui vérifie le refus.'),
@@ -184,7 +184,7 @@ export const cards: Card[] = [
   c('m13', 5, 3, 'Un secret a fuité dans un commit. Pourquoi réécrire l’historique Git ne suffit-il pas ?', 'Le secret a pu être copié : clones, forks, caches, journaux de CI. Corriger, c’est révoquer et remplacer, puis enquêter sur son usage.'),
   c('m13', 6, 3, 'xz utils (2024) : pourquoi relire le dépôt Git ne montrait-il pas la porte dérobée ?', 'Le déclencheur n’existait que dans les archives de release (un script de build modifié), et la charge était cachée dans des fichiers de test binaires. Ce qui était construit n’était pas ce qui était relu.'),
 
-  // ── M14 · Pipeline & supply chain ────────────────────────────────────────
+  // ── m14 · Pipeline & supply chain ────────────────────────────────────────
   c('m14', 1, 2, 'PPE directe contre PPE indirecte ?', 'Directe : la PR modifie le fichier de workflow. Indirecte : elle modifie ce que le workflow exécute — package.json, scripts de test, Makefile. En JS, npm install et npm test suffisent.'),
   c('m14', 2, 1, 'Réglage du GITHUB_TOKEN dans un workflow durci ?', 'permissions: {} au niveau du workflow, puis les droits nécessaires job par job ; persist-credentials: false au checkout.'),
   c('m14', 3, 3, 'Ultralytics (2024) : comment un workflow pull_request_target a-t-il mené à un paquet piégé ?', 'Il s’exécutait dans le contexte du dépôt cible, avec un nom de branche injecté dans le shell : l’attaquant a empoisonné le cache partagé, puis le workflow de publication a produit des versions piégées.'),
@@ -192,31 +192,31 @@ export const cards: Card[] = [
   c('m14', 5, 3, 'Le paquet a une provenance npm valide. Qu’est-ce que ça ne prouve pas ?', 'Que la construction était saine : la provenance dit quel workflow, depuis quel commit, a produit le paquet. Un workflow empoisonné produit une provenance parfaitement valide.'),
   c('m14', 6, 1, 'SLSA Build L1, L2, L3 ?', 'L1 : une provenance existe. L2 : elle est produite et signée par une plateforme de build hébergée. L3 : un build durci et isolé, qui empêche les exécutions de falsifier la provenance.'),
 
-  // ── M15 · IAM AWS ────────────────────────────────────────────────────────
+  // ── m15 · IAM AWS ────────────────────────────────────────────────────────
   c('m15', 1, 1, 'La logique d’évaluation IAM en une phrase ?', 'Un Deny explicite gagne toujours ; ensuite chaque plafond (SCP, RCP, boundary, session policy) doit dire oui, et au moins une politique doit accorder.'),
   c('m15', 2, 3, 'Comment une politique de ressource peut-elle contourner une permission boundary ?', 'Si elle nomme directement la session de rôle comme principal, l’accès est accordé sans que la boundary ni la session policy ne s’appliquent. Un garde-fou solide est un Deny explicite.'),
   c('m15', 3, 2, 'SCP contre RCP ?', 'Une SCP plafonne ce que les principaux de l’organisation peuvent faire ; une RCP plafonne ce qu’on peut faire sur les ressources de l’organisation, quel que soit l’appelant. Aucune n’accorde.'),
   c('m15', 4, 2, 'Pourquoi iam:PassRole est-il si sensible ?', 'Il permet de confier un rôle existant à un service (Lambda, EC2, ECS) : passer un rôle plus puissant que soi revient à obtenir ses droits. On le limite par ARN et par iam:PassedToService.'),
   c('m15', 5, 3, 'Capital One (2019) a mené à IMDSv2. Pourquoi l’imposer ne suffit-il pas contre une SSRF ?', 'IMDSv2 exige un jeton obtenu par un PUT avec en-tête : il arrête les SSRF simples, comme celle qui a lu les identifiants du rôle en 2019. Une SSRF qui maîtrise méthode et en-têtes passe encore : la défense reste dans l’application, avec un rôle minimal.', ['m03-c16']),
 
-  // ── M16 · Infrastructure as Code ─────────────────────────────────────────
+  // ── m16 · Infrastructure as Code ─────────────────────────────────────────
   c('m16', 1, 3, 'La variable Terraform est marquée sensitive = true. Le secret est-il protégé ?', 'Non : sensitive masque l’affichage, mais la valeur est écrite en clair dans le state. Secret géré par le service, arguments write-only, state chiffré à accès restreint.'),
   c('m16', 2, 2, 'Scanner le code Terraform ou le plan ?', 'Le code pour la précision (la ligne fautive), le plan pour la réalité (variables, modules résolus). Les valeurs calculées pendant l’apply échappent aux deux.'),
   c('m16', 3, 2, 'Pourquoi deux rôles OIDC distincts pour terraform plan et terraform apply ?', 'Le plan exécute du code (providers, data sources) à partir d’une PR : il reste en lecture seule. L’apply, en écriture, est réservé à main et à un environnement protégé.'),
 
-  // ── M17 · Déploiement & résilience ───────────────────────────────────────
+  // ── m17 · Déploiement & résilience ───────────────────────────────────────
   c('m17', 1, 2, 'ECS : rôle de tâche contre rôle d’exécution ?', 'Le rôle de tâche sert au code de l’application ; le rôle d’exécution sert à l’agent ECS (tirer l’image, lire les secrets, écrire les logs). On ne les fusionne jamais.'),
   c('m17', 2, 3, 'L’image est signée, et on déploie son tag. Pourquoi est-ce insuffisant ?', 'Un tag se déplace : on signe, vérifie et déploie un digest. Et la vérification doit imposer l’identité attendue du signataire, sinon n’importe quelle signature valide passe.'),
   c('m17', 3, 3, 'Bucket répliqué en continu vers un autre compte : est-ce une sauvegarde contre le ransomware ?', 'Non : la réplication recopie aussi les versions chiffrées ou corrompues par l’attaquant, et rien ne la rend immuable. Il faut des copies ponctuelles, verrouillées en mode compliance, dans un autre compte, avec une autre clé.'),
   c('m17', 4, 2, 'Object Lock : mode governance contre mode compliance ?', 'Governance : un principal doté d’une permission spéciale peut lever le verrou, il protège de l’erreur. Compliance : personne, pas même root, ne supprime avant l’échéance, il résiste à un administrateur compromis.'),
 
-  // ── M18 · SIEM ───────────────────────────────────────────────────────────
+  // ── m18 · SIEM ───────────────────────────────────────────────────────────
   c('m18', 1, 2, 'KQL, EQL, ES|QL : lequel pour quelle question ?', 'KQL filtre, EQL enchaîne des événements en séquence, ES|QL agrège, compte et enrichit.'),
   c('m18', 2, 3, 'La règle est mappée sur une technique ATT&CK. Pourquoi ne prouve-t-elle pas la couverture ?', 'Le mapping dit ce que la règle vise, pas qu’elle se déclenche : seule une exécution de la technique (Stratus Red Team, Atomic Red Team, test de recette) le prouve.'),
   c('m18', 3, 1, 'Que ne journalise-t-on jamais ?', 'Mots de passe, jetons, secrets et données sensibles : une allowlist de champs, la redaction en filet, une empreinte HMAC quand il faut corréler.'),
   c('m18', 4, 3, 'CloudTrail est activé sur tous les comptes. Pourquoi ne voit-il pas l’aspiration d’un bucket S3 ?', 'Les événements de données (GetObject, PutObject) ne sont pas journalisés par défaut : il faut les activer sur les buckets critiques.'),
 
-  // ── M19 · Sécurité de l’IA ───────────────────────────────────────────────
+  // ── m19 · Sécurité de l’IA ───────────────────────────────────────────────
   c('m19', 1, 1, 'Les trois pieds de la lethal trifecta ?', 'Accès à des données privées, exposition à du contenu non fiable, capacité de communiquer vers l’extérieur. Couper un pied casse l’exfiltration.'),
   c('m19', 2, 1, 'Agents Rule of Two (Meta, 2025) ?', 'Un agent cumule au plus deux propriétés parmi : traiter des entrées non fiables, accéder à des données ou systèmes sensibles, changer d’état ou communiquer vers l’extérieur. Au-delà, supervision humaine.'),
   c('m19', 3, 3, 'Le prompt système interdit d’obéir aux documents. Pourquoi l’injection reste-t-elle possible ?', 'Consignes et données partagent le même contexte, sans canal séparé : un attaquant adaptatif finit par passer. La défense est dans l’architecture : privilèges séparés, outils minimaux, confirmation exécutée par le code.'),
@@ -237,25 +237,25 @@ const inModules = (...ids: string[]) => (card: Card) => ids.includes(card.module
 
 const PROFILES: SeriesProfile<Card>[] = [
   { id: 'programme', title: 'Programme et pilotage', filter: inModules('m01', 'm06'),
-    text: 'M1 et M6. Référentiels, SAMM, SSDF, CRA, exceptions : le vocabulaire du métier, avant les arbitrages avec le produit.' },
+    text: 'Référentiels, SAMM, SSDF, CRA, exceptions : le vocabulaire du métier, avant les arbitrages avec le produit.' },
   { id: 'vulnerabilites', title: 'Gestion des vulnérabilités', filter: inModules('m05'),
-    text: 'M5. CVSS, EPSS, SSVC, VEX : d’abord les définitions, puis ce que chaque score ne dit pas.' },
+    text: 'CVSS, EPSS, SSVC, VEX : d’abord les définitions, puis ce que chaque score ne dit pas.' },
   { id: 'js', title: 'Vulnérabilités JS', filter: inModules('m02'),
-    text: 'M2. Express, Node, React, Next.js : un tiers de cartes où la réponse évidente est la mauvaise.' },
+    text: 'Express, Node, React, Next.js : un tiers de cartes où la réponse évidente est la mauvaise.' },
   { id: 'web-avance', title: 'Web avancé', filter: inModules('m03'),
-    text: 'M3. Races, smuggling, cache, parsers, JWT : des mécanismes à distinguer deux à deux.' },
+    text: 'Races, smuggling, cache, parsers, JWT : des mécanismes à distinguer deux à deux.' },
   { id: 'client', title: 'Côté client', filter: inModules('m04'),
-    text: 'M4. CSP, SRI, Trusted Types, PCI : ce que chaque en-tête garantit, et ce qu’il laisse passer.' },
+    text: 'CSP, SRI, Trusted Types, PCI : ce que chaque en-tête garantit, et ce qu’il laisse passer.' },
   { id: 'concevoir', title: 'Exigences et conception', filter: inModules('m07', 'm08'),
-    text: 'M7 et M8. Gold Standard, RGPD, patterns, RLS : surtout des contrôles qui ont l’air suffisants.' },
+    text: 'Gold Standard, RGPD, patterns, RLS : surtout des contrôles qui ont l’air suffisants.' },
   { id: 'identite', title: 'Identité, abus et menaces', filter: inModules('m09', 'm10', 'm11'),
-    text: 'M9 à M11. OAuth, anti-abus, STRIDE : beaucoup de paires à ne pas confondre.' },
+    text: 'OAuth, anti-abus, STRIDE : beaucoup de paires à ne pas confondre.' },
   { id: 'outiller', title: 'Vérifier et outiller', filter: inModules('m12', 'm13', 'm14'),
-    text: 'M12 à M14. Revue, SAST, tests, pipeline : des définitions d’outils, puis des incidents réels qui les mettent en défaut.' },
+    text: 'Revue, SAST, tests, pipeline : des définitions d’outils, puis des incidents réels qui les mettent en défaut.' },
   { id: 'cloud', title: 'Cloud et production', filter: inModules('m15', 'm16', 'm17', 'm18'),
-    text: 'M15 à M18. IAM, Terraform, déploiement, Elastic : presque que des garde-fous qui ne gardent pas ce qu’on croit.' },
+    text: 'IAM, Terraform, déploiement, Elastic : presque que des garde-fous qui ne gardent pas ce qu’on croit.' },
   { id: 'ia', title: 'Sécurité de l’IA', filter: inModules('m19'), level: 2,
-    text: 'M19. Lethal trifecta, MCP, RAG : les notions d’abord, puis EchoLeak et le serveur MCP GitHub.' },
+    text: 'Lethal trifecta, MCP, RAG : les notions d’abord, puis EchoLeak et le serveur MCP GitHub.' },
   { id: 'vocabulaire', title: 'Vocabulaire', mix: [14, 0, 0],
     text: 'Tous les blocs, niveau 1 seulement : une définition, une liste ou une date par carte.' },
   { id: 'pieges', title: 'Les pièges', mix: [0, 0, 14],

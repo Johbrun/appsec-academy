@@ -1,4 +1,4 @@
-// Workflows du jeu « Workflow Audit » (M14), rattachés à l'OWASP Top 10 CI/CD Security Risks.
+// Workflows du jeu « Workflow Audit » (M18), rattachés à l'OWASP Top 10 CI/CD Security Risks.
 //
 // Le jeu demande de cliquer les lignes dangereuses d'un workflow, puis de
 // rattacher chacune à un risque. La difficulté ne vient pas de la rareté du
