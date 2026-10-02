@@ -1,198 +1,208 @@
 export const questions = [
   {
-    q: "Quelle fonction utiliser pour générer un jeton de réinitialisation dans Node ?",
+    q: "Où placer l'interface d'administration interne de Novafact ?",
     options: [
-      "crypto.createHash('sha256') appliqué à l'e-mail et à l'horodatage",
-      "crypto.pseudoRandomBytes(), plus rapide pour un usage non critique",
-      "crypto.randomBytes() ou crypto.randomUUID()",
-      "Math.random(), réamorcé à partir de process.hrtime()",
+      "Sur le domaine public, derrière un second mot de passe et une liste d'IP autorisées",
+      "Sur un sous-domaine séparé, non référencé et protégé par une authentification HTTP",
+      "Hors d'Internet : SSO d'entreprise, réseau ou proxy dédié, MFA forte, audit des actions",
+      "Dans l'application cliente, derrière un rôle « administrateur Novafact »",
     ],
     answer: 2,
-    explain: "Seul un CSPRNG produit une valeur imprévisible : randomBytes et randomUUID s'appuient sur l'entropie du système. pseudoRandomBytes est le faux ami — c'est aujourd'hui un simple alias déprécié de randomBytes, mais son nom invite à s'en servir « quand ce n'est pas critique », et un jeton de réinitialisation l'est toujours. Hacher l'e-mail et l'heure ne crée aucun secret : l'attaquant connaît les deux, et Math.random ne se réamorce pas.",
+    explain: "Une interface d'administration n'a pas à être joignable depuis Internet. Le filtrage par IP plus un second mot de passe est la réponse la plus fréquente : il tient jusqu'à la première adresse ajoutée « temporairement », et ne protège pas d'un poste d'administrateur compromis. Un sous-domaine non référencé, lui, se retrouve dans les journaux de transparence des certificats — Transparent Design rappelle qu'un nom secret n'est pas une protection.",
   },
   {
-    q: "Avec AES-GCM, quelle est la règle absolue concernant le vecteur d'initialisation (IV) ?",
+    q: "Qui devrait pouvoir lire les journaux applicatifs de production ?",
     options: [
-      "Il doit rester secret, au même titre que la clé de chiffrement",
-      "Il ne doit jamais être réutilisé avec la même clé",
-      "Il doit faire 16 octets, comme la taille de bloc d'AES",
-      "Il doit être imprévisible, donc tiré d'un générateur cryptographique",
+      "Tous les développeurs, pour que l'astreinte puisse diagnostiquer sans délai",
+      "Personne en direct : seuls des tableaux de bord agrégés restent accessibles",
+      "Un nombre restreint de personnes, avec des accès eux-mêmes audités",
+      "Les développeurs du service concerné, après expurgation automatique des données",
     ],
-    answer: 1,
-    explain: "Réutiliser un IV avec la même clé en GCM détruit la confidentialité et révèle la clé d'authentification : deux messages suffisent à forger. L'IV n'a besoin d'être ni secret ni même imprévisible — un compteur convient, c'est l'unicité qui compte. En pratique on tire 12 octets aléatoires, la taille pour laquelle GCM est spécifié, et non 16.",
+    answer: 2,
+    explain: "Une interface de journaux est une interface de données : elle expose des informations personnelles et techniques sensibles. L'expurgation automatique est le bon réflexe et ne suffit pas — elle ne connaît que les champs qu'on lui a déclarés, et un message d'erreur inattendu emporte le reste. On restreint l'accès, on l'audite, et on expurge en plus. Couper tout accès direct, à l'inverse, rend l'exploitation impossible.",
   },
   {
-    q: "Pourquoi la signature des webhooks de Novafact couvre-t-elle un horodatage, vérifié par le récepteur ?",
+    q: "Le prestataire de paiement rejoue un webhook « paiement reçu » après un délai d'attente. Quelle conception évite d'enregistrer le paiement deux fois ?",
     options: [
-      "Parce qu'un MAC prouve l'origine et l'intégrité, pas la fraîcheur du message",
-      "Parce que le récepteur doit pouvoir réordonner des événements arrivés en désordre",
-      "Parce qu'une signature qui ne couvre pas tout le corps reste partielle, donc contournable",
-      "Parce que la clé de signature est dérivée de l'horodatage à chaque envoi",
+      "Enregistrer l'identifiant de l'événement sous contrainte d'unicité, dans la transaction",
+      "Vérifier en base que ce paiement n'a pas déjà été enregistré avant de procéder à l'insertion",
+      "Ignorer tout événement dont l'horodatage a plus de cinq minutes",
+      "Répondre 200 immédiatement et traiter l'événement en tâche de fond",
     ],
     answer: 0,
-    explain: "Un MAC dit que le message vient bien du prestataire et n'a pas été modifié ; il ne dit pas quand. Sans horodatage signé, un message capturé reste valide indéfiniment et se rejoue à volonté. L'ordonnancement est un vrai besoin, mais c'est un autre sujet, et les horodatages de webhooks sont à la seconde, donc inutilisables pour trier. L'horodatage borne la fenêtre de rejeu à 5 minutes ; la mémorisation des identifiants déjà vus la referme.",
+    explain: "L'idempotence se garantit côté récepteur, et par la base : la contrainte d'unicité sur l'identifiant d'événement, posée dans la même transaction que l'effet métier, rend le second traitement impossible même si les deux livraisons arrivent en parallèle. Le « vérifier avant d'insérer » est exactement la race condition de M9 : les deux requêtes lisent avant que l'une écrive. Répondre vite réduit les rejeux sans les supprimer.",
   },
   {
-    q: "Dans le chiffrement d'enveloppe avec AWS KMS, qu'est-ce qui est stocké à côté des données chiffrées ?",
+    q: "L'équipe data veut brancher un outil de BI sur la base des factures. Quelle conception suit Least Information ?",
     options: [
-      "La clé de données en clair, mise en cache pour éviter un appel KMS par objet",
-      "Rien : KMS conserve les clés de données et les retrouve par identifiant",
-      "Un condensat de la clé de données, pour vérifier qu'on utilise la bonne",
-      "La clé de données chiffrée par la clé KMS, jamais sa version en clair",
+      "Un rôle en lecture seule sur toute la base, dont le mot de passe est confié à l'outil",
+      "Un export nocturne anonymisé, déposé dans un bucket réservé à l'équipe data",
+      "Le rôle de l'application, déjà configuré et déjà limité au tenant courant",
+      "Un rôle dédié, en lecture seule sur des vues qui n'exposent que les colonnes utiles",
     ],
     answer: 3,
-    explain: "On range le blob chiffré, et la référence de la clé KMS, à côté des données ; la clé en clair ne vit qu'en mémoire, le temps de chiffrer, puis on l'écrase. La mise en cache de la clé en clair est la vraie tentation, puisqu'elle divise les appels KMS par mille — mais écrite à côté des données, elle vide l'enveloppe de tout intérêt. Et KMS ne garde aucune clé de données : c'est le principe, le déchiffrement repasse par IAM et laisse une trace dans CloudTrail.",
+    explain: "La vue définit l'interface et le rôle dédié n'a de droits que sur elle : l'outil ne voit jamais l'IBAN, même sur une requête maladroite ou après compromission. Le rôle en lecture seule sur toute la base est le raccourci habituel — il protège l'intégrité, pas la confidentialité, et c'est celle-ci qui est en jeu. L'export anonymisé est une vraie option, mais il crée une copie de plus à protéger et suppose que l'anonymisation tienne.",
   },
 ];
 
 <YouKnow>
-Tu as cassé des implémentations maison : ECB, IV fixes, MAC comparés en temps variable, clés dans le code. Kohnfelder (K5) résume l'essentiel pour les développeurs : utiliser les bons outils, correctement, sans en inventer.
+En pentest, les interfaces d'administration, les consoles de logs et les API internes oubliées sont souvent les meilleures trouvailles. Côté conception, elles méritent autant d'attention que l'API publique.
 </YouKnow>
 
-## La règle d'or
+## Chaque interface est une frontière
 
-**Ne jamais inventer sa propre cryptographie**, ni ses propres protocoles. On utilise des bibliothèques éprouvées, avec des API de haut niveau, et on se concentre sur ce qui échoue en pratique : la gestion des clés et les erreurs d'usage. Les algorithmes modernes sont rarement cassés ; ce qui casse, ce sont les IV réutilisés, les chiffrements sans authentification, les comparaisons en temps variable et les clés qui traînent dans un dépôt.
+Kohnfelder (K3, K6) consacre une partie de son livre aux **interfaces** : chaque interface porte des hypothèses sur qui l'appelle et avec quelles données, et c'est un point de passage obligé, donc l'endroit idéal pour placer une mitigation. Il distingue leur solidité : une frontière réseau ou entre processus isole fortement, parce qu'on ne peut pas la contourner ; une frontière **à l'intérieur** d'un processus ne tient que si tout le code joue le jeu. Les frontières de confiance importantes gagnent donc à coïncider avec une frontière de processus ou de service.
 
-## La boîte à outils
+Une revue de conception examine chaque interface avec la même grille :
 
-| Outil | Usage | Dans Node |
-| --- | --- | --- |
-| **Aléatoire cryptographique** (CSPRNG) | Jetons, identifiants, IV, sels | `crypto.randomBytes`, `crypto.randomUUID`, `crypto.randomInt` ; jamais `Math.random` |
-| **MAC** | Garantir l'intégrité et l'origine d'un message entre parties qui partagent une clé | `crypto.createHmac('sha256', clé)`, comparaison avec `timingSafeEqual` |
-| **Chiffrement symétrique authentifié** | Chiffrer des données avec une clé partagée | AES-256-GCM via `createCipheriv`, IV aléatoire de 12 octets, tag d'authentification vérifié |
-| **Chiffrement asymétrique et signatures** | Signer (intégrité, non-répudiation), échanger des clés | Ed25519 ou ECDSA via `crypto.sign`, ou WebCrypto (`crypto.subtle`) |
-| **Certificats** | Lier une clé publique à une identité | TLS, gestion par ACM sur AWS (M21) |
-| **Hachage de mots de passe** | Stocker des mots de passe | argon2id ou scrypt (leçon 1 de M14) |
+| Question | Exemple pour l'API d'import de relevés bancaires |
+| --- | --- |
+| Qui peut l'appeler ? | Un utilisateur connecté d'un tenant, rôle comptable ou administrateur |
+| Avec quelle authentification ? | Session BFF (navigateur) ou clé d'API d'intégration |
+| Quelle autorisation, sur quel objet ? | Import dans le tenant de la session uniquement |
+| Quelles entrées, validées où ? | Fichier CAMT.053 de 5 Mo maximum, analysé dans un worker isolé (leçon 5) |
+| Quelles sorties ? | Un identifiant d'import et un statut, jamais le contenu brut |
+| Quel audit ? | Qui, quand, quel fichier (empreinte), combien de lignes |
+| Comment échoue-t-elle ? | Rejet complet du fichier, sans import partiel silencieux |
 
-Deux précisions sur l'aléatoire. `Math.random` n'est pas seulement « moins aléatoire » : dans V8, son générateur (xorshift128+) a un petit état interne qu'on peut reconstituer à partir de quelques sorties, ce qui rend les valeurs suivantes prévisibles. Et pour tirer un nombre dans un intervalle, `crypto.randomInt(min, max)` évite le biais du modulo qu'introduit un `randomBytes(…) % n` écrit à la main.
+La dernière ligne est souvent oubliée : une interface qui échoue à moitié (100 lignes importées sur 300) crée un état que ni l'utilisateur ni le code suivant n'avaient prévu.
+
+## Les interfaces d'administration
+
+| Règle | Pourquoi |
+| --- | --- |
+| Pas d'exposition sur Internet | Réduire la surface ; une URL secrète n'est pas une protection (Transparent Design) |
+| SSO de l'entreprise et MFA résistante au phishing | Les comptes d'administration sont les plus ciblés |
+| Autorisation fine et **Separation of Privilege** | Une action destructive (suppression d'un tenant) exige une seconde validation |
+| Audit de chaque action, dans un stockage non modifiable | Non-répudiation, investigation (M3) |
+| Accès « juste à temps » plutôt que permanent | Les droits élevés n'existent que pendant l'intervention |
+
+Pour « hors d'Internet », pas besoin de VPN : un proxy d'accès comme **AWS Verified Access** vérifie l'identité SSO (et, si on le configure, l'état du poste) à **chaque** requête avant de la transmettre au back-office.
 
 <Callout kind="case">
-**Sony PlayStation 3 (2010)**. Une signature ECDSA exige un nombre aléatoire neuf à chaque signature. L'implémentation de Sony utilisait la même valeur pour toutes. Présenté au Chaos Communication Congress fin 2010 par le groupe fail0verflow, ce défaut permettait de calculer la clé privée de signature de la console à partir de deux signatures publiques. L'algorithme était sûr ; son usage ne l'était pas. Ed25519 génère ce nombre de façon déterministe à partir de la clé et du message, ce qui supprime cette classe d'erreur.
+**Twitter (juillet 2020)**. Des attaquants ont appelé des employés en se faisant passer pour le support informatique, obtenu leurs identifiants, puis rebondi jusqu'à des comptes ayant accès à un outil interne de gestion des comptes. Ils ont pris le contrôle de 130 comptes, dont des personnalités, publié depuis 45 d'entre eux une arnaque aux bitcoins, et consulté les messages privés de jusqu'à 36 comptes. Le rapport du régulateur financier de l'État de New York pointe notamment l'absence de responsable de la sécurité à l'époque et la vulnérabilité de l'entreprise à l'ingénierie sociale. Une interface d'administration est l'actif le plus précieux du système, parce qu'elle donne accès à tous les autres.
 </Callout>
 
-## Le MAC et le rejeu
+Une fonctionnalité d'administration mérite une conception à part : l'**usurpation d'identité par le support** (« voir l'application comme le client »). Chez Novafact, elle n'existe qu'en lecture seule par défaut, exige un numéro de ticket, dure 15 minutes, et chaque action journalisée porte **deux** identités : l'agent et le client.
 
-Un MAC prouve qu'un message n'a pas été modifié, pas qu'il n'a pas été **rejoué**. Kohnfelder insiste sur ce point : pour les webhooks de Novafact, la signature couvre un **horodatage**, le récepteur refuse les messages trop anciens (5 minutes) et garde les identifiants de messages déjà traités.
-
-<Code file="apps/api/src/webhooks/verify.ts" hl="9,13,14">
+<Code file="apps/backoffice/src/support/impersonation.ts">
 
 ```ts
-import { createHmac, timingSafeEqual } from 'node:crypto';
-
-const TOLERANCE_S = 300;
-
-export function verifyWebhook(rawBody: Buffer, header: string, secret: string, now = Date.now()) {
-  // en-tête : t=1790000000,v1=5f0c… (horodatage et signature hexadécimale)
-  const parts = Object.fromEntries(header.split(',').map((p) => p.split('=') as [string, string]));
-  const t = Number(parts.t);
-  if (!Number.isInteger(t) || Math.abs(now / 1000 - t) > TOLERANCE_S) return false; // trop vieux ou dans le futur
-  const expected = createHmac('sha256', secret).update(`${t}.`).update(rawBody).digest();
-  const received = Buffer.from(parts.v1 ?? '', 'hex');
-  // timingSafeEqual lève une exception si les longueurs diffèrent : on les compare d'abord
-  if (received.length !== expected.length) return false;
-  return timingSafeEqual(received, expected);
-}
+type ImpersonationGrant = {
+  actor: `support:${string}`;   // l'agent, toujours visible dans les logs
+  subject: `user:${string}`;    // le client dont on emprunte la vue
+  tenantId: string;
+  mode: 'read-only' | 'read-write'; // read-write exige l'accord explicite du client
+  reason: string;               // numéro de ticket, obligatoire
+  expiresAt: Date;              // 15 minutes, non renouvelable sans nouvelle demande
+};
 ```
 
 </Code>
 
-Trois détails comptent. La signature porte sur le **corps brut** (le `Buffer` reçu, pas un `JSON.stringify` d'un objet déjà parsé, qui ne redonne pas forcément les mêmes octets). La comparaison est en **temps constant**. Et la vérification de l'identifiant d'événement (déjà traité ou non) vient ensuite, dans un stockage partagé, pour fermer la fenêtre de 5 minutes.
+Les accès **hors bande** (console du fournisseur cloud, accès d'urgence) suivent les mêmes règles, avec une procédure de *break-glass* documentée et surveillée (M19) : un compte d'urgence dont l'utilisation déclenche une alerte immédiate.
 
-Pour les webhooks **sortants** vers ses clients, Novafact pourrait aussi signer en Ed25519 : le client vérifie avec une **clé publique**, sans secret partagé à protéger de son côté, et une fuite chez un client ne permet pas de forger des messages pour les autres. C'est le compromis MAC contre signature : le MAC est plus simple et plus rapide ; la signature permet une vérification publique et la non-répudiation.
+## Les interfaces de journaux
 
-## Chiffrer : une API difficile à mal utiliser
+Les logs contiennent souvent des adresses e-mail, des adresses IP, des identifiants de factures, parfois des fragments de requêtes. Leur interface (Kibana, console CloudWatch) est une **interface de données** : accès restreint, audité, et durée de conservation définie. Et on n'y écrit jamais de secrets (M23).
 
-Kohnfelder propose un exercice : envelopper l'API bas niveau dans une interface qui ne laisse **aucun choix dangereux** à l'appelant. Pour Novafact, un module `seal` / `open` impose AES-256-GCM, génère l'IV, lie le chiffré à son contexte et stocke la version de clé :
+L'écriture est aussi une interface. Kohnfelder cite la journalisation comme exemple de *confused deputy* par effet de bord : si une entrée utilisateur contenant un retour à la ligne est écrite telle quelle dans un journal texte, elle peut y **fabriquer** une fausse ligne. La journalisation structurée (JSON) échappe les caractères de contrôle, et le filtrage des champs sensibles se fait à la source :
 
-<Code file="packages/crypto/src/seal.ts" hl="7,9,20,21">
+<Code file="apps/api/src/logging.ts">
 
 ```ts
-import { createCipheriv, createDecipheriv, randomBytes, type KeyObject } from 'node:crypto';
+import pino from 'pino';
 
-const FORMAT_V1 = 1;
-
-// sortie : [format 1 o][id de clé 1 o][IV 12 o][tag 16 o][chiffré]
-export function seal(key: { id: number; secret: KeyObject }, plaintext: Buffer, context: string): Buffer {
-  const iv = randomBytes(12);                                   // jamais fourni par l'appelant
-  const cipher = createCipheriv('aes-256-gcm', key.secret, iv);
-  cipher.setAAD(Buffer.from(context));                          // ex. "tenant:42|iban" : authentifié, non chiffré
-  const body = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-  return Buffer.concat([Buffer.from([FORMAT_V1, key.id]), iv, cipher.getAuthTag(), body]);
-}
-
-export function open(keys: Map<number, KeyObject>, sealed: Buffer, context: string): Buffer {
-  if (sealed[0] !== FORMAT_V1) throw new Error('format inconnu');
-  const secret = keys.get(sealed[1]);
-  if (!secret) throw new Error('clé inconnue');
-  const iv = sealed.subarray(2, 14), tag = sealed.subarray(14, 30), body = sealed.subarray(30);
-  const decipher = createDecipheriv('aes-256-gcm', secret, iv);
-  decipher.setAAD(Buffer.from(context));
-  decipher.setAuthTag(tag);                                     // final() échoue si tag ou contexte ne correspondent pas
-  return Buffer.concat([decipher.update(body), decipher.final()]);
-}
+export const logger = pino({
+  redact: {
+    paths: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.iban', '*.token'],
+    censor: '[filtré]',
+  },
+});
 ```
 
 </Code>
 
-Le **contexte** (données associées, AAD) empêche de déplacer un chiffré : l'IBAN chiffré du tenant 42, copié dans la ligne du tenant 7, ne se déchiffre plus. L'octet de **format** et l'**identifiant de clé** préparent l'avenir : changer d'algorithme ou de clé ne demande pas de migrer toutes les données d'un coup. Enfin, avec des IV aléatoires de 96 bits, NIST recommande de ne pas dépasser environ 2³² chiffrements par clé : une raison de plus pour faire tourner les clés, ou de chiffrer avec une clé de données par tenant.
+## Les dépendances amont et aval
 
-## Les clés
+Quand deux services échangent des clés ou des données, la conception précise **qui détient quoi** : une clé partagée entre Novafact et son prestataire de paiement pour signer les webhooks, les données envoyées au fournisseur d'e-mails, celles transmises à un fournisseur d'IA. Chaque échange a un propriétaire, une procédure de rotation et une limite de ce qui est transmis (Least Information). Le fournisseur d'e-mails n'a pas besoin du montant de la facture pour envoyer un lien ; le fournisseur d'IA n'a pas besoin de l'IBAN pour résumer un litige.
 
-C'est là que tout se joue :
+Une clé partagée se fait tourner **sans interruption** si l'interface l'a prévu dès le départ :
 
 <Steps items={[
-  { title: "Hors du code", text: "Jamais de clé dans le dépôt, ni dans une image Docker, ni dans une variable VITE_* (M8)." },
-  { title: "Dans un KMS", text: "AWS KMS garde les clés maîtresses sans jamais les exposer ; l'application chiffre et déchiffre par des appels à l'API, tracés dans CloudTrail." },
-  { title: "Chiffrement d'enveloppe", text: "Une clé de données chiffre les données ; la clé de données est elle-même chiffrée par la clé maîtresse du KMS. Une clé de données par tenant facilite l'isolation et la suppression." },
-  { title: "Rotation", text: "Des clés qui tournent, avec un identifiant de version stocké à côté des données chiffrées." },
+  { title: "Ajouter", text: "Générer le nouveau secret et le déclarer chez le récepteur, qui accepte désormais l'ancien et le nouveau." },
+  { title: "Basculer", text: "L'émetteur signe avec le nouveau secret. Les messages en vol, signés avec l'ancien, restent acceptés." },
+  { title: "Retirer", text: "Après un délai supérieur à la durée de vie d'un message (rejeux compris), l'ancien secret est supprimé des deux côtés." },
 ]} />
 
-<Code file="packages/crypto/src/envelope.ts" hl="8,10,11">
+Une interface qui n'accepte qu'un seul secret à la fois condamne à une coupure à chaque rotation, donc à des rotations rares. C'est une décision de conception, pas d'exploitation.
+
+## Concevoir un protocole
+
+- **État** : un protocole sans état est plus simple à sécuriser ; l'état nécessaire vit côté serveur (M7, leçon 4 et M9, leçon 1).
+- **Idempotence** : une requête rejouée ne doit pas produire deux effets (paiements, envois). Les API de paiement ont popularisé l'en-tête `Idempotency-Key`, décrit dans un draft IETF.
+- **Versionnage** : les anciennes versions d'une API restent une surface tant qu'elles sont en ligne (API9, M7).
+- **Limites** : taille des requêtes, taille des pages, profondeur des objets, délais d'expiration. Une interface sans limite est une interface de déni de service.
+- **Erreurs** : un message utile à l'appelant, sans détails internes (pile d'appels, requêtes SQL).
+
+Côté récepteur, l'idempotence se garantit par une **contrainte d'unicité** dans la même transaction que l'effet métier, pas par une vérification préalable qui laisserait passer deux requêtes concurrentes (M9) :
+
+<Code file="apps/api/src/payments/onPaymentReceived.ts" hl="6">
 
 ```ts
-import { KMSClient, GenerateDataKeyCommand } from '@aws-sdk/client-kms';
-import { createSecretKey } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 
-export async function newTenantDataKey(kms: KMSClient, tenantId: string) {
-  const { Plaintext, CiphertextBlob } = await kms.send(new GenerateDataKeyCommand({
-    KeyId: 'alias/novafact-tenant-data',
-    KeySpec: 'AES_256',
-    EncryptionContext: { tenantId },   // exigé à nouveau au déchiffrement, visible dans CloudTrail
-  }));
-  const secret = createSecretKey(Plaintext!); // le KeyObject garde sa propre copie
-  Plaintext!.fill(0);
-  return { secret, wrappedKey: CiphertextBlob! }; // wrappedKey est stockée avec le tenant ; secret reste en mémoire
+export async function onPaymentReceived(event: PaymentEvent) {
+  try {
+    await prisma.$transaction([
+      prisma.processedEvent.create({ data: { provider: 'psp', eventId: event.id } }), // @@unique([provider, eventId])
+      prisma.invoice.update({ where: { id: event.invoiceId }, data: { status: 'PAID', paidAt: event.paidAt } }),
+    ]);
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return; // déjà traité
+    throw err;
+  }
 }
 ```
 
 </Code>
 
-Supprimer un tenant revient alors à détruire sa clé de données chiffrée : les données restantes, y compris dans les sauvegardes, deviennent illisibles (le *crypto-shredding*). Avant d'écrire ce code toi-même, regarde l'**AWS Encryption SDK** (`@aws-crypto/client-node`), qui implémente ce schéma avec un format de message documenté : c'est l'application directe de la règle d'or.
+## Les bases de données
 
-## L'agilité cryptographique
+Un utilisateur de base **par service**, avec les droits minimaux (pas de propriétaire des tables pour l'application, leçon 2 de M14), des connexions chiffrées (sur RDS, le paramètre `rds.force_ssl` refuse les connexions en clair), et des **vues** pour exposer à un outil d'analyse seulement les colonnes utiles. Une vue est une interface au même titre qu'une API : elle a un contrat, un consommateur, et ne doit rien exposer de plus.
 
-Les algorithmes vieillissent : SHA-1 et RSA-1024 ont été abandonnés, et la migration vers des algorithmes résistants aux ordinateurs quantiques a commencé. En août 2024, le NIST a publié ses trois premières normes post-quantiques (FIPS 203 pour l'échange de clés ML-KEM, FIPS 204 et 205 pour les signatures ML-DSA et SLH-DSA). La priorité va à l'échange de clés : des données chiffrées et capturées aujourd'hui pourraient être déchiffrées plus tard (*harvest now, decrypt later*).
+<Code file="db/migrations/051_bi_access.sql">
 
-L'**agilité cryptographique**, c'est pouvoir changer d'algorithme sans tout réécrire : stocker l'algorithme et la version de clé avec chaque donnée chiffrée ou chaque hash (comme l'octet de format de `seal`, ou le préfixe `$argon2id$`), centraliser la cryptographie dans un module unique, et tenir un **inventaire** des usages (quel algorithme, où, pour quelles données). Sans inventaire, une migration commence par des semaines d'archéologie dans le code.
+```sql
+CREATE ROLE novafact_bi LOGIN;
 
-<Callout kind="tip">
-Exercice tiré de Kohnfelder : reprends `seal` / `open` et ajoute un format v2 (par exemple une autre taille de tag ou un autre algorithme), en gardant la lecture du v1. Écris les tests : chiffré modifié, contexte différent, clé inconnue, format inconnu. Une API impossible à mal utiliser vaut mieux que toutes les formations sur les modes de chiffrement.
-</Callout>
+CREATE VIEW bi_invoice_stats WITH (security_barrier) AS
+  SELECT tenant_id, date_trunc('month', issued_at) AS month, status, count(*) AS n, sum(total_cents) AS total_cents
+  FROM invoice
+  GROUP BY tenant_id, date_trunc('month', issued_at), status;
+
+REVOKE ALL ON invoice FROM novafact_bi;
+GRANT SELECT ON bi_invoice_stats TO novafact_bi;
+```
+
+</Code>
+
+L'outil de BI ne voit ni les clients, ni les IBAN, ni les lignes individuelles ; s'il est compromis, la fuite se limite à des agrégats. Un piège : sauf avec l'option `security_invoker`, une vue s'exécute avec les droits de son **propriétaire**. Avec la RLS de la leçon 2 de M14, décide explicitement quelle politique s'applique à ce chemin, sinon la vue contourne ou casse l'isolation que tu croyais universelle.
 
 <Recap items={[
-  "Ne jamais inventer sa cryptographie ; ce qui casse en pratique, ce sont les usages et les clés.",
-  "CSPRNG pour tout ce qui doit être imprévisible ; un nombre aléatoire réutilisé peut livrer une clé privée.",
-  "Un MAC ne protège pas du rejeu : horodatage signé, corps brut, comparaison en temps constant, identifiants mémorisés.",
-  "Une API seal / open impose AES-GCM, l'IV, le contexte (AAD) et la version de clé.",
-  "Clés dans un KMS avec chiffrement d'enveloppe et contexte ; agilité et inventaire pour préparer la migration post-quantique.",
+  "Chaque interface se revoit avec la même grille : qui, authentification, autorisation, entrées, sorties, audit, comportement en cas d'échec.",
+  "Administration : hors Internet, SSO et MFA forte, séparation des privilèges, audit, accès juste à temps ; l'usurpation par le support porte deux identités.",
+  "Les interfaces de logs sont des interfaces de données, en lecture comme en écriture : JSON structuré et filtrage à la source.",
+  "Les échanges de clés et de données entre services ont un propriétaire, une limite et une rotation sans interruption.",
+  "Protocoles sans état, idempotents par contrainte d'unicité, versionnés et bornés ; bases avec un rôle minimal par service et des vues comme interfaces.",
 ]} />
 
 <Sources items={[
-  { title: "Node.js : crypto", url: "https://nodejs.org/api/crypto.html" },
-  { title: "OWASP Cheat Sheet : Cryptographic Storage", url: "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html" },
-  { title: "AWS KMS : chiffrement d'enveloppe", url: "https://docs.aws.amazon.com/kms/latest/developerguide/kms-cryptography.html" },
-  { title: "AWS Encryption SDK for JavaScript", url: "https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/javascript.html" },
-  { title: "NIST FIPS 203 : ML-KEM", url: "https://csrc.nist.gov/pubs/fips/203/final" },
-  { title: "NIST SP 800-38D : GCM", url: "https://csrc.nist.gov/pubs/sp/800/38/d/final" },
-  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 5" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitres 3 et 6, Interfaces" },
+  { title: "ISC2 CSSLP Exam Outline, domaine 4 (secure interface design)", url: "https://www.isc2.org/certifications/csslp/csslp-certification-exam-outline" },
+  { title: "NYDFS : Twitter Investigation Report (2020)", url: "https://www.dfs.ny.gov/reports-and-publications/other-reports/Twitter_Report" },
+  { title: "AWS Verified Access", url: "https://docs.aws.amazon.com/verified-access/latest/ug/what-is-verified-access.html" },
+  { title: "pino : redaction", url: "https://getpino.io/#/docs/redaction" },
+  { title: "IETF draft : The Idempotency-Key HTTP Header Field", url: "https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/" },
+  { title: "PostgreSQL : CREATE VIEW (security_barrier)", url: "https://www.postgresql.org/docs/current/sql-createview.html" },
 ]} />

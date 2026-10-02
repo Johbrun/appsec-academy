@@ -1,177 +1,179 @@
 export const questions = [
   {
-    q: "Quelles sont les six étapes d'une Security Design Review selon Kohnfelder ?",
+    q: "Pourquoi rendre explicites les hypothèses dans un design doc ?",
     options: [
-      "Study, Inquire, Identify, Collaborate, Write, Follow up",
-      "Scoping, Modeling, Enumerating, Rating, Mitigating, Verifying",
-      "Read, Rate, Report, Remediate, Retest, Release",
-      "Plan, Do, Check, Act, Review, Close",
+      "Parce qu'une hypothèse tacite diffère d'une équipe à l'autre et ne peut pas être revue",
+      "Parce que les hypothèses écrites servent de cahier des charges aux tests d'intégration",
+      "Parce que le relecteur peut alors valider la conception sans avoir à lire le code",
+      "Parce qu'une hypothèse documentée engage l'équipe qui l'a posée en cas d'incident",
     ],
     answer: 0,
-    explain: "Étudier le document, poser les questions qui manquent, identifier les parties critiques, collaborer sur les mitigations, écrire le rapport, suivre les changements. Les séquences en « énumérer puis noter » décrivent un threat model ou un pentest : une revue de conception commence par lire et interroger, et se termine par un suivi, pas par une note de gravité.",
+    explain: "Kohnfelder raconte deux équipes qui supposaient chacune un ordre d'octets différent : chacune avait raison chez elle, l'interface était fausse. Les hypothèses nourrissent effectivement les tests, mais c'est une conséquence, pas la raison : une hypothèse non écrite ne peut être ni contredite ni testée, donc la revue passe à côté sans même savoir qu'elle passe à côté.",
   },
   {
-    q: "Comment Kohnfelder recommande-t-il de prioriser les constats d'une revue de conception ?",
+    q: "À quoi sert la section « Non-objectifs » d'un design doc ?",
     options: [
-      "Par score CVSS, du plus élevé au plus faible, comme dans un rapport de pentest",
-      "En trois niveaux Must, Ought, Should, selon le degré de contrainte",
-      "En rouge, orange et vert, selon la gravité estimée par le relecteur",
-      "Par effort d'implémentation, pour livrer d'abord les corrections les moins coûteuses",
+      "À reporter à une version ultérieure les fonctions qu'on n'a pas le temps de faire",
+      "À dire ce que la conception ne fait pas, pour éviter les attentes implicites",
+      "À lister les risques acceptés par l'équipe et validés par le responsable produit",
+      "À délimiter le périmètre du pentest commandé après la mise en production",
     ],
     answer: 1,
-    explain: "Must : pas le choix, souvent urgent. Ought : le relecteur penche pour Must, mais c'est discutable. Should : recommandation facultative. L'essentiel de l'effort et du rapport porte sur les Must. Le CVSS est le réflexe importé du pentest et il ne s'applique pas ici : il note une vulnérabilité exploitable dans un système existant, alors qu'une revue de conception porte sur des décisions, dont beaucoup n'ont rien à noter.",
+    explain: "Un non-objectif n'est ni un « plus tard » ni un risque accepté : c'est une limite assumée de la conception, écrite pour que personne ne suppose que le cas est couvert. La confusion avec les risques acceptés est la plus fréquente, et elle coûte cher : un risque accepté suppose qu'une menace a été identifiée et pesée, alors qu'un non-objectif cadre la revue en amont, avant même qu'on cherche des menaces.",
   },
   {
-    q: "Le concepteur refuse une recommandation mineure du relecteur. Que prévoit Kohnfelder ?",
+    q: "Un design doc indique seulement : « les données des clients sont stockées de manière sécurisée ». Comment le relecteur doit-il réagir ?",
     options: [
-      "Retirer la recommandation, puisque le concepteur assume la décision",
-      "Escalader au responsable sécurité, qui tranchera le désaccord avant la mise en production",
-      "Consigner le désaccord et sa raison dans le rapport, puis laisser décider le concepteur",
-      "Conditionner la validation de la revue à la correction, même mineure",
+      "Demander ce qui est protégé, contre quelle menace, et comment on le vérifie",
+      "Demander d'ajouter le nom de l'algorithme de chiffrement et la taille de clé",
+      "Accepter : le détail du stockage relève de l'implémentation, pas de la conception",
+      "Accepter si l'équipe a déjà livré des services comparables sans incident",
     ],
-    answer: 2,
-    explain: "Le concepteur a le dernier mot, mais la trace reste : le rapport garde une section « recommandations déclinées », avec la raison de la recommandation et les conséquences possibles. Retirer purement et simplement la recommandation est la tentation relationnelle, et c'est elle qui fait perdre la mémoire du choix le jour de l'incident. L'escalade est réservée aux désaccords majeurs, avec un mémo où chacun expose sa position.",
+    answer: 0,
+    explain: "Kohnfelder lit une affirmation générale sans détail comme le signe d'une compréhension superficielle. Réclamer l'algorithme est le réflexe le plus courant et il est insuffisant : AES-256 avec la clé stockée à côté des données ne protège de rien. Ce qu'il faut, c'est l'actif, la menace et la vérification — et c'est bien une question de conception, puisque le modèle de clés change l'architecture.",
   },
   {
-    q: "L'équipe ajoute un cache Redis devant l'API des factures et juge inutile de repasser en revue : « c'est un petit changement ». Que faire ?",
+    q: "Pour arbitrer un compromis entre sécurité et coût, Kohnfelder conseille d'abord de raisonner sur…",
     options: [
-      "Rien : un cache ne modifie pas les contrôles d'accès de l'API des factures",
-      "Refaire une revue complète de la conception, puisque l'architecture a changé",
-      "Une revue incrémentale du delta : le cache crée une copie de données sensibles",
-      "Un test de charge, le risque propre à un cache étant la cohérence des données",
+      "le score CVSS moyen des vulnérabilités trouvées sur le service l'an dernier",
+      "la probabilité de chaque scénario, estimée à partir des incidents du secteur",
+      "le pire scénario par actif, et la façon dont une mitigation le borne",
+      "le coût de la mitigation rapporté au chiffre d'affaires du service concerné",
     ],
     answer: 2,
-    explain: "Un cache crée une copie de données sensibles, avec ses propres clés, durées de vie et droits d'accès — et en multi-tenant, une clé construite sans le tenant finit par servir la facture d'un client à un autre. Refaire toute la revue est l'autre erreur : c'est si coûteux que personne ne le fera la fois suivante, alors que la revue incrémentale porte sur le delta et met simplement à jour le rapport existant.",
+    explain: "Des sauvegardes horaires bornent la perte d'intégrité à une heure ; une perte de confidentialité, elle, ne se rattrape pas, et c'est ce qui justifie d'y investir davantage. Raisonner d'abord en probabilités est tentant, c'est le réflexe des méthodes d'analyse de risque, mais les estimations sont peu fiables à l'échelle d'un design, alors que le pire cas se raisonne et se borne.",
   },
 ];
 
 <YouKnow>
-Une revue de conception ressemble à un pentest sur papier, mais sans exploit : on raisonne sur un document, avant que le code existe. C'est là que chaque correctif coûte le moins cher.
+En pentest, tu reconstitues la conception d'un système à partir de son comportement. Côté AppSec, tu la lis avant qu'elle soit construite, à condition qu'elle soit écrite.
 </YouKnow>
 
-## Pourquoi et quand
+## Pourquoi écrire la conception
 
-Une **Security Design Review** (SDR) trouve les problèmes avant qu'ils existent dans le code : une autorisation mal placée, une donnée collectée sans raison, une dépendance critique. Kohnfelder (K7), qui dit en avoir mené quelques centaines, affirme qu'aucune ne lui a paru inutile : elle prend une fraction minime du temps de conception, et produit soit des améliorations, soit une **assurance** documentée que la conception tient. Elle attire aussi des points de vue que la conception oublie (support, juridique, expérience utilisateur), notamment sur les abus possibles.
+Kohnfelder (K6) présente la conception sécurisée et la revue de conception (leçon suivante) comme deux faces d'une même activité : la première est **intégrative** (le concepteur construit la sécurité dans le système), la seconde **analytique** (un relecteur l'évalue). Le concepteur ne doit pas compter sur la revue pour rattraper ce qu'il a ignoré : il reste responsable de la sécurité de sa conception.
 
-Le bon moment : quand la conception est **complète et stable**, en général après la revue fonctionnelle, mais avant qu'elle soit figée. Kohnfelder déconseille de fusionner les deux revues : l'état d'esprit et les points d'attention diffèrent trop, et la discussion dérive vers le fonctionnement. Pour une conception complexe ou critique, une **revue préliminaire** plus légère, quand l'architecture commence à prendre forme, permet de discuter tôt des grandes menaces et des compromis.
+La phase de conception est le moment où changer d'avis ne coûte presque rien : on compare des alternatives avant d'avoir écrit la moindre ligne. Un design doc réunit une **description fonctionnelle** (le système vu de l'extérieur) et une **spécification technique** (vu de l'intérieur). Il n'a pas besoin d'être volumineux ; Kohnfelder admet qu'une petite équipe travaille de façon informelle, et qu'un simple schéma de blocs vaut mieux que rien. Ce qui compte, c'est qu'il existe **par écrit**, pour être relu, discuté et retrouvé.
 
-Le relecteur idéal n'a pas participé à la conception (recul, objectivité) mais connaît le contexte. Ce n'est pas un prérequis absolu : Kohnfelder insiste sur le fait qu'un développeur qui connaît bien un système fera souvent une meilleure revue qu'un expert en sécurité qui le découvre.
-
-## La documentation est indispensable
-
-Une revue sérieuse exige un **document écrit à jour**. Une affirmation vague (« les données clients sont stockées de manière sécurisée ») est un signal d'alerte en soi. Quand la documentation manque ou date, se plaindre de sa qualité ne sert à rien ; Kohnfelder conseille des alternatives : un prototype interne, le code et les revues de code, ou assister à une réunion d'équipe. À défaut de tout, le relecteur dessine lui-même un schéma de blocs, le fait valider, et relit ça.
-
-## Les six étapes
+## Intégrer la sécurité à la conception
 
 <Steps items={[
-  { title: "Study", text: "Lire le document une première fois pour comprendre, puis une seconde fois avec le « chapeau sécurité ». Noter les idées, sans analyser en profondeur." },
-  { title: "Inquire", text: "Poser des questions pour clarifier et compléter le document. Demander à l'équipe ce qui l'inquiète le plus ; si rien ne l'inquiète, demander pourquoi." },
-  { title: "Identify", text: "Repérer les parties les plus critiques : interfaces, stockage, communications. Aller des surfaces les plus exposées vers les actifs les plus précieux, comme un attaquant." },
-  { title: "Collaborate", text: "Discuter des risques et des mitigations avec le designer. Proposer plusieurs solutions, illustrer par des scénarios, accepter que le designer ait le dernier mot." },
-  { title: "Write", text: "Un rapport organisé autour de changements de conception concrets, priorisé en Must / Ought / Should, avec l'essentiel de l'effort sur les priorités hautes." },
-  { title: "Follow up", text: "Vérifier que les changements ont été intégrés avant de valider. Documenter les désaccords restants comme questions ouvertes." },
+  { title: "Rendre les hypothèses explicites", text: "Il raconte un projet où l'équipe matérielle et l'équipe logicielle supposaient un ordre d'octets opposé : des années de travail, et un crash au premier démarrage. Les hypothèses vont dans une section dédiée, en tête du document." },
+  { title: "Définir le périmètre", text: "Ce qui est dans la conception, ce qui n'y est pas (non-objectifs), et les dépendances." },
+  { title: "Poser les exigences de sécurité", text: "Tirées d'ASVS et des abuse cases (M12), formulées pour être vérifiables." },
+  { title: "Modéliser les menaces", text: "Un threat model léger, proportionné au risque (M11)." },
+  { title: "Concevoir les mitigations", text: "En particulier les interfaces et le traitement des données (leçons 2 et 6)." },
+  { title: "Intégrer la vie privée", text: "Minimisation et durées de conservation dès la conception (M12)." },
+  { title: "Penser à tout le cycle de vie", text: "Déploiement, mises à jour, migration, fin de vie (M21)." },
+  { title: "Assumer les compromis", text: "Écrire les arbitrages entre sécurité, coût et ergonomie, et pourquoi." },
+  { title: "Rester simple", text: "La simplicité est une propriété de sécurité (Economy of Design)." },
 ]} />
 
-Pour une petite conception, tout tient en une séance ; pour une grande, chaque étape peut en demander plusieurs (suivre la revue comme un ticket du projet évite qu'elle se perde). Kohnfelder préfère travailler par étapes sur quelques jours, pour laisser mûrir, plutôt qu'en marathon. Pendant la préparation, il trie ses notes en quatre catégories : les questions à poser **avant** la réunion, celles dont il peut trouver la réponse seul, les sujets à explorer **en** réunion, et les observations qui iront directement au rapport.
+### Les hypothèses qu'on oublie d'écrire
 
-## Les quatre questions comme fil conducteur
+Pour Kohnfelder, documenter les hypothèses revient à anticiper le « mais je pensais que… ». Celles qu'on omet le plus souvent : les contraintes de budget et de délai, le fait que le système soit ou non une cible, les exigences non négociables (compatibilité avec un existant), le niveau de sécurité attendu, la sensibilité des données, les évolutions prévisibles, les objectifs de performance.
 
-Sans threat model formel, les quatre questions du threat modeling (M11) guident la revue :
+Beaucoup de ces hypothèses sont communes à tous les projets d'une organisation. Plutôt que de les recopier, Novafact tient un **socle commun** (authentification via Cognito, tenant toujours issu de la session, données personnelles hébergées dans l'UE, journalisation vers Elastic) ; chaque design doc y renvoie et ne détaille que les **écarts**. Le module de paiement, par exemple, déclare un niveau d'exigence supérieur au reste de la plateforme.
 
-| Question | Ce que le relecteur cherche |
+### Le périmètre, et ce qui tombe entre deux chaises
+
+Si le périmètre est flou, le relecteur suppose qu'un sujet est hors champ, le concepteur ne l'a pas vu, et personne ne le traite. L'exemple de Kohnfelder est volontairement banal : les **sauvegardes**, que chacun croit assurées par quelqu'un d'autre jusqu'à la première perte de données. Pour une évolution, on définit un périmètre étroit autour de ce qui change, en acceptant qu'il déborde quand une interface ou un format de données doit changer de l'autre côté. Et on vérifie que les **attentes de sécurité** envers les dépendances correspondent à ce qu'elles garantissent réellement.
+
+### Des exigences qui disent le but, pas le moyen
+
+Une exigence exprime un **objectif** (« un utilisateur ne peut exporter que les factures de son tenant ») plutôt qu'une implémentation, reconnaît les coûts acceptables, explique les exigences inhabituelles et reste atteignable. À l'inverse, une phrase comme « les données sont stockées de manière sécurisée » est un signal d'alerte : elle ne dit ni quoi, ni contre quoi, ni comment le vérifier. Si la sécurité ne compte vraiment pas (un prototype sur des données fictives), il faut aussi l'**écrire**, pour que personne ne réutilise ce code plus tard sur de vraies données.
+
+### Le modèle de menaces essentiel
+
+Kohnfelder propose de partir du **modèle de menaces essentiel** : le risque inhérent à la fonction, quelle que soit la façon dont on la construit. Collecter des données personnelles expose ces données chez le client, en transit et sur le serveur : aucune architecture ne supprime ce risque, on ne peut que le réduire, ou collecter moins. Ensuite, chaque décision de conception **modifie** ce modèle : ajouter un cache de données sensibles pour gagner en latence crée une copie de plus, souvent plus proche de la surface d'attaque.
+
+Son exemple : des commerciaux itinérants qui ont besoin des coordonnées clients hors connexion. Copier toute la base sur chaque appareil est le plus simple et le plus risqué ; des sous-ensembles régionaux, ou des codes d'appel passant par un service de renvoi (le commercial n'a jamais le numéro), répondent au besoin avec une exposition bien moindre.
+
+### Interfaces et données
+
+Pour chaque interface, le design doc précise si les entrées sont **déjà validées** ou à traiter comme non fiables, et comment l'authentification et l'autorisation s'appliquent si elle franchit une frontière de confiance. Si l'on ne sait pas ce que garantit un composant externe, on le suppose non fiable. Un composant insuffisant peut être **enveloppé** : une couche qui chiffre avant d'écrire rend inoffensive la fuite d'un stockage peu sûr.
+
+Pour les données : limiter leurs déplacements, remplacer les données sensibles par un **identifiant opaque** là où elles ne sont pas nécessaires (l'exemple de l'annexe A de Kohnfelder est un outil de journalisation qui n'écrit que des identifiants, qu'un auditeur peut résoudre au besoin), traiter toute donnée personnelle comme sensible sauf décision contraire, et prévoir **quand** elle sera détruite, sauvegardes comprises.
+
+### Compromis et simplicité
+
+Pour arbitrer, Kohnfelder conseille de raisonner sur le **pire scénario** de chaque actif et sur la façon dont une mitigation le borne : des sauvegardes horaires limitent la perte à une heure de transactions. Une perte de confidentialité, elle, ne se rattrape pas. Quand un compromis s'impose : garder la conception assez souple pour ajouter une protection plus tard, instrumenter pour détecter les abus redoutés, tester l'ergonomie sur des cas réels plutôt que présumer qu'une mesure gênera, et illustrer les risques par des scénarios concrets.
+
+Côté simplicité, un avertissement : séparer la sécurité (une « coque » autour) de la fonctionnalité (à l'intérieur) simplifie, à condition que **rien** ne contourne la coque. Un seul chemin interne oublié suffit.
+
+## Un gabarit de design doc
+
+L'annexe A de *Designing Secure Software* propose un exemple complet de document de conception. En voici une adaptation pour Novafact :
+
+| Section | Contenu |
 | --- | --- |
-| Sur quoi travaille-t-on ? | Le but de chaque élément : on peut proposer de supprimer ce qui crée du risque sans servir, et on évite de casser ce qui est nécessaire |
-| Qu'est-ce qui peut mal tourner ? | Les menaces sous-estimées ou ignorées |
-| Que fait-on contre ? | Faire correspondre menaces et mitigations, repérer les trous |
-| A-t-on bien travaillé ? | Les mitigations suffisent-elles ? Le verdict d'ensemble |
+| 1. Description du produit | En quelques lignes, ce que fait la fonctionnalité et pour qui |
+| 2. Vue d'ensemble | Objectif, périmètre, concepts, exigences, **non-objectifs**, questions ouvertes, alternatives écartées |
+| 3. Cas d'usage | Les parcours principaux, et les abuse cases |
+| 4. Architecture | Composants, flux de données, frontières de confiance (un DFD, M11) |
+| 5. Données | Ce qui est stocké, classification, durée de conservation |
+| 6. API | Chaque interface, ses entrées, ses sorties, son authentification et son autorisation |
+| 7. Interface utilisateur | Les écrans, et ce qu'ils exposent |
+| 8. Conception technique | Choix d'implémentation, dépendances |
+| 9. Configuration | Réglages, valeurs par défaut, secrets |
+| 10. Références | Documents liés, décisions d'architecture (ADR) |
 
-Un risque **accepté** n'est pas un problème, à condition qu'il le soit consciemment. Le rapport l'écrit, avec la raison et la condition qui obligerait à le reconsidérer. Chez Novafact : « Les exports ne sont pas notifiés aux utilisateurs non administrateurs : risque accepté, car seul un administrateur de tenant peut exporter. À revoir si l'export est ouvert aux experts-comptables externes. »
+## Exemple : l'export comptable
 
-Le relecteur regarde aussi l'excès inverse : un mécanisme de sécurité réinventé alors qu'une bibliothèque standard existe, ou une protection redondante coûteuse (chiffrer au niveau applicatif des données déjà protégées par TLS, sans menace qui le justifie).
-
-## Où creuser
-
-On ne relit pas tout avec la même attention. Kohnfelder conseille de **suivre son intuition** : repérer les zones qui semblent fragiles, puis y revenir avec les quatre questions. Quand on est enfermé dehors, on vérifie les fenêtres et les portes, on n'inspecte pas chaque centimètre de façade. Les suspects habituels :
-
-- les **interfaces**, surtout celles qui franchissent une frontière de confiance, et plus encore quand elles sont accessibles anonymement depuis Internet ;
-- le **stockage** des données sensibles ;
-- les **communications** entre composants ;
-- tout ce qui touche à l'**authentification**, à l'**autorisation** et à l'**audit**.
-
-## Un rapport utile
-
-Le rapport commence par un **verdict d'ensemble** en une phrase : la conception est sûre en l'état ; elle est sûre, avec quelques améliorations suggérées ; ou elle soulève des inquiétudes, et voici les recommandations. Suivent les constats, organisés autour de **changements de conception** et priorisés :
-
-| Priorité | Sens | Exemple sur l'export comptable |
-| --- | --- | --- |
-| **Must** | Pas de choix possible, souvent urgent | L'export filtre par le tenant de la session, jamais par un paramètre de la requête |
-| **Ought** | Le relecteur penche pour Must, mais c'est discutable | Le fichier d'export est chiffré et son lien expire en 15 minutes |
-| **Should** | Recommandation facultative | Un e-mail informe les autres administrateurs du tenant qu'un export a eu lieu |
-
-Quelques règles d'écriture tirées du chapitre : consacrer l'essentiel de l'effort aux priorités hautes ; expliquer la menace et pourquoi elle compte, avec des pistes, sans faire le travail du concepteur à sa place ; mentionner ce qui est bien fait, pour que ces décisions soient protégées lors des évolutions ; ne jamais conclure par un simple « ça me semble bon », mais citer les éléments de la conception dont la sécurité dépend.
-
-<Code file="docs/sdr/2026-09-export-comptable.md">
+<Code file="docs/design/export-comptable.md">
 
 ```md
-# SDR : export comptable (design doc v1.3)
+## 2. Vue d'ensemble
 
-Verdict : conception globalement saine ; deux changements requis avant la mise en production.
+Hypothèses (écarts au socle commun uniquement)
+- H1. L'export ne contient que les factures du tenant de la session ; seul un administrateur de tenant peut le déclencher.
+- H2. Un export peut atteindre 50 000 factures (tenant le plus volumineux à ce jour, fictif) : traitement asynchrone.
 
-## Points forts
-- Traitement asynchrone isolé du chemin des requêtes ; aucune donnée de paiement dans le périmètre.
+Non-objectifs
+- L'export ne contient ni IBAN ni données de carte.
+- Pas d'envoi du fichier par e-mail en pièce jointe.
 
-## Constats
-- [Must] E1 n'est pas testé : ajouter un test d'isolation inter-tenant sur l'endpoint de création d'export.
-- [Ought] Le fichier reste 24 h dans le bucket : réduire à 1 h ou justifier le besoin.
-- [Should] Neutraliser les formules CSV (Q1) : accord de principe, à valider avec le produit.
+Exigences de sécurité
+- E1. Le tenant est lu dans la session, jamais dans la requête (ASVS V8).
+- E2. Le fichier est chiffré au repos et supprimé après 24 h.
+- E3. Le lien de téléchargement est à usage unique et expire après 15 min.
+- E4. Chaque export est journalisé (qui, quand, combien de lignes) et notifié aux autres administrateurs du tenant.
 
-## Risques acceptés
-- Pas de notification aux non-administrateurs (voir condition de réexamen).
+Alternatives écartées
+- Pièce jointe e-mail : copie incontrôlable, pas de révocation.
 
-## Recommandations déclinées
-- (aucune à ce stade)
+Questions ouvertes
+- Q1. Faut-il neutraliser les cellules commençant par =, +, - ou @ (injection de formules CSV) ? Proposition : oui.
 ```
 
 </Code>
 
-## Gérer le désaccord et l'escalade
+Chaque ligne est vérifiable : un relecteur peut demander comment E1 est testé, un développeur sait ce qu'il doit construire, et dans un an, H2 expliquera pourquoi l'export est asynchrone.
 
-Kohnfelder consacre une part importante du chapitre au facteur humain : une revue consiste à pointer des faiblesses dans un travail où les gens ont investi, et un relecteur perçu comme un censeur jamais satisfait devient inefficace, même quand il a raison. Ses conseils, tirés d'une revue qu'il décrit comme particulièrement difficile : présenter ses retours comme **son point de vue** plutôt que comme des exigences ; commencer et finir par du positif ; demander d'abord comment transmettre un retour volumineux (pas de courriel de 97 points ni de pluie de tickets sans prévenir) ; et limiter le retour aux points significatifs.
+## Documenter les décisions
 
-Quand le désaccord persiste :
-
-<Steps items={[
-  { title: "Désaccord mineur", text: "Le relecteur le consigne dans une section « Recommandations déclinées » : la recommandation, sa raison, les conséquences possibles. Le concepteur a le dernier mot." },
-  { title: "Désaccord majeur", text: "Chacun rédige sa position, en partant de ce sur quoi ils s'accordent ; les deux textes forment un mémo qui expose le risque, les options et leurs coûts." },
-  { title: "Décision", text: "Le mémo sert de base à une décision de la direction. La décision et le mémo rejoignent le rapport de revue." },
-]} />
-
-Kohnfelder note que les désaccords forts viennent presque toujours d'une **hypothèse divergente** (sur l'usage réel du logiciel, ou sur la sensibilité des données) : l'identifier règle souvent le conflit. Une question aide à trancher : si l'on change d'avis après la mise en production, à quel point ce sera plus difficile ?
+Chaque choix structurant de sécurité (algorithme de hachage, modèle multi-tenant, fournisseur d'identité) mérite une **ADR** (Architecture Decision Record) courte : le contexte, la décision, les alternatives, les conséquences. Six mois plus tard, c'est elle qui répond à « pourquoi a-t-on fait ça ? ». Une ADR n'est jamais réécrite : si la décision change, une nouvelle ADR remplace l'ancienne et y fait référence, ce qui garde l'historique des arbitrages.
 
 <Callout kind="debate">
-**Le relecteur doit-il avoir un droit de veto ?** Kohnfelder donne le dernier mot au concepteur, responsable de sa conception, en reconnaissant que les organisations réglementées ajoutent des validations multiples (comité d'architecture, conformité). Certaines équipes AppSec préfèrent un veto limité aux Must. L'argument en faveur de sa position : un veto utilisé souvent pousse les équipes à contourner la revue, alors qu'un désaccord documenté et escaladable garde tout le monde à la table.
+**Design doc ou code d'abord ?** Certaines équipes agiles jugent les design docs trop lourds et préfèrent itérer. Les deux positions se rejoignent souvent sur un format court : une à trois pages pour une fonctionnalité sensible, rien pour un changement cosmétique. Le critère n'est pas la taille du changement mais son effet sur une **frontière de confiance** ou une **donnée sensible** : ce sont ces changements-là qu'on écrit avant de coder.
 </Callout>
 
-## Vie privée et évolutions
-
-La même démarche s'applique à la **vie privée** : parcourir la politique de confidentialité, relever les passages qui concernent la conception (collecte, usage, stockage, partage), et vérifier que la conception les respecte ; faire valider par les spécialistes ce qui dépasse la compétence du relecteur.
-
-Pour les **évolutions**, le design doc doit rester un document vivant et versionné. La revue incrémentale porte sur le **delta** depuis la revue précédente et met à jour le rapport existant, qui raconte ainsi toute l'histoire. Kohnfelder rappelle que sous-estimer un « petit changement » est une invitation classique au désastre ; si le changement est vraiment anodin, le relecteur le confirmera en quelques minutes.
-
-<Callout kind="tip">
-Le jeu **Design Review Simulator** te fait relire le design doc de l'export comptable en suivant ces six étapes, puis défendre tes constats face au designer.
+<Callout kind="novafact">
+Exercice : complète le design doc de l'**export comptable** (sections 4 à 6) à partir de l'extrait ci-dessus : le DFD avec ses frontières de confiance, la liste des données avec leur classification, et chaque API avec son authentification. La revue de ce document fait l'objet de la leçon suivante.
 </Callout>
 
 <Recap items={[
-  "Une SDR se fait sur un document écrit, quand la conception est stable mais pas figée, séparément de la revue fonctionnelle.",
-  "Six étapes : Study, Inquire, Identify, Collaborate, Write, Follow up ; les quatre questions guident l'analyse.",
-  "Un rapport qui commence par un verdict, priorise en Must / Ought / Should, et cite ce qui est bien fait.",
-  "Le concepteur a le dernier mot : désaccords mineurs documentés, désaccords majeurs escaladés avec un mémo à deux voix.",
-  "Les évolutions se revoient par delta, y compris les « petits changements ».",
+  "Conception intégrative et revue analytique : le concepteur reste responsable de la sécurité de sa conception.",
+  "Les hypothèses implicites font échouer revues et intégrations : on les écrit, en renvoyant à un socle commun pour ce qui ne change pas.",
+  "Des exigences qui disent le but et se vérifient ; une affirmation vague est un signal d'alerte.",
+  "Partir du modèle de menaces essentiel, puis mesurer ce que chaque décision ajoute ; raisonner en pire scénario pour arbitrer.",
+  "Un gabarit en dix sections, et une ADR pour chaque décision structurante.",
 ]} />
 
 <Sources items={[
-  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 7 et annexe D" },
-  { title: "OWASP SAMM : Architecture Assessment", url: "https://owaspsamm.org/model/verification/architecture-assessment/" },
-  { title: "OWASP Cheat Sheet : Threat Modeling", url: "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 6 et annexe A" },
+  { title: "Malte Ubl, Design Docs at Google", url: "https://www.industrialempathy.com/posts/design-docs-at-google/" },
+  { title: "ADR : Architecture Decision Records", url: "https://adr.github.io/" },
+  { title: "Michael Nygard, Documenting Architecture Decisions", url: "https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions" },
+  { title: "OWASP ASVS", url: "https://owasp.org/www-project-application-security-verification-standard/" },
 ]} />
