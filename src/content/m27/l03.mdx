@@ -1,0 +1,157 @@
+export const questions = [
+  {
+    q: "Un avis de sécurité liste vingt empreintes SHA-256 d’un webshell, des adresses IP et un comportement : la création d’un compte administrateur nommé « Health Check Service ». Que retenir en priorité pour une détection durable ?",
+    options: [
+      "Les empreintes, parce qu’elles identifient le fichier malveillant sans ambiguïté",
+      "Les adresses IP, parce qu’elles permettent un blocage immédiat au WAF",
+      "La création du compte administrateur, parce qu’elle survit à une variante",
+      "Le nom du fichier du webshell, parce qu’il apparaît dans les journaux du serveur",
+    ],
+    answer: 2,
+    explain: "C’est la Pyramid of Pain : une empreinte change avec un octet, une IP avec un nouveau serveur loué, un nom de fichier avec un renommage. Vingt empreintes pour un même webshell montrent justement que l’attaquant en produisait des variantes. La création d’un compte administrateur hors du processus normal est un comportement : l’attaquant doit le refaire pour persister, et l’application peut le journaliser. Les indicateurs gardent leur utilité, pour une chasse rétroactive ou un blocage de quelques jours, pas pour une règle qui dure.",
+  },
+  {
+    q: "Un partenaire transmet à Novafact un rapport marqué TLP:AMBER sur une campagne qui vise les éditeurs de facturation. Novafact peut-elle en transmettre l’essentiel à l’équipe sécurité d’un grand client directement concerné ?",
+    options: [
+      "Non : TLP:AMBER interdit toute diffusion hors des destinataires nommés",
+      "Oui, au besoin d’en connaître : AMBER couvre l’organisation et ses clients",
+      "Oui, et à toute la communauté sectorielle, qu’AMBER autorise aussi",
+      "Non : un client est un tiers, et seul TLP:CLEAR autorise ce partage",
+    ],
+    answer: 1,
+    explain: "TLP 2.0 définit AMBER comme une diffusion limitée au besoin d’en connaître, au sein de l’organisation destinataire et de ses clients. Si l’émetteur voulait exclure les clients, il aurait marqué AMBER+STRICT. La diffusion aux seuls destinataires nommés, c’est RED ; la diffusion à la communauté, c’est GREEN ; CLEAR lève toute limite, mais n’est pas requis pour un client. En cas de doute sur un destinataire qui n’est ni l’organisation ni son client, un prestataire par exemple, on demande à l’émetteur : la confiance d’un partage tient à ce respect.",
+  },
+  {
+    q: "Quel usage du renseignement change le plus directement une décision de l’AppSec ?",
+    options: [
+      "Abonner le SIEM à un flux d’indicateurs le plus large possible, pour tout couvrir",
+      "Lire chaque semaine les rapports sur les groupes d’attaquants les plus actifs",
+      "Bloquer au WAF toutes les adresses IP signalées par les flux du mois écoulé",
+      "Relever les techniques d’une campagne qui vise son secteur et ses composants",
+    ],
+    answer: 3,
+    explain: "Le renseignement vaut par la décision qu’il change : une campagne qui exploite un composant utilisé remonte un correctif dans la file, une technique qui contourne la MFA en place modifie une conception, un comportement documenté devient une chasse. Un flux d’indicateurs massif produit surtout du bruit et des correspondances périmées. Lire les rapports est utile mais ne décide rien seul. Bloquer des IP d’un mois, c’est risquer de bloquer des clients légitimes derrière des proxys résidentiels.",
+  },
+];
+
+<YouKnow>
+Un pentester lit déjà du renseignement sans l’appeler ainsi : un write-up d’exploitation, un billet sur une nouvelle technique de contournement, un avis de CVE. La différence côté AppSec est l’usage : il ne s’agit plus de reproduire, mais de décider ce qui change dans la file de correctifs, la conception ou les détections.
+</YouKnow>
+
+## Trois niveaux, trois usages
+
+Le renseignement sur la menace (*cyber threat intelligence*, CTI) se découpe habituellement en trois niveaux. Chacun nourrit une décision différente de l’AppSec :
+
+| Niveau | Contenu typique | Ce qu’il change pour l’AppSec |
+| --- | --- | --- |
+| **Stratégique** | Tendances, secteurs ciblés, motivations (rapports annuels, M1) | Les priorités du programme et ses arguments auprès de la direction (M31) |
+| **Opérationnel** | Campagnes en cours, techniques et outils d’un groupe | La priorité d’un correctif (M26), une hypothèse de chasse (leçon 4), une exigence de conception |
+| **Tactique** | Indicateurs : empreintes, adresses IP, domaines | Une recherche rétroactive, un blocage temporaire, un enrichissement d’alerte (M24, leçon 5) |
+
+Le piège classique est de commencer par le bas : s’abonner à des flux d’indicateurs parce que c’est simple à brancher. C’est aussi ce qui vieillit le plus vite et change le moins de décisions.
+
+## La Pyramid of Pain
+
+En 2013, David Bianco a classé les indicateurs selon la **douleur** qu’on inflige à l’attaquant en les détectant. Le bas de la pyramide est trivial à changer pour lui ; le haut l’oblige à réapprendre son métier.
+
+| Niveau | Exemple appliqué à une application | Coût pour l’attaquant s’il est détecté |
+| --- | --- | --- |
+| Empreintes | SHA-256 d’un webshell déposé | Nul : un octet modifié suffit |
+| Adresses IP | Sources d’un credential stuffing | Faible : proxys résidentiels |
+| Domaines | Domaine d’hameçonnage imitant `novafact.example` | Faible à modéré |
+| Artefacts réseau et hôte | User-agent d’un outil, empreinte JA4, nom de compte créé | Modéré |
+| Outils | Un framework d’exploitation précis | Élevé : il faut changer d’outil |
+| **TTP** | « Exploiter une injection pour créer un compte admin, puis exfiltrer en masse » | Très élevé : il faut changer de méthode |
+
+La leçon 2 de M24 en tire les conséquences pour la robustesse d’une règle. Pour l’AppSec, la conséquence est plus directe encore : **les comportements en haut de la pyramide sont souvent visibles d’abord dans l’application**, à condition qu’elle les journalise.
+
+<Callout kind="case">
+**MOVEit Transfer (2023).** L’avis AA23-158A de la CISA et du FBI (7 juin 2023, mis à jour le 16 juin) décrit l’exploitation par CL0P de la CVE-2023-34362, une injection SQL dans MOVEit Transfer. Il fournit de nombreux indicateurs, dont plusieurs empreintes différentes du webshell LEMURLOOT, initialement observé sous le nom `human2.aspx`. Il décrit aussi un comportement : le webshell peut créer un compte administrateur dont les champs de nom valent « Health Check Service ». Les empreintes ont permis des recherches rétroactives ; le comportement, lui, se détecte dans les journaux de l’application elle-même, quelle que soit la variante. Un éditeur qui journalise la création de comptes privilégiés hors du processus normal voit le haut de la pyramide.
+</Callout>
+
+## Le modèle en diamant
+
+Le **modèle en diamant** (Caltagirone, Pendergast et Betz, 2013) décrit chaque événement d’intrusion par quatre sommets : l’**adversaire**, sa **capacité** (outil, technique), l’**infrastructure** qu’il utilise et la **victime**. Son intérêt pratique est le **pivot** : partir d’un sommet connu pour en découvrir d’autres.
+
+Appliqué à une campagne de credential stuffing contre Novafact : la victime est connue (des comptes clients), la capacité aussi (connexions automatisées avec des identifiants valides ailleurs). Pivoter sur l’infrastructure, par l’empreinte JA4 du client TLS et les ASN d’origine, retrouve des connexions passées sous les seuils ; pivoter sur la capacité, par la cadence et l’ordre des requêtes, retrouve la même campagne sur une autre route, la réinitialisation de mot de passe par exemple. Nul besoin d’attribuer l’adversaire pour en tirer une détection. L’attribution intéresse le renseignement stratégique ; l’AppSec, elle, s’intéresse à la capacité.
+
+## Formats et plateformes
+
+Le renseignement s’échange dans des formats structurés, pour qu’un outil puisse l’ingérer :
+
+- **STIX 2.1** (OASIS, standard depuis juin 2021) décrit des objets : `indicator`, `attack-pattern`, `malware`, `threat-actor`, `vulnerability`, reliés par des `relationship` et des `sighting`. **TAXII 2.1** est le protocole HTTPS qui les transporte ;
+- **MISP** est la plateforme de partage open source la plus répandue dans les communautés (CERT, ISAC) ;
+- **OpenCTI** organise la connaissance en graphe, en s’appuyant sur STIX.
+
+Un objet STIX qui intéresse l’AppSec ressemble à ceci :
+
+<Code file="cti/indicateur-moveit.json" hl="5,6">
+
+```json
+{
+  "type": "indicator",
+  "spec_version": "2.1",
+  "id": "indicator--3f1c0e2a-7d0b-4a5e-9b8e-2c6f5a1d9e40",
+  "name": "Compte administrateur créé hors du processus normal",
+  "pattern": "[user-account:display_name = 'Health Check Service' AND user-account:is_privileged = true]",
+  "pattern_type": "stix",
+  "valid_from": "2023-06-07T00:00:00Z",
+  "labels": ["persistence"],
+  "object_marking_refs": ["marking-definition--<identifiant TLP:CLEAR publié par OASIS>"]
+}
+```
+
+</Code>
+
+L’identifiant et le marquage sont illustratifs : les définitions de marquage TLP ont des identifiants fixes publiés avec STIX. Novafact n’a pas besoin d’héberger une plateforme : l’intégration de renseignement d’Elastic et les règles *indicator match* suffisent à enrichir les alertes, et l’AppSec lit les rapports qui comptent.
+
+## TLP 2.0 : qui peut lire quoi
+
+Le **Traffic Light Protocol** du FIRST, en version 2.0 depuis août 2022, marque chaque partage selon sa diffusion autorisée :
+
+| Marquage | Diffusion autorisée |
+| --- | --- |
+| **TLP:RED** | Destinataires individuels uniquement, aucune rediffusion |
+| **TLP:AMBER+STRICT** | L’organisation destinataire seulement, au besoin d’en connaître |
+| **TLP:AMBER** | L’organisation et ses clients, au besoin d’en connaître |
+| **TLP:GREEN** | La communauté du destinataire, pas le public |
+| **TLP:CLEAR** | Sans limite (remplace TLP:WHITE de la version 1) |
+
+Pour l’AppSec, deux conséquences. Un rapport AMBER reçu d’un pair ne finit ni dans un ticket public, ni dans une issue GitHub d’un projet open source, ni dans le post-mortem publié. Et quand Novafact partage ses propres observations après un incident, marquer correctement est ce qui rend les pairs prêts à partager en retour.
+
+## Consommer sans se noyer
+
+Le renseignement n’a de valeur que s’il **change une décision**. Une grille simple permet de trier ce qui arrive :
+
+| Ce qu’on lit | Question à poser | Décision possible |
+| --- | --- | --- |
+| Une CVE exploitée dans un composant | Est-il dans notre SBOM, atteignable ? | Remonter le correctif (KEV, SSVC : M26, leçon 3) |
+| Une technique qui contourne un contrôle | Notre conception en dépend-elle ? | Exigence ou revue de conception (M12, M13) |
+| Un comportement post-exploitation | Le verrions-nous dans nos journaux ? | Hypothèse de chasse (leçon 4), détection (M24) |
+| Un lot d’indicateurs | Ont-ils touché nos systèmes récemment ? | Recherche rétroactive, puis archivage |
+| Une tendance sectorielle | Change-t-elle nos priorités ? | Argument pour la feuille de route (M31) |
+
+Ce qui ne passe aucune ligne de la grille ne mérite pas plus de deux minutes. Pour la lecture, deux sources sont particulièrement utiles : **The DFIR Report**, qui publie gratuitement des chronologies d’intrusions réelles avec leurs commandes, et les avis conjoints de la CISA, qui joignent techniques ATT&CK et indicateurs. Pour aller plus loin sur la méthode, *Intelligence-Driven Incident Response* (Brown et Roberts, 2e édition, 2023) relie renseignement et réponse.
+
+<Callout kind="novafact">
+Le rituel de Novafact (fictif) : trente minutes par semaine, l’AppSec et l’ingénierie de détection passent les avis reçus dans la grille. Chaque ligne retenue produit un ticket : correctif remonté, hypothèse de chasse, ou question de conception. Les indicateurs vont dans l’index de renseignement d’Elastic avec une durée de vie de trente jours ; les rapports TLP:AMBER restent dans l’espace documentaire restreint de l’équipe.
+</Callout>
+
+<Recap items={[
+  "Trois niveaux de renseignement, trois usages : priorités du programme, priorités de correction et de chasse, enrichissement des alertes.",
+  "La Pyramid of Pain : les empreintes et les IP vieillissent vite, les comportements durent, et l’application les voit souvent la première.",
+  "Le modèle en diamant sert à pivoter d’un sommet à l’autre ; l’AppSec s’intéresse à la capacité plus qu’à l’attribution.",
+  "STIX/TAXII 2.1, MISP et OpenCTI structurent l’échange ; TLP 2.0 dit qui peut lire quoi, et AMBER+STRICT exclut les clients.",
+  "Un renseignement qui ne change aucune décision ne mérite pas plus de deux minutes.",
+]} />
+
+<Sources items={[
+  { title: "David J. Bianco : The Pyramid of Pain (2013)", url: "https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html" },
+  { title: "Caltagirone, Pendergast et Betz : The Diamond Model of Intrusion Analysis (2013)", url: "https://apps.dtic.mil/sti/pdfs/ADA586960.pdf" },
+  { title: "CISA et FBI : avis AA23-158A, CL0P et MOVEit Transfer", url: "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a" },
+  { title: "FIRST : Traffic Light Protocol 2.0", url: "https://www.first.org/tlp/" },
+  { title: "OASIS : STIX 2.1", url: "https://docs.oasis-open.org/cti/stix/v2.1/stix-v2.1.html" },
+  { title: "MISP", url: "https://github.com/MISP/MISP" },
+  { title: "OpenCTI", url: "https://github.com/OpenCTI-Platform/opencti" },
+  { title: "The DFIR Report", url: "https://thedfirreport.com/" },
+]} />

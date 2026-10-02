@@ -1,0 +1,193 @@
+export const questions = [
+  {
+    q: "`python -m detection_rules test` passe au vert sur toutes les règles de Novafact. Qu'est-ce que cela garantit ?",
+    options: [
+      "Que chaque règle se déclencherait sur l'attaque qu'elle décrit, dans l'environnement réel",
+      "Que les règles sont syntaxiquement valides et conformes au schéma et aux conventions",
+      "Que les champs utilisés par les règles existent bien dans les index de production",
+      "Que chaque règle a été rejouée sur les jeux de données associés à sa technique ATT&CK",
+    ],
+    answer: 1,
+    explain: "Les tests unitaires du dépôt vérifient la syntaxe des requêtes, le schéma des fichiers, les métadonnées et les associations ATT&CK. Ils ne lancent aucune règle sur des événements. Le contrôle des champs se fait contre un schéma déclaré, pas contre les index réels : un champ renommé par une mise à jour d'intégration passe sans broncher. Prouver qu'une règle se déclenche demande de rejouer des événements ou une technique, ce qui est l'objet des autres niveaux de test.",
+  },
+  {
+    q: "Pourquoi enregistrer avec Grimoire les événements CloudTrail produits par une détonation Stratus, plutôt que redétonner la technique à chaque test de non-régression ?",
+    options: [
+      "Parce que Stratus ne peut détonner chaque technique qu'une seule fois par compte AWS",
+      "Parce que les événements enregistrés sont plus réalistes que ceux d'une nouvelle détonation",
+      "Pour obtenir un jeu d'événements fixe, rejouable en CI en secondes et sans compte AWS",
+      "Parce que CloudTrail ne journalise pas les appels faits par des outils d'émulation",
+    ],
+    answer: 2,
+    explain: "Une détonation coûte un compte de test, des identifiants et plusieurs minutes d'attente pour la livraison de CloudTrail : on la fait quand on écrit ou révise la règle. Les événements capturés deviennent ensuite un jeu fixe qu'un test rejoue à chaque pull request, sans aucun accès au cloud. Ils ne sont ni plus ni moins réalistes : ce sont les mêmes. Stratus se redétonne autant qu'on veut après un cleanup, et CloudTrail journalise ses appels comme les autres : c'est tout l'intérêt de l'outil.",
+  },
+  {
+    q: "La règle « changement d'IBAN après appareil inconnu » a un cas positif qui passe. Quel test manque le plus pour décider de la mettre en production ?",
+    options: [
+      "Un second cas positif identique, pour vérifier que le résultat est reproductible",
+      "Une détonation Stratus, pour confirmer que la règle couvre aussi le côté AWS",
+      "Un test de charge, pour mesurer le coût de la requête sur trente jours de données",
+      "Des cas négatifs réalistes : changement d'IBAN légitime depuis un appareil connu",
+    ],
+    answer: 3,
+    explain: "Un cas positif dit que la règle voit l'attaque ; seuls les cas négatifs disent qu'elle ne sonne pas sur l'activité normale, et donc si elle sera tolérée en production. Répéter le même cas positif ne vérifie qu'une procédure, pas une variante. Stratus émule des techniques AWS et ne dit rien d'une règle applicative. Le coût d'une requête compte, mais il se mesure en observation ; il ne décide pas de l'utilité de la règle.",
+  },
+  {
+    q: "Le 2 septembre 2024, un bug a fait perdre à Microsoft une partie des journaux de sécurité de plusieurs services cloud, détecté trois jours plus tard. Quel type de test aurait signalé le problème du côté d'un client ?",
+    options: [
+      "Un test planifié qui rejoue une action connue en production et attend l'alerte",
+      "Les tests unitaires des règles, exécutés à chaque modification du dépôt",
+      "Un rejeu hebdomadaire des jeux OTRF Security-Datasets dans un index de test",
+      "Une revue trimestrielle des ADS avec les propriétaires de chaque règle",
+    ],
+    answer: 0,
+    explain: "Le problème n'était pas dans les règles mais dans les données qui devaient y arriver : seul un test qui traverse toute la chaîne réelle, de l'action jusqu'à l'alerte, le voit. Les tests unitaires et les jeux de données rejoués contournent précisément la collecte de production, puisqu'ils injectent eux-mêmes leurs événements. Une revue d'ADS est utile, mais trimestrielle et documentaire : elle n'aurait rien vu en trois jours.",
+  },
+];
+
+<YouKnow>
+Un pentester sait qu'une vulnérabilité sans preuve d'exploitation reste une hypothèse, et qu'un rapport de pentest convainc par sa reproduction. Une détection obéit à la même règle : tant que personne ne l'a vue se déclencher sur le comportement visé, et rester muette sur l'activité normale, c'est une intention.
+</YouKnow>
+
+## Ce qui peut casser
+
+Une règle passe par trois couches, et chacune peut casser sans bruit :
+
+- **La donnée** : l'événement n'est plus produit, n'est plus collecté, ou arrive avec un champ renommé.
+- **La règle** : une exception trop large, un seuil ajusté à la hâte, une requête modifiée qui ne correspond plus à rien.
+- **La chaîne d'alerte** : la règle est désactivée, sa planification échoue, l'alerte n'atteint pas la file de triage.
+
+Un seul type de test ne couvre pas ces trois couches. La leçon 3 a montré la boucle de base ; celle-ci organise les tests en niveaux, comme une stratégie de test applicative (M17).
+
+## Quatre niveaux de test
+
+| Niveau | Ce qu'il vérifie | Outil | Quand |
+| --- | --- | --- | --- |
+| **Statique** | Syntaxe, schéma, métadonnées, association ATT&CK | `python -m detection_rules test` | À chaque pull request |
+| **Rejeu** | La règle se déclenche sur des événements enregistrés, et pas sur des événements normaux | Jeux d'événements versionnés, aperçu de règle | À chaque pull request |
+| **Émulation** | La technique réelle produit bien les événements attendus | Atomic Red Team, Stratus Red Team | À l'écriture de la règle, puis chaque trimestre |
+| **Bout en bout** | Action en production, collecte, règle et alerte | Scénario planifié | Chaque jour pour les règles critiques |
+
+Les tests statiques de `elastic/detection-rules` sont indispensables et trompeurs : ils valident un fichier, pas un comportement. Ils ne lancent aucune règle sur aucun événement.
+
+## Atomic Red Team
+
+Le projet de Red Canary publie des **tests atomiques** rangés par technique, dans `atomics/<technique>/<technique>.yaml`. Chaque test déclare ses plateformes (`windows`, `linux`, `iaas:aws`, `office-365`…), ses arguments, ses prérequis, la commande à lancer et sa commande de nettoyage. Le dépôt a déjà suivi ATT&CK v19 : les tests de désactivation de CloudTrail vivent sous `T1685.002` (leçon 2).
+
+Le même format sert à écrire des atomics **maison**, pour les procédures que personne d'autre ne publiera, comme les abus applicatifs de Novafact :
+
+<Code file="detections/atomics/T1657/T1657.yaml">
+
+```yaml
+attack_technique: T1657
+display_name: Financial Theft
+atomic_tests:
+  - name: Novafact - changement d'IBAN depuis un appareil inconnu
+    auto_generated_guid: 6f1c9a2e-0b7d-4c55-9e43-2a8f1d7c3b10
+    description: |
+      Connexion du compte de recette sans cookie d'appareil, puis demande de
+      changement d'IBAN. Doit déclencher la règle de la leçon 1, en recette seulement.
+    supported_platforms: [linux]
+    input_arguments:
+      api_url: { description: URL de l'API de recette, type: url, default: "https://api.staging.novafact.example" }
+    executor:
+      name: sh
+      command: |
+        TOKEN=$(./login-sans-appareil.sh "#{api_url}")
+        curl -sf -X POST "#{api_url}/v1/settings/iban" -H "Authorization: Bearer $TOKEN" \
+          -H 'Content-Type: application/json' -d '{"iban":"FR7630006000011234567890189"}'
+      cleanup_command: ./annuler-changement-iban.sh "#{api_url}"
+```
+
+</Code>
+
+```powershell
+Invoke-AtomicTest T1657 -PathToAtomicsFolder ./detections/atomics -ShowDetailsBrief
+Invoke-AtomicTest T1657 -PathToAtomicsFolder ./detections/atomics -CheckPrereqs
+Invoke-AtomicTest T1657 -PathToAtomicsFolder ./detections/atomics -TestNumbers 1
+Invoke-AtomicTest T1657 -PathToAtomicsFolder ./detections/atomics -TestNumbers 1 -Cleanup
+```
+
+L'IBAN du test est un numéro d'exemple, et la commande de nettoyage annule le changement : un test qui laisse des traces en recette finit par polluer les autres.
+
+## Stratus Red Team et Grimoire : de la détonation au jeu d'événements
+
+Stratus Red Team détonne des techniques cloud en cinq temps (`warmup`, `detonate`, `revert`, `cleanup`, et `status` pour savoir où en est chaque technique). Une détonation est lente et coûteuse : un compte AWS de test, des identifiants, et plusieurs minutes d'attente, puisque CloudTrail livre ses fichiers en environ cinq minutes en moyenne. On ne la refait pas à chaque pull request.
+
+**Grimoire**, du même éditeur, transforme la détonation en jeu de test. Il détonne la technique en injectant un user-agent unique, interroge CloudTrail jusqu'à retrouver les événements correspondants et les écrit dans un fichier :
+
+```bash
+export AWS_PROFILE=detection-lab        # compte bac à sable, jamais la production
+grimoire stratus-red-team -o fixtures/cloudtrail-event-selectors.json \
+  --attack-technique aws.defense-evasion.cloudtrail-event-selectors
+```
+
+Le fichier devient un **cas positif** versionné. On fait de même pour chaque procédure listée dans la colonne « procédures vues » de la leçon 2 : arrêt, suppression, sélecteurs, cycle de vie. Les **cas négatifs** viennent de la production : quelques heures d'activité normale de CloudTrail, anonymisées (M17, leçon 8), qui ne doivent produire aucune alerte.
+
+## Les jeux de données publics
+
+Pour les techniques qu'on ne peut pas détonner soi-même, des jeux enregistrés existent :
+
+- **OTRF Security-Datasets** publie des événements enregistrés pendant la simulation de techniques, rangés en jeux atomiques (Windows, Linux, AWS) et composés, chacun décrit par des métadonnées YAML qui donnent les techniques ATT&CK. Le jeu AWS « Cloud Bank Breach S3 », par exemple, est associé à T1078.004 et T1530. Le projet est peu actif depuis 2024 : utile, mais à compléter.
+- **Splunk BOTSv3** (CC0, 2018) contient notamment du CloudTrail, mais sous forme d'application Splunk pré-indexée : il faut l'exporter et le convertir avant de l'ingérer dans Elastic.
+
+Les champs de ces jeux ne sont pas ceux de l'intégration en place : un pipeline d'ingestion les ramène vers ECS, comme pour Sigma (leçon 3).
+
+## Positifs, négatifs et variantes
+
+Atkinson le montre dans sa série *On Detection* : un test unique donne un résultat binaire qui ne dit pas si la règle a vu le comportement ou seulement cette forme de comportement. Pour chaque règle, Novafact exige :
+
+- un cas positif **par procédure connue**, pas un seul ;
+- des cas négatifs réalistes, y compris les faux positifs de la section *False Positives* de l'ADS (leçon 1) ;
+- un cas de **limite** quand la règle a un seuil : juste en dessous, juste au-dessus.
+
+Ces cas mesurent ce que la leçon 3 appelait précision et rappel : combien d'alertes sont justes, combien d'attaques sont vues.
+
+## La non-régression en CI
+
+<Steps items={[
+  { title: "Charger les cas", text: "Un Elastic éphémère (conteneur) reçoit les cas positifs et négatifs dans un index de test, après le même pipeline d'ingestion que la production." },
+  { title: "Prévisualiser la règle", text: "L'API d'aperçu (POST /api/detection_engine/rules/preview) exécute la règle sur une fenêtre de temps sans la créer ni écrire d'alertes réelles." },
+  { title: "Comparer", text: "Chaque cas positif doit produire une alerte, chaque cas négatif aucune. Un écart fait échouer la pull request." },
+  { title: "Archiver", text: "Les résultats sont conservés avec le numéro de version de la règle : la preuve qu'elle fonctionnait au moment où elle a été publiée." },
+]} />
+
+L'aperçu est le bon outil pour la CI ; une exécution manuelle de règle, elle, crée de vraies alertes et déclenche les actions associées. Si elle est indispensable, on la lance dans un espace Kibana dédié aux tests.
+
+## Tester en continu
+
+Les niveaux précédents injectent leurs propres événements : ils contournent la collecte de production. Or c'est souvent elle qui casse.
+
+<Callout kind="case">
+**Microsoft, septembre 2024.** À partir du 2 septembre 2024, un bug d'un agent de supervision interne a empêché la remontée d'une partie des journaux de plusieurs services cloud de Microsoft, dont les journaux de connexion et d'activité d'Entra. L'incident a été détecté le 5 septembre ; une partie des données est perdue définitivement. Microsoft a reconnu que la capacité de ses clients à analyser les données, détecter les menaces ou générer des alertes de sécurité avait pu être affectée. Les règles des clients étaient intactes, et silencieuses.
+</Callout>
+
+Pour les règles critiques, Novafact lance donc chaque nuit un **test bout en bout** en production : un compte technique dédié, sans aucun droit réel, effectue une action anodine qui déclenche une règle « canari » de sévérité informative. Si l'alerte n'arrive pas dans l'heure, c'est la chaîne qui est cassée, et l'astreinte est prévenue. Avec la surveillance de fraîcheur des flux (M23, leçon 3), c'est la seule façon de savoir que le silence est du calme.
+
+<Callout kind="novafact">
+Tableau de bord (fictif) de la détection : 64 règles, 23 avec cas positifs et négatifs en CI, 9 avec plusieurs procédures testées, 4 couvertes par un canari nocturne. Objectif du trimestre : toute règle de sévérité élevée passe les trois premiers niveaux, et les règles d'identité et de journalisation ont leur canari.
+</Callout>
+
+<Lab id="stratus" note="Détonez une technique de désactivation de CloudTrail, capturez ses événements avec Grimoire, puis faites-en un cas positif rejoué par votre règle." />
+
+<Recap items={[
+  "Donnée, règle, chaîne d'alerte : chaque couche peut casser sans bruit, aucun test isolé ne les couvre toutes.",
+  "Quatre niveaux : statique, rejeu, émulation, bout en bout ; les tests statiques ne déclenchent aucune règle.",
+  "Atomic Red Team accepte des atomics maison, utiles pour les procédures applicatives.",
+  "Stratus détonne, Grimoire capture : la détonation devient un cas positif rejouable en CI.",
+  "Un cas positif par procédure, des cas négatifs réalistes, des cas de limite.",
+  "Un canari bout en bout en production détecte la panne de collecte que les autres tests contournent.",
+]} />
+
+<Sources items={[
+  { title: "Atomic Red Team", url: "https://github.com/redcanaryco/atomic-red-team" },
+  { title: "Invoke-AtomicRedTeam : wiki", url: "https://github.com/redcanaryco/invoke-atomicredteam/wiki" },
+  { title: "Stratus Red Team", url: "https://stratus-red-team.cloud/" },
+  { title: "Datadog Grimoire", url: "https://github.com/DataDog/grimoire" },
+  { title: "OTRF Security-Datasets", url: "https://github.com/OTRF/Security-Datasets" },
+  { title: "Splunk BOTSv3", url: "https://github.com/splunk/botsv3" },
+  { title: "Elastic Security : valider et tester les règles", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/validate-and-test-rules" },
+  { title: "Kibana API : aperçu d'une règle de détection", url: "https://www.elastic.co/docs/api/doc/kibana/operation/operation-rulepreview" },
+  { title: "SpecterOps : On Detection, part 13, Why a Single Test Case is Insufficient", url: "https://specterops.io/blog/2024/05/31/part-13-why-a-single-test-case-is-insufficient/" },
+  { title: "Help Net Security : Microsoft a perdu des journaux de sécurité (octobre 2024)", url: "https://www.helpnetsecurity.com/2024/10/18/microsoft-lost-cloud-security-logs/" },
+]} />

@@ -1,0 +1,178 @@
+export const questions = [
+  {
+    q: "Le client détient un jeton avec invoices:read. Un outil lui renvoie un 403 insufficient_scope avec scope=\"credit_notes:write\". Quels scopes demande-t-il à la nouvelle autorisation ?",
+    options: [
+      "credit_notes:write seul, puisque le challenge fait autorité pour l'opération en cours",
+      "Tous les scopes de scopes_supported, pour éviter un nouveau challenge à l'outil suivant",
+      "invoices:read et credit_notes:write, l'union de ce qu'il avait et de ce qui manque",
+      "credit_notes:write seul, puis invoices:read lors d'une seconde autorisation séparée",
+    ],
+    answer: 2,
+    explain: "La révision 2026-07-28 demande au client de calculer l'union des scopes déjà demandés et de ceux du challenge : sinon le nouveau jeton perd invoices:read et la lecture suivante déclenche un autre challenge. Le challenge fait bien autorité, mais pour l'opération en cours, pas pour l'ensemble du jeton. Tout demander d'emblée annule le principe du moindre privilège.",
+  },
+  {
+    q: "Pourquoi un serveur MCP doit-il renvoyer tous les scopes nécessaires à une opération dans un seul challenge ?",
+    options: [
+      "Parce qu'un challenge par scope manquant impose plusieurs allers-retours d'autorisation pour une seule opération",
+      "Parce que l'en-tête WWW-Authenticate ne peut apparaître qu'une fois par réponse HTTP",
+      "Parce que le client ne relit pas les challenges suivants une fois sa limite de tentatives atteinte",
+      "Parce que le serveur d'autorisation refuse d'émettre un jeton qui contient un seul scope",
+    ],
+    answer: 0,
+    explain: "Si une opération exige deux scopes et que le serveur n'en signale qu'un, le client obtient un jeton, réessaie, reçoit un second challenge et repart chez l'AS : l'utilisatrice consent deux fois pour une action. La limite de tentatives côté client est réelle, mais c'est une conséquence, pas la raison de la règle. HTTP autorise plusieurs WWW-Authenticate, et rien n'interdit un jeton à un seul scope.",
+  },
+  {
+    q: "Le serveur MCP considère que invoices:admin implique invoices:read. Où cette hiérarchie doit-elle être appliquée ?",
+    options: [
+      "Chez le client, qui retire invoices:read de sa demande quand il détient déjà invoices:admin",
+      "Chez le serveur MCP, quand il décide si le jeton suffit pour l'opération demandée",
+      "Dans scopes_supported, en ne publiant que les scopes les plus larges de chaque famille",
+      "Dans le challenge, qui ne doit jamais citer un scope impliqué par un scope déjà accordé",
+    ],
+    answer: 1,
+    explain: "La spec impose au serveur de tenir compte de la hiérarchie au moment de décider si le jeton suffit ; elle dispense explicitement le client de dédupliquer, l'AS normalisant en général à l'émission. Le contenu du challenge n'est pas affecté par la hiérarchie. Publier seulement les scopes larges dans scopes_supported pousserait tous les clients à les demander.",
+  },
+  {
+    q: "Un serveur MCP qui expose 40 outils publie ses 40 scopes dans scopes_supported et n'envoie pas de scope dans son 401. Quelle est la conséquence ?",
+    options: [
+      "Le client refuse de continuer, faute de savoir quel scope demander pour sa première requête",
+      "Le client demande le scope du premier outil qu'il appelle, puis les autres au fil de l'eau",
+      "Le serveur d'autorisation choisit lui-même le sous-ensemble minimal adapté à l'utilisatrice",
+      "Le client demande les 40 scopes d'emblée, et le jeton obtenu ouvre tous les outils",
+    ],
+    answer: 3,
+    explain: "Sans scope dans le challenge, la spec fait demander au client tout scopes_supported, qui est censé être l'ensemble minimal pour un usage de base. Publier tout le catalogue produit donc des jetons maximaux, ce que la spec range parmi les erreurs courantes. Le client ne refuse pas de continuer, et un AS peut réduire la demande, mais rien ne l'y oblige.",
+  },
+];
+
+<YouKnow>
+Un pentester a vu des jetons « admin » obtenus parce que l'application demandait tous les scopes au premier écran, et des utilisateurs qui cliquaient « Autoriser » sans lire. Il sait aussi que l'impact d'un jeton volé se mesure à ce qu'il ouvre. Les scopes de MCP sont l'endroit où le moindre privilège se décide, outil par outil.
+</YouKnow>
+
+## Le principe : demander peu, puis davantage
+
+Un agent n'a pas besoin, pour lister les factures en retard, du droit de créer des avoirs. Mais un client MCP générique ne sait rien des outils d'un serveur qu'il découvre : il ne peut pas choisir finement ses scopes. La spec résout ce problème en confiant le choix au **serveur**, à deux moments.
+
+**Au premier contact**, le 401 porte un paramètre `scope` (leçon 2). Le client le prend tel quel. S'il est absent, il demande tout `scopes_supported` de la PRM, d'où l'exigence que cette liste soit **minimale** : les scopes d'un usage de base, pas le catalogue.
+
+**En cours d'usage**, quand un outil exige plus que ce que le jeton porte, le serveur répond par un challenge de **step-up** :
+
+<Code file="réponse du serveur MCP">
+
+```http
+HTTP/1.1 403 Forbidden
+WWW-Authenticate: Bearer error="insufficient_scope",
+                         scope="credit_notes:write",
+                         resource_metadata="https://mcp.novafact.example/.well-known/oauth-protected-resource/mcp",
+                         error_description="Création d'avoir"
+```
+
+</Code>
+
+Le client relance alors une autorisation, l'utilisatrice consent à l'élévation, et le client réessaie. L'élévation est **visible** : elle arrive au moment où l'action privilégiée est tentée, avec son nom.
+
+## Les règles du serveur
+
+- **401 ou 403.** Un jeton absent, invalide ou expiré reçoit 401. Un jeton valide mais insuffisant reçoit 403 avec `error="insufficient_scope"`.
+- **Tous les scopes en une fois.** Le serveur inclut dans un seul challenge **tous** les scopes nécessaires à l'opération. Un serveur qui en signale un, puis un autre au retour, impose plusieurs allers-retours de consentement pour une seule action.
+- **Pas d'obligation de rappeler l'existant.** Le `scope` du challenge décrit ce qu'exige l'opération ; le serveur n'a pas à y recopier les scopes déjà accordés.
+- **La hiérarchie, c'est le serveur.** Si `invoices:admin` implique `invoices:read`, c'est le serveur qui en tient compte en décidant si le jeton suffit.
+- **Pas d'`offline_access`** dans le challenge ni dans `scopes_supported` : les refresh tokens ne sont pas une exigence de la ressource.
+
+## Les règles du client
+
+La révision 2026-07-28 corrige un défaut fréquent des premiers clients : sur un step-up, le client demande l'**union** des scopes déjà demandés et de ceux du challenge. Sans union, le nouveau jeton porte `credit_notes:write` mais a perdu `invoices:read`, et la lecture suivante déclenche un nouveau challenge : l'agent oscille entre deux jetons. Le client **limite les tentatives** et mémorise les élévations refusées, pour ne pas boucler sur un scope que l'utilisatrice ou l'AS refuse. Il ne déduplique pas les scopes hiérarchiques : l'AS normalise à l'émission.
+
+<Code file="packages/mcp-client/src/step-up.ts" hl="4,6">
+
+```ts
+export async function onInsufficientScope(state: AuthState, challenge: Challenge, op: string) {
+  const key = `${state.issuer}|${op}|${challenge.scope}`;
+  if ((state.attempts.get(key) ?? 0) >= 2) throw new PermanentAuthError(op); // pas de boucle infinie
+  const scopes = new Set([...state.requestedScopes, ...challenge.scope.split(' ')]); // union, pas remplacement
+  state.attempts.set(key, (state.attempts.get(key) ?? 0) + 1);
+  return authorize({ ...state, scope: [...scopes].join(' ') }); // même resource, même issuer
+}
+```
+
+</Code>
+
+Le compteur est indexé par émetteur, opération et scope : un refus de l'utilisatrice pour `credit_notes:write` ne doit pas empêcher plus tard une élévation vers `invoices:send`.
+
+## Dans le code : décider côté serveur
+
+<Diff file="services/mcp-novafact/src/scopes.ts" hlBefore="3,4" hlAfter="2,3,4,5,6,9,10,11,14,15">
+
+```ts
+export function checkScopes(granted: string[], required: string[]) {
+  // un challenge par scope manquant, et aucune hiérarchie
+  const missing = required.find((s) => !granted.includes(s));
+  if (missing) throw new InsufficientScope([missing]);
+}
+```
+
+```ts
+// hiérarchie explicite, versionnée avec le serveur : jamais déduite des noms
+const IMPLIES: Record<string, string[]> = {
+  'invoices:admin': ['invoices:read', 'invoices:send'],
+  'credit_notes:write': [],
+};
+
+export function checkScopes(granted: string[], required: string[]) {
+  const effective = new Set(granted);
+  for (const s of granted) for (const implied of IMPLIES[s] ?? []) effective.add(implied);
+  const missing = required.filter((s) => !effective.has(s));
+  // un seul challenge, avec tout ce que l'opération exige
+  if (missing.length) throw new InsufficientScope(required);
+}
+
+// le scope requis dépend de l'opération, pas seulement de l'outil
+export const scopesFor = (tool: string, args: { amount?: number }) =>
+  tool === 'create_credit_note' ? ['credit_notes:write', ...(args.amount && args.amount > 5000 ? ['credit_notes:approve'] : [])] : ['invoices:read'];
+```
+
+</Diff>
+
+Le mauvais correctif tentant, pour gérer la hiérarchie, consiste à la **déduire des noms** : `granted.some((g) => required.startsWith(g.split(':')[0]))`. Un jeton qui porte `invoices:read` satisfait alors `invoices:send`, et tout scope d'une même famille ouvre les autres. La hiérarchie est une donnée explicite, relue en revue comme une politique d'autorisation.
+
+Deux autres pièges. Le premier : le scope n'est **pas** l'autorisation. Un jeton avec `credit_notes:write` permet de tenter la création d'un avoir ; le serveur vérifie encore que la facture appartient au tenant de l'utilisatrice et que son rôle le permet. La spec range « considérer les scopes du jeton comme suffisants sans logique d'autorisation côté serveur » parmi les erreurs courantes. Le second : quand le scope requis dépend des arguments (un avoir au-delà d'un montant), le contrôle s'exécute sur des arguments **validés et normalisés**, sinon un montant envoyé sous forme de chaîne contourne le seuil. Le SDK TypeScript le signale pour son propre mécanisme de challenge par outil (leçon 9).
+
+<Callout kind="case">
+**Supabase MCP, juillet 2025.** Simon Willison et General Analysis ont décrit un scénario où un agent de développement, connecté au serveur MCP de Supabase avec la clé `service_role`, traite des tickets de support. Cette clé **contourne la Row Level Security** : elle ouvre toute la base. Un ticket contient une instruction cachée ; l'agent lit la table `integration_tokens` et recopie les secrets dans la réponse au ticket, visible de l'attaquant. Données privées, contenu non fiable, canal de sortie : la *lethal trifecta* réunie dans un seul serveur (M28, leçon 3). Un jeton limité à la lecture des tickets n'empêche pas l'injection, mais il rend la table des secrets hors d'atteinte.
+</Callout>
+
+## Concevoir les scopes de Novafact
+
+<Callout kind="novafact">
+Le serveur MCP de Novafact publie trois scopes dans `scopes_supported` et garde les autres pour le step-up :
+
+| Scope | Publié d'emblée | Ouvre |
+| --- | --- | --- |
+| `invoices:read` | Oui | Lister et lire les factures du tenant |
+| `customers:read` | Oui | Lire les fiches clients |
+| `reports:read` | Oui | Tableaux de bord |
+| `invoices:send` | Non, step-up | Envoyer une facture par e-mail |
+| `credit_notes:write` | Non, step-up | Créer un avoir |
+| `credit_notes:approve` | Non, step-up | Valider un avoir au-delà de 5 000 € |
+
+Pas de scope `*`, `all` ni `full-access`. Chaque élévation est journalisée (scope demandé, scopes accordés, outil, identifiant de corrélation) et une règle signale un client qui enchaîne des élévations refusées.
+</Callout>
+
+La spec range parmi les erreurs courantes : publier tous les scopes dans `scopes_supported`, utiliser des scopes jokers, regrouper des privilèges sans rapport pour éviter de futurs écrans, renvoyer tout le catalogue à chaque challenge, et changer la signification d'un scope sans le versionner. Kohnfelder rattache ce raisonnement au moindre privilège (chapitre 4) : l'autorité accordée doit suivre le besoin du moment, pas le pire cas imaginable.
+
+<Recap items={[
+  "Premier contact : le scope du 401, sinon tout scopes_supported, qui doit donc rester minimal.",
+  "Step-up : 403 insufficient_scope avec tous les scopes nécessaires à l'opération dans un seul challenge.",
+  "Le client demande l'union des scopes déjà demandés et des nouveaux, et limite ses tentatives.",
+  "La hiérarchie des scopes est explicite et appliquée par le serveur, jamais déduite des noms.",
+  "Un scope ne remplace pas l'autorisation métier : tenant, rôle et arguments validés restent vérifiés.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : Authorization (Scope Selection Strategy, Scope Challenge Handling)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" },
+  { title: "MCP 2026-07-28 : Security Best Practices (Scope Minimization)", url: "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices" },
+  { title: "RFC 6750 : Bearer Token Usage (§3.1, insufficient_scope)", url: "https://www.rfc-editor.org/rfc/rfc6750" },
+  { title: "Simon Willison, Supabase MCP can leak your entire SQL database (juillet 2025)", url: "https://simonwillison.net/2025/Jul/6/supabase-mcp-lethal-trifecta/" },
+  { title: "General Analysis : Supabase MCP", url: "https://www.generalanalysis.com/blog/supabase-mcp-blog" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 4, Least Privilege" },
+]} />

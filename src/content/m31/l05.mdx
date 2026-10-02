@@ -1,0 +1,161 @@
+export const questions = [
+  {
+    q: "Le serveur MCP de Novafact reçoit un jeton signé par le bon serveur d'autorisation, non expiré, mais dont l'audience est https://api.novafact.example. Que doit-il faire ?",
+    options: [
+      "L'accepter, puisque l'émetteur est de confiance et que l'utilisateur est bien authentifié",
+      "L'accepter en lecture seule, l'audience différente justifiant seulement des droits réduits",
+      "Le refuser par un 401, car le jeton n'a pas été émis pour ce serveur MCP",
+      "Le refuser par un 403 insufficient_scope, pour déclencher une nouvelle autorisation",
+    ],
+    answer: 2,
+    explain: "La spec impose au serveur MCP de vérifier que le jeton lui a été émis et de refuser tout autre jeton ; un jeton invalide pour cette ressource reçoit un 401. Le 403 insufficient_scope est réservé à un jeton valide pour ce serveur mais aux scopes insuffisants. Accepter « en lecture seule » revient à reconnaître un jeton destiné à un autre serveur, ce qui est précisément l'erreur.",
+  },
+  {
+    q: "Quel est le risque principal quand un serveur MCP relaie tel quel vers une API en aval le jeton qu'il a reçu ?",
+    options: [
+      "Le jeton devient trop volumineux pour l'en-tête Authorization de l'API en aval",
+      "L'API en aval ne sait plus qui agit, et un jeton volé passe par le serveur sans contrôle",
+      "Le serveur d'autorisation révoque le jeton dès qu'il est présenté à une seconde audience",
+      "L'API en aval refuse systématiquement les jetons qui ne portent pas de claim act",
+    ],
+    answer: 1,
+    explain: "Le passthrough contourne les contrôles qui dépendent de l'audience, brouille l'audit (l'API croit parler au client d'origine) et fait du serveur MCP un relais pour un jeton volé. Rien n'oblige un AS à révoquer un jeton présenté ailleurs, et la plupart des API acceptent un jeton sans claim act. Le problème est justement que le relais fonctionne.",
+  },
+  {
+    q: "Pour appeler l'API des factures au nom de l'utilisatrice, que fait le serveur MCP de Novafact selon la spec ?",
+    options: [
+      "Il agit comme un client OAuth distinct et utilise un jeton émis pour l'API des factures",
+      "Il réutilise le jeton MCP, en ajoutant l'audience de l'API des factures dans un en-tête",
+      "Il demande au client MCP de lui transmettre un second jeton déjà valable pour l'API",
+      "Il signe lui-même un jeton à l'audience de l'API, avec le sub de l'utilisatrice",
+    ],
+    answer: 0,
+    explain: "La spec décrit le serveur MCP comme un client OAuth distinct de l'API en aval, avec un jeton séparé émis par le serveur d'autorisation de cette API. Demander un second jeton au client MCP violerait la règle qui interdit au client d'envoyer au serveur un jeton émis pour une autre ressource. Signer soi-même un jeton fait du serveur MCP un émetteur, ce que l'API en aval ne devrait pas croire.",
+  },
+  {
+    q: "Le SDK TypeScript fournit requireBearerAuth. Qu'est-ce que le middleware ne vérifie PAS de lui-même ?",
+    options: [
+      "Que le jeton est présent dans l'en-tête Authorization avec le schéma Bearer",
+      "Que les requiredScopes figurent dans les scopes renvoyés par le vérificateur",
+      "Que l'expiration renvoyée par le vérificateur n'est pas dépassée",
+      "Que l'audience du jeton correspond à l'URI canonique du serveur MCP",
+    ],
+    answer: 3,
+    explain: "Le middleware extrait le jeton, appelle le vérificateur fourni, contrôle requiredScopes et expiresAt (absent ou dépassé : 401). La signature, l'émetteur et l'audience relèvent de verifyAccessToken, écrit par le développeur du serveur : un vérificateur qui ne regarde pas aud produit un serveur conforme en apparence et vulnérable en pratique. La leçon 9 montre ce vérificateur.",
+  },
+];
+
+<YouKnow>
+Un pentester a souvent déjà rejoué un jeton obtenu sur une application peu sensible contre une API critique du même fournisseur, et vu passer. Il sait que l'audience est la claim la plus souvent oubliée (M14, leçon 5). Un serveur MCP la rend décisive : il est à la fois le destinataire d'un jeton et le client d'autres API.
+</YouKnow>
+
+## Deux règles, deux sens
+
+La spec MCP pose deux règles qui se lisent comme une frontière :
+
+- **en entrée**, le serveur MCP **doit** vérifier que le jeton a été émis spécifiquement pour lui, et **ne doit accepter aucun autre jeton** ;
+- **en sortie**, s'il appelle une API en aval, il agit comme un **client OAuth distinct**, avec un jeton séparé émis par le serveur d'autorisation de cette API, et **ne doit pas** relayer le jeton reçu.
+
+Le côté client a son pendant : un client MCP **ne doit pas** envoyer au serveur un jeton émis par un autre serveur d'autorisation que le sien. La page *Security Best Practices* regroupe les deux fautes sous le nom de **token passthrough** et l'interdit explicitement.
+
+## En entrée : l'audience
+
+Le paramètre `resource` envoyé par le client (leçon 4) devient, chez un AS qui gère RFC 8707, la claim `aud` du jeton. Le serveur MCP vérifie que cette audience est **son** URI canonique, `https://mcp.novafact.example/mcp`. Un jeton signé par le bon AS, non expiré, mais émis pour `https://api.novafact.example`, est invalide **pour ce serveur** : réponse 401.
+
+Pourquoi c'est critique dans MCP plus qu'ailleurs : un même AS d'entreprise émet des jetons pour des dizaines de serveurs MCP, internes et tiers. Sans contrôle d'audience, le serveur MCP d'un éditeur tiers branché sur le même AS reçoit des jetons qu'il peut rejouer contre celui de Novafact. C'est l'argument que la spec donnait en juin 2025 pour rendre `resource` obligatoire : empêcher un serveur malveillant d'obtenir des jetons utilisables ailleurs.
+
+La vérification elle-même est celle de M14 (leçon 5) : algorithme fixé, JWKS de confiance, `iss`, `aud`, `exp`, type de jeton. Avec un jeton opaque, l'introspection (RFC 7662) renvoie un champ `aud` qu'on contrôle de la même façon. La leçon 9 l'écrit dans le SDK TypeScript, avec une particularité à connaître dès maintenant : `requireBearerAuth` vérifie la présence du jeton, les scopes et l'expiration, mais **l'audience est à la charge du vérificateur fourni**. Le SDK ne la devine pas.
+
+<Callout kind="warn">
+**L'AS qui ignore resource.** La spec rappelle que la liaison d'audience ne fonctionne que si l'AS gère RFC 8707. Un AS qui ignore le paramètre émet des jetons sans `aud` ou avec une audience générique, et l'équipe pressée retire alors la vérification « qui rejette tout ». Si l'AS ne sait pas restreindre l'audience, la bonne réponse est un AS (ou un client par ressource) qui le sait, pas un serveur MCP qui accepte n'importe quel jeton de l'émetteur.
+</Callout>
+
+## En sortie : pas de passthrough
+
+Le serveur MCP de Novafact expose `list_invoices` et `create_credit_note`. Pour les exécuter, il appelle l'API des factures. La tentation, c'est de transmettre le jeton reçu :
+
+<Diff file="services/mcp-novafact/src/tools/invoices.ts" hlBefore="3,4,5" hlAfter="3,4,5,6,7,8,9">
+
+```ts
+export async function listInvoices(ctx: ToolContext, args: { status?: string }) {
+  const res = await fetch(`${API}/invoices?status=${args.status ?? 'open'}`, {
+    // le jeton du client MCP part tel quel vers l'API
+    headers: { authorization: `Bearer ${ctx.authInfo.token}` },
+  });
+  return res.json();
+}
+```
+
+```ts
+export async function listInvoices(ctx: ToolContext, args: { status?: string }) {
+  // jeton distinct, audience = API des factures, scopes réduits à l'opération
+  const downstream = await tokenExchange({
+    subjectToken: ctx.authInfo.token,
+    audience: 'https://api.novafact.example',
+    scope: 'invoices:read',
+  });
+  const url = new URL('/invoices', API);
+  url.searchParams.set('status', args.status ?? 'open');
+  const res = await fetch(url, { headers: { authorization: `Bearer ${downstream.access_token}` } });
+  return res.json();
+}
+```
+
+</Diff>
+
+La version vulnérable « marche » dès que l'API des factures oublie elle aussi de vérifier son audience, et c'est ce qui la rend dangereuse. La spec liste ce que coûte ce raccourci :
+
+- **contournement des contrôles** : limites de débit, validation, surveillance de l'API en aval reposent sur l'audience et l'identité du client ; un jeton qui ne lui était pas destiné les esquive ;
+- **audit illisible** : l'API voit des requêtes qui semblent venir du client d'origine, pas du serveur MCP qui agit réellement ;
+- **relais d'exfiltration** : un attaquant qui détient un jeton volé utilise le serveur MCP comme proxy vers l'API ;
+- **frontière de confiance cassée** : un jeton accepté par plusieurs services permet, en compromettant l'un, d'atteindre les autres.
+
+Le mauvais correctif fréquent consiste à émettre des jetons avec **deux audiences** (`aud: ["https://mcp.novafact.example/mcp", "https://api.novafact.example"]`) pour que le relais passe les deux contrôles. Il satisfait chaque vérificateur et recrée exactement le problème : le jeton reçu par le serveur MCP ouvre directement l'API, avec tous les scopes de l'agent.
+
+## Obtenir le jeton de l'aval
+
+Le cœur de la spec ne fixe pas comment le serveur MCP obtient son jeton pour l'aval ; il impose seulement qu'il soit distinct. Trois schémas se rencontrent :
+
+| Schéma | Principe | Quand |
+| --- | --- | --- |
+| **Token exchange** (RFC 8693) | Le serveur MCP échange le jeton reçu contre un jeton à l'audience de l'API, qui garde le `sub` et trace l'acteur (`act`) | Même domaine de confiance, AS qui gère l'échange (M14, leçon 7) |
+| **Client OAuth de l'API tierce** | Le serveur MCP mène son propre flux auprès de l'AS de l'API et stocke le jeton obtenu, lié à l'utilisateur | API tierce (GitHub, banque, CRM) ; c'est le cas du proxy (leçon 6) |
+| **Identité de service** | Le serveur MCP s'authentifie en son nom (client credentials) et applique lui-même l'autorisation de l'utilisateur | API interne sans notion d'utilisateur ; à réserver aux lectures peu sensibles |
+
+Le troisième schéma est le plus simple et le plus risqué : l'API en aval fait confiance au serveur MCP pour filtrer par utilisateur et par tenant, donc **toute** faille d'autorisation du serveur devient une fuite de données (la fuite inter-organisations d'Asana MCP, en juin 2025, est analysée en M28, leçon 5). Chez Novafact, il est réservé au catalogue de produits, sans donnée client.
+
+<Callout kind="case">
+**GitHub MCP, mai 2025.** Invariant Labs a décrit un *toxic agent flow* contre le serveur MCP de GitHub : une issue piégée dans un dépôt public amène l'agent à lire les dépôts privés de l'utilisateur et à publier leur contenu dans une pull request publique. Aucun bug de code n'est en cause : l'agent agissait avec un accès aux dépôts publics **et** privés de l'utilisateur, et rien ne bornait ce qu'il pouvait en faire. Les auteurs recommandent des permissions limitées aux seuls dépôts nécessaires, voire un seul dépôt par session. Un jeton d'aval restreint à l'opération et à la ressource ne bloque pas l'injection de prompt, mais il réduit ce qu'elle peut atteindre. M28 (leçon 3) revient sur la mécanique de l'injection.
+</Callout>
+
+## Ce qu'on vérifie en revue
+
+<Callout kind="novafact">
+La grille de revue d'un serveur MCP chez Novafact, côté jetons :
+
+- le vérificateur contrôle `aud` contre l'URI canonique, et un test prouve qu'un jeton de l'API des factures est refusé ;
+- aucun `ctx.authInfo.token` (ou équivalent) n'apparaît dans un en-tête sortant : une règle Semgrep le signale ;
+- chaque appel en aval obtient un jeton par échange, avec une audience et un scope explicites ;
+- les journaux du serveur MCP enregistrent `sub`, `client_id` et l'outil appelé, jamais le jeton ;
+- l'API des factures vérifie elle aussi son audience, et refuse donc tout jeton MCP relayé par erreur.
+</Callout>
+
+Le dernier point compte : le contrôle d'audience de l'API en aval est ce qui transforme un oubli dans le serveur MCP en erreur visible (401) plutôt qu'en faille silencieuse.
+
+<Recap items={[
+  "En entrée, le serveur MCP vérifie que aud est son URI canonique et refuse tout autre jeton, même bien signé.",
+  "En sortie, il obtient un jeton distinct pour l'API en aval ; relayer le jeton reçu (token passthrough) est interdit.",
+  "Le jeton à double audience recrée le passthrough tout en satisfaisant chaque vérificateur.",
+  "Token exchange, client OAuth de l'API tierce ou identité de service : le dernier fait reposer toute l'autorisation sur le serveur MCP.",
+  "requireBearerAuth ne vérifie pas l'audience : c'est le rôle du vérificateur fourni par le développeur.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : Authorization (Token Handling)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" },
+  { title: "MCP 2026-07-28 : Security Considerations (Access Token Privilege Restriction)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations" },
+  { title: "MCP 2026-07-28 : Security Best Practices (Token Passthrough)", url: "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices" },
+  { title: "RFC 8707 : Resource Indicators", url: "https://www.rfc-editor.org/rfc/rfc8707" },
+  { title: "RFC 8693 : OAuth 2.0 Token Exchange", url: "https://www.rfc-editor.org/rfc/rfc8693" },
+  { title: "MCP TypeScript SDK : Require authorization", url: "https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/serving/authorization.md" },
+  { title: "Invariant Labs : GitHub MCP Exploited", url: "https://invariantlabs.ai/blog/mcp-github-vulnerability" },
+]} />

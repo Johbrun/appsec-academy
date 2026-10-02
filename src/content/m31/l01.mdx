@@ -1,0 +1,138 @@
+export const questions = [
+  {
+    q: "Dans la révision 2025-03-26, qu'est-ce que Christian Posta et Aaron Parecki reprochaient au cadre d'autorisation de MCP ?",
+    options: [
+      "D'imposer au serveur MCP de jouer aussi le serveur d'autorisation, donc d'émettre et de gérer des jetons",
+      "De ne pas imposer PKCE, ce qui laissait les clients publics exposés à l'interception du code",
+      "De reposer sur OAuth 2.1, encore à l'état de brouillon, plutôt que sur OAuth 2.0 publié en RFC",
+      "D'autoriser le transport stdio sans authentification, alors que le poste du développeur est exposé",
+    ],
+    answer: 0,
+    explain: "Le texte de mars 2025 et ses schémas faisaient du serveur MCP l'émetteur des jetons, avec des endpoints par défaut sur sa propre origine : chaque serveur devenait un serveur d'autorisation à part entière, avec son état et ses failles. Parecki proposait de séparer les rôles grâce aux métadonnées de ressource protégée. PKCE était au contraire déjà obligatoire, et le statut de brouillon d'OAuth 2.1 n'était pas le cœur de la critique.",
+  },
+  {
+    q: "Quel changement de la révision 2025-06-18 fait du serveur MCP un « resource server » au sens d'OAuth ?",
+    options: [
+      "L'en-tête MCP-Protocol-Version devient obligatoire sur chaque requête HTTP",
+      "Le serveur publie ses métadonnées RFC 9728, qui désignent le serveur d'autorisation",
+      "Le serveur doit valider l'en-tête Origin et répondre 403 en cas d'origine inconnue",
+      "Le client doit enregistrer dynamiquement son client_id auprès du serveur MCP lui-même",
+    ],
+    answer: 1,
+    explain: "Avec la Protected Resource Metadata, le serveur MCP n'émet plus rien : il indique au client quel serveur d'autorisation consulter, et se contente de vérifier les jetons. L'en-tête de version et le contrôle d'Origin sont de vraies exigences de la spec, mais elles touchent le transport, pas la répartition des rôles OAuth. L'enregistrement dynamique se fait auprès du serveur d'autorisation, pas du serveur MCP.",
+  },
+  {
+    q: "Une équipe de Novafact garde l'enregistrement dynamique (DCR) parce que « la spec MCP le prévoit ». Que dit la révision 2026-07-28 ?",
+    options: [
+      "Le DCR reste la méthode recommandée tant que le CIMD n'est pas une RFC publiée",
+      "Le DCR est désormais interdit, et un serveur d'autorisation qui l'expose est non conforme",
+      "Le DCR est déprécié au profit du CIMD et ne sert plus qu'en repli, pour la compatibilité",
+      "Le DCR est obligatoire pour les clients natifs, le CIMD étant réservé aux clients web",
+    ],
+    answer: 2,
+    explain: "La révision de juillet 2026 garde le DCR en MAY, explicitement déprécié et conservé pour les serveurs d'autorisation qui ne gèrent pas encore les Client ID Metadata Documents. Il n'est donc pas interdit, mais ce n'est plus un choix pour un nouveau développement. Le statut de brouillon IETF du CIMD n'a pas empêché la spec de le recommander dès novembre 2025.",
+  },
+  {
+    q: "Pourquoi la spécification MCP dit-elle qu'un serveur en transport stdio ne devrait pas suivre le flux OAuth ?",
+    options: [
+      "Parce que le flux OAuth exige HTTPS, que stdio ne peut pas fournir sur une machine locale",
+      "Parce qu'un serveur stdio n'a pas de ressources protégées, seulement des outils locaux",
+      "Parce que le client stdio est toujours considéré comme de confiance par le serveur",
+      "Parce que le serveur est lancé par l'hôte et reçoit ses identifiants de l'environnement",
+    ],
+    answer: 3,
+    explain: "En stdio, l'hôte démarre le serveur comme processus enfant : il n'y a ni requête HTTP ni en-tête Authorization, et les secrets passent par l'environnement du processus. Cela ne veut pas dire que le serveur local est sans risque, ni que son client est de confiance : la menace se déplace vers la commande de lancement et la configuration (M28, leçon 4). Un serveur stdio peut parfaitement accéder à des ressources sensibles.",
+  },
+];
+
+<YouKnow>
+Un pentester a testé des dizaines de flux OAuth : il sait repérer un `redirect_uri` trop permissif, un `state` absent ou un jeton qui traîne dans une URL. Il sait aussi qu'une spécification mal découpée produit des implémentations bancales. MCP en est un cas d'école : en seize mois, son cadre d'autorisation a connu quatre versions.
+</YouKnow>
+
+## Pourquoi un protocole d'outils a besoin d'OAuth
+
+Un serveur MCP expose des outils, des ressources et des prompts à un agent (M28, leçon 2). Tant qu'il tourne en **stdio**, lancé par l'hôte sur le poste du développeur, la question de l'autorisation se règle hors protocole : le serveur hérite des identifiants de son environnement. La spec le dit toujours : en stdio, les implémentations **SHOULD NOT** suivre le flux OAuth et récupèrent leurs identifiants dans l'environnement.
+
+Dès qu'un serveur est **distant**, en HTTP, la situation change. L'agent de Claude, de VS Code ou de Cursor doit appeler `https://mcp.novafact.example/mcp` pour le compte d'une utilisatrice de Novafact, avec ses droits à elle et pas plus. Le client n'a aucune relation préalable avec le serveur : il le découvre parce que quelqu'un a collé une URL dans une configuration. C'est exactement le problème que la délégation OAuth résout, avec une contrainte inhabituelle : le client doit pouvoir s'autoriser auprès de **n'importe quel** serveur, sans inscription manuelle.
+
+L'autorisation reste **optionnelle** dans MCP. Mais un serveur qui l'implémente en HTTP doit suivre la spec, et c'est ce que ce module détaille, étape par étape, dans sa révision courante du **28 juillet 2026**.
+
+## Quatre révisions, quatre architectures
+
+| Révision | Ce qui change pour l'autorisation |
+| --- | --- |
+| 2024-11-05 | Aucun cadre. Transport HTTP+SSE, sans authentification définie. |
+| 2025-03-26 | Premier cadre, sur OAuth 2.1 (brouillon). PKCE obligatoire, DCR recommandé. Le serveur MCP **sert aussi de serveur d'autorisation**, avec des endpoints par défaut `/authorize`, `/token` et `/register` sur sa propre origine. |
+| 2025-06-18 | Le serveur MCP devient un **resource server**. Il publie ses métadonnées (RFC 9728) qui désignent le serveur d'autorisation. Le paramètre `resource` (RFC 8707) devient obligatoire côté client. Apparition de la page *Security Best Practices*. |
+| 2025-11-25 | Découverte du serveur d'autorisation par OpenID Connect en plus de RFC 8414. Consentement incrémental par `WWW-Authenticate`. **CIMD recommandé**, DCR rétrogradé en MAY. |
+| 2026-07-28 | Validation de `iss` (RFC 9207) obligatoire côté client, `issuer` des métadonnées vérifié, identifiants liés à l'émetteur, `application_type` obligatoire en DCR, **DCR déprécié au profit de CIMD**. |
+
+Ce tableau se lit comme un historique de dette : chaque révision corrige une hypothèse de la précédente. Un serveur ou un client écrit en 2025 et jamais relu porte encore les choix d'une révision antérieure.
+
+## Mars 2025 : le serveur qui faisait tout
+
+La révision 2025-03-26 posait un modèle simple sur le papier. Le client découvrait les métadonnées OAuth **sur l'origine du serveur MCP** et, à défaut, utilisait des chemins par défaut sur cette même origine. Pour déléguer à un fournisseur existant (GitHub, Google, l'IdP d'une entreprise), la spec décrivait un « flux d'autorisation tiers » : le serveur MCP était **à la fois client OAuth** du fournisseur tiers **et serveur d'autorisation** pour le client MCP. Il obtenait un jeton tiers, puis émettait son propre jeton MCP « lié à la session tierce », et devait maintenir la correspondance entre les deux.
+
+Pour un développeur qui voulait juste exposer trois outils, c'était beaucoup : écran de consentement, émission et révocation de jetons, enregistrement de clients, stockage des jetons tiers. Pour un attaquant, c'était une surface énorme, dupliquée dans chaque serveur. Ce modèle de proxy est d'ailleurs à l'origine du *confused deputy* que décrit aujourd'hui la spec (leçon 6).
+
+<Callout kind="debate">
+**Deux critiques publiques ont fait bouger la spec.** Le 31 mars 2025, Christian Posta (Solo.io) jugeait le cadre inadapté à l'entreprise : un serveur MCP contraint d'être aussi serveur d'autorisation devient un composant à état, qui duplique ce que l'IdP de l'entreprise fait déjà. Le 3 avril 2025, Aaron Parecki (co-auteur d'OAuth 2.1) proposait la correction : séparer le serveur de ressources du serveur d'autorisation, comme OAuth le permet depuis toujours, et faire découvrir le second grâce aux métadonnées de ressource protégée, ce qui deviendra la RFC 9728. Son argument tient en une idée : pousser toute la complexité (connexion, émission des jetons) vers un serveur d'autorisation dédié, et laisser au serveur MCP la tâche simple de vérifier.
+</Callout>
+
+## Juin 2025 : la séparation des rôles
+
+La révision 2025-06-18 adopte cette proposition. Le serveur MCP est désormais un **OAuth resource server** : il n'émet pas de jetons, il les vérifie. Il publie un document de métadonnées (RFC 9728) dont le champ `authorization_servers` dit au client où aller. Et le client **doit** envoyer le paramètre `resource` avec l'URI du serveur MCP, dans la requête d'autorisation comme dans la requête de jeton, pour que le jeton soit émis **pour ce serveur précis**. La spec le justifie explicitement : empêcher un serveur malveillant d'obtenir des jetons utilisables ailleurs.
+
+C'est le changement qui compte en revue de conception. Un serveur MCP qui émet ses propres jetons en 2026 n'est pas interdit (la spec dit que le serveur d'autorisation « peut être hébergé avec le serveur de ressources »), mais il porte toute la charge d'un serveur d'autorisation, et chaque ligne de ce code mérite l'examen qu'on réserve à un IdP.
+
+## Novembre 2025 et juillet 2026 : enregistrer sans se connaître
+
+Reste un problème propre à MCP : le client et le serveur d'autorisation ne se connaissent pas. La réponse de 2025 était l'**enregistrement dynamique** (RFC 7591) : le client poste ses métadonnées sur un endpoint `/register` ouvert et reçoit un `client_id`. En août 2025, Posta et Louis Ryan rappelaient pourquoi aucune entreprise n'ouvre un tel endpoint : n'importe qui peut y créer un client, sans identité vérifiable, et la base des clients grossit sans fin.
+
+La révision 2025-11-25 recommande donc les **Client ID Metadata Documents** (CIMD) : le `client_id` est une URL HTTPS qui pointe vers un document JSON hébergé par l'éditeur du client. Le serveur d'autorisation va chercher ce document, et l'identité du client devient le contrôle d'un domaine (leçon 3). La même révision ajoute la découverte OpenID Connect et le consentement incrémental (leçon 7).
+
+La révision 2026-07-28 durcit le tout :
+
+- le client **doit** valider le paramètre `iss` de la réponse d'autorisation contre l'émetteur enregistré avant d'utiliser le code (leçon 4) ;
+- un document de métadonnées dont l'`issuer` diffère de l'émetteur attendu **doit** être rejeté (leçon 2) ;
+- les identifiants client sont **liés à l'émetteur** qui les a délivrés, et jamais réutilisés auprès d'un autre ;
+- le DCR est **déprécié** au profit du CIMD, et conservé seulement pour les serveurs d'autorisation qui ne gèrent pas encore ce dernier.
+
+La même révision publie comme extension officielle l'*Enterprise-Managed Authorization*, qui fait entrer l'IdP de l'entreprise dans la boucle (leçon 8). OAuth 2.1 lui-même reste un brouillon IETF ; la spec MCP en cite une version figée.
+
+<Callout kind="case">
+**CVE-2025-6514, juillet 2025.** Le passage à OAuth a déplacé la surface d'attaque vers le **client**. Or Peles (JFrog) a montré que `mcp-remote`, un adaptateur très utilisé pour brancher un client stdio sur un serveur distant, passait l'`authorization_endpoint` fourni par le serveur à une fonction d'ouverture de navigateur sans contrôle suffisant. Un serveur malveillant obtenait l'exécution de commandes sur le poste du développeur (CVSS 9.6, versions 0.0.5 à 0.1.15, corrigé en 0.1.16). La leçon 4 détaille le mécanisme. Le renversement est à retenir : avec OAuth, le client consomme des URL et des documents fournis par un serveur qu'il ne connaît pas.
+</Callout>
+
+## Chez Novafact : relire le serveur MCP de 2025
+
+<Callout kind="novafact">
+Le serveur MCP interne de Novafact (assistant « Ask Novafact ») a été écrit au printemps 2025, sur le modèle de la révision 2025-03-26 : il émettait ses propres jetons et relayait l'authentification Cognito. La revue de 2026 le ramène au modèle actuel :
+
+- le serveur MCP ne garde **que** le rôle de resource server : il publie sa PRM et vérifie les jetons (leçons 2 et 9) ;
+- l'émission passe au serveur d'autorisation `https://auth.novafact.example`, qui accepte les clients CIMD et refuse le DCR ouvert ;
+- les jetons portent l'audience `https://mcp.novafact.example/mcp`, et le serveur refuse tout autre jeton (leçon 5) ;
+- pour appeler l'API des factures, le serveur obtient un jeton distinct, jamais celui qu'il a reçu.
+</Callout>
+
+La méthode vaut pour tout serveur MCP audité : on identifie d'abord **la révision** sur laquelle il a été écrit (la version de protocole annoncée et les endpoints exposés le trahissent vite), puis on vérifie ce que chaque révision suivante a corrigé. La suite du module suit le flux dans l'ordre où le client le parcourt : découverte, enregistrement, autorisation, usage du jeton, puis les cas difficiles (proxys, scopes, entreprise) et l'implémentation.
+
+<Recap items={[
+  "L'autorisation MCP ne concerne que les transports HTTP ; en stdio, les identifiants viennent de l'environnement.",
+  "2025-03-26 faisait du serveur MCP un serveur d'autorisation ; Posta et Parecki ont obtenu la séparation des rôles.",
+  "Depuis 2025-06-18, le serveur MCP est un resource server : PRM (RFC 9728) et paramètre resource (RFC 8707) obligatoires.",
+  "2025-11-25 recommande le CIMD ; 2026-07-28 déprécie le DCR et impose la validation de iss et de l'issuer des métadonnées.",
+  "En audit, on commence par dater le serveur : chaque révision corrige une hypothèse de la précédente.",
+]} />
+
+<Sources items={[
+  { title: "MCP : changelog de la révision 2026-07-28", url: "https://modelcontextprotocol.io/specification/2026-07-28/changelog" },
+  { title: "MCP : changelog de la révision 2025-06-18", url: "https://modelcontextprotocol.io/specification/2025-06-18/changelog" },
+  { title: "MCP : changelog de la révision 2025-11-25", url: "https://modelcontextprotocol.io/specification/2025-11-25/changelog" },
+  { title: "MCP 2025-03-26 : Authorization (flux tiers et endpoints par défaut)", url: "https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization" },
+  { title: "MCP 2026-07-28 : Authorization", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" },
+  { title: "Aaron Parecki, Let's fix OAuth in MCP (3 avril 2025)", url: "https://aaronparecki.com/2025/04/03/15/oauth-for-model-context-protocol" },
+  { title: "Christian Posta, The MCP Authorization Spec Is… a Mess for Enterprise (31 mars 2025)", url: "https://blog.christianposta.com/the-updated-mcp-oauth-spec-is-a-mess/" },
+  { title: "Solo.io, MCP Authorization is a Non-Starter for Enterprise (14 août 2025)", url: "https://solo.io/blog/mcp-authorization-is-a-non-starter-for-enterprise" },
+  { title: "GHSA-6xpm-ggf7-wc3p : CVE-2025-6514 (mcp-remote)", url: "https://github.com/advisories/GHSA-6xpm-ggf7-wc3p" },
+]} />

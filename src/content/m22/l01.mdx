@@ -1,0 +1,166 @@
+export const questions = [
+  {
+    q: "Un rapport de 2024 rattache une désactivation des journaux d'audit à « TA0005 Defense Evasion ». Comment le lire en octobre 2026 ?",
+    options: [
+      "Il reste juste : TA0005 a été dépréciée en v19, mais ses techniques n'ont pas changé d'identifiant",
+      "Il est daté : TA0005 s'appelle désormais Stealth, et casser la journalisation relève de Defense Impairment (TA0112)",
+      "Il est faux depuis l'origine : désactiver des journaux a toujours relevé de la tactique Impact, pas d'une tactique d'évasion",
+      "Il est daté : TA0005 a été remplacée par deux nouveaux identifiants, et ce numéro ne désigne plus rien",
+    ],
+    answer: 1,
+    explain: "En v19, l'identifiant TA0005 survit mais change de sens : il désigne Stealth, se fondre dans l'activité normale. Ce qui vise à empêcher les défenseurs de voir, comme couper un journal cloud (aujourd'hui T1685.002), est passé dans la nouvelle tactique Defense Impairment, TA0112. C'est le piège : un outil qui associe ses règles à TA0005 ne casse pas, il change de signification sans bruit. Croire que TA0005 ne désigne plus rien, c'est rater justement ce glissement de sens.",
+  },
+  {
+    q: "Dans ATT&CK, qu'est-ce qui distingue une procédure d'une sous-technique ?",
+    options: [
+      "La procédure est la mise en œuvre concrète observée chez un groupe, une campagne ou un logiciel",
+      "La procédure est une variante plus précise de la technique, identifiée par un suffixe numérique",
+      "La procédure décrit la mesure défensive associée à la technique, avec son identifiant M",
+      "La procédure est la règle de détection qui confirme l'usage de la technique dans un incident",
+    ],
+    answer: 0,
+    explain: "Une sous-technique (T1110.003, Password Spraying) reste une catégorie abstraite ; la procédure est ce qu'un acteur a réellement fait : APT29 qui pulvérise des mots de passe sur un compte de test hérité, depuis des proxys résidentiels. C'est au niveau procédure qu'on lit les rapports et qu'on teste une détection. Le suffixe numérique est justement la marque d'une sous-technique, et les règles de détection vivent depuis la v18 dans les Analytics.",
+  },
+  {
+    q: "Qu'a changé ATT&CK v18 (octobre 2025) pour qui écrit des détections ?",
+    options: [
+      "Chaque technique porte désormais une règle Sigma officielle, maintenue par MITRE",
+      "Les mitigations ont été fusionnées dans les techniques, qui décrivent prévention et détection",
+      "Le champ texte Detection laisse place à des Detection Strategies déclinées en Analytics par plateforme",
+      "Les Data Sources sont devenues obligatoires sur chaque technique, chacune assortie d'un niveau de confiance publié",
+    ],
+    answer: 2,
+    explain: "La v18 remplace le paragraphe « Detection » des techniques par des objets à part entière : une Detection Strategy (quoi chercher) et des Analytics par plateforme, reliés à des sources de journaux précises. Les Data Sources, loin de devenir obligatoires, sont dépréciées. MITRE ne publie pas de règles Sigma : les Analytics décrivent une logique, pas une requête prête à coller dans un SIEM.",
+  },
+  {
+    q: "Un threat model de 2025 cite T1656 Impersonation. Que fait l'outillage de Novafact quand il recharge ATT&CK v19 ?",
+    options: [
+      "Il supprime la ligne, puisqu'une technique révoquée n'est plus suivie par MITRE",
+      "Il garde T1656 tel quel : les identifiants ATT&CK ne changent jamais d'une version à l'autre",
+      "Il rattache la menace à la technique parente T1684, plus stable que ses sous-techniques",
+      "Il suit la relation revoked-by vers T1684.001 et signale la ligne pour relecture",
+    ],
+    answer: 3,
+    explain: "Une technique révoquée pointe vers celle qui la remplace (ici T1684.001, sous Social Engineering, dans Stealth). Suivre ce lien garde la menace et sa détection ; la relecture vérifie que le sens n'a pas bougé. Supprimer la ligne ferait disparaître une menace réelle du modèle. Remonter au parent est tentant, mais on perd la précision du diagnostic sans rien gagner en stabilité : le parent aussi peut changer.",
+  },
+];
+
+<YouKnow>
+Les identifiants comme T1190 ou T1078 apparaissent dans les rapports de pentest ou d'incident, et l'on sait qu'ATT&CK range les comportements d'attaquants en colonnes. Cette leçon donne la grammaire complète et ce que les versions 18 et 19 ont changé, parce que beaucoup de supports, outils et règles en circulation sont restés à l'ancienne carte.
+</YouKnow>
+
+## D'où vient ATT&CK
+
+ATT&CK naît en 2013 chez MITRE, dans une expérience de recherche, le *Fort Meade Experiment* (FMX) : une équipe y émule des adversaires dans un réseau instrumenté pour améliorer la détection **après** la compromission. Le constat de départ est simple et toujours d'actualité : les défenses de l'époque reposaient sur des indicateurs (adresses IP, empreintes de fichiers) qui changent à chaque campagne, et personne n'avait de vocabulaire commun pour décrire ce que fait un attaquant une fois entré. La base est publiée en 2015, d'abord pour Windows.
+
+Depuis, deux versions par an, en avril et en octobre. Les jalons qui comptent pour une application SaaS :
+
+| Version | Date | Ce qui change |
+| --- | --- | --- |
+| v6 | octobre 2019 | Arrivée du cloud : plateformes IaaS (AWS, Azure, GCP), SaaS, Office 365 et Azure AD |
+| v7 | juillet 2020 | Sous-techniques (T1110.003 Password Spraying) |
+| v8 | octobre 2020 | PRE-ATT&CK disparaît ; Reconnaissance et Resource Development entrent dans Enterprise |
+| v12 | octobre 2022 | Campagnes : des intrusions datées, rattachées ou non à un groupe |
+| v16 | octobre 2024 | Plateformes Identity Provider et Office Suite, à la place d'Azure AD, Office 365 et Google Workspace |
+| v18 | octobre 2025 | Detection Strategies et Analytics remplacent les champs Detection et les Data Sources |
+| v19 | avril 2026 | Defense Evasion est scindée en Stealth et Defense Impairment |
+
+Depuis août 2026, MITRE publie aussi des versions intermédiaires (v19.2) limitées aux groupes, logiciels et campagnes : le renseignement bouge plus vite que la structure.
+
+## La grammaire
+
+ATT&CK répond à deux questions distinctes : **pourquoi** l'attaquant fait quelque chose (la tactique) et **comment** il le fait (la technique). Le reste s'accroche à ces deux axes.
+
+| Objet | Identifiant | Exemple réel |
+| --- | --- | --- |
+| Tactique : l'objectif du moment | TA00xx | TA0006 Credential Access |
+| Technique : la manière générale | Txxxx | T1110 Brute Force |
+| Sous-technique : la variante | Txxxx.yyy | T1110.003 Password Spraying |
+| Procédure : ce qu'un acteur a fait | texte sur la fiche | APT29 pulvérise des mots de passe depuis des proxys résidentiels |
+| Groupe | Gxxxx | G0016 APT29 (Midnight Blizzard), G1015 Scattered Spider |
+| Campagne | Cxxxx | C0059 Salesforce Data Exfiltration (2024-2025) |
+| Mitigation | Mxxxx | M1032 Multi-factor Authentication |
+| Detection Strategy, Analytic | DETxxxx, ANxxxx | DET0160 pour T1621, dont AN0453 pour le SaaS |
+
+Une technique peut servir plusieurs tactiques : T1078.004 *Cloud Accounts* figure sous Initial Access, Persistence, Privilege Escalation et Stealth, parce qu'un compte valide sert à entrer, à rester, à monter et à passer inaperçu. C'est pour cela qu'ATT&CK est une **matrice** et non une chaîne : l'ordre des colonnes suggère un déroulé, il ne l'impose pas.
+
+La procédure est le niveau le plus utile et le plus négligé. « Brute Force » ne dit rien d'exploitable ; « peu de tentatives par compte, depuis des adresses résidentielles réparties, sur un compte de test sans MFA » dit exactement quoi journaliser et quoi corréler.
+
+<Callout kind="case">
+Fin novembre 2023, Midnight Blizzard (APT29) pulvérise des mots de passe sur un compte d'un **tenant de test hérité**, sans MFA, chez Microsoft. Microsoft précise que l'acteur a limité le nombre de tentatives pour échapper à la détection et utilisé une infrastructure de proxys résidentiels. Détectée le 12 janvier 2024, l'intrusion donne accès à une petite partie des boîtes mail de l'entreprise, dont celles de dirigeants. Dans le vocabulaire d'ATT&CK, c'est une procédure de T1110.003 (la fiche d'APT29 documente d'ailleurs des pulvérisations depuis 2021) ; pour l'AppSec, c'est une exigence : un environnement de test relié à la production fait partie de la surface d'attaque.
+</Callout>
+
+## v18 : la détection devient un objet
+
+Jusqu'en 2025, chaque fiche technique portait un paragraphe *Detection* et une liste de *Data Sources*. La v18 les retire. Une **Detection Strategy** décrit ce qu'il faut observer pour une technique ; elle se décline en **Analytics**, une par plateforme, chacune reliée à des sources de journaux nommées. Pour la fatigue MFA (T1621), la stratégie DET0160 contient un analytic SaaS (AN0453) qui pointe vers l'événement `MFAChallengeIssued` des journaux Okta, et un analytic IaaS qui pointe vers CloudTrail.
+
+Ce que cela change pour l'AppSec : une technique n'est plus « couverte » parce qu'on possède vaguement « des journaux d'authentification ». La question devient : **dispose-t-on de cette source-là, avec ce champ-là ?** C'est une question à laquelle une équipe applicative peut répondre, et souvent la seule à pouvoir le faire, puisque c'est elle qui émet les événements.
+
+## v19 : Defense Evasion se scinde
+
+Defense Evasion était devenue un fourre-tout : on y trouvait aussi bien masquer un processus que couper l'antivirus. La v19 sépare deux intentions :
+
+- **Stealth** garde l'identifiant **TA0005** : l'adversaire cherche à se cacher et à passer pour une activité normale (règles de boîte mail qui masquent, T1564.008 ; usurpation, désormais T1684.001 sous *Social Engineering*, T1684 ; comptes valides) ;
+- **Defense Impairment**, **TA0112**, est nouvelle : l'adversaire casse les mécanismes de sécurité pour que les défenseurs ne voient plus ou ne puissent plus se fier à ce qu'ils voient (T1685.002 *Disable or Modify Cloud Log*, qui remplace T1562.008 ; T1556 *Modify Authentication Process* et ses sous-techniques MFA et accès conditionnel).
+
+Au passage, T1562 *Impair Defenses* est révoquée au profit de T1685, et T1550 *Use Alternate Authentication Material* ne relève plus que de Lateral Movement. Enterprise compte désormais 15 tactiques, 222 techniques et 475 sous-techniques.
+
+<Callout kind="warn">
+Le piège n'est pas qu'un vieil identifiant disparaisse : c'est qu'il **reste valide en changeant de sens**. Une règle Elastic étiquetée « TA0005 » pour une désactivation de CloudTrail continue de s'afficher sans erreur, mais dans la mauvaise colonne. Un texte qui présente « TA0005 Defense Evasion » comme une tactique actuelle est daté.
+</Callout>
+
+## Chez Novafact : des correspondances qui vieillissent
+
+Le threat model de Novafact (M11) associe chaque menace à une technique. Rédigé en 2025, il cite encore deux identifiants révoqués :
+
+<Diff file="threat-model/admin.threats.yaml" hlBefore="4,9" hlAfter="4,5,10,11">
+
+```yaml
+- id: TM-ADM-07
+  scenario: un attaquant coupe l'export des journaux d'audit vers Elastic
+  tactic: TA0005            # « Defense Evasion »
+  attack: T1562.008
+  detection: alerte sur StopLogging / DeleteTrail
+- id: TM-ADM-09
+  scenario: faux appel au support pour réinitialiser la MFA d'un admin client
+  tactic: TA0005
+  attack: T1656
+```
+
+```yaml
+- id: TM-ADM-07
+  scenario: un attaquant coupe l'export des journaux d'audit vers Elastic
+  tactic: TA0112            # Defense Impairment depuis la v19
+  attack: T1685.002         # remplace T1562.008 (revoked-by)
+  attack_version: "19"
+  detection: alerte sur StopLogging / DeleteTrail
+- id: TM-ADM-09
+  scenario: faux appel au support pour réinitialiser la MFA d'un admin client
+  tactic: TA0005            # Stealth : même ID, autre sens
+  attack: T1684.001         # remplace T1656
+  attack_version: "19"
+```
+
+</Diff>
+
+Corriger à la main ne suffit pas : la prochaine version déplacera autre chose. Le geste durable est un contrôle en CI qui charge le bundle STIX officiel (dépôt `mitre-attack/attack-stix-data`) et échoue quand une correspondance pointe vers un objet révoqué ou déprécié. Le mauvais correctif consiste à vérifier seulement que l'identifiant **existe** : T1562.008 existe toujours dans le bundle, marqué `revoked`, et TA0005 existe aussi. Le contrôle doit lire le statut, suivre la relation `revoked-by`, et noter la version d'ATT&CK utilisée, comme le fait la ligne `attack_version`.
+
+<Recap items={[
+  "ATT&CK décrit des comportements (pourquoi : tactique ; comment : technique et sous-technique ; ce qui a été fait : procédure), pas des indicateurs.",
+  "Groupes (G), campagnes (C), mitigations (M), Detection Strategies (DET) et Analytics (AN) s'accrochent aux techniques.",
+  "v18 (octobre 2025) : la détection devient un objet, décliné par plateforme et relié à des sources de journaux précises ; les Data Sources sont dépréciées.",
+  "v19 (avril 2026) : TA0005 devient Stealth, Defense Impairment (TA0112) apparaît ; T1562 et T1656 sont révoquées.",
+  "Les correspondances vieillissent : on vérifie en CI le statut des identifiants et note la version d'ATT&CK utilisée.",
+]} />
+
+<Sources items={[
+  { title: "MITRE ATT&CK : historique des versions", url: "https://attack.mitre.org/resources/versions/" },
+  { title: "MITRE ATT&CK : mise à jour d'octobre 2025 (v18)", url: "https://attack.mitre.org/resources/updates/updates-october-2025/" },
+  { title: "MITRE ATT&CK : mise à jour d'avril 2026 (v19)", url: "https://attack.mitre.org/resources/updates/updates-april-2026/" },
+  { title: "MITRE ATT&CK : tactiques Enterprise", url: "https://attack.mitre.org/tactics/enterprise/" },
+  { title: "TA0112 Defense Impairment", url: "https://attack.mitre.org/tactics/TA0112/" },
+  { title: "DET0160 : stratégie de détection pour T1621", url: "https://attack.mitre.org/detectionstrategies/DET0160/" },
+  { title: "MITRE : ATT&CK Design and Philosophy", url: "https://www.mitre.org/news-insights/publication/mitre-attck-design-and-philosophy" },
+  { title: "Microsoft MSRC : Midnight Blizzard, janvier 2024", url: "https://www.microsoft.com/en-us/msrc/blog/2024/01/microsoft-actions-following-attack-by-nation-state-actor-midnight-blizzard" },
+  { title: "Données STIX d'ATT&CK", url: "https://github.com/mitre-attack/attack-stix-data" },
+]} />

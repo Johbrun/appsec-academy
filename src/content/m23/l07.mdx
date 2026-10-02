@@ -1,0 +1,136 @@
+export const questions = [
+  {
+    q: "Quelle certification démontre le plus directement à un recruteur la capacité d'auditer du code JavaScript en boîte blanche ?",
+    options: [
+      "CSSLP, qui couvre l'ensemble du cycle de développement sécurisé",
+      "GIAC GCSA, centrée sur l'automatisation de la sécurité dans le cloud",
+      "OffSec OSWE, dont l'examen pratique repose sur l'analyse du code source",
+      "Qualification PASSI, qui inclut l'audit de code source dans ses activités",
+    ],
+    answer: 2,
+    explain: "L'OSWE se passe en 48 heures surveillées, sur des applications dont on lit le code pour trouver et exploiter les failles, en JavaScript notamment. La CSSLP couvre bien le cycle entier, mais par un QCM qui teste la connaissance des pratiques, pas le geste d'audit. La GCSA vise le pipeline et le cloud. Et PASSI qualifie un prestataire, une entreprise, pas une personne : elle ne figure pas sur un CV.",
+  },
+  {
+    q: "Selon l'ISC2 Cybersecurity Workforce Study 2025, quel est le message central sur le marché ?",
+    options: [
+      "Le manque de compétences pèse davantage que le manque d'effectifs",
+      "Le déficit mondial de professionnels a doublé en un an",
+      "Les certifications ont perdu leur valeur au profit de l'expérience",
+      "L'IA a déjà réduit les besoins de recrutement en sécurité",
+    ],
+    answer: 0,
+    explain: "L'édition 2025 insiste sur les compétences : 95 % des répondants signalent au moins un besoin de compétence, et 59 % le jugent critique ou important. Elle ne publie justement pas de chiffre de déficit d'effectifs cette année, si bien qu'aucun doublement ne peut en être tiré. Rien dans cette synthèse ne conclut à une perte de valeur des certifications, ni à un recul des recrutements dû à l'IA.",
+  },
+  {
+    q: "Quelle compétence un pentester qui rejoint l'AppSec doit-il le plus souvent apprendre ?",
+    options: [
+      "Trouver des vulnérabilités dans une application web inconnue",
+      "Estimer le coût d'un correctif et écrire une règle avec peu de faux positifs",
+      "Démontrer l'impact d'une faille avec une preuve de concept convaincante",
+      "Lire du code pour suivre une donnée de l'entrée jusqu'à son usage",
+    ],
+    answer: 1,
+    explain: "Trouver, prouver et suivre une donnée dans le code sont précisément ce qui se transfère du pentest : c'est même ce qui rend un ancien pentester crédible en AppSec. Ce qui manque, c'est le versant constructif : écrire une règle qui ne noie pas les équipes, chiffrer un correctif, argumenter un arbitrage. Ce sont des compétences d'ingénierie et de négociation, que le métier d'auditeur n'exerce presque jamais.",
+  },
+  {
+    q: "Pourquoi l'Observatoire des métiers de l'ANSSI (2025) est-il une bonne nouvelle pour une reconversion vers l'AppSec ?",
+    options: [
+      "Parce qu'il montre que les offres exigent désormais toutes une certification",
+      "Parce qu'il recommande l'AppSec comme spécialité prioritaire pour les reconversions",
+      "Parce qu'il constate une baisse des exigences d'expérience dans les offres",
+      "Parce qu'il compte 52 % de professionnels issus d'une reconversion",
+    ],
+    answer: 3,
+    explain: "L'annonce de la quatrième édition relève que plus de la moitié des professionnels interrogés viennent d'une reconversion : le métier est ouvert à des parcours qui ne commencent pas en sécurité. Elle ne dit pas que toutes les offres exigent une certification, ne classe pas de spécialité prioritaire, et ne mesure pas une baisse des exigences d'expérience.",
+  },
+];
+
+<YouKnow>
+Un pentester sait trouver des vulnérabilités, les prouver et les expliquer. Il a souvent une certification offensive, et un CV construit autour des missions menées. Ce capital vaut cher en AppSec, mais il ne couvre pas tout le poste.
+</YouKnow>
+
+## Ce qui se transfère, ce qui s'apprend
+
+Le passage du pentest à l'AppSec n'est pas un changement de métier complet : c'est un déplacement du livrable. Une bonne partie du savoir-faire du pentester reste centrale ; une autre partie, souvent sous-estimée, est à construire.
+
+| Se transfère directement | S'apprend |
+| --- | --- |
+| Lire du code en suivant une donnée de l'entrée jusqu'à son usage | Écrire des règles SAST avec peu de faux positifs (M17) |
+| Distinguer l'exploitable du théorique, et le prouver | Estimer le coût d'un correctif et l'arbitrer contre une fonctionnalité |
+| Trouver les variantes d'un bug | Concevoir un contrôle qui élimine une classe dans un framework (M7) |
+| Raconter une attaque de façon concrète | Animer un threat model avec une équipe qui ne pense pas comme un attaquant (M11) |
+| Tester un correctif comme un attaquant | Piloter un programme : indicateurs, budget, feuille de route (M31) |
+| Connaître les outils offensifs | Exploiter un pipeline, un IaC et un SIEM au quotidien (blocs D à F) |
+
+La colonne de droite est celle qui fait la différence en entretien. *Building Secure and Reliable Systems* (ch. 20) le dit à sa façon : les certifications sont utiles, mais un spécialiste se juge aussi à son expérience pratique, et les besoins d'une organisation évoluent avec ses produits.
+
+## Ce que dit le marché
+
+Deux sources récentes cadrent le contexte, une mondiale et une française.
+
+L'**ISC2 Cybersecurity Workforce Study 2025**, publiée le 4 décembre 2025 à partir de 16 029 répondants, déplace le débat : le problème principal n'est plus le manque de bras mais le manque de **compétences**. 95 % des répondants signalent au moins un besoin de compétence dans leur équipe, et 59 % le jugent critique ou important. L'étude ne publie pas, cette année, de chiffre de déficit d'effectifs : il faut se méfier des articles qui en citent un en l'attribuant à l'édition 2025.
+
+En France, l'**Observatoire des métiers de la cybersécurité** de l'ANSSI (quatrième édition, juin 2025) a analysé plus de 23 000 offres d'emploi publiées entre juin 2023 et juin 2024. Il relève une hausse de 49 % des offres entre 2019 et 2024, un métier encore masculin à 85 %, et **52 % de professionnels issus d'une reconversion**. Pour qui vient du développement ou du pentest, c'est la confirmation que les parcours non linéaires sont la norme, pas l'exception.
+
+## Les certifications qui comptent
+
+Aucune certification ne fait un ingénieur AppSec. Certaines signalent pourtant quelque chose de précis à un recruteur ; on les choisit pour ce qu'elles prouvent.
+
+| Certification | Organisme | Ce qu'elle atteste | Format |
+| --- | --- | --- | --- |
+| **CSSLP** | ISC2 | La connaissance du cycle de développement sécurisé, en 8 domaines, des concepts à la supply chain | QCM ; 4 ans d'expérience exigés |
+| **GWEB** | GIAC (cours SANS SEC522) | La défense des applications web | Examen à questions |
+| **GCSA** | GIAC (cours SANS SEC540) | L'automatisation de la sécurité dans le cloud et le pipeline | 75 questions, 2 heures, 66 % pour réussir |
+| **OSWE** | OffSec (cours WEB-300) | L'audit en boîte blanche : lire le code, trouver, exploiter | Examen pratique surveillé de 48 heures (JS, PHP, Java, C#) |
+
+La **CSSLP** est celle qui colle le mieux au poste en largeur ; ce parcours suit ses huit domaines comme grille de couverture. L'**OSWE** est la plus proche du geste de pentester, déplacé vers le code : c'est la passerelle naturelle. **GCSA** compte si le poste penche vers le pipeline et le cloud (blocs D et E).
+
+Deux repères français, qui ne sont pas des certifications personnelles :
+
+- la **qualification PASSI** de l'ANSSI qualifie des **prestataires** d'audit, activité par activité (dont l'audit de code source et les tests d'intrusion). Son référentiel est passé en version 2.2 en 2024, avec deux niveaux, « élevé » et « substantiel ». Elle compte pour qui reste ou retourne en cabinet, et pour choisir un prestataire (M30, leçon 6) ;
+- le label **SecNumedu** de l'ANSSI distingue des formations initiales en cybersécurité, et **SecNumedu-FC** des formations continues : un repère utile pour choisir une formation financée.
+
+<Callout kind="debate">
+Certification ou portfolio ? Pour le portfolio, ce qui a été construit parle de lui-même : une règle Semgrep publiée, une contribution à un projet OWASP, un correctif accepté dans une bibliothèque, un article qui explique une classe de bugs. La certification filtre les candidatures dans les grands groupes et les marchés publics ; le portfolio convainc en entretien. Les deux ne s'opposent pas, mais faute de temps pour les deux, le portfolio prouve davantage la colonne de droite du premier tableau.
+</Callout>
+
+## Construire sa trajectoire
+
+L'AppSec ouvre plusieurs directions, qui recoupent les rôles de la leçon 2 :
+
+- **l'expertise technique** : revue de code, recherche de vulnérabilités, outillage d'analyse. Le rôle NICE DD-WRL-003 et le profil ECSF *Cybersecurity Implementer* en décrivent les tâches ;
+- **l'architecture** : conception, revues de conception, patterns de référence, souvent après quelques années au contact des équipes ;
+- **la plateforme** : paved road, pipeline, sécurité du cloud ;
+- **le pilotage** : responsable d'un programme AppSec, puis RSSI. C'est la voie où la colonne de droite pèse le plus.
+
+<Steps items={[
+  { title: "Trimestre 1 : combler l'écart côté code", text: "Choisir le framework de l'employeur, lire ses correctifs de CVE (M16, leçon 4) et écrire les premières règles d'analyse sur de vrais findings." },
+  { title: "Trimestre 2 : passer de l'autre côté de la PR", text: "Proposer des correctifs plutôt que des rapports, avec un test de régression. Mesurer combien sont fusionnés sans retouche." },
+  { title: "Trimestre 3 : animer", text: "Mener un threat model avec une équipe et une session de formation construite sur ses propres bugs (M30, leçon 4)." },
+  { title: "Trimestre 4 : prouver", text: "Publier ce qui peut l'être (règle, outil, article) et choisir la certification qui atteste ce que le poste attend." },
+]} />
+
+<Callout kind="novafact">
+Le deuxième ingénieur AppSec de Novafact vient d'un cabinet d'audit, avec l'OSCP. Son plan de première année, validé avec le CTO : OSWE financée au deuxième trimestre, une règle Semgrep maison par mois tirée des findings réels, l'animation du réseau de champions à partir du troisième trimestre. L'indicateur choisi n'est ni le nombre de findings ni la certification : c'est la part de ses correctifs fusionnés sans retouche par les équipes.
+</Callout>
+
+<Recap items={[
+  "Se transfèrent : lecture de code orientée données, preuve d'exploitabilité, variantes, récit d'attaque.",
+  "S'apprennent : règles à faible bruit, coût des correctifs, contrôles de classe, animation, pilotage.",
+  "ISC2 2025 : le manque de compétences pèse plus que le manque d'effectifs ; pas de chiffre de déficit cette année.",
+  "Observatoire ANSSI 2025 : plus de 23 000 offres analysées, +49 % depuis 2019, 52 % de reconversions.",
+  "CSSLP pour la largeur, OSWE pour l'audit en boîte blanche, GWEB et GCSA pour la défense web et le pipeline cloud.",
+  "PASSI qualifie des prestataires, SecNumedu labellise des formations : ni l'un ni l'autre n'est une certification personnelle.",
+]} />
+
+<Sources items={[
+  { title: "ISC2, 2025 Cybersecurity Workforce Study (décembre 2025)", url: "https://www.isc2.org/insights/2025/12/isc2-publishes-2025-cybersecurity-workforce-study" },
+  { title: "ANSSI, 4e édition de l'Observatoire des métiers (2025)", url: "https://cyber.gouv.fr/actualites/publication-de-la-4e-%C3%A9dition-de-lobservatoire-des-m%C3%A9tiers-2025/" },
+  { title: "ISC2, CSSLP", url: "https://www.isc2.org/certifications/csslp" },
+  { title: "GIAC, Certified Web Application Defender (GWEB)", url: "https://www.giac.org/certifications/certified-web-application-defender-gweb" },
+  { title: "GIAC, Cloud Security Automation (GCSA)", url: "https://www.giac.org/certifications/cloud-security-automation-gcsa/" },
+  { title: "OffSec, WEB-300 et OSWE", url: "https://www.offsec.com/courses/web-300/" },
+  { title: "ANSSI, référentiels PASSI v2.2 et PRIS v3.0", url: "https://cyber.gouv.fr/actualites/lanssi-met-%C3%A0-jour-les-referentiels-passi-version-22-et-pris-version-30/" },
+  { title: "ANSSI, formations labellisées SecNumedu", url: "https://cyber.gouv.fr/offre-de-service/formations-entrainement-et-decouverte-des-metiers/formations/formation-labellisees-par-lanssi/" },
+  { title: "Google, Building Secure and Reliable Systems, ch. 20", url: "https://google.github.io/building-secure-and-reliable-systems/raw/ch20.html" },
+]} />

@@ -100,7 +100,7 @@ export const cards: Card[] = [
   c('m04', 6, 1, 'Les trois propriétés d’un nonce CSP ?', 'Au moins 128 bits d’aléa, nouveau à chaque réponse, jamais dans une page servie depuis un cache partagé.'),
   c('m04', 7, 2, 'Content-Security-Policy contre Content-Security-Policy-Report-Only ?', 'La première bloque et signale ; la seconde ne fait que signaler. Les deux coexistent : une politique bloquante, et une plus stricte en observation.'),
   c('m04', 8, 1, 'Que change Trusted Types ?', 'Les sinks dangereux du DOM (innerHTML, eval…) refusent les chaînes et exigent un objet typé produit par une politique : un DOM XSS devient une erreur de type.'),
-  c('m04', 9, 3, 'Iframe en sandbox sur ta propre origine : pourquoi jamais allow-scripts avec allow-same-origin ?', 'Le contenu encadré peut alors atteindre le DOM parent et retirer lui-même l’attribut sandbox : l’isolation disparaît. Un contenu à isoler se sert depuis une autre origine.'),
+  c('m04', 9, 3, 'Iframe en sandbox sur sa propre origine : pourquoi jamais allow-scripts avec allow-same-origin ?', 'Le contenu encadré peut alors atteindre le DOM parent et retirer lui-même l’attribut sandbox : l’isolation disparaît. Un contenu à isoler se sert depuis une autre origine.'),
   c('m04', 10, 2, 'PCI DSS 4.0.1 : exigence 6.4.3 contre 11.6.1 ?', '6.4.3 est préventive : inventaire, justification, autorisation et intégrité des scripts de la page de paiement. 11.6.1 est détective : repérer les modifications des scripts et des en-têtes tels que reçus par le navigateur.'),
   c('m04', 11, 3, 'Une CSP stricte protège la page de paiement. Pourquoi ne suffit-elle pas pour l’exigence 11.6.1 ?', 'Elle ne voit ni le contenu modifié d’un script qu’elle autorise, ni la disparition de son propre en-tête. Il faut un contrôle qui observe la page telle que le navigateur la reçoit.'),
   c('m04', 12, 1, 'Que dit l’en-tête Sec-Fetch-Site ?', 'D’où vient la requête par rapport à la cible : same-origin, same-site, cross-site ou none. Une resource isolation policy refuse le cross-site sur les ressources privées.'),
@@ -118,7 +118,7 @@ export const cards: Card[] = [
   c('m05', 9, 2, 'Imposer une version corrigée d’une dépendance transitive avec npm ?', 'Le champ overrides de package.json.'),
   c('m05', 10, 2, 'Deux indicateurs de réaction à une crise de type React2Shell ?', 'Temps d’inventaire et temps de correction en production.'),
   c('m05', 11, 2, 'EPSS contre KEV ?', 'EPSS est une probabilité d’exploitation à 30 jours, calculée pour toutes les CVE. Le KEV de la CISA liste les CVE dont l’exploitation est constatée : une CVE du KEV se traite même si son EPSS paraît modeste.'),
-  c('m05', 12, 3, 'Un CVSS de base à 9,8 : pourquoi ne suffit-il pas à fixer la priorité ?', 'Le score de base décrit la faille dans l’absolu. Il ignore l’exploitation observée (Threat, EPSS, KEV), l’exposition et la criticité chez toi (Environmental), et l’atteignabilité du code vulnérable.'),
+  c('m05', 12, 3, 'Un CVSS de base à 9,8 : pourquoi ne suffit-il pas à fixer la priorité ?', 'Le score de base décrit la faille dans l’absolu. Il ignore l’exploitation observée (Threat, EPSS, KEV), l’exposition et la criticité dans le contexte de l’organisation (Environmental), et l’atteignabilité du code vulnérable.'),
   c('m05', 13, 3, 'npm audit ne remonte rien. Pourquoi n’est-ce pas une garantie ?', 'Il compare l’arbre installé aux avis publiés : un paquet malveillant publié il y a une heure n’a pas encore d’avis. Contre ce risque : délai d’adoption, scripts d’installation désactivés, analyse comportementale.'),
   c('m05', 14, 2, 'VEX : que faut-il fournir avec un statut not_affected ?', 'Une justification (code vulnérable absent, non atteignable, non exécuté…). C’est un engagement à maintenir : il devient faux si le code change.'),
 
@@ -152,7 +152,7 @@ export const cards: Card[] = [
   c('m09', 1, 1, 'Que supprime OAuth 2.1 ?', 'Les flux Implicit et Resource Owner Password Credentials ; PKCE devient obligatoire et les redirect_uri se comparent exactement.'),
   c('m09', 2, 2, 'state, nonce, code_verifier : contre quoi protège chacun ?', 'state : le CSRF de connexion. nonce : le rejeu de l’ID token. code_verifier (PKCE) : l’interception du code d’autorisation.'),
   c('m09', 3, 2, 'ID token, access token, refresh token : à qui est destiné chacun ?', 'L’ID token au client, l’access token à l’API, le refresh token au serveur d’autorisation.'),
-  c('m09', 4, 3, 'La signature du JWT est valide. Qu’est-ce qui peut encore le rendre inacceptable pour ton API ?', 'Un émetteur hors liste, une audience qui n’est pas la tienne, une expiration dépassée, un nbf dans le futur, ou le mauvais type de jeton — un ID token présenté comme access token.'),
+  c('m09', 4, 3, 'La signature du JWT est valide. Qu’est-ce qui peut encore le rendre inacceptable pour l’API qui le reçoit ?', 'Un émetteur hors liste, une audience qui n’est pas celle de l’API, une expiration dépassée, un nbf dans le futur, ou le mauvais type de jeton — un ID token présenté comme access token.'),
   c('m09', 5, 3, 'nOAuth (2023) : pourquoi identifier un utilisateur fédéré par son e-mail est-il dangereux ?', 'L’e-mail fourni par l’IdP n’est ni stable ni toujours vérifié : dans des applications Azure AD, un attaquant a pu se connecter en mettant l’e-mail de sa victime sur son propre compte. On identifie par le couple (iss, sub).'),
   c('m09', 6, 1, 'Que lie DPoP, et comment ?', 'Le jeton à une clé du client : chaque requête porte une preuve signée (méthode, URL, horodatage, jti, empreinte du jeton). Un jeton volé seul ne sert à rien.'),
   c('m09', 7, 2, 'OAuth contre OpenID Connect ?', 'OAuth autorise un client à accéder à une API ; OIDC ajoute l’authentification : l’ID token dit au client qui est l’utilisateur.'),
@@ -229,6 +229,20 @@ export const cards: Card[] = [
   c('m19', 10, 1, 'Que décrit MITRE ATLAS ?', 'Les tactiques et techniques d’attaque contre les systèmes d’IA, sur le modèle d’ATT&CK, avec des études de cas et des mitigations.'),
   c('m19', 11, 2, 'promptfoo : campagne générée contre suite de régression ?', 'La campagne générée sert à découvrir, en préproduction ; la suite de régression est figée et bloquante en CI, pour ne pas revenir en arrière.'),
   c('m19', 12, 3, 'MCP GitHub (2025) : sans faille de code, comment un ticket public a-t-il fait fuiter un dépôt privé ?', 'L’agent lisait un contenu non fiable (le ticket), avait accès à des données privées et pouvait publier : la lethal trifecta complète. La consigne du ticket a suffi ; la parade est de couper un pied, pas de corriger le serveur.'),
+
+  // ── m22 · MITRE ATT&CK et la menace SaaS ──────────────────────────────────
+  c('m22', 1, 1, 'Tactique, technique, procédure : qui répond à quelle question ?', 'La tactique dit le pourquoi (l’objectif), la technique le comment, la procédure la mise en œuvre concrète par un acteur donné.'),
+  c('m22', 2, 2, 'ATT&CK v19 : qu’est devenue la tactique Defense Evasion (TA0005) ?', 'Elle est scindée : TA0005 devient Stealth (se fondre sans toucher aux contrôles) et une nouvelle tactique Defense Impairment (TA0112) réunit ce qui casse ou aveugle les contrôles.'),
+  c('m22', 3, 2, 'Stealth ou Defense Impairment : où ranger la coupure d’un journal cloud ?', 'Defense Impairment : couper la journalisation casse un contrôle. C’est T1685.002 (ex-T1562.008, révoquée). Se cacher sans rien désactiver, lui, reste dans Stealth.'),
+  c('m22', 4, 1, 'Les quatre usages d’ATT&CK ?', 'Renseignement sur la menace, détection, émulation d’adversaire, évaluation : un même vocabulaire pour quatre métiers.'),
+  c('m22', 5, 3, 'La règle de détection est mappée sur une technique ATT&CK. Prouve-t-elle qu’on la verrait ?', 'Non : le mapping dit ce que la règle vise, pas qu’elle se déclenche. Seule une exécution de la technique (Atomic Red Team, Stratus) prouve la couverture.'),
+  c('m22', 6, 2, 'Pourquoi la plupart des intrusions SaaS passent-elles par l’identité, pas par une faille de code ?', 'Le SaaS expose des fonctions, pas du code applicatif : l’attaquant abuse de l’authentification et des autorisations (comptes, jetons, consentements), rarement d’une vulnérabilité de la plateforme.'),
+  c('m22', 7, 2, 'Fatigue MFA : quelle technique, et quelle parade ?', 'T1621 (Multi-Factor Authentication Request Generation). La parade : une MFA à correspondance de nombre ou FIDO2, qui ne s’approuve pas d’un simple geste.'),
+  c('m22', 8, 3, 'Une application OAuth a été autorisée par un salarié. Pourquoi réinitialiser son mot de passe ne suffit-il pas ?', 'Le jeton accordé (T1671) ne dépend ni du mot de passe ni de la MFA de l’utilisateur : il survit jusqu’à sa révocation. Seul révoquer l’application coupe l’accès.'),
+  c('m22', 9, 3, 'Un cookie de session déjà validé par la 2FA est volé puis rejoué. Quelles techniques, et quelle tactique pour le rejeu ?', 'Vol : T1539 (accès aux identifiants). Rejeu : T1550.004, rattaché en v19 au seul Mouvement latéral. Une session validée par la 2FA vaut la 2FA.'),
+  c('m22', 10, 2, 'T1078 Valid Accounts sert quatre tactiques : lesquelles ?', 'Initial Access, Persistence, Privilege Escalation et Stealth. Une technique peut servir plusieurs tactiques : la question « laquelle ? » dépend du contexte.'),
+  c('m22', 11, 2, 'Les mitigations ATT&CK qui couvrent le plus de techniques SaaS ?', 'La MFA (M1032), la gestion des comptes et des comptes à privilèges (M1018, M1026) et l’audit (M1047) reviennent sur le plus grand nombre de techniques d’identité.'),
+  c('m22', 12, 3, 'Storm-0558 (2023) : pourquoi la détection est-elle venue d’un client et non de Microsoft ?', 'Le client (Département d’État) avait une règle sur le journal MailItemsAccessed, accessible seulement avec une licence haut de gamme. Une détection n’existe que si la source de journaux existe (recommandation du CSRB).'),
 ];
 
 // ── Les paquets ─────────────────────────────────────────────────────────────
@@ -256,6 +270,8 @@ const PROFILES: SeriesProfile<Card>[] = [
     text: 'IAM, Terraform, déploiement, Elastic : presque que des garde-fous qui ne gardent pas ce qu’on croit.' },
   { id: 'ia', title: 'Sécurité de l’IA', filter: inModules('m19'), level: 2,
     text: 'Lethal trifecta, MCP, RAG : les notions d’abord, puis EchoLeak et le serveur MCP GitHub.' },
+  { id: 'attack', title: 'ATT&CK et menace SaaS', filter: inModules('m22'), level: 2,
+    text: 'Tactiques et techniques v19, scission Stealth / Defense Impairment, menace par l’identité : les notions, puis les pièges.' },
   { id: 'vocabulaire', title: 'Vocabulaire', mix: [14, 0, 0],
     text: 'Tous les blocs, niveau 1 seulement : une définition, une liste ou une date par carte.' },
   { id: 'pieges', title: 'Les pièges', mix: [0, 0, 14],

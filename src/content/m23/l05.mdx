@@ -1,0 +1,145 @@
+export const questions = [
+  {
+    q: "Une fuite de données personnelles est confirmée sur Novafact. Qui décide de notifier la CNIL ?",
+    options: [
+      "Le DPO, puisque la notification des violations fait partie de ses missions",
+      "L'équipe AppSec, qui a qualifié la faille et connaît l'étendue de la fuite",
+      "Le responsable du traitement, c'est-à-dire la direction, conseillée par le DPO",
+      "Le RSSI, parce qu'une violation de données est avant tout un incident de sécurité",
+    ],
+    answer: 2,
+    explain: "Le RGPD met l'obligation de notifier sur le responsable du traitement, donc sur l'entreprise et sa direction. Le DPO conseille et contrôle, et sert de point de contact avec l'autorité, mais n'endosse pas la décision : lui confier serait le placer en conflit avec sa mission de contrôle. L'AppSec et le RSSI apportent les faits techniques, indispensables, mais qualifier une faille n'est pas décider d'une obligation légale.",
+  },
+  {
+    q: "Le SOC se plaint de ne rien pouvoir détecter sur l'API de facturation. Quelle est la contribution la plus utile de l'AppSec ?",
+    options: [
+      "Lui transmettre chaque mois les findings des scanners pour qu'il les surveille",
+      "Définir avec lui les événements que l'application doit journaliser, et leur format",
+      "Lui donner un accès en lecture aux dépôts de code pour qu'il trouve les failles",
+      "Installer un WAF devant l'API pour qu'il dispose enfin d'alertes à traiter",
+    ],
+    answer: 1,
+    explain: "Le SOC ne voit que ce que l'application écrit : sans événements de sécurité (échec d'autorisation, changement de rôle, export massif) avec un format stable, aucune règle n'est possible. Lui envoyer des findings ne lui donne rien à observer en production, et lire le code n'est pas son métier. Un WAF apporte des alertes, mais sur le trafic, pas sur la logique métier où se jouent les abus de facturation.",
+  },
+  {
+    q: "Pourquoi l'affaire Joe Sullivan (Uber) concerne-t-elle directement l'organisation d'une équipe sécurité ?",
+    options: [
+      "Parce qu'elle a montré qu'un programme de bug bounty expose l'entreprise à des poursuites",
+      "Parce qu'elle a établi qu'un RSSI est pénalement responsable de toute fuite de données",
+      "Parce qu'elle a conduit les États-Unis à interdire tout paiement à un attaquant",
+      "Parce que la gestion d'une fuite y a été décidée par la sécurité seule, hors des circuits prévus",
+    ],
+    answer: 3,
+    explain: "Le dossier porte sur la dissimulation d'une fuite à la FTC, avec un paiement présenté comme une prime de bug bounty : c'est la décision prise dans un circuit fermé, sans les fonctions qui devaient la porter, qui a été sanctionnée. La condamnation ne vise pas la fuite elle-même, et n'établit pas de responsabilité automatique du RSSI. Le bug bounty n'a pas été jugé illégal : c'est son détournement qui pose problème. Aucune interdiction générale de paiement n'en a découlé.",
+  },
+  {
+    q: "Les achats veulent signer avec un prestataire d'envoi d'e-mails sans revue de sécurité, faute de temps. Quelle réponse tient le mieux ?",
+    options: [
+      "Une revue proportionnée au risque, déclenchée par des critères connus d'avance",
+      "Bloquer la signature jusqu'à une revue complète, quel que soit le délai",
+      "Laisser signer et prévoir une revue l'année suivante, au renouvellement",
+      "Demander au prestataire son certificat ISO 27001 et s'en contenter",
+    ],
+    answer: 0,
+    explain: "Un prestataire qui reçoit les adresses des clients et envoie au nom de Novafact mérite une revue, mais sa profondeur doit dépendre des données et des accès confiés, et les critères doivent être publiés pour que les achats l'anticipent. Bloquer sans délai fait de l'AppSec un frein qu'on contournera. Reporter d'un an laisse le risque courir sans décision. Une certification dit qu'un système de management existe ; elle ne dit rien du périmètre utilisé par Novafact.",
+  },
+];
+
+<YouKnow>
+En mission, les interlocuteurs sont le commanditaire et l'équipe technique. En poste, la moitié des décisions qui touchent la sécurité se prennent ailleurs : chez le DPO, au juridique, aux achats, au comité produit. Si l'AppSec n'y est pas, elles se prennent sans elle.
+</YouKnow>
+
+## Pourquoi les interfaces comptent
+
+*Building Secure and Reliable Systems* (Google, ch. 20) liste les moments où une organisation doit commencer à s'occuper de sécurité : quand elle traite des données personnelles, quand une réglementation impose un standard (PCI DSS, RGPD), quand des contrats clients prévoient des obligations, notamment de notification de violation. Aucun de ces déclencheurs n'est technique : ils viennent du DPO, du juridique, des ventes. Le chapitre 21 ajoute que les changements importants se décident avec le juridique, les relations presse, l'ingénierie et le produit autour de la table.
+
+L'AppSec n'est donc pas une fonction qui reçoit des demandes techniques ; c'est une fonction qui **apporte des faits** à des décideurs qui ne sont pas elle. Le piège symétrique existe : décider à leur place parce qu'on connaît mieux la faille.
+
+## Les cinq interfaces
+
+| Fonction | Ce que l'AppSec lui apporte | Ce qu'elle en attend | Qui décide |
+| --- | --- | --- | --- |
+| **SOC** | Événements à journaliser, scénarios d'abus, runbooks applicatifs | Retour sur les alertes, signaux d'exploitation | Le SOC qualifie et escalade ; l'AppSec corrige la cause |
+| **DPO** | Cartographie des flux de données, mesures techniques, faits d'une violation | Base légale, durées de conservation, analyse d'impact | Le responsable du traitement, conseillé par le DPO |
+| **Juridique** | Clauses de sécurité réalistes, politique de divulgation, faits d'incident | Contrats, réponse aux autorités, cadre des tests | La direction, sur avis du juridique |
+| **Achats** | Critères de revue des fournisseurs, questionnaire proportionné | Visibilité sur les contrats avant signature | Le propriétaire du besoin, avec le risque documenté |
+| **Produit** | Risques traduits en impact client, coût des options | Priorisation, arbitrage, acceptation du risque | Le propriétaire produit, dans les limites fixées |
+
+Une règle traverse le tableau : **l'AppSec instruit, d'autres décident**. Elle formule une recommandation écrite, avec le risque et les options ; la décision, et sa trace, appartiennent à la fonction qui en porte la responsabilité.
+
+### Le SOC
+
+C'est l'interface la plus technique et souvent la plus négligée. Le SOC ne voit que ce que l'application écrit : si l'API de facturation ne journalise ni les refus d'autorisation ni les exports massifs, aucune règle ne les verra. La bonne contribution de l'AppSec est un **contrat de journalisation** défini avec lui (M22, leçon 2, et M23) et des runbooks applicatifs qui disent quoi faire quand une alerte tombe (M25, leçon 2). En retour, le SOC est la meilleure source de taux d'échappement : chaque alerte avérée est un contrôle amont qui a manqué.
+
+### Le DPO
+
+Le DPO conseille et contrôle ; il ne décide pas à la place du responsable du traitement, et ne peut pas être celui qui rédige seul les mesures qu'il devra ensuite contrôler. Les points de contact naturels : l'analyse d'impact des traitements à risque, la minimisation dans la conception (M12, leçon 4), et la qualification d'une violation. Le RGPD laisse 72 heures au responsable du traitement pour notifier l'autorité de contrôle une violation à risque : c'est l'AppSec qui fournit, vite, l'étendue réelle.
+
+### Le juridique
+
+Trois sujets reviennent : les **contrats** (clauses de sécurité, notification aux clients, audits), la **divulgation** (politique de divulgation et engagement envers les chercheurs, M26, leçon 6) et le **cadre des tests** (leçon 6). Un réflexe à prendre : relire avec le juridique toute clause de sécurité avant signature. Un « chiffrement de bout en bout » ou un « pentest mensuel » promis par un commercial devient une obligation contractuelle.
+
+### Les achats
+
+Chaque fournisseur ajouté est une partie à qui l'on fait confiance (M3, leçon 2). Les achats ne bloqueront pas un contrat pour une revue de sécurité qu'ils ne voient pas venir ; il faut donc publier des **critères de déclenchement** (données confiées, accès au SI, intégration dans le produit) et une revue proportionnée (M18, leçon 9).
+
+### Le produit
+
+C'est là que se joue l'arbitrage quotidien : un finding contre une fonctionnalité, un délai contre un risque. M30 (leçon 2) détaille la négociation ; ici, on retient le partage des rôles. Le propriétaire produit accepte un risque dans les limites que la gouvernance lui fixe (M31, leçon 2) ; au-delà, la décision remonte.
+
+<Callout kind="case">
+En novembre 2016, Uber apprend que des attaquants ont dérobé des données d'environ 57 millions d'utilisateurs et de chauffeurs. L'entreprise fait alors l'objet d'une enquête de la FTC sur une fuite de 2014, et son responsable de la sécurité, Joe Sullivan, y a témoigné dix jours plus tôt. Selon le ministère de la Justice américain, il organise un paiement de six chiffres aux attaquants, présenté comme une prime de bug bounty, contre leur silence. La fuite n'est révélée qu'en 2017, après le changement de direction. En octobre 2022, un jury le déclare coupable d'entrave à une procédure de la FTC et de non-dénonciation d'un crime ; il est condamné en mai 2023 à trois ans de mise à l'épreuve et 50 000 dollars d'amende. Ce qui est en cause n'est pas la fuite, mais une décision de notification prise dans un circuit fermé, sans les fonctions qui devaient la porter.
+</Callout>
+
+## Écrire qui décide quoi
+
+Les interfaces fonctionnent quand elles sont écrites avant la crise. Chez Novafact, une page suffit :
+
+<Code file="docs/securite/decisions.md">
+
+```text
+Décision                                   Instruit          Décide                    Informé
+Notifier une violation à la CNIL           AppSec + DPO      Direction (resp. traitement)  Juridique, RSSI
+Signaler une vulnérabilité exploitée (CRA) PSIRT / AppSec    CTO, suppléé par le RSSI  Juridique, DPO
+Accepter un risque élevé sur un produit    AppSec            CTO                       RSSI, produit
+Signer avec un fournisseur sensible        Achats + AppSec   Propriétaire du besoin    RSSI, DPO
+Publier un avis de sécurité client         PSIRT             CTO + juridique           Support, ventes
+Ajouter une clause de sécurité au contrat  Juridique         Direction commerciale     AppSec
+```
+
+</Code>
+
+Chaque ligne a un **suppléant** (une personne absente ne doit pas bloquer un délai de 24 heures) et chaque décision laisse une **trace datée**. La colonne « informé » n'est pas une politesse : c'est elle qui évite qu'une fonction découvre une décision dans la presse.
+
+<Callout kind="novafact">
+Premier test de la page chez Novafact : un chercheur signale qu'un lien de téléchargement de facture reste valide après la révocation d'un utilisateur. L'AppSec qualifie en deux heures (pas d'exploitation constatée, données personnelles exposées en théorie). Le DPO conclut avec la direction qu'il n'y a pas de violation à notifier, et le documente. Le juridique valide la réponse au chercheur. Le produit planifie le correctif dans le sprint en cours. Personne n'a décidé à la place d'un autre, et tout tient dans un ticket.
+</Callout>
+
+## Les rituels qui entretiennent le lien
+
+- un **point mensuel** avec le SOC : alertes avérées, faux positifs, journaux manquants ;
+- une **revue trimestrielle** avec le DPO des nouveaux traitements et des analyses d'impact en cours ;
+- l'AppSec **en copie** des appels d'offres et des clauses de sécurité avant signature ;
+- un **exercice annuel** de crise qui fait jouer la page des décisions (M25, leçon 6).
+
+<Callout kind="debate">
+L'AppSec doit-elle porter la conformité RGPD technique ? Pour : elle connaît les flux et les mesures, et le DPO manque souvent de relais techniques. Contre : elle risque de devenir l'exécutant d'une checklist au détriment de son cœur de métier, et de brouiller le rôle de contrôle du DPO. Le compromis courant : l'AppSec fournit les mesures et les preuves, le DPO garde l'analyse et le contrôle.
+</Callout>
+
+<Recap items={[
+  "Les déclencheurs de la sécurité (données personnelles, réglementation, contrats) viennent d'autres fonctions que la technique.",
+  "L'AppSec instruit, d'autres décident : recommandation écrite, décision et trace par la fonction responsable.",
+  "SOC : contrat de journalisation et runbooks ; DPO : analyses d'impact et violations ; juridique : contrats, divulgation, cadre des tests.",
+  "Achats : critères de déclenchement publiés et revue proportionnée ; produit : acceptation du risque dans des limites fixées.",
+  "L'affaire Sullivan montre ce que coûte une décision de notification prise dans un circuit fermé.",
+  "Une page « qui décide quoi », avec suppléants et traces, se teste avant la crise.",
+]} />
+
+<Sources items={[
+  { title: "Google, Building Secure and Reliable Systems, ch. 20", url: "https://google.github.io/building-secure-and-reliable-systems/raw/ch20.html" },
+  { title: "Google, Building Secure and Reliable Systems, ch. 21", url: "https://google.github.io/building-secure-and-reliable-systems/raw/ch21.html" },
+  { title: "U.S. Attorney's Office (N.D. Cal.), United States v. Joseph Sullivan", url: "https://www.justice.gov/usao-ndca/united-states-vs-joseph-sullivan" },
+  { title: "Help Net Security, condamnation de Joe Sullivan (5 mai 2023)", url: "https://www.helpnetsecurity.com/2023/05/05/joe-sullivan-sentenced/" },
+  { title: "CNIL, notifier une violation de données personnelles", url: "https://www.cnil.fr/fr/notifier-une-violation-de-donnees-personnelles" },
+  { title: "CNIL, le délégué à la protection des données", url: "https://www.cnil.fr/fr/designation-dpo" },
+]} />

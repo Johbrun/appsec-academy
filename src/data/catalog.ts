@@ -220,11 +220,12 @@ export const modules: ModuleMeta[] = [
       L('l03', 'Les 14 patterns', 1, ['D1'], 'Cinq familles de patterns de conception sécurisée.', [4]),
       L('l04', 'Les 4 anti-patterns', 1, ['D4'], 'Confused deputy, backflow of trust, third-party hooks, composants non patchables.', [4]),
       L('l05', 'Patterns d’architecture', 3, ['D4', 'D5'], 'Gateway, BFF, services, upload isolé et tokenisation.'),
-      L('l06', 'Conception d’interfaces', 3, ['D4'], 'Interfaces d’administration, de logs et entre services.'),
-      L('l07', 'Crypto pour développeurs', 2, ['D1', 'D5'], 'CSPRNG, MAC, signatures, KMS et agilité cryptographique.', [5]),
-      L('l08', 'Crypto : hash, nonces et métadonnées', 2, ['D1', 'D5'], 'Ce qu’un hash ne prouve pas, ce que fuit un nonce réutilisé, RSA brut et ce que le chiffrement laisse voir.', [5]),
-      L('l09', 'La spécification technique : le design doc', 2, ['D2', 'D4'], 'Hypothèses, périmètre, interfaces et données : le comment, relié à chaque exigence.', [6]),
-      L('l10', 'Mener une Security Design Review', 2, ['D4'], 'Six étapes et une priorisation Must / Ought / Should.', [7]),
+      L('l06', 'Architectures multi-tenant : silo, pool, bridge', 2, ['D4', 'D5'], 'Les façons d’isoler les clients d’un SaaS, leurs compromis, et le contrôle qui rend la fuite inter-tenants impossible plutôt que rare.'),
+      L('l07', 'Conception d’interfaces', 3, ['D4'], 'Interfaces d’administration, de logs et entre services.'),
+      L('l08', 'Crypto pour développeurs', 2, ['D1', 'D5'], 'CSPRNG, MAC, signatures, KMS et agilité cryptographique.', [5]),
+      L('l09', 'Crypto : hash, nonces et métadonnées', 2, ['D1', 'D5'], 'Ce qu’un hash ne prouve pas, ce que fuit un nonce réutilisé, RSA brut et ce que le chiffrement laisse voir.', [5]),
+      L('l10', 'La spécification technique : le design doc', 2, ['D2', 'D4'], 'Hypothèses, périmètre, interfaces et données : le comment, relié à chaque exigence.', [6]),
+      L('l11', 'Mener une Security Design Review', 2, ['D4'], 'Six étapes et une priorisation Must / Ought / Should.', [7]),
     ],
   },
   {
@@ -504,6 +505,12 @@ export const totalLessons = modules.reduce((s, m) => s + m.lessons.length, 0);
 export const lessonGames: Record<string, Record<string, string[]>> = {
   // Bloc A
   'm01-l05': { flashcards: ['vocabulaire'] },
+  'm22-l01': { 'attack-tactics': ['noms-parlants', 'echauffement'] },
+  'm22-l02': { 'attack-tactics': ['le-but'], flashcards: ['attack'] },
+  'm22-l03': { 'log-detective': ['saas', 'messagerie'] },
+  'm22-l04': { 'attack-mitigations': ['premier-rempart', 'piege-mfa'] },
+  'm22-l05': { 'attack-killchain': ['cas-de-la-lecon', 'sessions-jetons'] },
+  'm22-l06': { 'cti-mapper': ['sous-techniques', 'rapports-experts'] },
   'm32-l05': { flashcards: ['programme'] },
   // Bloc B
   'm25-l08': { referentiel: ['decouverte', 'echauffement'] },
@@ -527,8 +534,8 @@ export const lessonGames: Record<string, Record<string, string[]>> = {
   'm07-l04': { 'data-map': ['hors-de-la-base'] },
   'm08-l03': { 'pattern-match': ['premiers-reperes', 'mise-en-jambe'] },
   'm08-l04': { 'pattern-match': ['anti-patterns'] },
-  'm08-l09': { 'design-review': ['export'] },
-  'm08-l10': { 'design-review': ['partage', 'import-csv'], flashcards: ['concevoir'] },
+  'm08-l10': { 'design-review': ['export'] },
+  'm08-l11': { 'design-review': ['partage', 'import-csv'], flashcards: ['concevoir'] },
   'm09-l03': { 'oauth-debugger': ['bases'] },
   'm09-l05': { 'oauth-debugger': ['oidc-jwt'] },
   'm09-l06': { 'oauth-debugger': ['montee'], 'patch-or-pwn': ['cas-reels'] },
@@ -549,6 +556,7 @@ export const lessonGames: Record<string, Record<string, string[]>> = {
   'm14-l02': { 'workflow-audit': ['decouverte', 'mise-en-jambe'] },
   'm14-l04': { 'workflow-audit': ['faux-amis'] },
   'm14-l05': { 'supply-chain': ['registres'] },
+  'm14-l07': { 'tarball-inspector': ['premier-coup-d-oeil', 'archive-contre-depot'] },
   'm14-l08': { 'supply-chain': ['initiation', 'panorama'] },
   'm14-l11': { 'crise-j0': ['ver-npm'], flashcards: ['outiller'] },
   // Bloc E
@@ -560,6 +568,7 @@ export const lessonGames: Record<string, Record<string, string[]>> = {
   'm17-l08': { flashcards: ['cloud'] },
   // Bloc F
   'm18-l01': { 'log-detective': ['signature'] },
+  'm27-l03': { 'cti-mapper': ['premiers-rapports', 'entre-les-lignes'] },
   'm28-l03': { 'detection-builder': ['un-champ', 'le-bon-champ'] },
   'm28-l05': { 'log-detective': ['bruit', 'identite'], 'detection-builder': ['exclusions'] },
   'm05-l02': { flashcards: ['vulnerabilites'] },

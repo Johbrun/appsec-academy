@@ -1,17 +1,17 @@
 export const questions = [];
 
 <YouKnow>
-Tu as les risques métier de Novafact et son threat model. Cette étape répond à la question suivante : ce que le système doit garantir, sous forme d’exigences traçables jusqu’à leur preuve.
+Les risques métier de Novafact et son threat model sont posés. Cette étape répond à la question suivante : ce que le système doit garantir, sous forme d’exigences traçables jusqu’à leur preuve.
 </YouKnow>
 
 ## Étape 3 : exigences et traçabilité
 
-Après les risques et les menaces vient la question « **que doit garantir ce système ?** » (M12). Sans exigences, on ne peut ni concevoir, ni tester, ni prouver. Ton livrable de cette étape : une **matrice de traçabilité** qui relie chaque exigence à sa source, à son contrôle et à son test.
+Après les risques et les menaces vient la question « **que doit garantir ce système ?** » (M12). Sans exigences, on ne peut ni concevoir, ni tester, ni prouver. Livrable de cette étape : une **matrice de traçabilité** qui relie chaque exigence à sa source, à son contrôle et à son test.
 
 <Steps items={[
-  { title: "Classer les données", text: "Dresse l’inventaire des données de Novafact et classe-les : factures et IBAN (données personnelles et financières), identifiants, secrets, journaux. Note pour chacune sa sensibilité et son régime (RGPD, conservation légale des factures)." },
-  { title: "Choisir le niveau ASVS", text: "Novafact traite des données financières multi-tenant : vise ASVS niveau 2. Justifie ce choix en une phrase." },
-  { title: "Dériver les exigences", text: "Pour chaque chapitre ASVS pertinent (authentification, autorisation, validation, cryptographie, journalisation), retiens les exigences applicables. N’invente rien : pars de la liste ASVS." },
+  { title: "Classer les données", text: "Dressez l’inventaire des données de Novafact et classez-les : factures et IBAN (données personnelles et financières), identifiants, secrets, journaux. Notez pour chacune sa sensibilité et son régime (RGPD, conservation légale des factures)." },
+  { title: "Choisir le niveau ASVS", text: "Novafact traite des données financières multi-tenant : visez ASVS niveau 2. Justifiez ce choix en une phrase." },
+  { title: "Dériver les exigences", text: "Pour chaque chapitre ASVS pertinent (authentification, autorisation, validation, cryptographie, journalisation), retenez les exigences applicables. N’inventez rien : partez de la liste ASVS." },
   { title: "Ajouter les exigences métier", text: "Celles qu’aucun référentiel ne connaît : isolation stricte des tenants, immuabilité d’une facture émise, séparation des rôles pour les avoirs au-dessus d’un seuil." },
   { title: "Tracer", text: "Une ligne par exigence : identifiant, énoncé, source (ASVS ou métier), contrôle qui la satisfait, test qui la vérifie. Les colonnes contrôle et test se rempliront aux étapes suivantes." },
 ]} />
@@ -24,10 +24,10 @@ Après les risques et les menaces vient la question « **que doit garantir ce sy
 | NF-INT-01 | Une facture émise est immuable | Métier | Machine à états + contrainte en base | Test de transition interdite |
 | NF-AUTH-01 | Mots de passe vérifiés contre une base de fuites | ASVS 2.x | Contrôle à l’inscription et à la connexion | Test avec un mot de passe fuité connu |
 
-Vise une matrice de 15 à 25 lignes : assez pour couvrir le cœur, pas au point de devenir illisible. La classification des données oriente les priorités : ce qui touche les IBAN et les paiements passe avant le reste.
+Visez une matrice de 15 à 25 lignes : assez pour couvrir le cœur, pas au point de devenir illisible. La classification des données oriente les priorités : ce qui touche les IBAN et les paiements passe avant le reste.
 
 <Callout kind="tip">
-Range cette matrice à la racine de ton dossier de revue. C’est le document qui donne sa cohérence à tout le reste : chaque finding des étapes suivantes se rattache à une exigence, et chaque exigence finit avec un contrôle et un test.
+Rangez cette matrice à la racine du dossier de revue. C’est le document qui donne sa cohérence à tout le reste : chaque finding des étapes suivantes se rattache à une exigence, et chaque exigence finit avec un contrôle et un test.
 </Callout>
 
 ## Livrable de l’étape

@@ -13,7 +13,7 @@ export const m17: ExerciseDef[] = [
   P('secret-fallback', 'm17', 'Le secret de repli', 1, 'fix', 'CWE-1188', ['D7'],
     'La clé de signature a une valeur de repli codée en dur, utilisée quand la variable d’environnement est absente. Elle l’a été une fois en production.',
     'Faire échouer le démarrage plutôt que de continuer avec une valeur connue de tous.',
-    'server/lib/jwt.ts', ['m17/l01', 'm08/l07'],
+    'server/lib/jwt.ts', ['m17/l01', 'm08/l08'],
     'Un repli sur une valeur de développement est un échec silencieux, donc le pire type d’échec : l’application démarre, sert, et tous ses jetons sont forgeables. Échouer bruyamment au démarrage est ici le comportement sûr.', [5]),
 
   P('csp-permissive', 'm17', 'La CSP qui ne protège de rien', 2, 'fix', 'CWE-693', ['D7'],

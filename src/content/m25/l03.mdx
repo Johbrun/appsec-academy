@@ -1,0 +1,150 @@
+export const questions = [
+  {
+    q: "Un filtre de redirection valide next avec url.parse et accepte https://a.novafact.example%2eevil.test/ parce que l'hôte finit par novafact.example. Où le navigateur emmène-t-il l'utilisateur ?",
+    options: [
+      "Vers a.novafact.example, l'hôte que le filtre a validé",
+      "Vers a.novafact.example.evil.test, après décodage du %2e dans l'hôte",
+      "Nulle part : un hôte contenant un caractère encodé est rejeté comme invalide",
+      "Vers evil.test, le seul domaine enregistrable présent dans la chaîne",
+    ],
+    answer: 1,
+    explain: "L'analyseur WHATWG, celui des navigateurs et de new URL, décode les séquences %XX de l'hôte : %2e devient un point, et l'hôte réel est a.novafact.example.evil.test, un sous-domaine d'evil.test. L'ancien url.parse de Node s'arrête au %, renvoie a.novafact.example et range le reste dans le chemin. L'hôte est valide après décodage, et le navigateur ne cherche pas « le » domaine enregistrable : il résout le nom complet, qu'evil.test contrôle.",
+  },
+  {
+    q: "Laquelle de ces paires est same-site mais cross-origin, donc partage les cookies SameSite=Strict sans partager la same-origin policy ?",
+    options: [
+      "https://d111.cloudfront.net et https://d222.cloudfront.net",
+      "http://app.novafact.example et https://app.novafact.example",
+      "https://app.novafact.example et https://pr-1234.preview.novafact.example",
+      "https://app.novafact.example et https://app.novafact.example:443",
+    ],
+    answer: 2,
+    explain: "Les deux hôtes de Novafact partagent le domaine enregistrable novafact.example : même site, origines différentes. cloudfront.net figure dans la liste des suffixes publics, donc chaque sous-domaine est un site à part. HTTP et HTTPS sur le même hôte sont deux sites pour les navigateurs qui appliquent le site « schemeful », comme Chrome. Et 443 est le port par défaut de https : c'est la même origine.",
+  },
+  {
+    q: "Un service d'administration écoute sur 127.0.0.1:9091 sans authentification. Quelle mesure le protège d'un DNS rebinding lancé depuis une page web ?",
+    options: [
+      "Refuser toute requête dont l'en-tête Host n'est pas un nom attendu",
+      "Réduire le TTL de ses propres enregistrements DNS",
+      "N'écouter que sur 127.0.0.1, jamais sur 0.0.0.0",
+      "Ne pas renvoyer d'en-têtes CORS, pour que la page ne puisse rien lire",
+    ],
+    answer: 0,
+    explain: "Après le rebinding, le navigateur croit parler à attacker.test et envoie Host: attacker.test : le service qui exige un nom attendu refuse. Le TTL qui compte est celui du domaine de l'attaquant, qu'il choisit. Le navigateur de la victime est justement sur la machine, donc 127.0.0.1 est atteint. Et CORS ne joue pas : pour le navigateur, la requête vise la même origine que la page.",
+  },
+  {
+    q: "Un filtre construit new URL(next), vérifie que url.origin est dans une liste, puis appelle res.redirect(next) avec la chaîne reçue. Pourquoi reste-t-il fragile ?",
+    options: [
+      "Parce que new URL ne décode pas les séquences %XX dans l'hôte",
+      "Parce que url.origin ignore le port, si bien que :8443 passe le contrôle",
+      "Parce que res.redirect refuse les URL absolues et la redirection échoue",
+      "Parce que la chaîne émise n'est pas celle validée : encodage et reparsing peuvent diverger",
+    ],
+    answer: 3,
+    explain: "Le contrôle porte sur l'objet analysé, la sortie sur la chaîne brute, qu'Express encode puis que le navigateur reparse : deux transformations de plus entre ce qu'on a vérifié et ce qui part. C'est le schéma de CVE-2024-43796 (M7, leçon 6). Émettre url.href, la forme normalisée qu'on a validée, ferme l'écart. new URL décode bien l'hôte, origin inclut tout port non standard, et res.redirect accepte les URL absolues.",
+  },
+];
+
+<YouKnow>
+Un pentester a contourné des filtres d'URL avec `@`, des barres obliques inverses et des adresses en hexadécimal, et sait qu'un sous-domaine vulnérable est un tremplin. Cette leçon donne les définitions exactes derrière ces astuces : quel analyseur lit quoi, ce qu'est une origine, ce qu'est un site, et ce que la résolution DNS change entre deux lectures.
+</YouKnow>
+
+## Deux analyseurs qui ne s'accordent pas
+
+Il existe deux définitions d'une URL. Le **RFC 3986** décrit une grammaire stricte, écrite pour les protocoles. Le **URL Standard du WHATWG** décrit ce que font réellement les navigateurs, avec toutes leurs tolérances : barre oblique inverse traitée comme `/` pour les schémas spéciaux, décodage des `%XX` dans l'hôte, adresses IPv4 abrégées ou en hexadécimal normalisées. Les navigateurs, `new URL()` et `fetch` dans Node suivent le WHATWG. L'ancien `url.parse()` de Node suit ses propres règles ; sa documentation le dit non standard et sujet à l'usurpation de nom d'hôte. Python, Go, Java et curl ont chacun les leurs.
+
+La conséquence est mécanique : si le **contrôle** et l'**usage** ne passent pas par le même analyseur, ils ne voient pas forcément le même hôte. Voici ce que donnent les deux analyseurs de Node 22 sur quelques entrées :
+
+| Entrée | `url.parse()` : hôte | `new URL()` : hôte |
+| --- | --- | --- |
+| `http://a.novafact.example%2eevil.test/` | `a.novafact.example` | `a.novafact.example.evil.test` |
+| `http://127.1/` | `127.1` | `127.0.0.1` |
+| `http://0x7f000001/` | `0x7f000001` | `127.0.0.1` |
+| `https://evil.test#@novafact.example/` | `evil.test` | `evil.test` |
+
+La première ligne contourne un filtre `endsWith`. Les deux suivantes contournent une liste noire écrite pour `127.0.0.1` alors que la connexion, elle, finira bien sur la boucle locale. La dernière montre qu'un analyseur peut aussi avoir raison : l'astuce du `@` après un `#` ne trompe que les expressions régulières.
+
+<Callout kind="case">
+**Orange Tsai, « A New Era of SSRF » (Black Hat USA, 27 juillet 2017).** En comparant l'analyseur d'URL d'un filtre et le client HTTP qui fait la requête, dans Python, PHP, Perl, Ruby, Java, JavaScript, Wget et cURL, le chercheur a trouvé de nombreuses divergences, et des contournements de protections SSRF dans des applications comme WordPress, vBulletin ou GitHub Enterprise, où la chaîne a mené jusqu'à l'exécution de code. La cause racine qu'il nomme est exactement celle de cette section : l'incohérence entre l'analyseur qui valide et celui qui requête. Les parser differentials en général sont en M9 (leçon 7).
+</Callout>
+
+## Origine et site
+
+L'**origine** est le triplet schéma, hôte, port. Le port par défaut ne compte pas en plus : `https://app.novafact.example:443` est la même origine que `https://app.novafact.example`. Certains contextes ont une origine **opaque**, sérialisée `null` : une iframe en `sandbox` sans `allow-same-origin`, un document `data:`. Accepter `null` dans une liste CORS, c'est donc accepter n'importe quelle page qui se met dans ce contexte (M8, leçon 2).
+
+Le **site** est le schéma plus le **domaine enregistrable** : le suffixe public, plus une étiquette. Le suffixe public ne se devine pas à partir du nom : il vient de la **Public Suffix List**, lancée par Mozilla, maintenue comme ressource communautaire et embarquée dans les navigateurs. Elle contient les `.fr` et `.co.uk`, mais aussi des domaines privés où chaque client a son sous-domaine : `github.io`, `cloudfront.net`, `vercel.app`, `s3.amazonaws.com`. Deux distributions CloudFront ne sont donc pas le même site, alors que deux sous-domaines de `novafact.example` le sont.
+
+| Par rapport à `https://app.novafact.example` | Même origine | Même site |
+| --- | --- | --- |
+| `https://app.novafact.example:443/factures` | Oui | Oui |
+| `https://admin.novafact.example` | Non | Oui |
+| `https://pr-1234.preview.novafact.example` | Non | **Oui** |
+| `http://app.novafact.example` | Non | Non, pour les navigateurs qui appliquent le site « schemeful », comme Chrome |
+| `https://novafact-usercontent.example` | Non | Non |
+
+La troisième ligne est celle qui coûte cher. L'origine sert à la same-origin policy et à CORS ; le site sert à `SameSite`, à `Sec-Fetch-Site` et à l'isolation des processus. Tout ce qui tourne sous `novafact.example` (environnements de prévisualisation, centre d'aide d'un prestataire, documentation) est donc « du même site » que l'application, et un `CNAME` oublié vers une ressource supprimée offre ce statut à qui la reprend. C'est pour cette raison que Novafact sert les fichiers de ses clients depuis un domaine enregistrable séparé : ce n'est pas un sous-domaine qu'on isole, c'est un site.
+
+## Valider une URL : un seul analyseur, et émettre ce qu'on a validé
+
+Le cas le plus courant chez Novafact est la redirection après connexion, `?next=` :
+
+<Diff file="apps/bff/src/routes/login.ts" hlBefore="1,5,6" hlAfter="1-2,6-8">
+
+```ts
+import url from 'node:url';
+
+app.get('/auth/callback', async (req, res) => {
+  await completeLogin(req);
+  const next = String(req.query.next ?? '/');
+  if (url.parse(next).hostname?.endsWith('novafact.example')) return res.redirect(next);
+  res.redirect('/');
+});
+```
+
+```ts
+// Origines exactes : un suffixe accepte aussi evilnovafact.example
+const ALLOWED = new Set(['https://app.novafact.example', 'https://admin.novafact.example']);
+
+app.get('/auth/callback', async (req, res) => {
+  await completeLogin(req);
+  let target: URL;
+  try { target = new URL(String(req.query.next ?? '/'), 'https://app.novafact.example'); } catch { return res.redirect('/'); }
+  res.redirect(ALLOWED.has(target.origin) ? target.href : '/'); // on émet la forme qu'on a validée
+});
+```
+
+</Diff>
+
+Deux payloads cassent la version vulnérable : `https://evilnovafact.example/` (le suffixe sans point) et `https://a.novafact.example%2eevil.test/` (le différentiel du tableau). Le mauvais correctif classique, ajouter le point à `endsWith('.novafact.example')`, ne ferme que le premier. Et le filtre maison qui accepte « tout chemin commençant par `/` » tombe sur `/\evil.test` : un chemin pour lui, l'hôte `evil.test` pour le navigateur, qui lit `\` comme `/`. La version corrigée utilise l'analyseur du navigateur, compare une origine entière à une liste exacte, et émet `target.href`, pas la chaîne reçue.
+
+## DNS : la réponse peut changer entre deux lectures
+
+Un nom de domaine ne désigne pas une adresse, mais une réponse valable pendant son **TTL**, choisie par le serveur faisant autorité du domaine. Un attaquant qui contrôle `rebind.attacker.test` peut répondre son adresse publique, avec un TTL très court, puis `127.0.0.1` ou une adresse interne. C'est le **DNS rebinding**, et il frappe deux cibles :
+
+- **le navigateur** : la page de l'attaquant, chargée depuis son serveur, refait des requêtes vers le même nom, désormais résolu vers la boucle locale. Pour la same-origin policy, rien n'a changé : même schéma, même hôte, même port. La page lit donc les réponses d'un service local ;
+- **le serveur** : un filtre SSRF qui résout le nom pour le vérifier, puis laisse le client HTTP le résoudre à nouveau, voit deux réponses différentes. La correction (résoudre une fois, vérifier l'adresse, se connecter à elle) est en M7 (leçon 3) et en M9 (leçon 11).
+
+<Callout kind="case">
+**Transmission, janvier 2018.** Tavis Ormandy (Google Project Zero) a montré que le démon du client BitTorrent Transmission, qui écoute sur le port 9091, pouvait être piloté depuis n'importe quelle page web par DNS rebinding. Le jeton de session `X-Transmission-Session-Id` ne protégeait de rien : la page, devenue « même origine » que le service local, pouvait le lire. Le correctif proposé ajoutait une vérification de l'en-tête `Host`, la défense de base de tout service HTTP local ou interne : refuser les noms qu'on n'attend pas.
+</Callout>
+
+Côté navigateur, Chrome ajoute depuis la version 142 une permission « accès au réseau local » demandée avant qu'un site public ne contacte une adresse locale. C'est une barrière utile, pas une raison de laisser un service local sans authentification ni contrôle du `Host`.
+
+<Recap items={[
+  "Deux grammaires d'URL : le WHATWG pour les navigateurs et new URL, d'autres pour url.parse, curl ou Python. Contrôle et usage passent par le même analyseur.",
+  "Origine = schéma, hôte, port. Site = schéma et domaine enregistrable, défini par la Public Suffix List.",
+  "Tout ce qui vit sous novafact.example est du même site : prévisualisations, prestataires, CNAME orphelins. Le contenu non fiable va sur un autre domaine enregistrable.",
+  "Valider une redirection : new URL, origine exacte dans une liste, et émettre href, pas la chaîne reçue.",
+  "Le DNS rebinding contourne la SOP côté navigateur et les filtres SSRF côté serveur ; un service local vérifie le Host.",
+]} />
+
+<Sources items={[
+  { title: "WHATWG : URL Standard", url: "https://url.spec.whatwg.org/" },
+  { title: "RFC 3986 : Uniform Resource Identifier, syntaxe générique", url: "https://www.rfc-editor.org/rfc/rfc3986" },
+  { title: "Node.js : API URL (avertissement sur url.parse)", url: "https://nodejs.org/api/url.html" },
+  { title: "Public Suffix List", url: "https://publicsuffix.org/" },
+  { title: "Orange Tsai : A New Era of SSRF, Black Hat USA 2017 (support)", url: "https://www.blackhat.com/docs/us-17/thursday/us-17-Tsai-A-New-Era-Of-SSRF-Exploiting-URL-Parser-In-Trending-Programming-Languages.pdf" },
+  { title: "oss-security : Transmission, DNS rebinding (Tavis Ormandy, 11 janvier 2018)", url: "https://www.openwall.com/lists/oss-security/2018/01/11/1" },
+  { title: "Chrome for Developers : Local Network Access", url: "https://developer.chrome.com/blog/local-network-access" },
+  { title: "MDN : Same-origin policy", url: "https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy" },
+]} />

@@ -204,7 +204,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Une même route sert les réglages du tenant et ceux de la plateforme, discriminés par un champ du corps de la requête.',
     goal: 'Modifier un réglage global de la plateforme depuis un compte tenant ordinaire.',
     file: 'server/routes/settings.ts',
-    lessons: ['m02/l01', 'm08/l06'],
+    lessons: ['m02/l01', 'm08/l07'],
     hints: [
       'PUT /api/settings ne sert pas que les réglages du tenant.',
       'Un champ du corps de la requête décide du périmètre de l’écriture.',
@@ -464,7 +464,7 @@ export const billing: ExerciseDef[] = [
     brief: 'Le gabarit d’e-mail éditable par le tenant est compilé par le moteur de template : l’entrée arrive dans la partie *gabarit*, pas dans les données.',
     goal: 'Faire apparaître dans le message rendu une valeur du processus serveur — le secret de signature des jetons.',
     file: 'server/routes/templates.ts',
-    lessons: ['m03/l08', 'm08/l06'],
+    lessons: ['m03/l08', 'm08/l07'],
     hints: [
       'PUT /api/templates/TPL-1 laisse réécrire le gabarit de relance, et l’aperçu le compile.',
       'Ce que tu écris entre `{{` et `}}` n’est pas une donnée du rendu : c’est une expression du programme qui rend.',
@@ -479,7 +479,7 @@ export const billing: ExerciseDef[] = [
     brief: 'La recherche de clients relaie la requête vers une API interne en concaténant les paramètres reçus.',
     goal: 'Injecter un paramètre supplémentaire dans l’appel interne pour obtenir des champs non prévus.',
     file: 'server/routes/clients.ts',
-    lessons: ['m03/l03', 'm08/l06'],
+    lessons: ['m03/l03', 'm08/l07'],
     hints: [
       'GET /api/clients relaie ta recherche vers un service interne — et la réponse te montre la requête sortante.',
       'Elle est construite par concaténation : un `&` dans ton terme de recherche y devient un séparateur de paramètres.',

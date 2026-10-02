@@ -1,12 +1,12 @@
 export const questions = [];
 
 <YouKnow>
-Le capstone n’enseigne rien de neuf : il te fait produire, étape par étape et dans l’ordre du cycle de développement, la revue de sécurité complète de Novafact. À la fin, tu auras un livrable présentable, comme celui qu’on remet à un client ou à sa direction. L’analyse de risques de l’étape 1 a dit quelles valeurs métier protéger ; cette étape dit contre quoi : le threat model de Novafact, avec la méthode du module 11.
+Le capstone n’enseigne rien de neuf : il fait produire, étape par étape et dans l’ordre du cycle de développement, la revue de sécurité complète de Novafact. À la fin, le dossier forme un livrable présentable, comme celui qu’on remet à un client ou à sa direction. L’analyse de risques de l’étape 1 a dit quelles valeurs métier protéger ; cette étape dit contre quoi : le threat model de Novafact, avec la méthode du module 11.
 </YouKnow>
 
 ## L’objectif du capstone
 
-Quinze étapes, un fil rouge unique : **Novafact**, le SaaS de facturation multi-tenant que tu connais depuis le début du parcours. Chaque étape réutilise un module du parcours et produit un morceau du dossier final. Travaille dans un dépôt (ou un document) que tu enrichis à chaque étape ; le résultat est un livrable réutilisable, pas un exercice jetable.
+Quinze étapes, un fil rouge unique : **Novafact**, le SaaS de facturation multi-tenant qui sert de fil rouge depuis le début du parcours. Chaque étape réutilise un module du parcours et produit un morceau du dossier final. Travaillez dans un dépôt (ou un document) enrichi à chaque étape ; le résultat est un livrable réutilisable, pas un exercice jetable.
 
 <Callout kind="novafact">
 Rappel de l’architecture : SPA React/Vite, back-office Next.js, API Express, MongoDB et PostgreSQL (Prisma), Cognito pour l’identité, un BFF, un assistant IA avec MCP, le tout sur AWS, livré par GitHub Actions et observé dans Elastic.
@@ -14,18 +14,18 @@ Rappel de l’architecture : SPA React/Vite, back-office Next.js, API Express, M
 
 ## Étape 2 : le threat model de Novafact
 
-Le threat model couvre l’**architecture** ; les design docs de l’étape 4 couvriront chaque fonctionnalité. Ton livrable : un modèle de menaces structuré, avec un DFD, les menaces par STRIDE et les contre-mesures, priorisées.
+Le threat model couvre l’**architecture** ; les design docs de l’étape 4 couvriront chaque fonctionnalité. Livrable : un modèle de menaces structuré, avec un DFD, les menaces par STRIDE et les contre-mesures, priorisées.
 
 ## Dessiner le DFD
 
-Reprends le diagramme de flux de données que tu connais (c’est celui du jeu STRIDE Cards) : les entités externes (utilisateur, Stripe), les processus (BFF, API, assistant IA, worker PDF), les stores (Postgres, S3, logs Elastic), et surtout la **frontière de confiance** autour de l’infrastructure AWS.
+Reprenez le diagramme de flux de données déjà vu (c’est celui du jeu STRIDE Cards) : les entités externes (utilisateur, Stripe), les processus (BFF, API, assistant IA, worker PDF), les stores (Postgres, S3, logs Elastic), et surtout la **frontière de confiance** autour de l’infrastructure AWS.
 
 <Steps items={[
-  { title: "Cartographier", text: "Points d’entrée, processus, stockages, flux. Marque les frontières de confiance : entre le navigateur et le BFF, entre l’API et l’assistant, entre Novafact et Stripe." },
-  { title: "Appliquer STRIDE par élément", text: "Pour chaque processus et chaque flux, parcours Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege." },
-  { title: "Retenir les menaces crédibles", text: "N’écris pas une menace par case : garde celles qui ont un sens pour Novafact, avec un scénario concret." },
+  { title: "Cartographier", text: "Points d’entrée, processus, stockages, flux. Marquez les frontières de confiance : entre le navigateur et le BFF, entre l’API et l’assistant, entre Novafact et Stripe." },
+  { title: "Appliquer STRIDE par élément", text: "Pour chaque processus et chaque flux, parcourez Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege." },
+  { title: "Retenir les menaces crédibles", text: "N’écrivez pas une menace par case : gardez celles qui ont un sens pour Novafact, avec un scénario concret." },
   { title: "Associer une contre-mesure", text: "Chaque menace retenue reçoit une parade, qui deviendra une exigence à l’étape 3, et à un module du parcours." },
-  { title: "Prioriser", text: "Trie par impact et vraisemblance, en reprenant l’échelle de l’analyse de risques (étape 1, M10), sans additionner des notes arbitraires : des tailles de t-shirt suffisent." },
+  { title: "Prioriser", text: "Triez par impact et vraisemblance, en reprenant l’échelle de l’analyse de risques (étape 1, M10), sans additionner des notes arbitraires : des tailles de t-shirt suffisent." },
 ]} />
 
 ## Un extrait attendu
@@ -40,10 +40,10 @@ Reprends le diagramme de flux de données que tu connais (c’est celui du jeu S
 
 ## Le threat model est vivant
 
-Note dans ton livrable **quand** ce modèle sera revu : à chaque changement d’architecture, à chaque nouvelle intégration tierce, et au minimum une fois par trimestre. Un threat model figé dans un document que personne ne rouvre ne vaut rien (M11). Rattache-le au dépôt, à côté du registre des risques.
+Notez dans le livrable **quand** ce modèle sera revu : à chaque changement d’architecture, à chaque nouvelle intégration tierce, et au minimum une fois par trimestre. Un threat model figé dans un document que personne ne rouvre ne vaut rien (M11). Rattachez-le au dépôt, à côté du registre des risques.
 
 <Callout kind="tip">
-Prévois le lien avec l’étape 4 : la fonctionnalité de paiement que tu y concevras devra apparaître dans ce modèle. Un threat model qui ne connaît pas la dernière fonctionnalité livrée est déjà en retard.
+Prévoyez le lien avec l’étape 4 : la fonctionnalité de paiement conçue à cette étape devra apparaître dans ce modèle. Un threat model qui ne connaît pas la dernière fonctionnalité livrée est déjà en retard.
 </Callout>
 
 ## Livrable de l’étape

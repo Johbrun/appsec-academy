@@ -1,0 +1,182 @@
+export const questions = [
+  {
+    q: "Dans Open FAIR, que désigne la « vulnérabilité » (ou susceptibilité) d'un actif ?",
+    options: [
+      "Le nombre de failles connues sur l'actif, pondéré par leur score CVSS",
+      "La probabilité que la capacité de la menace dépasse la force de résistance",
+      "La part des pertes primaires qui déclenche des pertes secondaires",
+      "La fréquence à laquelle une source de menace entre en contact avec l'actif",
+    ],
+    answer: 1,
+    explain: "C'est le piège du vocabulaire : en FAIR, la vulnérabilité n'est pas une faille mais une probabilité, celle qu'un événement de menace devienne un événement de perte, parce que la capacité de l'attaquant dépasse la résistance des contrôles. C'est pour éviter la confusion avec le sens courant que The Open Group a reconnu « susceptibility » comme synonyme. La fréquence de contact est en amont, dans la fréquence des événements de menace ; la part qui déclenche des pertes secondaires est une autre branche.",
+  },
+  {
+    q: "Deux scénarios ont la même perte annuelle moyenne, environ 30 000 €. Pourquoi ne pas les traiter pareil ?",
+    options: [
+      "Parce que leur fréquence diffère, et que la fréquence pèse plus que la perte",
+      "Parce que le plus rare a forcément un intervalle de confiance plus étroit",
+      "Parce que la moyenne cache la queue : l'un peut dépasser un million, l'autre non",
+      "Parce que la moyenne ne compte que les pertes primaires",
+    ],
+    answer: 2,
+    explain: "La fréquence diffère bien, mais elle ne pèse pas « plus » par principe : c'est la forme de la distribution qui compte. Un événement fréquent et borné ne menace jamais l'entreprise ; un événement rare à pertes très dispersées a une petite chance de coûter des millions, et c'est ce que la courbe de dépassement montre et que la moyenne efface. Le plus rare a souvent l'intervalle le plus large, pas le plus étroit, et la moyenne inclut les pertes secondaires si on les modélise.",
+  },
+  {
+    q: "Selon FAIR-CAM, quel est le rôle d'un test automatique qui vérifie chaque nuit que la MFA est toujours imposée aux comptes des cabinets comptables ?",
+    options: [
+      "Un contrôle de prévention des événements de perte, comme la MFA elle-même",
+      "Un contrôle de détection, puisqu'il signale une anomalie",
+      "Un contrôle d'aide à la décision, puisqu'il alimente le registre des risques",
+      "Un contrôle de gestion de la variance, qui maintient l'efficacité d'un autre contrôle",
+    ],
+    answer: 3,
+    explain: "La détection est le distracteur naturel : le test signale bien quelque chose. Mais il ne détecte pas un attaquant ; il détecte la dérive d'un contrôle. FAIR-CAM range ces contrôles dans la gestion de la variance, qui garde les contrôles de perte efficaces dans le temps. La MFA, elle, est la prévention ; et l'aide à la décision vise la qualité des choix (objectifs, incitations, retours), pas l'état d'une configuration.",
+  },
+  {
+    q: "Le comité demande la perte annuelle d'un scénario « au centime près ». Quelle réponse lui donner ?",
+    options: [
+      "Une fourchette et des probabilités de dépassement, avec les hypothèses écrites",
+      "La moyenne de la simulation, arrondie au millier d'euros, sans fausse précision",
+      "Le 99e centile, pour couvrir le pire cas raisonnable",
+      "La médiane, plus robuste que la moyenne aux valeurs extrêmes",
+    ],
+    answer: 0,
+    explain: "Arrondir la moyenne garde l'illusion d'un chiffre unique ; le 99e centile seul exagère et masque la probabilité ; la médiane est souvent nulle pour un événement rare (la plupart des années, rien n'arrive), ce qui serait trompeur. Ce que FAIR apporte, c'est l'incertitude rendue lisible : « 45 % de chances d'une perte dans l'année, 4 % de dépasser 500 000 € », avec la source de chaque estimation.",
+  },
+];
+
+<YouKnow>
+En pentest, on sait estimer la difficulté d'une attaque mieux que quiconque dans la salle. FAIR demande de transformer ce savoir en fourchettes de fréquence et de pertes, et d'accepter d'écrire « entre 10 et 60 tentatives par an » plutôt que « élevée ».
+</YouKnow>
+
+## Pourquoi quantifier, et quand
+
+La leçon 3 a montré que les matrices départagent mal les risques. La quantification répond à une question que la matrice ne traite pas : **combien vaut la réduction d'un risque, comparée à son coût ?** Elle n'est pas faite pour tout. On la réserve aux décisions où l'ordre de grandeur change le choix : financer un chantier, comparer deux mesures, ou accepter longtemps un risque important. M30 (leçon 3) montre comment présenter le résultat à une direction ; ici, on construit l'analyse.
+
+La référence est **Open FAIR**, publiée par The Open Group en deux standards : la taxonomie (O-RT, version 3.1) et la méthode d'analyse (O-RA, version 2.1), mises à jour le 22 mai 2025. Selon The Open Group, les changements sont limités, surtout pour tenir compte de la nouvelle fonction *Govern* du NIST CSF 2.0.
+
+## La taxonomie
+
+FAIR décompose le risque en deux branches, chacune exprimée en fourchettes :
+
+| Facteur | Ce qu'il mesure | Il se décompose en |
+| --- | --- | --- |
+| **Fréquence des événements de perte** (LEF) | Combien de fois par an une perte survient | Fréquence des événements de menace × susceptibilité |
+| Fréquence des événements de menace (TEF) | Combien de tentatives par an | Fréquence de contact × probabilité de passage à l'acte |
+| **Susceptibilité** (vulnérabilité au sens FAIR) | Quelle part des tentatives réussit | Probabilité que la capacité de la menace dépasse la force de résistance |
+| **Ampleur des pertes** (LM) | Combien coûte chaque événement | Pertes primaires + pertes secondaires |
+| Pertes secondaires | Ce que coûtent les réactions des tiers | Fréquence des pertes secondaires × ampleur |
+
+Le mot « vulnérabilité » piège les profils techniques : en FAIR, ce n'est pas une faille, c'est une **probabilité**. The Open Group a d'ailleurs reconnu *susceptibility* comme synonyme accepté, pour éviter la confusion.
+
+Les pertes se rangent en six formes, utiles pour ne rien oublier :
+
+| Forme | Chez Novafact, pour le scénario « IBAN détourné » |
+| --- | --- |
+| Productivité | Facturation suspendue pour le tenant touché pendant l'enquête |
+| Réponse | Investigation, support, gestes commerciaux, avocats |
+| Remplacement | Rarement : refaire un composant compromis |
+| Amendes et condamnations | Contentieux avec le client, sanction si des données personnelles fuient |
+| Avantage concurrentiel | Appels d'offres perdus faute de pouvoir rassurer |
+| Réputation | Clients grands comptes qui résilient, coût d'acquisition qui monte |
+
+## Cadrer, puis estimer
+
+Une analyse FAIR échoue le plus souvent au cadrage. Un scénario doit nommer **un actif, une communauté de menace, un effet et une méthode**. Reprenons le scénario opérationnel de la leçon 2 : *un fraudeur compromet le compte d'un cabinet comptable par phishing et modifie l'IBAN du modèle de facture d'un client*. « Le risque de fraude » serait trop large pour être estimé.
+
+Chaque entrée est ensuite une **fourchette à 90 %** : deux bornes entre lesquelles l'estimateur parie à 90 % que la vraie valeur se trouve. Hubbard et Seiersen (*How to Measure Anything in Cybersecurity Risk*, 2e édition, Wiley, 2023) montrent que la plupart des gens sont trop sûrs d'eux et proposent un entraînement à la calibration ; un test simple consiste à se demander si l'on préférerait parier sur sa fourchette ou sur une roue qui gagne neuf fois sur dix.
+
+| Entrée (avant mesures) | Fourchette à 90 % | D'où elle vient |
+| --- | --- | --- |
+| Tentatives par an | 10 à 60 | Signalements de phishing des cabinets, journaux de connexion |
+| Susceptibilité | 1 % à 5 % | Aucune MFA, aucune revalidation d'IBAN |
+| Pertes primaires | 5 000 à 60 000 € par événement | Coût d'une enquête interne, gestes commerciaux passés |
+| Pertes secondaires | 30 % des cas, 50 000 à 800 000 € | Valeur annuelle d'un client grand compte, frais juridiques |
+
+## Une distribution, pas un produit
+
+L'erreur classique est la formule de l'*annualized loss expectancy* : fréquence × perte unitaire, un chiffre unique. Elle répond à la mauvaise question.
+
+<Diff file="tools/risk/ale.ts" hlBefore="2,3" hlAfter="3,4,5,6,7,8">
+
+```ts
+// Un chiffre, aucune incertitude, aucune queue.
+export const ale = (aro: number, sle: number) => aro * sle;
+ale(0.2, 150_000); // 30 000 € par an
+```
+
+```ts
+// La question utile : quelle chance de perdre plus de X dans l'année ?
+// S1 : fréquent et borné ; S2 : rare et très dispersé. Même moyenne.
+const s1 = simulate({ perYear: 0.2, loss90: [100_000, 220_000] });
+const s2 = simulate({ perYear: 0.01, loss90: [250_000, 10_000_000] });
+s1.mean, s2.mean;                 // ≈ 30 000 € tous les deux
+s1.exceeds(1e6), s2.exceeds(1e6); // ≈ 0 contre ≈ 0,7 % : une chance sur 150
+```
+
+</Diff>
+
+Le « correctif » paresseux serait d'ajouter une marge de sécurité à l'ALE : il ne distingue toujours pas S1 de S2. Seule la distribution montre que S2 peut coûter dix millions une année donnée. La simulation qui produit ces chiffres tient en quelques lignes ; elle tire les pertes dans une loi lognormale, qui ne descend jamais sous zéro et garde une longue queue :
+
+<Code file="tools/risk/fair.ts" hl="5,6,7,15,16,17">
+
+```ts
+// Esquisse pédagogique : Math.random suffit pour une simulation.
+const gauss = () => { let u = 0; while (!u) u = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random()); };
+// Une fourchette à 90 % couvre ±1,645 écart-type, soit 3,29 au total.
+export const from90 = (lo: number, hi: number) => {
+  const mu = (Math.log(lo) + Math.log(hi)) / 2, sigma = (Math.log(hi) - Math.log(lo)) / 3.29;
+  return () => Math.exp(mu + sigma * gauss()); };
+const poisson = (l: number) => { let k = 0, p = 1; const L = Math.exp(-l);
+  do { k++; p *= Math.random(); } while (p > L); return k - 1; };
+
+export function simulate({ perYear, loss90, runs = 100_000 }:
+  { perYear: number; loss90: [number, number]; runs?: number }) {
+  const loss = from90(...loss90);
+  const years = Array.from({ length: runs }, () => {
+    let total = 0; // perte totale d'une année simulée
+    for (let i = poisson(perYear); i > 0; i--) total += loss();
+    return total; });
+  return { mean: years.reduce((a, b) => a + b, 0) / runs,
+           exceeds: (x: number) => years.filter((y) => y > x).length / runs };
+}
+```
+
+</Code>
+
+Avec les entrées du tableau (et une branche pour les pertes secondaires), la simulation du scénario IBAN donne : environ **45 % de chances** d'au moins une perte dans l'année, **4 %** de dépasser 500 000 €, **1 %** de dépasser un million, pour une perte moyenne autour de 80 000 €. Avec la MFA imposée aux cabinets et la revalidation des IBAN, la susceptibilité tombe à 0,1 % – 1 % : environ 10 % de chances d'une perte, 0,5 % de dépasser 500 000 €. Tracée, la proportion d'années qui dépassent chaque montant forme la **courbe de dépassement des pertes** ; Hubbard et Seiersen proposent de la confronter à une **courbe de tolérance** fixée par la direction, qui traduit l'appétence de la leçon 1 en chiffres.
+
+<Callout kind="case">
+**Maersk et NotPetya (2017).** Dans ses résultats du deuxième trimestre, publiés en août 2017, le groupe estime l'impact de l'attaque **entre 200 et 300 millions de dollars**, surtout par interruption d'activité. Deux enseignements pour FAIR : même après coup, une entreprise exprime sa perte en fourchette, et la forme de perte dominante n'est pas celle qu'un technicien attend (la productivité, pas le remplacement des machines).
+</Callout>
+
+## L'effet des contrôles : FAIR-CAM
+
+Ajouter un contrôle ne retranche pas un pourcentage fixe au risque : son effet dépend des autres. Le **FAIR Controls Analytics Model**, lancé par le FAIR Institute en octobre 2021, classe les contrôles en trois domaines fonctionnels :
+
+| Domaine | Rôle | Exemples Novafact |
+| --- | --- | --- |
+| **Contrôles des événements de perte** | Prévenir, détecter, répondre | MFA des cabinets (prévention), alerte Elastic sur changement d'IBAN (détection), procédure de rappel de virement avec la banque (réponse) |
+| **Gestion de la variance** | Garder les autres contrôles efficaces dans le temps | Test nocturne qui vérifie que la MFA reste imposée ; test qui déclenche l'alerte |
+| **Aide à la décision** | Aligner les décisions sur les objectifs | Registre des risques revu, indicateurs, responsabilités claires (leçon 5) |
+
+La conséquence pratique : une détection sans réponse ne réduit presque rien, et une MFA sans contrôle de dérive perd son effet le jour où une exception est ajoutée « temporairement ».
+
+<Recap items={[
+  "Quantifier pour comparer une réduction de risque à son coût, sur quelques décisions importantes.",
+  "Open FAIR (O-RT v3.1, O-RA v2.1, mai 2025) : fréquence des pertes × ampleur, chacune décomposée.",
+  "En FAIR, la vulnérabilité (susceptibilité) est une probabilité, pas une faille.",
+  "Cadrer un scénario précis, puis estimer des fourchettes à 90 % calibrées et sourcées.",
+  "Simuler et lire la courbe de dépassement : la moyenne cache la queue.",
+  "FAIR-CAM : prévention, détection, réponse, mais aussi gestion de la variance et aide à la décision.",
+]} />
+
+<Sources items={[
+  { title: "The Open Group, mise à jour d'Open FAIR (O-RT v3.1, O-RA v2.1, 22 mai 2025)", url: "https://blog.opengroup.org/2025/05/22/exciting-updates-for-the-open-fair-body-of-knowledge-and-certification-program" },
+  { title: "FAIR Institute, « Vulnerability » is « Susceptibility », the Open Group says", url: "https://www.fairinstitute.org/blog/fair-risk-terminology-vulnerability-is-susceptibility-the-open-group-says" },
+  { title: "FAIR Institute, lancement de FAIR-CAM (20 octobre 2021)", url: "https://www.fairinstitute.org/fair-newsroom/fair-institute-introduces-fair-cam-to-help-cybersecurity-teams-assess-effectiveness-of-risk-management-controls-to-make-more-cost-effective-business-decisions" },
+  { title: "FAIR Institute, 3 New Ways to Think about Cybersecurity Controls (FAIR-CAM)", url: "https://www.fairinstitute.org/blog/3-new-ways-to-think-about-cybersecurity-controls" },
+  { title: "Hubbard et Seiersen, How to Measure Anything in Cybersecurity Risk, 2e éd. (Wiley, 2023)", url: "https://www.wiley.com/en-us/How+to+Measure+Anything+in+Cybersecurity+Risk,+2nd+Edition-p-9781119892304" },
+  { title: "Computer Weekly, NotPetya attack cost up to $300m, says Maersk (août 2017)", url: "https://www.computerweekly.com/news/450424559/NotPetya-attack-cost-up-to-300m-says-Maersk" },
+]} />

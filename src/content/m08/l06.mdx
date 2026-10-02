@@ -1,0 +1,179 @@
+export const questions = [
+  {
+    q: "Un grand compte exige d'être isolé des autres clients de Novafact. Quelle proposition tient la promesse sans casser l'exploitation ?",
+    options: [
+      "Un compte AWS dédié, déployé par le même pipeline et à la même version que le pool",
+      "Un schéma PostgreSQL dédié dans la base partagée, avec ses propres migrations",
+      "Une instance de l'application dédiée, avec une variante du code adaptée à ses besoins",
+      "Un bucket S3 dédié, le reste de la pile (base, API, files) restant mutualisé",
+    ],
+    answer: 0,
+    explain: "Un compte AWS est une frontière que l'API IAM fait respecter, et le déployer comme un clone du pool garde une seule version à opérer. Le schéma dédié est le distracteur sérieux : il isole par convention (le search_path de la connexion), pas par une frontière, et multiplie les migrations. Une variante de code par client recrée exactement ce que le SaaS cherche à éviter : N produits à patcher. Un bucket dédié n'isole qu'une ressource parmi d'autres.",
+  },
+  {
+    q: "La RLS est activée, forcée, et l'API utilise un rôle non propriétaire. La table des factures porte une contrainte UNIQUE (number). Que peut encore apprendre un tenant sur les autres ?",
+    options: [
+      "Rien : la RLS filtre aussi les vérifications de contraintes d'unicité",
+      "Le contenu des factures en double, renvoyé dans le message d'erreur",
+      "Qu'un numéro de facture existe déjà ailleurs, par l'échec de son INSERT",
+      "Rien, tant que les identifiants de facture sont des UUID aléatoires",
+    ],
+    answer: 2,
+    explain: "La documentation de PostgreSQL le précise : les contrôles d'intégrité (unicité, clés étrangères) contournent toujours la RLS. Un INSERT refusé révèle qu'un autre tenant possède ce numéro, ce qui forme un canal caché. La correction est dans le modèle : UNIQUE (tenant_id, number). Le message d'erreur nomme la contrainte, pas la ligne de l'autre tenant ; et les UUID protègent la clé primaire, pas un numéro métier séquentiel.",
+  },
+  {
+    q: "Novafact passe une Lambda de rendu PDF en mode « tenant isolation ». Qu'est-ce que cela garantit ?",
+    options: [
+      "Chaque tenant reçoit un rôle d'exécution distinct, limité à ses propres objets S3",
+      "Un environnement d'exécution n'est jamais réutilisé pour un autre tenant",
+      "La fonction refuse tout tenant-id absent du jeton Cognito de l'appelant",
+      "Les invocations d'un tenant ne consomment plus la concurrence des autres",
+    ],
+    answer: 1,
+    explain: "Le mode isole les environnements d'exécution (mémoire, /tmp, variables globales) entre tenants. La documentation AWS précise que le rôle d'exécution reste commun à tous les tenants : sans politique dynamique, la fonction peut toujours lire les objets d'un autre. Le tenant-id est fourni par l'appelant, Lambda ne le vérifie pas contre un jeton. La concurrence de la fonction reste partagée.",
+  },
+  {
+    q: "L'API vérifie qu'une clé S3 appartient au tenant par key.startsWith(tenantSlug). Quel tenant casse ce contrôle ?",
+    options: [
+      "Un tenant dont le slug contient une barre oblique, comme « acme/ »",
+      "Un tenant qui encode sa clé en URL pour masquer le préfixe attendu",
+      "Un tenant « acme-labs » qui demande des objets du tenant « acme »",
+      "Un tenant « acme » qui demande des objets du tenant « acme-labs »",
+    ],
+    answer: 3,
+    explain: "« acme-labs/facture.pdf » commence bien par « acme » : le préfixe sans séparateur couvre tous les tenants dont le slug prolonge celui du demandeur. Dans l'autre sens, « acme/… » ne commence pas par « acme-labs », donc le contrôle tient. Le correctif inclut le séparateur (tenant + '/'), et surtout retire la décision au code : une politique IAM sur novafact-attachments/${aws:PrincipalTag/tenant_id}/* que S3 applique lui-même.",
+  },
+];
+
+<YouKnow>
+Un pentester a déjà changé un identifiant dans une URL et vu la facture d'un autre client. En pentest, on s'arrête au constat de BOLA. Ici, la question remonte d'un cran : quelle architecture rend cette fuite impossible, à quel prix, et pour quels clients.
+</YouKnow>
+
+## Trois modèles, une seule question
+
+La leçon 2 de M14 traite l'isolation côté code : middleware qui charge la ressource, DAL filtrée, RLS. Ici, on prend la décision d'avant : **qu'est-ce qu'on partage entre clients ?** AWS nomme trois réponses :
+
+- **silo** : chaque tenant a ses propres ressources, jusqu'à une pile complète dans un compte AWS dédié ;
+- **pool** : tous les tenants partagent les ressources, un identifiant de tenant sépare les données ;
+- **bridge** : un mélange, choisi couche par couche (front mutualisé, stockage dédié) ou par niveau d'abonnement.
+
+Microsoft dit la même chose avec d'autres mots et insiste : l'isolation est un **continuum**, chaque composant y a sa place. AWS ajoute une distinction utile : **authentifier et autoriser n'est pas isoler**. Un utilisateur authentifié, avec le bon rôle, peut encore lire les ressources d'un autre tenant. Et **partitionner** (une colonne `tenant_id`) n'isole rien tant qu'aucun mécanisme ne fait respecter la partition.
+
+## Ce que coûte chaque modèle
+
+| Critère | Silo (compte ou base par tenant) | Schéma par tenant | Pool (`tenant_id` + RLS) |
+| --- | --- | --- | --- |
+| Frontière | IAM, réseau, compte : imposée par le fournisseur | Convention de connexion (`search_path`, rôle) | Le moteur (RLS) ou le code |
+| Rayon d'impact | Un tenant | Une base | Tous les tenants |
+| Coût | Élevé, linéaire, ressources inactives | Moyen | Faible, suit la charge |
+| Exploitation | N déploiements, quotas de comptes | N schémas à migrer | Un seul déploiement |
+| Voisin bruyant | Absent | Partiel (même instance) | À traiter : quotas par tenant |
+| Résidence des données | Simple : le compte est dans la région | Moyenne | Un pool par région |
+| Personnalisation | Tentante, et dangereuse | Limitée | Par configuration seulement |
+
+AWS est net sur le silo : aucune variation au cas par cas. Un client « premium » à qui l'on accorde une version figée, et l'éditeur se retrouve avec N produits à patcher. Le silo est un **clone** du pool qui sert un seul tenant, même version, même pipeline.
+
+## Comment chaque modèle fuit
+
+Le contrôle qui compte est celui qui rend la fuite **impossible**, pas celui qui la rend rare.
+
+**Silo.** Les données ne se mélangent pas, mais le **plan de contrôle** reste partagé : la table qui associe un tenant à son déploiement, le rôle d'exploitation qui assume tous les comptes, le pipeline. Une erreur de routage envoie A vers la pile de B. Le contrôle : la cible se déduit du jeton vérifié, jamais d'un sous-domaine ou d'un en-tête, et chaque pile refuse un jeton qui n'est pas de son tenant. C'est *Least Common Mechanism* (leçon 3) : le mécanisme commun reste minuscule.
+
+**Schéma par tenant.** Le tenant est choisi par le `search_path`. Avec un pool de connexions, un `SET search_path` de session survit et sert la requête suivante, celle d'un autre tenant. Le contrôle : un rôle PostgreSQL par tenant, limité à son schéma (une frontière), plutôt qu'un `SET LOCAL` par transaction (une convention).
+
+**Pool.** La requête qui oublie son filtre est fermée par la RLS forcée et un rôle non propriétaire (M14, leçon 2). Restent deux fuites qu'elle ne voit pas. Les **contraintes d'intégrité** d'abord : PostgreSQL précise que les contrôles d'unicité et de clés étrangères contournent toujours la RLS. `UNIQUE (number)` sur les factures révèle qu'un numéro existe chez un autre tenant ; la contrainte s'écrit `UNIQUE (tenant_id, number)`. Les **traitements transverses** ensuite (statistiques, exports du support) qui tournent en `BYPASSRLS` : service séparé, identifiants séparés.
+
+<Callout kind="case">
+**Asana, serveur MCP (2025)**. Lancé le 1er mai 2025, le serveur MCP d'Asana contenait une erreur de logique, découverte le 4 juin, qui exposait des données d'une organisation (tâches, projets, commentaires, fichiers) à des utilisateurs d'autres organisations. Le serveur a été coupé puis rétabli le 17 juin ; environ 1 000 clients ont été prévenus, selon BleepingComputer. Le mécanisme n'a pas été publié. La leçon tient sans spéculer : une **nouvelle interface** posée sur des données mutualisées hérite de toute l'exigence d'isolation.
+</Callout>
+
+## Calcul, cache et files : le partage qu'on oublie
+
+Isoler les données ne suffit pas si le **processus** qui les traite garde un état partagé.
+
+- **Conteneurs.** Un service ECS mutualisé sert tous les tenants dans le même processus Node. Une variable de module (`let currentTenant`) ou un cache mémoire non préfixé suffit à servir A avec les données de B sous charge. Le contexte vit dans `AsyncLocalStorage`, propre à chaque requête.
+- **Lambda.** Un environnement d'exécution est réutilisé entre invocations, et AWS prévient que des données d'une invocation précédente peuvent rester accessibles. Le **mode tenant isolation** (novembre 2025) garantit qu'un environnement ne sert jamais deux tenants, mais le rôle d'exécution reste commun à tous : il isole la mémoire, pas l'accès aux données.
+- **Cache et files.** Une clé Redis `invoice:${id}` sans tenant attend sa collision. Un message SQS porte son `tenantId`, et le consommateur reconstruit le contexte depuis le message.
+
+<Callout kind="case">
+**BrokenSesame (2023)**. Wiz a montré que les PostgreSQL gérés d'Alibaba Cloud (ApsaraDB RDS, AnalyticDB) tournaient dans des clusters Kubernetes multi-tenants. Une évasion de conteneur menait au nœud, d'où les pods d'autres clients étaient atteignables. Signalé le 4 décembre 2022, corrigé le 12 avril 2023 ; Alibaba indique qu'aucune donnée client n'a été compromise. Comme pour ChaosDB (M14, leçon 2), quand le calcul est mutualisé, la frontière du conteneur devient la frontière entre clients.
+</Callout>
+
+## Isoler le stockage avec IAM plutôt qu'avec le code
+
+Dans un pool, le service a un rôle qui voit **tous** les tenants, et l'isolation repose sur le code qui construit la clé S3. AWS décrit l'alternative : à chaque requête, le service obtient des identifiants **restreints au tenant courant**, et c'est S3 qui refuse le reste.
+
+<Diff file="apps/api/src/storage/attachments.ts" hlBefore="3,4" hlAfter="5,6,7,8,9,10">
+
+```ts
+// rôle de tâche ECS : s3:GetObject sur tout le bucket
+export async function getAttachment(tenantSlug: string, key: string) {
+  // « acme » passe sur « acme-labs/… » : pas de séparateur
+  if (!key.startsWith(tenantSlug)) throw new NotFound();
+  return s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+}
+```
+
+```ts
+// rôle de tâche : aucun droit S3, seulement sts:AssumeRole + sts:TagSession
+export async function getAttachment(name: string) {
+  const tenantId = currentTenant(); // contexte de la requête, jamais un paramètre
+  const { Credentials: c } = await sts.send(new AssumeRoleCommand({
+    RoleArn: env.TENANT_SCOPED_ROLE_ARN,
+    RoleSessionName: `t-${tenantId}`,
+    Tags: [{ Key: 'tenant_id', Value: tenantId }],
+    DurationSeconds: 900,
+  }));
+  const s3t = new S3Client({ credentials: toCreds(c!) });
+  return s3t.send(new GetObjectCommand({ Bucket: BUCKET, Key: `${tenantId}/${name}` }));
+}
+```
+
+</Diff>
+
+<Code file="infra/policies/tenant-scoped.json" hl="5">
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["s3:GetObject", "s3:PutObject"],
+    "Resource": "arn:aws:s3:::novafact-attachments/${aws:PrincipalTag/tenant_id}/*"
+  }]
+}
+```
+
+</Code>
+
+Une seule politique pour tous les tenants : c'est de l'ABAC, la balise de session servant d'attribut. Si un bug construit la clé d'un autre tenant, S3 refuse. Le `/` après la variable compte : sans lui, la politique reproduit le bug du `startsWith`. Deux limites à écrire dans le design doc : le service peut toujours demander des identifiants pour n'importe quel tenant, donc la confiance se concentre dans `currentTenant()`, une fonction à relire au lieu de chaque accès S3 ; et les identifiants se mettent en cache **par tenant**, sinon STS devient lui-même un voisin bruyant. Pour les grands comptes, une clé KMS par tenant ajoute une barrière et un bouton d'arrêt.
+
+## Le contexte tenant de bout en bout
+
+Tous ces contrôles lisent le même fait : **qui est le tenant courant**. Il naît une fois, dans le jeton Cognito vérifié (claim `tenant_id` ajouté à l'émission, hors de portée de l'utilisateur), puis se propage : `AsyncLocalStorage` dans l'API, `set_config` local pour PostgreSQL, repository MongoDB, balise de session IAM, champ obligatoire des messages SQS, préfixe de cache, champ de chaque log pino. Un en-tête `X-Tenant-Id` venu du client ne vaut rien nulle part.
+
+<Callout kind="novafact">
+**Un bridge par niveau d'abonnement.** Les offres standard vivent dans un pool par région (UE d'abord, pour la résidence) : RLS forcée, MongoDB derrière le repository, S3 par politique dynamique, Lambda de rendu en mode tenant isolation. L'offre Entreprise est un silo : un compte AWS par client, même pipeline, même version, sa propre clé KMS. Règle posée dès le départ : chaque ligne et chaque document portent un `tenant_id`, tables de jointure comprises, et toute contrainte `UNIQUE` inclut le tenant. C'est ce qui permet de **migrer** un client du pool vers un silo : extraire par `tenant_id`, copier, basculer le routage, purger. Sans cette discipline, un client qui grandit ne peut plus changer de modèle.
+</Callout>
+
+<Recap items={[
+  "Silo, pool, bridge : on choisit ce qu'on partage, couche par couche et par offre ; l'isolation est un continuum.",
+  "Authentifier, autoriser ou partitionner n'est pas isoler : il faut un mécanisme qui borne chaque accès au tenant courant.",
+  "Silo : le plan de contrôle est le point commun. Pool : RLS forcée, UNIQUE avec le tenant, traitements transverses à part.",
+  "Calcul, cache, files : contexte par requête, clés préfixées ; le mode tenant isolation de Lambda ne sépare pas le rôle.",
+  "Des identifiants restreints au tenant (balises de session, ABAC) font refuser S3 à la place du code.",
+]} />
+
+<Lab id="big-iam" />
+
+<Sources items={[
+  { title: "AWS : SaaS Architecture Fundamentals, Tenant isolation", url: "https://docs.aws.amazon.com/whitepapers/latest/saas-architecture-fundamentals/tenant-isolation.html" },
+  { title: "AWS : SaaS Tenant Isolation Strategies", url: "https://docs.aws.amazon.com/whitepapers/latest/saas-tenant-isolation-strategies/saas-tenant-isolation-strategies.html" },
+  { title: "AWS : Run-time, policy-based isolation with IAM", url: "https://docs.aws.amazon.com/whitepapers/latest/saas-tenant-isolation-strategies/run-time-policy-based-isolation-with-iam.html" },
+  { title: "AWS IAM : balises de session STS", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_session-tags.html" },
+  { title: "AWS Lambda : tenant isolation", url: "https://docs.aws.amazon.com/lambda/latest/dg/tenant-isolation.html" },
+  { title: "Azure Architecture Center : Tenancy models", url: "https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/considerations/tenancy-models" },
+  { title: "PostgreSQL : Row Security Policies", url: "https://www.postgresql.org/docs/current/ddl-rowsecurity.html" },
+  { title: "BleepingComputer : Asana MCP (18/06/2025)", url: "https://www.bleepingcomputer.com/news/security/asana-warns-mcp-ai-feature-exposed-customer-data-to-other-orgs/" },
+  { title: "Wiz : BrokenSesame (2023)", url: "https://www.wiz.io/blog/brokensesame-accidental-write-permissions-to-private-registry-allowed-potential-r" },
+]} />

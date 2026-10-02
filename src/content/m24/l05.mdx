@@ -1,0 +1,163 @@
+export const questions = [
+  {
+    q: "Novafact compte 42 applications dans son inventaire, et toutes ont un propriétaire. Quel indicateur dit le mieux si cet inventaire est fiable ?",
+    options: [
+      "Le nombre d'applications inscrites, comparé à celui du trimestre précédent",
+      "La part des fiches d'inventaire relues et validées par leur propriétaire dans l'année",
+      "Le nombre d'actifs découverts de l'extérieur ou par l'API cloud et absents de l'inventaire",
+      "La part des applications de l'inventaire qui ont passé un pentest dans les douze derniers mois",
+    ],
+    answer: 2,
+    explain: "Un inventaire se juge à ce qu'il oublie, et on ne trouve ce qu'il oublie qu'avec une source indépendante de lui : DNS, journaux Certificate Transparency, API AWS. Le nombre d'entrées et le taux de relecture mesurent l'inventaire avec lui-même. La couverture de pentest, calculée sur l'inventaire, hérite de ses angles morts : un service absent de la liste n'a jamais de pentest à manquer.",
+  },
+  {
+    q: "En mars 2025, l'action GitHub tj-actions/changed-files est compromise : ses étiquettes de version pointent vers un commit malveillant qui expose les secrets dans les journaux. Quel contrôle d'OpenSSF Scorecard signale en amont le motif qui a exposé les dépôts consommateurs ?",
+    options: [
+      "Pinned-Dependencies, qui repère les actions référencées par une étiquette plutôt que par un hash de commit",
+      "Maintained, qui repère les dépendances sans activité récente de la part de leurs mainteneurs",
+      "Signed-Releases, qui vérifie que les versions de l'action consommée sont signées",
+      "Vulnerabilities, qui repère les dépendances qui ont une vulnérabilité connue dans OSV",
+    ],
+    answer: 0,
+    explain: "L'attaquant a déplacé des étiquettes existantes vers son commit : tout workflow qui référençait l'action par étiquette a exécuté le code malveillant, alors qu'une référence par hash de commit continuait d'exécuter l'ancien code. Maintained mesure l'activité d'un projet, pas l'intégrité du code qu'on exécute. Signed-Releases évalue le dépôt analysé, pas ses dépendances. Et la vulnérabilité n'existait dans aucune base au moment de l'attaque.",
+  },
+  {
+    q: "Un éditeur d'ASPM promet à Novafact « une vue complète de la posture applicative » en agrégeant ses outils. Quelle limite faut-il garder en tête ?",
+    options: [
+      "Un ASPM remplace les outils SAST et SCA, ce qui supprime la couverture de détection existante",
+      "Un ASPM ne mesure que la surface exposée sur Internet, pas l'état du code des dépôts",
+      "Un ASPM n'est utile qu'aux organisations qui ont déjà atteint le niveau 3 de SAMM partout",
+      "Un ASPM agrège et priorise ce que les outils trouvent : il ne voit rien que ces outils ne voient pas",
+    ],
+    answer: 3,
+    explain: "L'ASPM consolide, déduplique et contextualise les résultats d'outils existants ; il ne remplace pas ces outils et ne regarde pas seulement l'extérieur. Sa vue complète s'arrête donc aux dépôts connectés et aux classes de bugs que les scanners détectent : une faille d'autorisation métier, absente de tous les résultats, reste absente du tableau de bord. Aucun niveau de maturité préalable n'est requis, mais un inventaire l'est.",
+  },
+  {
+    q: "Un grand client exige que Novafact maintienne une note minimale chez un fournisseur de notation externe. La note baisse à cause d'adresses IP qui ne lui appartiennent plus. Que faire ?",
+    options: [
+      "Ignorer la baisse : une notation fondée sur des données publiques n'a aucune valeur",
+      "Contester l'attribution des actifs avec preuves, puis traiter les vrais constats restants",
+      "Payer l'abonnement du fournisseur de notation, qui permet d'obtenir une révision plus rapide",
+      "Décommissionner ces adresses IP en urgence pour faire remonter la note dès le prochain calcul",
+    ],
+    answer: 1,
+    explain: "Les principes publiés en 2017 sous l'égide de la Chambre de commerce des États-Unis prévoient un droit de contestation et de correction, indépendant de toute relation commerciale avec le fournisseur de notation. L'attribution d'actifs est une source d'erreur connue. Ignorer la note fâche le client sans corriger les vrais constats ; on ne peut pas décommissionner ce qu'on ne possède plus ; et payer pour être mieux noté contredit le principe d'indépendance.",
+  },
+];
+
+<YouKnow>
+La reconnaissance d'un pentest commence par la surface : sous-domaines, journaux Certificate Transparency, plages d'adresses, dépôts publics. L'attaquant fait la même chose, en continu. Mesurer la posture applicative, c'est faire ce travail de l'intérieur, avec des sources que l'attaquant n'a pas.
+</YouKnow>
+
+## Cinq mesures, un ordre
+
+La posture applicative (leçon 1) se mesure par cinq questions, et l'ordre compte : chacune dépend de la précédente.
+
+| Question | Mesure | Sans la précédente… |
+| --- | --- | --- |
+| Quelles applications existent, et à qui ? | Inventaire et propriétaires | — |
+| Qu'est-ce qui est joignable ? | Surface d'attaque exposée | on ne sait pas à qui signaler ce qu'on trouve |
+| Dans quel état sont-elles ? | Résultats consolidés (ASPM) | on agrège les résultats des seuls dépôts connus |
+| Dans quel état sont les dépôts et le pipeline ? | OpenSSF Scorecard | on note les dépôts qu'on connaît, pas les autres |
+| Que voient les autres ? | Notations externes | on découvre sa posture par un client |
+
+## L'inventaire d'abord
+
+Un inventaire d'applications utile tient en peu de champs, mais chacun doit servir une décision :
+
+<Code file="inventory/apps/billing-api.yaml" hl="3,4,7,8,11">
+
+```yaml
+id: billing-api
+description: API de facturation multi-tenant (Express, MongoDB, Prisma)
+owner: team-facturation          # une équipe, jamais une personne qui peut partir
+escalation: '#facturation-oncall'
+repos: [github.com/novafact/billing-api]
+runtime: { aws_account: prod-eu, ecs_service: billing-api }
+exposure: internet               # internet | partenaires | interne
+entrypoints: [api.novafact.example, '*.novafact.example/api/*']
+data: [factures, coordonnees-clients, iban]
+criticality: haute               # pilote la fréquence des tests (M10)
+last_reviewed: 2026-09-15        # une fiche non relue depuis un an est suspecte
+```
+
+</Code>
+
+Le NIST CSF 2.0 en fait un résultat attendu (ID.AM-02 : les inventaires de logiciels, services et systèmes sont tenus) sans fixer de rythme. Pour donner un ordre de grandeur, la directive BOD 23-01 de la CISA (3 octobre 2022) impose aux agences fédérales américaines une découverte automatisée des actifs tous les 7 jours et une recherche de vulnérabilités tous les 14 jours. Novafact n'y est pas soumise, mais la logique vaut : un inventaire tenu à la main se périme plus vite qu'on ne le relit.
+
+<Callout kind="case">
+Le 25 janvier 2024, Microsoft décrit l'intrusion de Midnight Blizzard dans ses systèmes : l'attaquant a compromis par pulvérisation de mots de passe un compte d'un **tenant de test hérité, hors production, sans MFA**, puis s'est servi d'une **application OAuth de test héritée** qui disposait d'accès élevés à l'environnement de l'entreprise pour accéder à des boîtes mail. Aucun de ces deux actifs n'était un système de production, et c'est précisément pour cela qu'ils échappaient aux contrôles de la production. Un inventaire qui ne recense que ce qui « compte » produit ce type d'angle mort (M2, leçon 5).
+</Callout>
+
+## La surface exposée : réconcilier, pas compter
+
+Le chiffre utile n'est pas le nombre d'actifs exposés, mais l'**écart** entre ce qui est découvert de l'extérieur et ce que l'inventaire déclare. Les sources de découverte sont celles d'un pentester, plus celles de l'intérieur : zones DNS, journaux Certificate Transparency, API AWS (distributions CloudFront, répartiteurs, API Gateway, URL de fonctions Lambda).
+
+<Diff file="tools/posture/exposure.ts" hlBefore="2" hlAfter="2,3,4,5,6,7,8">
+
+```ts
+export async function exposureReport() {
+  return { exposedHosts: (await discoverHosts()).length }; // un chiffre qui ne désigne personne
+}
+```
+
+```ts
+export async function exposureReport() {
+  // La découverte ne lit jamais l'inventaire : sinon elle hérite de ses oublis.
+  const found = await discoverHosts(); // DNS, CT, API AWS
+  const declared = new Set((await loadInventory()).flatMap((a) => a.hosts));
+  const orphans = found.filter((h) => !declared.has(h.name));
+  // Un hôte orphelin est le signal le plus fort : rien n'en est responsable.
+  return { exposed: found.length, orphans: orphans.map((h) => ({ host: h.name, source: h.source })) };
+}
+```
+
+</Diff>
+
+Le mauvais correctif fréquent consiste à dériver la liste des hôtes à scanner de l'inventaire lui-même : le rapport devient parfait et aveugle. Le `demo.novafact.example` de la leçon 1 n'apparaît que si la découverte est indépendante.
+
+## ASPM : consolider ce que les outils trouvent
+
+**ASPM** (*Application Security Posture Management*) désigne une catégorie d'outils, récente et aux contours variables selon les éditeurs, qui agrège les résultats des outils de sécurité applicative (SAST, SCA, secrets, IaC, DAST), les déduplique, et les enrichit de contexte : exposition, données traitées, propriétaire. Le but est de passer de milliers de résultats bruts à une liste priorisée par application.
+
+Deux remarques pour l'évaluer. D'abord, un ASPM ne **détecte** rien : sa vue s'arrête aux outils branchés et aux dépôts connectés, donc à l'inventaire. Une faille d'autorisation métier, qu'aucun scanner ne trouve, n'apparaît dans aucun tableau de bord. Ensuite, le contexte qu'il ajoute vient souvent des fiches d'inventaire : un champ `exposure` faux produit une priorisation fausse. Un outil libre comme DefectDojo couvre la consolidation (M26, leçon 5) ; la valeur d'une plateforme commerciale se juge sur la qualité de sa corrélation, pas sur le nombre de connecteurs.
+
+## OpenSSF Scorecard : l'hygiène des dépôts
+
+**OpenSSF Scorecard** évalue un dépôt par une série de contrôles automatiques notés de 0 à 10 : protection des branches, revue de code, permissions des jetons de workflow, motifs dangereux dans GitHub Actions, épinglage des dépendances, présence d'une politique de sécurité, vulnérabilités connues. Chaque contrôle porte un niveau de risque, et le score global est une moyenne pondérée (Critical 10, High 7,5, Medium 5, Low 2,5). Il s'exécute en ligne de commande ou par une GitHub Action sur ses propres dépôts ; des scores précalculés de projets open source sont accessibles par l'API publique (`api.scorecard.dev`), qui omet toutefois les contrôles CI-Tests, Contributors et Dependency-Update-Tool.
+
+Son usage pour durcir le pipeline est traité en M18 (leçon 4). Pour la posture, il sert à deux choses : comparer tous les dépôts de l'organisation sur une même grille, et évaluer les projets open source dont on dépend.
+
+<Callout kind="case">
+Entre le 12 et le 15 mars 2025, l'action GitHub `tj-actions/changed-files` est compromise (CVE-2025-30066) : ses étiquettes de version sont redirigées vers un commit malveillant qui imprime les secrets du workflow dans les journaux d'exécution, publics pour les dépôts publics. La CISA, dans son alerte du 18 mars 2025, demande de rechercher les usages de l'action pendant la période, de considérer les secrets exposés comme compromis et de les renouveler, et d'épingler les actions sur un hash de commit. C'est exactement ce que mesure le contrôle **Pinned-Dependencies** de Scorecard : un dépôt qui l'aurait satisfait n'exécutait pas le code de l'attaquant (M18, leçon 8).
+</Callout>
+
+Scorecard a ses limites : plusieurs contrôles reposent sur des heuristiques, certains ne s'appliquent qu'à GitHub, et un 10 sur 10 dit que le dépôt est bien tenu, pas que le code est exempt de vulnérabilités.
+
+## Notations externes
+
+Des sociétés de **notation de sécurité** (*security ratings*) calculent une note pour une organisation à partir de données observables de l'extérieur : configuration TLS, en-têtes, ports ouverts, versions exposées, adresses signalées dans des listes de réputation, fuites d'identifiants. Les acheteurs et les assureurs s'en servent pour évaluer leurs fournisseurs.
+
+Leurs limites sont connues. La note ne voit que la surface externe : rien sur l'autorisation, la conception ou le pipeline. L'**attribution** des actifs (quelle adresse IP appartient à qui) est une source d'erreurs, notamment dans le cloud où les adresses changent de locataire. En juin 2017, un groupe d'entreprises réunies par la Chambre de commerce des États-Unis a publié des *Principles for Fair and Accurate Security Ratings*, qui reconnaissent que ces notes peuvent être « inexactes, non pertinentes ou incomplètes » et posent six principes : transparence, contestation et correction, exactitude et validation, gouvernance des modèles, indépendance vis-à-vis des relations commerciales, confidentialité.
+
+<Callout kind="tip">
+L'usage raisonnable d'une note externe : un signal à vérifier, comme un rapport de scanner. Si elle baisse, on cherche le constat sous-jacent ; s'il est faux, on le conteste avec preuves ; s'il est vrai, l'inventaire l'aurait dû voir avant elle. En faire un objectif interne pousse à soigner ce que l'outil observe au détriment de ce qu'il ne voit pas.
+</Callout>
+
+<Recap items={[
+  "Inventaire, surface exposée, résultats consolidés, état des dépôts, notations externes : chaque mesure dépend de la précédente.",
+  "Un inventaire se juge à ce qu'il oublie ; seule une découverte indépendante (DNS, CT, API cloud) le révèle.",
+  "Un ASPM consolide et priorise ce que les outils trouvent ; il ne détecte rien de plus qu'eux.",
+  "OpenSSF Scorecard note l'hygiène des dépôts (0 à 10, pondération par risque) ; l'affaire tj-actions illustre le contrôle Pinned-Dependencies.",
+  "Une notation externe est un signal à vérifier, contestable et limité à la surface visible, jamais un objectif.",
+]} />
+
+<Sources items={[
+  { title: "CISA, BOD 23-01 : Improving Asset Visibility and Vulnerability Detection on Federal Networks (3 octobre 2022)", url: "https://www.cisa.gov/news-events/directives/bod-23-01-improving-asset-visibility-and-vulnerability-detection-federal-networks" },
+  { title: "Microsoft, Midnight Blizzard: Guidance for responders on nation-state attack (25 janvier 2024)", url: "https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/" },
+  { title: "OpenSSF Scorecard (dépôt et documentation)", url: "https://github.com/ossf/scorecard" },
+  { title: "OpenSSF Scorecard, description des contrôles", url: "https://github.com/ossf/scorecard/blob/main/docs/checks.md" },
+  { title: "CISA, Supply Chain Compromise of Third-Party GitHub Action, CVE-2025-30066 (18 mars 2025)", url: "https://www.cisa.gov/news-events/alerts/2025/03/18/supply-chain-compromise-third-party-github-action-cve-2025-30066" },
+  { title: "U.S. Chamber of Commerce, Principles for Fair and Accurate Security Ratings (juin 2017)", url: "https://www.uschamber.com/security/cybersecurity/principles-for-fair-and-accurate-security-ratings" },
+  { title: "NIST CSWP 29, The NIST Cybersecurity Framework (CSF) 2.0", url: "https://doi.org/10.6028/NIST.CSWP.29" },
+]} />

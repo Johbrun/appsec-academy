@@ -1,0 +1,159 @@
+export const questions = [
+  {
+    q: "Pour l'échantillon de dépôts de l'état des lieux, l'équipe propose les cinq dépôts « les mieux tenus, pour montrer ce qui marche ». Que faut-il en penser ?",
+    options: [
+      "C'est un bon choix : des dépôts bien tenus donnent des preuves faciles à présenter en restitution",
+      "C'est acceptable à condition d'appliquer ensuite une décote forfaitaire aux résultats obtenus",
+      "C'est un biais : l'échantillon se choisit selon le risque, avec au moins un dépôt peu suivi ou oublié",
+      "C'est inutile : un échantillon ne sert à rien, il faut analyser tous les dépôts ou aucun",
+    ],
+    answer: 2,
+    explain: "Un échantillon choisi par ceux qu'on évalue décrit ce qu'ils savent montrer. On le compose selon le risque (paiement, authentification, paquet publié) et on y ajoute délibérément un dépôt peu suivi : c'est là que se cachent les écarts entre processus et réalité. Une décote forfaitaire invente un chiffre. Et analyser tous les dépôts n'est pas faisable en deux semaines, alors qu'un échantillon raisonné suffit pour un diagnostic, complété par Scorecard sur l'ensemble.",
+  },
+  {
+    q: "En entretien, le lead d'une équipe déclare que « toutes les dépendances sont mises à jour chaque semaine par Dependabot ». Quelle preuve faut-il demander ?",
+    options: [
+      "La configuration dependabot.yml du dépôt, qui montre que l'outil est bien activé",
+      "Une confirmation écrite du lead, versée au dossier de l'évaluation pour en garder trace",
+      "Le témoignage d'un autre développeur de l'équipe sur la fréquence réelle des mises à jour",
+      "La liste des PR Dependabot des trois derniers mois, avec leur délai de fusion et celles restées ouvertes",
+    ],
+    answer: 3,
+    explain: "La configuration prouve que l'outil est activé, pas que ses PR sont fusionnées : le cas fréquent est une file de PR ouvertes depuis des mois. Une confirmation écrite ou un second témoignage restent des déclarations. L'historique des PR est un artefact daté, produit par le système lui-même, qui montre le comportement réel. C'est le niveau de preuve qu'on vise pour chaque affirmation importante.",
+  },
+  {
+    q: "Selon l'ordonnance de l'OCC contre Capital One (2020), quelles défaillances concernaient l'audit interne ?",
+    options: [
+      "Il a manqué de nombreuses faiblesses du cloud et mal fait remonter celles qu'il connaissait",
+      "Il avait été supprimé lors de la migration vers le cloud, faute de compétences cloud dans l'équipe",
+      "Il avait identifié toutes les faiblesses, mais la banque a refusé de publier ses rapports",
+      "Il avait été confié à un prestataire externe, ce que la réglementation bancaire interdit",
+    ],
+    answer: 0,
+    explain: "L'ordonnance relève deux choses : l'audit interne n'a pas identifié de nombreuses faiblesses et lacunes de contrôle dans l'environnement cloud, et il n'a pas rapporté efficacement au comité d'audit celles qu'il avait identifiées. Elle ajoute que le conseil d'administration n'a pas tenu la direction pour responsable sur certaines alertes. L'audit existait ; il voyait mal, et ce qu'il voyait n'arrivait pas jusqu'aux décideurs.",
+  },
+  {
+    q: "La restitution doit tenir en une heure devant la direction de Novafact. Quel format sert le mieux la décision ?",
+    options: [
+      "Le tableau SAMM complet, pratique par pratique, avec la moyenne globale mise en avant",
+      "Une page : maturité et posture côte à côte, trois à cinq constats prouvés, une décision chacun",
+      "La liste exhaustive des constats techniques, classés par criticité CVSS décroissante et par équipe",
+      "Une comparaison avec la moyenne BSIMM du secteur, pour situer Novafact sur le marché",
+    ],
+    answer: 1,
+    explain: "Une direction décide sur peu d'éléments, à condition qu'ils soient prouvés et reliés à une décision (budget, propriétaire, échéance). Le tableau SAMM complet et la liste exhaustive restent en annexe : ils servent aux équipes, pas à l'arbitrage. Une moyenne globale ou une comparaison de marché invitent à discuter du chiffre plutôt que des écarts. Présenter maturité et posture ensemble évite que l'une rassure à tort sur l'autre.",
+  },
+];
+
+<YouKnow>
+Une mission de pentest se cadre : périmètre, interlocuteurs, accès, preuves, rapport, restitution. Un état des lieux AppSec suit la même discipline, avec une différence : la cible n'est pas une application mais une organisation, et les preuves ne sont pas des exploits mais des artefacts.
+</YouKnow>
+
+## Ce que l'état des lieux doit produire
+
+L'état des lieux est le diagnostic qui ouvre le programme AppSec (M31, leçon 1). En deux semaines, il ne cherche pas l'exhaustivité ; il produit trois livrables :
+
+- **une carte** : inventaire des applications et de leurs propriétaires, surface exposée, état des dépôts (leçon 5) ;
+- **une évaluation de maturité** prouvée, en général SAMM (leçon 2), complétée par un modèle spécialisé si une question l'exige (leçon 4) ;
+- **une courte liste de priorités**, chacune reliée à un constat et à un risque, qui servira d'entrée à la feuille de route.
+
+Le principe directeur vient de la leçon 1 : maturité et posture sont mesurées ensemble, et leurs écarts sont des constats à part entière.
+
+## Le déroulé
+
+<Steps items={[
+  { title: "Jours 1-2 : cadrer", text: "Lettre de mission signée par un sponsor de direction, périmètre (produits, équipes), accès en lecture (GitHub, comptes AWS, outil de tickets, outils de sécurité), liste des interlocuteurs. Collecte des documents existants : politiques, rapports de pentest, inventaires." },
+  { title: "Jours 2-4 : mesurer la posture", text: "Découverte indépendante de la surface exposée, réconciliation avec l'inventaire, Scorecard sur tous les dépôts, extraction des vulnérabilités ouvertes et de leur âge. Ces résultats nourrissent les entretiens." },
+  { title: "Jours 3-7 : entretiens", text: "Huit à douze entretiens d'une heure, chacun conclu par une liste d'artefacts à fournir sous 48 heures." },
+  { title: "Jours 5-8 : échantillon de dépôts", text: "Quatre à six dépôts analysés en profondeur : pipeline, dépendances, secrets, et lecture ciblée du code sur les routes sensibles." },
+  { title: "Jours 8-9 : noter et recouper", text: "Évaluation SAMM pratique par pratique, chaque note reliée à une preuve ; confrontation avec la posture mesurée." },
+  { title: "Jour 10 : restituer", text: "Relecture des constats avec les équipes concernées la veille, puis restitution à la direction." },
+]} />
+
+Mesurer la posture **avant** les entretiens change leur nature. « Comment gérez-vous les dépendances ? » appelle une description idéale. « Le dépôt `billing-api` a 14 alertes de criticité haute ouvertes depuis plus de 60 jours : comment ce cas a-t-il été traité ? » appelle une explication vérifiable.
+
+## Les entretiens
+
+On interroge ceux qui font le travail, pas seulement ceux qui l'encadrent : un lead par équipe produit, l'équipe plateforme, la personne d'astreinte, le produit, le DPO, et le support client, qui voit passer les signalements que personne ne trie. Chaque question vise un artefact :
+
+| Question déclarative | Question de preuve |
+| --- | --- |
+| Faites-vous des threat models ? | Quels sont les deux derniers, et qu'ont-ils changé dans le code ? |
+| Les dépendances sont-elles à jour ? | Quelles PR de mise à jour ont été fusionnées ces trois derniers mois, et lesquelles sont restées ouvertes ? |
+| Avez-vous un processus d'incident ? | Quel est le dernier incident applicatif, et où se trouve son compte rendu ? |
+| Les secrets sont-ils protégés ? | Où vivent les secrets de production, et qui peut les lire aujourd'hui ? |
+
+Les preuves se hiérarchisent : une **déclaration** vaut moins qu'un **document**, qui vaut moins qu'un **artefact daté produit par le système** (historique de PR, journal de déploiement, ticket clos), qui vaut moins qu'une **observation reproduite** par l'évaluateur. Chaque note SAMM est attachée au niveau de preuve le plus élevé obtenu ; une note qui ne repose que sur une déclaration est signalée comme telle.
+
+## L'échantillon de dépôts
+
+Le choix de l'échantillon est la décision la plus exposée au biais. On le compose selon le risque, et on y ajoute un dépôt que personne ne met en avant :
+
+<Code file="audit/2026-10/sample.sh" hl="3,4,5,6,7,8,11">
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+# Choisi selon le risque, pas selon ce que les équipes proposent de montrer :
+SAMPLE=(
+  github.com/novafact/billing-api     # factures, IBAN, multi-tenant
+  github.com/novafact/auth-bff        # sessions, OIDC, SSO SAML
+  github.com/novafact/sdk             # publié sur npm : touche les clients
+  github.com/novafact/legacy-export   # dernier commit il y a 14 mois, toujours déployé
+)
+for repo in "${SAMPLE[@]}"; do
+  # Résultat brut versionné avec le rapport : la note doit pouvoir être recalculée.
+  scorecard --repo="$repo" --format=json > "evidence/scorecard-${repo##*/}.json"
+done
+```
+
+</Code>
+
+Scorecard ne remplace pas la lecture. Sur chaque dépôt de l'échantillon, on lit le workflow de CI de bout en bout, on vérifie le fichier de verrouillage des dépendances, on cherche les secrets dans l'historique, et on lit le code de deux ou trois routes sensibles : contrôle d'autorisation, téléversement, webhook. Une heure de lecture ciblée par dépôt révèle souvent un motif (un contrôle d'autorisation fait dans chaque route plutôt qu'en un point central) qui explique à lui seul une série de constats de pentest.
+
+<Callout kind="case">
+Capital One, 2020. L'ordonnance de l'OCC (Office of the Comptroller of the Currency) qui accompagne l'amende de 80 millions de dollars relève, en plus de l'absence d'évaluation des risques avant la migration vers le cloud, deux défaillances de l'**audit interne** : il n'a pas identifié de nombreuses faiblesses et lacunes de contrôle dans l'environnement cloud, et il n'a pas rapporté efficacement au comité d'audit celles qu'il avait identifiées. Elle ajoute que le conseil d'administration n'a pas tenu la direction pour responsable sur certaines alertes. La banque n'a ni admis ni contesté ces constats. Une évaluation peut donc échouer de deux façons : en regardant mal, et en ne faisant pas arriver ce qu'elle voit jusqu'à ceux qui décident.
+</Callout>
+
+## La restitution
+
+La restitution est l'endroit où l'état des lieux devient utile ou meurt. Elle s'adresse à des décideurs, et doit tenir en une page :
+
+<Callout kind="novafact">
+Synthèse de l'état des lieux, octobre 2026 (extrait fictif).
+
+| Constat | Preuve | Risque | Décision demandée |
+| --- | --- | --- | --- |
+| 4 services exposés hors inventaire, dont une copie de l'API de recette | Découverte DNS et CT du 06/10, réconciliation | Accès à des données de démonstration, porte d'entrée non surveillée | Propriétaire désigné ou arrêt sous 30 jours |
+| Aucune exigence de sécurité écrite (SAMM Security Requirements : 0) | Entretiens, absence de document, 3 pentests successifs avec des failles d'autorisation | Classe de bugs récurrente non traitée à la source | Exigences ASVS L2 pour l'API (M12), un trimestre |
+| Actions GitHub référencées par étiquette dans 22 dépôts sur 31 | Scorecard, Pinned-Dependencies | Compromission du pipeline par une action tierce | Épinglage automatisé, deux semaines |
+
+La maturité (scores SAMM) et la posture (tableau de bord de la leçon 5) figurent côte à côte en page 2 ; le détail par pratique et par dépôt, en annexe.
+</Callout>
+
+Trois règles de forme. Chaque constat porte sa preuve et sa date, pour que la prochaine évaluation puisse vérifier qu'il a disparu. Chaque décision a un propriétaire et une échéance, sinon c'est une observation. Et les constats sont relus la veille avec les équipes concernées : une équipe qui découvre un constat en comité de direction le conteste au lieu de le corriger.
+
+<Callout kind="debate">
+**Faut-il montrer une note globale ?** Une direction la réclame, parce qu'elle permet de suivre une tendance en un regard. Elle invite aussi à négocier le chiffre et à comparer des équipes qui ne se ressemblent pas. Un compromis fréquent : présenter quelques notes par pratique avec leur cible et leur tendance, et laisser la moyenne en annexe, comme une conséquence plutôt qu'un objectif (M31, leçon 4).
+</Callout>
+
+## Les pièges
+
+L'**indépendance** d'abord : une équipe AppSec qui évalue son propre programme a intérêt à le trouver bon. Un pair d'une autre entité ou un tiers relit au moins les notes. Ensuite, la **reproductibilité** : méthode, échantillon, sources et résultats bruts sont versionnés avec le rapport, pour que l'évaluation suivante, six à douze mois plus tard, mesure le changement de l'organisation et non celui de l'évaluateur. Enfin, l'**effet d'annonce** : un état des lieux crée une attente. S'il n'est suivi d'aucune décision, la suivante sera reçue avec méfiance.
+
+<Recap items={[
+  "En deux semaines : une carte (inventaire, surface, dépôts), une évaluation de maturité prouvée, une courte liste de priorités.",
+  "On mesure la posture avant les entretiens, pour poser des questions qui appellent des preuves.",
+  "Déclaration, document, artefact daté, observation reproduite : chaque note se rattache au meilleur niveau de preuve obtenu.",
+  "L'échantillon se choisit selon le risque, avec au moins un dépôt oublié ; Scorecard couvre le reste.",
+  "Capital One (OCC, 2020) : un audit qui voit mal et ne fait pas remonter ce qu'il voit ne protège personne.",
+  "La restitution tient en une page de décisions ; elle ouvre le programme de M31.",
+]} />
+
+<Sources items={[
+  { title: "OCC, communiqué NR 2020-101 : amende civile contre Capital One (6 août 2020)", url: "https://www.occ.gov/news-issuances/news-releases/2020/nr-occ-2020-101.html" },
+  { title: "OCC, Consent Order for a Civil Money Penalty, Capital One, N.A. (AA-EC-20-51, n° 2020-036)", url: "https://www.occ.gov/static/enforcement-actions/ea2020-036.pdf" },
+  { title: "OWASP SAMM : méthode d'évaluation", url: "https://owaspsamm.org/assessment/" },
+  { title: "OpenSSF Scorecard, utilisation en ligne de commande", url: "https://github.com/ossf/scorecard" },
+  { title: "BSIMM16 Report : construire un scorecard (Black Duck, janvier 2026)", url: "https://www.blackduck.com/resources/analyst-reports/bsimm.html" },
+]} />

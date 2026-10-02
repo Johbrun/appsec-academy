@@ -1,0 +1,166 @@
+export const questions = [
+  {
+    q: "Dans OWASP Risk Rating, une faille n'est exploitable que par un administrateur de la plateforme (opportunité notée 0), mais les sept autres facteurs de vraisemblance sont notés entre 7 et 9. Quel est le problème ?",
+    options: [
+      "Aucun : la méthode prévoit que l'opportunité pèse autant que les autres facteurs",
+      "La moyenne reste haute alors qu'une condition nécessaire est presque absente",
+      "La note d'opportunité aurait dû être 9, puisque l'administrateur a tous les accès",
+      "Il faut reporter la faille dans l'impact technique plutôt que dans la vraisemblance",
+    ],
+    answer: 1,
+    explain: "La vraisemblance OWASP est une moyenne : un facteur à 0 ne fait baisser le total que d'un huitième, alors qu'en réalité il conditionne tout le reste. Dire que la méthode le prévoit est exact, et c'est justement le défaut. Noter 9 parce que l'administrateur a tous les accès inverse le sens de l'échelle : 0 veut dire « accès complet requis ». La page OWASP admet d'ailleurs qu'on pondère les facteurs selon l'entreprise.",
+  },
+  {
+    q: "Que montre l'article de Cox (2008) sur les matrices de risque ?",
+    options: [
+      "Qu'elles sont fiables à condition d'utiliser au moins cinq niveaux par axe",
+      "Qu'elles départagent bien les risques fréquents mais mal les risques rares",
+      "Qu'elles départagent correctement une petite fraction des paires de risques",
+      "Qu'elles surestiment systématiquement les risques les plus graves",
+    ],
+    answer: 2,
+    explain: "Cox montre qu'une matrice typique ne compare correctement et sans ambiguïté qu'une petite fraction des paires tirées au hasard (moins de 10 % dans son exemple), qu'elle peut mieux noter un risque quantitativement plus petit, et qu'elle peut faire pire que le hasard quand fréquence et gravité sont corrélées négativement. Ajouter des niveaux ne règle pas le fond, et le biais n'a pas de sens fixe : la matrice compresse, elle ne surestime pas systématiquement.",
+  },
+  {
+    q: "Pourquoi Microsoft est-il passé de DREAD aux bug bars, selon Adam Shostack ?",
+    options: [
+      "Parce que DREAD ignorait les menaces de type déni de service",
+      "Parce que les bug bars produisent un score numérique plus fin que DREAD",
+      "Parce que DREAD exigeait un exploit complet pour noter l'exploitabilité",
+      "Parce que des notes sans échelles définies variaient d'un évaluateur à l'autre",
+    ],
+    answer: 3,
+    explain: "Shostack écrit en 2008 que DREAD ajoute des nombres sans définir leurs échelles, et en 2018 que ce manque de calibration a conduit Microsoft, à plusieurs reprises, à passer aux bug bars : qu'est-ce qui sépare un 6 d'un 7 en dommage ? Un bug bar ne produit justement pas de score plus fin : il classe par critères écrits. La découvrabilité posait aussi problème, mais parce qu'elle change du jour au lendemain, pas parce qu'il fallait un exploit.",
+  },
+  {
+    q: "Une équipe veut améliorer sa matrice de risque. Quelle mesure réduit vraiment l'écart entre deux évaluateurs ?",
+    options: [
+      "Définir chaque niveau par des critères et des cas de référence de l'entreprise",
+      "Passer d'une matrice 3×3 à une matrice 5×5 pour gagner en précision",
+      "Remplacer les niveaux par des notes de 1 à 10 sur chaque axe",
+      "Faire noter chaque risque par l'expert le plus senior pour l'homogénéité",
+    ],
+    answer: 0,
+    explain: "Plus de cases ou des notes de 1 à 10 donnent l'apparence de la finesse sans dire ce qui distingue deux niveaux : c'est le défaut de DREAD. Confier toutes les notes à un seul expert rend les notes homogènes… avec ses biais, et sans contradiction. Les échelles ancrées (EBIOS décrit chaque niveau de gravité, le bug bar de Microsoft chaque niveau de sévérité) et des cas de référence connus de tous sont ce qui rend deux évaluations comparables.",
+  },
+];
+
+<YouKnow>
+Plus d'un rapport de pentest emploie « critique » pour dire surtout « j'ai eu un shell ». Toute note est un jugement ; le métier consiste à rendre ce jugement reproductible, et à savoir quand une grille ment.
+</YouKnow>
+
+## Ce qu'on attend d'une note
+
+Une note de risque sert à **ordonner** : quoi traiter d'abord, quoi accepter, où mettre l'argent. Elle doit donc avoir trois qualités. Elle doit être **reproductible** : deux personnes qui notent le même scénario arrivent au même niveau. Elle doit être **discriminante** : deux risques très différents ne tombent pas dans la même case. Et elle doit être **traçable** : on peut relire pourquoi ce niveau a été donné. Les méthodes de cette leçon ratent souvent l'une des trois, et il faut savoir laquelle.
+
+## OWASP Risk Rating Methodology
+
+La méthode OWASP, écrite à l'origine par Jeff Williams, est la grille la plus connue des équipes AppSec. Le risque y vaut **vraisemblance × impact**, chacun estimé par des facteurs notés de 0 à 9 :
+
+| Bloc | Facteurs |
+| --- | --- |
+| Agent de menace | Compétence, motivation, opportunité, taille du groupe |
+| Vulnérabilité | Facilité de découverte, facilité d'exploitation, notoriété, détection d'intrusion |
+| Impact technique | Perte de confidentialité, d'intégrité, de disponibilité, de traçabilité |
+| Impact métier | Dommage financier, atteinte à la réputation, non-conformité, atteinte à la vie privée |
+
+On fait la **moyenne** des facteurs de chaque bloc, on classe le résultat (moins de 3 : faible, de 3 à moins de 6 : moyen, 6 et plus : élevé), puis on croise vraisemblance et impact dans une matrice qui va de *note* à *critique*. La page recommande d'utiliser l'impact métier plutôt que l'impact technique quand on dispose des informations, et d'ajuster ou de pondérer les facteurs selon l'entreprise.
+
+Appliquée au webhook de paiement non signé de Novafact (n'importe qui peut marquer une facture comme payée) :
+
+| Facteur | Note | Justification |
+| --- | --- | --- |
+| Compétence | 6 | Savoir forger une requête HTTP |
+| Motivation | 9 | Arrêter les relances d'un débiteur, c'est de l'argent |
+| Opportunité | 9 | Point d'entrée public, aucun accès requis |
+| Taille | 9 | Tout Internet |
+| Découverte / exploitation | 7 / 5 | Route documentée dans le SDK public ; il faut deviner un identifiant de facture |
+| Notoriété / détection | 4 / 8 | Faille cachée ; journalisée, jamais revue |
+| **Vraisemblance** | **7,1 · élevée** | Moyenne des huit facteurs |
+| **Impact métier** | **3 · moyen** | Financier 3, réputation 4, non-conformité 2, vie privée 3 |
+| **Risque** | **Élevé** | Vraisemblance élevée × impact moyen |
+
+La grille a fait son travail : elle force à regarder l'agent de menace, que le pentest oublie. Mais elle a deux faiblesses à connaître.
+
+**La moyenne efface les conditions nécessaires.** Soit une faille exploitable seulement par un administrateur de la plateforme : opportunité à 0 (« accès complet requis »). Si les sept autres facteurs sont hauts, la moyenne reste au-dessus de 6, donc « élevée », alors que la population capable de l'exploiter compte trois personnes. Un modèle additif traite un facteur bloquant comme une simple pénalité.
+
+**Les échelles ne sont pas des quantités.** « Motivation 9 » n'est pas trois fois « motivation 3 ». Faire des moyennes sur des rangs donne un chiffre à une décimale, qui a l'air d'une mesure et n'en est pas une.
+
+## Ce que Cox reproche aux matrices
+
+Louis Anthony Cox Jr. a publié en 2008, dans *Risk Analysis*, l'analyse la plus citée des limites des matrices. Son résumé tient en quatre points : une **résolution faible** (une matrice typique ne départage correctement qu'une petite fraction des paires de risques tirées au hasard, moins de 10 % dans son exemple, et donne la même note à des risques très différents) ; des **erreurs** (elle peut mieux noter un risque quantitativement plus petit, et faire pire que le hasard quand fréquence et gravité sont corrélées négativement) ; une **allocation des ressources** impossible à fonder sur ses catégories ; et des **entrées ambiguës**, que deux utilisateurs peuvent interpréter en sens opposés.
+
+La corrélation négative est exactement le profil de la sécurité : les événements fréquents sont petits, les catastrophes sont rares.
+
+<Code file="risques/matrice-3x3.md">
+
+```text
+Risque A · bourrage d'identifiants sur des comptes clients
+  fréquence ≈ 12 / an      coût unitaire ≈ 2 000 €     → ≈ 24 000 € / an
+  matrice : vraisemblance ÉLEVÉE × impact FAIBLE        → MOYEN
+
+Risque B · version piégée du SDK publiée sur npm
+  fréquence ≈ 1 / 50 ans   coût unitaire ≈ 4 000 000 € → ≈ 80 000 € / an
+  matrice : vraisemblance FAIBLE × impact ÉLEVÉ         → MOYEN
+
+Même case, un facteur trois entre les deux ; et la fourchette de B
+cache une queue que A n'a pas (leçon 4).
+```
+
+</Code>
+
+Les chiffres sont fictifs, mais le mécanisme ne l'est pas : la matrice range A et B ensemble, et le comité qui voit deux cases orange financera le plus visible, A.
+
+## L'abandon de DREAD
+
+DREAD (Damage, Reproducibility, Exploitability, Affected users, Discoverability) note cinq dimensions et les combine. Adam Shostack, qui a travaillé sur le threat modeling chez Microsoft, en a fait la critique en deux temps. En 2008, il écrit que DREAD semble additionner des nombres sans définir leurs échelles. En 2018 (*The DREAD Pirates*), il détaille : sans calibration, deux évaluateurs ne notent pas pareil (qu'est-ce qui sépare un dommage à 6 d'un dommage à 7 ?) ; la découvrabilité peut passer de 1 le lundi à 10 le mardi, dès qu'un détail est publié ; et DREAD ne mesure que la moitié de ce qu'il faut, puisqu'il ignore le coût du correctif.
+
+<Callout kind="case">
+**Microsoft et les bug bars.** Selon Shostack, ces désaccords répétés ont conduit Microsoft à remplacer DREAD par une approche en *bug bar* : une grille où chaque niveau de sévérité (critique, important, modéré, faible) est défini par des critères écrits, par type d'effet. L'exemple public du SDL précise même ce qu'est un scénario « par défaut ou courant » : une fonction active à l'installation ou qui touche plus de 10 % des utilisateurs. Aucune annonce officielle datée de Microsoft n'est connue : la source est le témoignage de Shostack. Kohnfelder garde DREAD comme support de discussion, en tailles de t-shirt et sans addition (M11, leçon 3 ; M26, leçon 4).
+</Callout>
+
+## Noter sans se mentir
+
+La leçon des trois critiques est la même : une échelle n'est fiable que si ses niveaux sont **définis par des critères observables**. C'est ce que fait l'échelle de gravité d'EBIOS (leçon 2), qui décrit chaque niveau par ses conséquences, et c'est ce que l'équipe de Novafact a fait de sa grille :
+
+<Diff file="risques/echelle-impact.md" hlBefore="2,3,4" hlAfter="2,3,4,5,6">
+
+```text
+Impact
+  1 · faible   2 · modéré   3 · important   4 · grave   5 · critique
+  (à apprécier par l'évaluateur)
+```
+
+```text
+Impact (cas de référence entre crochets)
+  Grave     : données d'un autre tenant lisibles, ou paiements détournables  [BOLA export, juin]
+  Important : données du même tenant hors du rôle de l'utilisateur        [IDOR support, mars]
+  Modéré    : fonction dégradée pour un tenant, sans fuite ni fraude       [DoS export PDF]
+  Faible    : information sans valeur exploitable                          [version d'en-tête]
+```
+
+</Diff>
+
+Quatre habitudes complètent la grille. **Noter à deux**, séparément, puis discuter des écarts : un écart d'un niveau montre une définition à préciser. **Écrire la justification** de chaque note, comme dans le tableau OWASP ci-dessus. **Ne pas faire de moyenne sur des rangs** : garder les facteurs bloquants comme des conditions (« opportunité nulle : risque plafonné »). Et **réserver le chiffrage** aux quelques décisions où l'ordre de grandeur compte, ce qui est le sujet de la leçon suivante.
+
+<Callout kind="debate">
+Faut-il jeter les matrices ? Hubbard et Seiersen le soutiennent et proposent de les remplacer par des probabilités et des fourchettes en euros (leçon 4). Les praticiens d'EBIOS répondent qu'une échelle qualitative bien ancrée suffit pour trier, et que la discussion qu'elle provoque vaut plus que la case. Les deux camps s'accordent sur un point : une matrice sans définitions est la pire des options.
+</Callout>
+
+<Recap items={[
+  "Une note de risque doit être reproductible, discriminante et traçable.",
+  "OWASP Risk Rating : vraisemblance × impact, facteurs de 0 à 9 moyennés, impact métier de préférence ; à pondérer.",
+  "La moyenne efface les conditions nécessaires, et une moyenne de rangs n'est pas une mesure.",
+  "Cox (2008) : les matrices départagent mal, peuvent inverser l'ordre, et faire pire que le hasard quand fréquence et gravité s'opposent.",
+  "DREAD : échelles non définies, découvrabilité instable, coût du correctif ignoré ; Microsoft est passé aux bug bars selon Shostack.",
+  "Des niveaux définis par des critères et des cas de référence, notés à deux et justifiés.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Risk Rating Methodology", url: "https://owasp.org/www-community/OWASP_Risk_Rating_Methodology" },
+  { title: "L. A. Cox Jr., What's Wrong with Risk Matrices?, Risk Analysis 28(2), 2008", url: "https://ideas.repec.org/a/wly/riskan/v28y2008i2p497-512.html" },
+  { title: "Adam Shostack, The DREAD Pirates (31 mai 2018)", url: "https://shostack.org/blog/tmt-the-dread-pirates/" },
+  { title: "Adam Shostack, Experiences Threat Modeling at Microsoft (2008)", url: "https://shostack.org/files/papers/modsec08/Shostack-ModSec08-Experiences-Threat-Modeling-At-Microsoft.pdf" },
+  { title: "Microsoft, SDL Security Bug Bar (Sample)", url: "https://learn.microsoft.com/en-us/security/sdl/security-bug-bar-sample" },
+  { title: "ANSSI, La méthode EBIOS Risk Manager – Le guide (v1.5)", url: "https://messervices.cyber.gouv.fr/guides/la-methode-ebios-risk-manager-le-guide" },
+]} />

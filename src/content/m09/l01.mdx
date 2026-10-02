@@ -94,7 +94,7 @@ La révocation n'a de sens que si l'utilisateur peut l'exercer : Novafact affich
   { title: "Les tentatives", text: "Limitation par compte et par origine, sans verrouiller le compte au point de permettre un déni de service (M15). NIST fixe un plafond : au plus 100 échecs consécutifs sur un compte." },
 ]} />
 
-Le format PHC (`$argon2id$v=19$m=19456,t=2,p=1$…`) stocke les paramètres avec le hash. C'est ce qui permet de les **relever** plus tard sans casser les comptes existants : à la connexion réussie, si le hash a été produit avec des paramètres plus faibles que la politique actuelle, on le recalcule. C'est l'agilité cryptographique (leçon 7 de M13) appliquée aux mots de passe.
+Le format PHC (`$argon2id$v=19$m=19456,t=2,p=1$…`) stocke les paramètres avec le hash. C'est ce qui permet de les **relever** plus tard sans casser les comptes existants : à la connexion réussie, si le hash a été produit avec des paramètres plus faibles que la politique actuelle, on le recalcule. C'est l'agilité cryptographique (leçon 8 de M13) appliquée aux mots de passe.
 
 <Code file="apps/api/src/auth/passwords.ts" hl="3,9,10">
 

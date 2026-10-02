@@ -1,0 +1,152 @@
+export const questions = [
+  {
+    q: "Un lundi à 10 h, Novafact établit que les factures d’un tenant ont été lues par un tiers. Pour ces données, Novafact est sous-traitant au sens du RGPD. Que lui impose l’article 33 ?",
+    options: [
+      "Notifier la CNIL sous 72 heures à la place du tenant, puis informer celui-ci",
+      "Prévenir le tenant dans les meilleurs délais, sans attendre la fin de l’enquête",
+      "Attendre que l’enquête établisse le risque pour les personnes avant de prévenir",
+      "Informer directement les personnes dont les factures ont été lues",
+    ],
+    answer: 1,
+    explain: "L’article 33, paragraphe 2, impose au sous-traitant de notifier la violation au responsable du traitement dans les meilleurs délais après en avoir pris connaissance. C’est le tenant, responsable du traitement, qui notifie la CNIL et décide d’informer les personnes. Attendre l’évaluation du risque n’est pas une option pour le sous-traitant : cette évaluation appartient au responsable, et l’autorité irlandaise a considéré dans l’affaire Twitter que le retard d’un sous-traitant n’excuse pas celui du responsable.",
+  },
+  {
+    q: "Une sauvegarde chiffrée, dont la clé n’a pas été compromise, est perdue. Le DPO conclut à l’absence de risque pour les personnes et ne notifie pas la CNIL. Que reste-t-il à faire au titre du RGPD ?",
+    options: [
+      "Rien : sans notification, la violation n’a pas d’existence juridique",
+      "Informer quand même les personnes, puisque leurs données ont quitté le périmètre",
+      "Documenter la violation, ses effets et les mesures prises dans le registre interne",
+      "Notifier l’ANSSI à la place de la CNIL, puisqu’il s’agit d’un incident de sécurité",
+    ],
+    answer: 2,
+    explain: "L’article 33, paragraphe 5, impose de documenter toute violation, notifiée ou non : les faits, leurs effets et les mesures prises. C’est ce registre qui permet à l’autorité de vérifier, plus tard, que la décision de ne pas notifier était fondée. L’information des personnes n’est due qu’en cas de risque élevé, et l’article 34 l’écarte justement quand des mesures comme le chiffrement rendent les données incompréhensibles. L’ANSSI ne remplace pas la CNIL pour les données personnelles.",
+  },
+  {
+    q: "Pour un fournisseur de services d’informatique en nuage, lequel de ces incidents est important au sens du règlement d’exécution (UE) 2024/2690, sans condition de volume ?",
+    options: [
+      "Une indisponibilité partielle de 45 minutes touchant 2 % des utilisateurs dans l’Union",
+      "Une maintenance programmée qui coupe le service pendant deux heures",
+      "Une campagne de credential stuffing bloquée sans aucune connexion réussie",
+      "Une atteinte à la confidentialité des données traitées, suspectée d’être malveillante",
+    ],
+    answer: 3,
+    explain: "L’article 7 du règlement retient pour les fournisseurs cloud une atteinte à l’intégrité, à la confidentialité ou à l’authenticité des données par une action suspectée d’être malveillante, sans seuil d’utilisateurs. Une disponibilité limitée ne compte qu’au-delà de 5 % des utilisateurs ou d’un million, pendant plus d’une heure. L’article 3 exclut les interruptions programmées. Une attaque entièrement bloquée n’a ni perturbé le service ni compromis de données.",
+  },
+  {
+    q: "Que doit contenir, au minimum, l’alerte précoce prévue par l’article 23 de NIS2 ?",
+    options: [
+      "L’indication d’un éventuel acte malveillant et d’un possible impact transfrontière",
+      "Une évaluation initiale de la gravité, de l’impact et des indicateurs de compromission",
+      "La cause profonde de l’incident et les mesures d’atténuation déjà appliquées",
+      "La liste nominative des clients touchés et des données exposées",
+    ],
+    answer: 0,
+    explain: "L’alerte précoce, due dans les 24 heures après la prise de connaissance, indique le cas échéant si l’incident est suspecté d’être malveillant ou s’il pourrait avoir un impact transfrontière. L’évaluation initiale avec la gravité, l’impact et les indicateurs de compromission est l’objet de la notification à 72 heures. La cause profonde et les mesures appliquées sont attendues dans le rapport final. NIS2 ne demande pas de liste nominative de clients.",
+  },
+];
+
+<YouKnow>
+Un pentester connaît les délais de divulgation coordonnée. Les notifications réglementaires sont d’une autre nature : plusieurs horloges démarrent au même moment, à la prise de connaissance, chacune avec son destinataire et son contenu, et un retard se justifie par écrit. L’étape 12 du capstone (M32) en joue un tableau résumé ; cette leçon explique comment le remplir.
+</YouKnow>
+
+## Trois textes, trois logiques
+
+Les trois textes ne protègent pas la même chose, d’où leurs différences :
+
+| | RGPD (art. 33 et 34) | NIS2 (art. 23) | CRA (art. 14) |
+| --- | --- | --- | --- |
+| Protège | Les personnes dont les données sont touchées | La continuité des services de l’entité | Les utilisateurs d’un produit |
+| Déclencheur | Violation de données personnelles présentant un risque | Incident « important » | Vulnérabilité activement exploitée ou incident grave touchant le produit |
+| Qui notifie | Le responsable du traitement ; le sous-traitant prévient le responsable | L’entité essentielle ou importante | Le fabricant du produit |
+| Destinataire | CNIL ; les personnes si risque élevé | CSIRT ou autorité compétente ; les destinataires du service le cas échéant | CSIRT coordinateur et ENISA, via la plateforme unique ; les utilisateurs touchés |
+| Délais | Si possible 72 h | 24 h, 72 h, rapport final à un mois | 24 h, 72 h, rapport final |
+
+Une fuite inter-tenants chez Novafact peut cocher les trois colonnes : violation de données pour chaque tenant, incident important si Novafact entre dans le champ de NIS2, signalement CRA si un composant distribué est en cause. Ces qualifications se font avant la crise, avec le juridique.
+
+## RGPD : quand l’horloge démarre
+
+L’article 33 fixe un délai de 72 heures « si possible » **après en avoir pris connaissance**, et exige les motifs du retard au-delà. Les lignes directrices 9/2022 du CEPD précisent ce moment : le responsable a connaissance de la violation quand il a un **degré raisonnable de certitude** qu’un incident a compromis des données personnelles. Une brève enquête pour l’établir est admise ; une enquête complète ne l’est pas. Sans les critères de déclaration de la leçon 1, personne ne sait quand T0 a eu lieu.
+
+La notification décrit au minimum la nature de la violation (avec si possible les catégories et le nombre approximatif de personnes et d’enregistrements), le contact du DPO, les conséquences probables et les mesures prises ou envisagées.
+
+Tout n’est pas connu à 72 heures, et le texte le prévoit : les informations peuvent être **communiquées de manière échelonnée**, ce que la CNIL organise en notification initiale puis complémentaire. Un périmètre provisoire notifié à temps vaut mieux qu’un périmètre exact notifié tard.
+
+Deux règles s’oublient souvent. Le paragraphe 5 impose de **documenter toute violation**, notifiée ou non : le registre interne prouve, plus tard, que la décision de ne pas notifier était fondée. Et l’article 34 impose d’informer les **personnes** en cas de risque élevé, sauf si les données étaient rendues incompréhensibles (chiffrement), si des mesures ultérieures ont écarté le risque, ou si l’effort serait disproportionné, auquel cas une communication publique s’y substitue.
+
+Novafact a deux casquettes. Pour les factures de ses clients, elle est **sous-traitant** : le paragraphe 2 l’oblige à prévenir chaque tenant dans les meilleurs délais, et c’est le tenant qui notifie. Pour les comptes de ses propres clients, elle est **responsable du traitement** et notifie elle-même.
+
+<Callout kind="case">
+**Twitter et l’autorité irlandaise (2020).** Un défaut de code introduit en 2014 rendait publics, dans certaines conditions, des tweets protégés ; environ 90 000 utilisateurs de l’Union étaient concernés. Le prestataire du programme de bug bounty l’a signalé en décembre 2018 ; Twitter Inc., sous-traitant de l’entité européenne, a qualifié l’incident de violation le 3 janvier 2019, et la notification à l’autorité irlandaise est arrivée le 8 janvier. Le 15 décembre 2020, au terme de la première procédure de règlement des litiges du CEPD (article 65), l’autorité a annoncé 450 000 € d’amende pour violation de l’article 33, paragraphes 1 et 5 : notification tardive et documentation insuffisante. Le raisonnement compte plus que le montant : le responsable ne peut pas s’abriter derrière le retard de son sous-traitant.
+</Callout>
+
+## NIS2 : l’incident important
+
+La directive NIS2 couvre les entités essentielles et importantes de ses annexes, en règle générale à partir de la taille d’une moyenne entreprise. Les fournisseurs de services d’informatique en nuage y figurent, et le considérant 33 range explicitement le SaaS parmi les modèles de services en nuage. Novafact doit donc vérifier s’il est dans le champ, puis ce qui rend un incident **important** (« significant » en anglais).
+
+L’article 23, paragraphe 3, pose deux critères : une perturbation opérationnelle grave ou des pertes financières pour l’entité, ou des dommages considérables causés à d’autres personnes. Pour les fournisseurs du numérique qu’il vise, le **règlement d’exécution (UE) 2024/2690** les rend mesurables : son article 3 retient par exemple une perte financière directe supérieure à 500 000 € ou à 5 % du chiffre d’affaires, et son article 7 vise les fournisseurs cloud : indisponibilité totale de plus de 30 minutes, disponibilité limitée pour plus de 5 % des utilisateurs dans l’Union (ou plus d’un million, le plus petit nombre étant retenu) pendant plus d’une heure, et surtout **atteinte à l’intégrité, à la confidentialité ou à l’authenticité des données par une action suspectée d’être malveillante**, sans seuil. Pour un SaaS dans le champ, une fuite inter-tenants exploitée est donc importante dès qu’on la suspecte malveillante.
+
+Les étapes de l’article 23, paragraphe 4 :
+
+<Steps items={[
+  { title: "24 h : alerte précoce", text: "Après la prise de connaissance de l’incident important : suspicion d’acte malveillant, impact transfrontière possible." },
+  { title: "72 h : notification", text: "Mise à jour de l’alerte, évaluation initiale de la gravité et de l’impact, indicateurs de compromission s’ils sont disponibles." },
+  { title: "Rapport intermédiaire", text: "À la demande du CSIRT ou de l’autorité." },
+  { title: "Un mois : rapport final", text: "Un mois après la notification : description détaillée, cause profonde probable, mesures appliquées. Incident encore en cours : rapport d’avancement, puis final un mois après son traitement." },
+]} />
+
+Le paragraphe 1 ajoute une obligation qu’on oublie : notifier, le cas échéant, les **destinataires des services** des incidents importants susceptibles de nuire à leur fourniture. Pour un SaaS, ce sont les tenants.
+
+<Callout kind="warn">
+NIS2 est une directive : les lois nationales fixent l’autorité, les entités visées et les modalités. En France, le projet de loi « résilience », adopté par le Sénat le 12 mars 2025, est examiné à l’Assemblée nationale à partir du 7 octobre 2026 ; au 1er octobre 2026, il n’est ni adopté ni promulgué (la transposition était due le 17 octobre 2024). Avant d’inscrire un délai dans un runbook, on recoupe l’article 23 sur EUR-Lex et on vérifie le texte français en vigueur et ses décrets.
+</Callout>
+
+## CRA : le produit, pas le service
+
+Depuis le 11 septembre 2026, les fabricants signalent via la **plateforme unique** de l’ENISA, au CSIRT coordinateur et à l’ENISA, toute vulnérabilité activement exploitée et tout incident grave touchant leurs produits comportant des éléments numériques : 24 heures, 72 heures, puis un rapport final (14 jours après la mise à disposition d’un correctif pour une vulnérabilité, un mois après la notification pour un incident). L’article 14, paragraphe 8, oblige aussi à **informer les utilisateurs touchés**. La qualification d’un SaaS et le cas du SDK de Novafact sont traités en M26 (leçon 6) ; ici, on retient que cette horloge s’ajoute aux autres.
+
+## Un tableau des horloges
+
+Le runbook de crise contient un tableau prérempli, complété par le DPO et le juridique dès la première heure :
+
+<Code file="crise/notifications.yaml" hl="3,8">
+
+```yaml
+# T0 = degré raisonnable de certitude que des données ou le service sont touchés (leçon 1)
+- texte: RGPD art. 33(2)            # Novafact sous-traitant pour les factures
+  echeance: "meilleurs délais ; contrat : 24 h"   # le tenant a ses propres 72 h
+  destinataires: contacts sécurité des tenants touchés
+  signe_par: DPO
+- texte: NIS2 art. 23(4)            # si dans le champ ; vérifier la loi française
+  echeances: { alerte: "T0+24h", notification: "T0+72h", final: "notification+1 mois" }
+  critere: "2024/2690 art. 7 c) : confidentialité, action suspectée malveillante"
+  signe_par: responsable sécurité, après validation de la direction
+- texte: CRA art. 14                # seulement si @novafact/sdk est en cause
+  echeances: { alerte: "T0+24h", notification: "T0+72h" }
+  canal: plateforme unique de l'ENISA
+```
+
+</Code>
+
+<Callout kind="novafact">
+Les contrats de sous-traitance de Novafact (fictifs) engagent l’éditeur à prévenir un tenant sous 24 heures, avec un contenu aligné sur l’article 33, paragraphe 3, pour que le tenant puisse notifier dans ses propres 72 heures. L’exercice de crise (leçon 6) vérifie chaque semestre qu’un message part dans ce délai.
+</Callout>
+
+<Recap items={[
+  "RGPD, NIS2 et CRA protègent des choses différentes ; un même incident peut déclencher les trois horloges, qui démarrent à la prise de connaissance.",
+  "RGPD : 72 h si possible, notification échelonnée, sous-traitant qui prévient le responsable, registre de toutes les violations, personnes informées si risque élevé.",
+  "NIS2 : 24 h, 72 h, un mois ; le règlement 2024/2690 rend important pour un cloud toute atteinte aux données suspectée malveillante ; transposition française à vérifier.",
+  "CRA : depuis le 11 septembre 2026, signalement via la plateforme unique et information des utilisateurs.",
+  "Qualifier avant la crise ; tenir un tableau des horloges prérempli dans le runbook.",
+]} />
+
+<Sources items={[
+  { title: "RGPD, articles 33 et 34 (EUR-Lex)", url: "https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:32016R0679" },
+  { title: "CNIL : notifier une violation de données personnelles", url: "https://www.cnil.fr/fr/notifier-une-violation-de-donnees-personnelles" },
+  { title: "CEPD : lignes directrices 9/2022 sur la notification des violations", url: "https://www.edpb.europa.eu/documents/guideline/guidelines-92022-on-personal-data-breach-notification-under-gdpr_en" },
+  { title: "Directive (UE) 2022/2555 (NIS2), article 23 (EUR-Lex)", url: "https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:32022L2555" },
+  { title: "Règlement d’exécution (UE) 2024/2690 (EUR-Lex)", url: "https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:32024R2690" },
+  { title: "Règlement (UE) 2024/2847 (CRA) (EUR-Lex)", url: "https://eur-lex.europa.eu/legal-content/FR/TXT/?uri=CELEX:32024R2847" },
+  { title: "Commission européenne : obligations de signalement du CRA", url: "https://digital-strategy.ec.europa.eu/en/policies/cra-reporting" },
+  { title: "Data Protection Commission : décision dans l’enquête Twitter (décembre 2020)", url: "https://www.dataprotection.ie/news-media/press-releases/data-protection-commission-announces-decision-twitter-inquiry" },
+  { title: "Next : la transposition de NIS2 à l’ordre du jour de l’Assemblée nationale (septembre 2026)", url: "https://next.ink/brief-article/alleluia-la-transposition-de-nis2-est-enfin-a-lordre-du-jour-de-lassemblee-nationale/" },
+]} />

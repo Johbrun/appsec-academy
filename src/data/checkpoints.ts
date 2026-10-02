@@ -26,6 +26,122 @@ export interface CheckpointQuestion {
 }
 
 export const checkpoints: Record<string, CheckpointQuestion[]> = {
+  m21: [
+    {
+      q: 'Un rapport annuel classe le phishing en tête des vecteurs d’accès, un autre l’exploitation de vulnérabilités. Que faut-il faire avant de citer l’un ou l’autre en comité ?',
+      options: [
+        'Comparer période, échantillon et unité : les deux mesurent des populations différentes',
+        'Retenir le rapport le plus récent, puisque la menace évolue d’une année à l’autre',
+        'Faire la moyenne des deux pour obtenir une estimation plus robuste',
+        'Retenir le rapport public plutôt que celui d’un éditeur, qui est commercialement biaisé',
+      ],
+      answer: 0,
+      explain: 'Un écart entre rapports s’explique d’abord par la méthode : violations confirmées, intrusions investiguées par un prestataire ou incidents publics ne sont pas les mêmes populations. Moyenner deux pourcentages de bases différentes n’a aucun sens, la date de parution ne dit rien de la représentativité, et un rapport public a lui aussi ses biais, comme celui de déclaration.',
+    },
+    {
+      q: 'Les rapports estiment que l’exploitation précède souvent la disponibilité du correctif. Quelle priorité en tirer pour l’AppSec d’un SaaS ?',
+      options: [
+        'Réduire la surface exposée et éliminer des classes de bugs en amont',
+        'Raccourcir le délai de correction des critiques à vingt-quatre heures',
+        'Placer un WAF en mode bloquant devant toutes les routes publiques',
+        'Souscrire à un flux de renseignement pour connaître les exploits plus tôt',
+      ],
+      answer: 0,
+      explain: 'Si l’exploit arrive avant le correctif, aucun délai de correction ne couvre la fenêtre : il faut que la faille soit inatteignable ou qu’elle n’existe pas. Un WAF filtre des formes connues et se contourne, comme l’a montré Log4Shell. Le renseignement accélère la réaction mais ne supprime pas la fenêtre. Ces mesures restent utiles, en seconde ligne.',
+    },
+    {
+      q: 'Un attaquant appelle le support en se faisant passer pour un client et obtient la réinitialisation de sa MFA. Où se trouve d’abord le défaut ?',
+      options: [
+        'Dans le parcours de réinitialisation, qui repose sur ce que l’appelant peut savoir',
+        'Dans la formation du support, qui aurait dû repérer un appel suspect',
+        'Dans le choix du facteur MFA, qui aurait dû être une clé matérielle',
+        'Dans l’absence de détection, qui aurait dû alerter le SOC en temps réel',
+      ],
+      answer: 0,
+      explain: 'Le vishing exploite un parcours applicatif : si une réinitialisation s’obtient avec des informations présentes sur une facture ou dans une fuite, la formation ne fait que retarder l’échec. Une clé matérielle ne protège rien si le support peut la retirer sur simple appel. La détection est un complément ; le correctif consiste à prévenir le vrai titulaire, retarder l’effet et exiger un second approbateur.',
+    },
+    {
+      q: 'Après xz utils, une équipe veut s’assurer qu’une dépendance npm n’est pas piégée. Quelle vérification correspond à la leçon de l’affaire ?',
+      options: [
+        'Auditer l’archive publiée sur le registre, pas seulement le dépôt GitHub',
+        'Vérifier que le dépôt GitHub du paquet a des commits signés',
+        'Exiger un score OpenSSF élevé avant toute nouvelle dépendance',
+        'Relire les différences de code entre deux tags du dépôt GitHub',
+      ],
+      answer: 0,
+      explain: 'Dans xz utils, le déclencheur n’existait que dans les archives publiées : le dépôt Git était propre. Des commits signés, un bon score de maintenance ou une relecture des différences entre tags portent tous sur le dépôt, donc ne voient pas ce qui a été ajouté au moment de la publication. C’est l’artefact installé qu’il faut comparer et auditer.',
+    },
+    {
+      q: 'Les mêmes classes de bugs reviennent d’un pentest à l’autre chez un éditeur. Selon l’analyse économique d’Anderson, quel levier a le plus de chances de changer la situation ?',
+      options: [
+        'Faire peser le coût d’un défaut sur ceux qui décident de la façon de construire',
+        'Former tous les développeurs aux vulnérabilités les plus fréquentes',
+        'Multiplier les pentests pour détecter les défauts plus tôt',
+        'Acheter un outil de SAST plus complet que l’outil actuel',
+      ],
+      answer: 0,
+      explain: 'Anderson montre que la protection suit la responsabilité : quand celui qui peut protéger ne paie pas l’échec, il n’investit pas. Rendre le coût visible et le faire porter par ceux qui décident change les arbitrages. La formation, les pentests et un meilleur SAST agissent sur la capacité ou la détection, pas sur l’incitation : les mêmes arbitrages produiront les mêmes défauts.',
+    },
+  ],
+
+  m22: [
+    {
+      q: 'Une règle de détection écrite en 2024 signale la désactivation d’un journal d’audit cloud et l’associe à « TA0005 Defense Evasion ». Que faut-il faire en rechargeant ATT&CK v19 ?',
+      options: [
+        'La rattacher à Defense Impairment (TA0112) : TA0005 désigne désormais Stealth',
+        'Ne rien changer : TA0005 reste un identifiant valide en v19, avec le même sens',
+        'La supprimer : TA0005 a été révoquée et n’existe plus dans la version 19',
+        'La rattacher à T1562.008, qui reste la technique de référence pour ce comportement',
+      ],
+      answer: 0,
+      explain: 'En v19, Defense Evasion est scindée : TA0005 survit sous le nom Stealth (se fondre dans l’activité normale), et ce qui empêche les défenseurs de voir passe dans Defense Impairment (TA0112). L’identifiant ne casse pas, il change de sens sans bruit. T1562.008 a elle-même été révoquée au profit de T1685.002.',
+    },
+    {
+      q: 'Un rapport décrit un acteur qui cible les éditeurs SaaS de facturation. Quelle traduction de ce rapport sert le plus durablement l’AppSec de Novafact ?',
+      options: [
+        'Ses comportements, traduits en techniques, avec la phrase source et la version d’ATT&CK',
+        'Ses adresses IP et ses domaines, à bloquer dès aujourd’hui dans le WAF de production',
+        'La technique parente de chaque action, plus stable d’une version d’ATT&CK à l’autre',
+        'Le classement de ses techniques par fréquence d’apparition dans la matrice Enterprise',
+      ],
+      answer: 0,
+      explain: 'Les indicateurs réseau sont périmés dès que l’acteur change d’infrastructure ; le comportement, lui, survit et pose une question de conception. Traduire est un jugement : garder la phrase source et la version permet à d’autres de vérifier. Remonter au parent perd la précision qui sert à détecter, et la fréquence dans la matrice entière ignore la pertinence pour un SaaS.',
+    },
+    {
+      q: 'Pour protéger la création de webhooks contre une session volée par un proxy de phishing (AiTM), quelle mesure tient réellement ?',
+      options: [
+        'Une confirmation WebAuthn récente, liée à l’origine, juste avant la création',
+        'Redemander le mot de passe de l’administrateur juste avant la création',
+        'Exiger un code TOTP frais au moment de la création du webhook',
+        'Envoyer un lien de confirmation à l’adresse e-mail de l’administrateur',
+      ],
+      answer: 0,
+      explain: 'Le proxy AiTM voit passer le mot de passe et relaie un code TOTP en temps réel : redemander l’un ou l’autre ne prouve rien. La boîte mail de l’utilisateur est peut-être déjà sous le contrôle de l’attaquant, qui y pose une règle de masquage. Seule une preuve WebAuthn refuse de signer pour le domaine du proxy.',
+    },
+    {
+      q: 'Dans ATT&CK v19, M1017 User Training et M1047 Audit sont reliées à plus de techniques SaaS que M1032 Multi-factor Authentication. Que déployer en premier sur les comptes d’administration ?',
+      options: [
+        'Une MFA résistante au phishing, avec les replis SMS et e-mail retirés',
+        'La formation des utilisateurs, reliée au plus grand nombre de techniques',
+        'La journalisation d’audit, mieux classée que la MFA dans le décompte',
+        'Une MFA par SMS pour tous, la plus rapide à déployer à grande échelle',
+      ],
+      answer: 0,
+      explain: 'Le nombre de relations « mitigates » mesure la largeur d’une mitigation, pas sa force : une clé FIDO2 rend la fatigue MFA et le proxy AiTM sans objet, là où la formation réduit seulement la probabilité d’erreur. L’audit aide à voir, pas à empêcher. Et laisser un repli SMS permet à l’attaquant de choisir le facteur le plus faible.',
+    },
+    {
+      q: 'Un intégrateur tiers qui détient des jetons OAuth donnant accès aux comptes de clients de Novafact est compromis. Quelle capacité du produit compte le plus ?',
+      options: [
+        'Permettre au client de voir, restreindre et révoquer les jetons de chaque intégration',
+        'Imposer une vérification MFA à chaque appel d’API effectué par l’intégration',
+        'Réinitialiser les mots de passe de tous les utilisateurs des tenants touchés',
+        'Exiger de l’intégrateur un rapport d’audit SOC 2 récent avant de le réactiver',
+      ],
+      answer: 0,
+      explain: 'Un jeton délivré à une intégration représente un consentement déjà donné : aucune MFA ne s’applique aux appels d’API, et changer les mots de passe ne l’invalide pas. Le contrôle porte sur le cycle de vie du jeton (portée, durée, restrictions d’origine, révocation), comme l’a montré Salesloft Drift en août 2025. Un rapport d’audit du fournisseur n’arrête pas les jetons déjà volés.',
+    },
+  ],
+
   m01: [
     {
       q: 'Un rapport de pentest remonte une XSS sur le champ « notes ». Quel réflexe distingue un programme AppSec d’une simple correction ?',
@@ -39,7 +155,7 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       explain: 'Un pentest voit une instance ; un programme cherche la classe. Les trois autres réponses traitent bien le finding et laissent les vingt occurrences que personne n’a regardées.',
     },
     {
-      q: 'Un client envoie un questionnaire qui cite le NIST SSDF. Quel référentiel sors-tu pour écrire les exigences de ton API ?',
+      q: 'Un client envoie un questionnaire qui cite le NIST SSDF. Quel référentiel sert à écrire les exigences de l’API ?',
       options: [
         'Le Top 10 de l’OWASP, qui couvre les risques les plus répandus',
         'OWASP ASVS, dont les exigences sont numérotées et vérifiables',
@@ -69,7 +185,7 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
         'Si le contrat engage l’éditeur à notifier toute faille dans un délai court et défini',
       ],
       answer: 0,
-      explain: 'Faire confiance, c’est accepter qu’un composant puisse te nuire. La certification et le contrat déplacent la responsabilité sans réduire ce que le script peut faire dans la page, et le SAST ne voit pas un code chargé depuis un autre domaine. La bonne question porte sur le pouvoir réel du composant et sur la façon de le réduire.',
+      explain: 'Faire confiance, c’est accepter qu’un composant puisse nuire à l’application. La certification et le contrat déplacent la responsabilité sans réduire ce que le script peut faire dans la page, et le SAST ne voit pas un code chargé depuis un autre domaine. La bonne question porte sur le pouvoir réel du composant et sur la façon de le réduire.',
     },
     {
       q: 'Une équipe fait un pentest complet une semaine avant chaque mise en production. Que lui manque-t-il pour parler de cycle de développement sécurisé ?',
@@ -133,7 +249,7 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       explain: 'SAMM mesure des activités et leur régularité : c’est une maturité, pas une posture. Un niveau élevé peut cohabiter avec des failles ouvertes, et l’inverse. Les activités en place, la marche suivante et la comparaison entre pratiques, c’est précisément ce que le modèle décrit.',
     },
     {
-      q: 'Ta direction lit dans BSIMM16 une moyenne de 5,6 personnes de l’équipe sécurité logicielle pour 100 développeurs et veut s’aligner. Que réponds-tu ?',
+      q: 'La direction lit dans BSIMM16 une moyenne de 5,6 personnes de l’équipe sécurité logicielle pour 100 développeurs et veut s’aligner. Que lui répondre ?',
       options: [
         'Que cette moyenne est tirée par des cas extrêmes et que la médiane est bien plus basse',
         'Que BSIMM ne publie que des chiffres déclaratifs et qu’on ne peut pas s’en servir',
@@ -202,7 +318,7 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       explain: 'Le trafic reste chiffré, mais avec n’importe qui : sans vérification de la chaîne et du nom, un intermédiaire présente son propre certificat et lit tout. La confidentialité persistante et la version du protocole ne dépendent pas de cette vérification.',
     },
     {
-      q: 'Tu dois prioriser les règles SAST d’une équipe Express. Quelle liste sert le mieux de point de départ ?',
+      q: 'Une équipe Express doit prioriser ses règles SAST. Quelle liste sert le mieux de point de départ ?',
       options: [
         'Le CWE Top 25, parce qu’il nomme des faiblesses précises qu’un outil sait chercher',
         'L’OWASP Top 10, parce que chacune de ses catégories correspond à une règle d’outil',
@@ -210,7 +326,7 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
         'Le catalogue KEV de la CISA, parce qu’il recense ce qui est réellement exploité',
       ],
       answer: 0,
-      explain: 'Le Top 10 OWASP sert à sensibiliser : ses catégories larges regroupent des dizaines de CWE. Le CWE Top 25 nomme des faiblesses de code, au grain d’une règle. L’API Top 10 guide les tests d’une API plus que le SAST, et KEV liste des vulnérabilités de produits, pas des faiblesses de ton code.',
+      explain: 'Le Top 10 OWASP sert à sensibiliser : ses catégories larges regroupent des dizaines de CWE. Le CWE Top 25 nomme des faiblesses de code, au grain d’une règle. L’API Top 10 guide les tests d’une API plus que le SAST, et KEV liste des vulnérabilités de produits, pas des faiblesses du code de l’équipe.',
     },
   ],
 
@@ -401,7 +517,7 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       explain: 'La sécurité éclaire la décision et ne la prend pas : elle ne porte pas les conséquences commerciales. Décider à la place du métier fait de l’AppSec une porte que le produit apprendra à contourner.',
     },
     {
-      q: 'Un finding a un score CVSS de base de 9,8. Qu’en déduis-tu sur le risque pour Novafact ?',
+      q: 'Un finding a un score CVSS de base de 9,8. Qu’en déduire sur le risque pour Novafact ?',
       options: [
         'Rien encore : il faut l’exposition, la valeur de l’actif et la menace réelle',
         'Que le risque est critique et doit passer avant toute autre vulnérabilité',
@@ -746,7 +862,7 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
         'Vrai positif de faible sévérité, à corriger sans urgence',
       ],
       answer: 1,
-      explain: 'L’outil ne connaît pas votre garde, et il le signalera à chaque fois. Se contenter de fermer le ticket garantit qu’on le rouvrira au prochain passage : déclarer le sanitizer supprime le faux positif définitivement.',
+      explain: 'L’outil ne connaît pas la garde maison, et il le signalera à chaque fois. Se contenter de fermer le ticket garantit qu’on le rouvrira au prochain passage : déclarer le sanitizer supprime le faux positif définitivement.',
     },
     {
       q: 'Quel constat justifie d’écrire une règle d’analyse maison plutôt que de corriger ligne à ligne ?',
@@ -1051,6 +1167,64 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
     },
   ],
 
+  m27: [
+    {
+      q: 'Novafact confie sa surveillance 24 h/24 à un prestataire de détection et réponse managées (MDR). Que doit-elle garder en interne ?',
+      options: [
+        'La connaissance du normal de l’application et les décisions métier comme bloquer un tenant',
+        'L’écriture de toutes les règles de détection, que le prestataire ne peut pas maintenir',
+        'La collecte des journaux, que le prestataire ne doit jamais recevoir en clair',
+        'Le tri de niveau 1, pour garder la maîtrise des faux positifs de l’application',
+      ],
+      answer: 0,
+      explain: 'Le prestataire peut collecter, détecter et même contenir dans un périmètre convenu ; il ne sait pas ce qui est normal pour l’application, ni s’il faut couper le service d’un client. Le contrat dit qui joindre et quels gestes il fait seul. Les règles d’infrastructure, la collecte et le tri sont précisément ce qu’on lui confie ; seules les détections applicatives demandent l’équipe interne.',
+    },
+    {
+      q: 'Qu’est-ce qui rend un événement applicatif exploitable par un analyste du SOC ?',
+      options: [
+        'Un nom d’action stable, l’utilisateur, son tenant et le propriétaire de l’objet visé',
+        'Un message libre détaillé, qui décrit en phrases complètes ce qui s’est passé',
+        'L’URL complète de la requête, avec ses paramètres, pour rejouer l’appel',
+        'Le corps de la requête et de la réponse, pour reconstituer toute l’interaction',
+      ],
+      answer: 0,
+      explain: 'L’analyste doit décider vite sans ouvrir le code : quoi, qui, sur quoi, d’où, dans quel contexte. Un champ d’action stable se compte et se corrèle ; un message libre ne se règle pas dans une détection. L’URL complète peut porter un jeton de partage, et les corps de requête contiennent des données personnelles qu’on ne journalise pas.',
+    },
+    {
+      q: 'Un avis décrit une campagne avec des empreintes de webshell et un comportement : création d’un compte administrateur au nom anodin. Quelle détection durera le plus longtemps ?',
+      options: [
+        'Une règle sur la création d’un compte privilégié hors du processus normal, dans l’application',
+        'Une recherche des empreintes publiées dans les journaux de tous les serveurs exposés',
+        'Un blocage des adresses IP sources listées dans l’avis sur le pare-feu applicatif',
+        'Un blocage du nom de fichier du webshell sur tous les serveurs de l’application',
+      ],
+      answer: 0,
+      explain: 'Le comportement se situe en haut de la Pyramid of Pain : l’attaquant doit changer de méthode pour l’éviter, et c’est l’application qui le voit la première si elle journalise la création de comptes. Les empreintes, les IP et les noms de fichiers changent d’une variante à l’autre ; ils servent à une recherche rétroactive, pas à une détection durable.',
+    },
+    {
+      q: 'Un pair partage un rapport d’incident marqué TLP:AMBER+STRICT. Qui peut le lire chez Novafact ?',
+      options: [
+        'Les personnes de Novafact qui en ont besoin, mais pas ses clients',
+        'Les personnes de Novafact et les clients concernés, au besoin d’en connaître',
+        'Seul le destinataire nommé, sans aucune rediffusion en interne',
+        'Toute la communauté sectorielle de Novafact, mais pas le public',
+      ],
+      answer: 0,
+      explain: 'AMBER+STRICT limite la diffusion à l’organisation destinataire, au besoin d’en connaître. AMBER sans STRICT autorise aussi ses clients ; RED limite au destinataire individuel ; GREEN ouvre à la communauté. Le rapport ne peut donc pas finir dans un message aux tenants ni dans un post-mortem publié.',
+    },
+    {
+      q: 'Une chasse vérifie si des objets S3 ont été copiés par un rôle volé, mais les événements de données S3 n’étaient pas activés sur ce bucket. Comment la conclure ?',
+      options: [
+        'Échouée faute de données, avec une demande d’activer la journalisation manquante',
+        'Réfutée, puisque CloudTrail ne montre aucune copie d’objet sur la période',
+        'Prouvée par précaution, puisque l’absence de journal ne permet pas d’exclure la copie',
+        'Abandonnée sans trace écrite, puisqu’elle n’a produit aucun résultat exploitable',
+      ],
+      answer: 0,
+      explain: 'Sans événements de données, CloudTrail ne voit que les appels de gestion : l’absence de copie n’est pas une observation, c’est un angle mort. Conclure à une réfutation serait faux, et à une preuve aussi. La chasse échouée produit pourtant la recommandation la plus utile, activer la journalisation, et sa fiche évite de la refaire à l’aveugle.',
+    },
+  ],
+
   m18: [
     {
       q: 'Pourquoi normaliser les journaux dans un schéma commun avant de les indexer ?',
@@ -1123,6 +1297,64 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
     },
   ],
 
+  m29: [
+    {
+      q: 'Une clé d’accès AWS d’un pipeline de CI est signalée comme exposée. Quel est le premier geste le plus sûr ?',
+      options: [
+        'La désactiver sans la supprimer, puis chercher ce qu’elle a pu créer comme autre accès',
+        'La supprimer immédiatement, pour qu’elle ne puisse plus jamais être utilisée',
+        'Attendre la fin de l’enquête pour ne pas alerter l’attaquant qui l’utilise',
+        'Changer le mot de passe console de l’utilisateur IAM propriétaire de la clé',
+      ],
+      answer: 0,
+      explain: 'Désactiver coupe l’accès de façon réversible et garde l’identifiant pour la recherche dans CloudTrail ; la vraie question vient ensuite : l’attaquant a-t-il créé une autre clé, un profil de connexion, une relation de confiance ? Supprimer tout de suite fait perdre la réversibilité si une application casse. Attendre laisse l’accès ouvert. Le mot de passe console n’a aucun effet sur une clé d’accès.',
+    },
+    {
+      q: 'Vendredi à 19 h, Novafact établit qu’un tiers a lu des factures de plusieurs tenants. Pour ces données, elle est sous-traitant au sens du RGPD. Que faut-il faire ce soir-là ?',
+      options: [
+        'Prévenir chaque tenant touché avec ce qui est établi, sans attendre la fin de l’enquête',
+        'Notifier la CNIL au nom des tenants, puisque c’est Novafact qui a subi l’incident',
+        'Attendre le rapport complet de lundi pour ne transmettre que des faits certains',
+        'Publier un communiqué général à tous les clients, sans distinguer les tenants touchés',
+      ],
+      answer: 0,
+      explain: 'Le sous-traitant prévient le responsable du traitement dans les meilleurs délais ; chaque tenant a ensuite ses propres 72 heures pour notifier la CNIL, et le retard du sous-traitant ne l’excuse pas. Notifier à sa place n’est pas le rôle de Novafact. Attendre lundi consomme le délai des tenants. Un communiqué général n’apporte pas à chaque tenant ce dont il a besoin pour notifier.',
+    },
+    {
+      q: 'En pleine crise, un client demande si ses données ont été lues ; l’enquête ne le sait pas encore. Quelle réponse protège le mieux la suite de la crise ?',
+      options: [
+        'Dire ce qui est établi, ce qui ne l’est pas, ce qui est fait, et fixer le prochain point',
+        'Répondre que rien n’indique un accès à ses données, pour éviter une inquiétude inutile',
+        'Ne rien dire tant que l’enquête n’a pas conclu, pour ne pas engager l’entreprise',
+        'Transmettre le détail technique de l’attaque, pour montrer que la situation est maîtrisée',
+      ],
+      answer: 0,
+      explain: 'Un message sous incertitude sépare l’établi de l’inconnu et donne un rendez-vous : il reste vrai quand l’enquête avance. Une réponse rassurante qu’il faudra corriger détruit la crédibilité des messages suivants. Le silence prive le client des moyens de protéger ses propres clients. Le détail technique n’aide pas le client et peut servir à d’autres attaquants.',
+    },
+    {
+      q: 'Un client a été victime d’une prise de contrôle de compte. Son mot de passe a été réinitialisé. Qu’est-ce qui peut encore donner accès à l’attaquant ?',
+      options: [
+        'Les sessions déjà ouvertes, les jetons de rafraîchissement et les clés d’API émis',
+        'Rien : la réinitialisation du mot de passe invalide tous les accès du compte',
+        'Uniquement le cookie de la session courante du client, qui expirera de lui-même',
+        'Uniquement un second facteur ajouté par l’attaquant, si le client en a un',
+      ],
+      answer: 0,
+      explain: 'Changer un mot de passe ne révoque ni les sessions en cours, ni les jetons OAuth de rafraîchissement, ni les clés d’API d’intégration, sauf si l’application le prévoit explicitement. D’où la nécessité d’un geste de révocation par utilisateur et par tenant, testé à l’avance. Le second facteur ajouté est un risque réel, mais pas le seul, et une session volée n’attend pas d’expirer pour servir.',
+    },
+    {
+      q: 'Le post-mortem d’une fuite inter-tenants conclut à une « erreur humaine : contrôle d’appartenance oublié ». Que faut-il en faire ?',
+      options: [
+        'Chercher ce qui a permis l’oubli, ce qui ne l’a pas arrêté et ce qui a retardé sa détection',
+        'Nommer le développeur dans le rapport, pour qu’il porte lui-même l’action corrective',
+        'Clore le post-mortem, puisque la cause racine est identifiée et le correctif déployé',
+        'Programmer une formation de toute l’équipe, seule action à la hauteur de la cause',
+      ],
+      answer: 0,
+      explain: 'L’oubli est le point de départ de l’analyse : une couche d’accès aux données qui n’impose pas le tenant, l’absence de test inter-tenants, une détection absente produisent des actions qui ne dépendent plus de la vigilance d’une personne. Nommer un coupable apprend surtout aux équipes à se taire. Clore sur l’erreur humaine laisse les causes en place, et une formation sans critère de clôture n’est pas vérifiable.',
+    },
+  ],
+
   m05: [
     {
       q: 'Deux vulnérabilités ont un score CVSS de 9,8. Qu’est-ce qui doit départager leur priorité ?',
@@ -1133,7 +1365,7 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
         'La facilité de la mise à jour et le risque de régression associé',
       ],
       answer: 2,
-      explain: 'CVSS mesure la gravité intrinsèque, pas le risque : EPSS dit la probabilité d’exploitation, l’analyse d’atteignabilité dit si le chemin existe chez vous. Le coût de correction arbitre ensuite, il ne priorise pas.',
+      explain: 'CVSS mesure la gravité intrinsèque, pas le risque : EPSS dit la probabilité d’exploitation, l’analyse d’atteignabilité dit si le chemin existe dans l’application. Le coût de correction arbitre ensuite, il ne priorise pas.',
     },
     {
       q: 'À quoi sert un document VEX ?',
@@ -1169,12 +1401,12 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
       explain: 'Quand une CVE tombe, la question est « quelle version avions-nous livrée le 3 mars ». Un SBOM régénéré aujourd’hui décrit l’arbre d’aujourd’hui, et cette réponse-là est perdue.',
     },
     {
-      q: 'Une CVE critique touche une bibliothèque XML que l’équipe dit ne jamais utiliser. Que fais-tu ?',
+      q: 'Une CVE critique touche une bibliothèque XML que l’équipe dit ne jamais utiliser. Que faut-il faire ?',
       options: [
-        'Tu enregistres la qualification en VEX et tu la revalides plus tard',
-        'Tu vérifies avec eux les points d’entrée qui reçoivent du XML',
-        'Tu mets à jour quand même, le correctif coûtant peu de temps',
-        'Tu classes la CVE en attente jusqu’à la prochaine revue mensuelle',
+        'Enregistrer la qualification en VEX et la revalider plus tard',
+        'Vérifier avec l’équipe les points d’entrée qui reçoivent du XML',
+        'Mettre à jour quand même, le correctif coûtant peu de temps',
+        'Classer la CVE en attente jusqu’à la prochaine revue mensuelle',
       ],
       answer: 1,
       explain: 'Leur conclusion est une hypothèse testable, et un contre-exemple concret vaut mieux qu’un arbitrage. Patcher systématiquement apprend à l’équipe à ne plus qualifier — ce qu’on veut précisément leur faire faire.',
@@ -1264,17 +1496,75 @@ export const checkpoints: Record<string, CheckpointQuestion[]> = {
     },
   ],
 
+  m31: [
+    {
+      q: 'Un serveur MCP distant reçoit un jeton signé par le bon serveur d’autorisation, non expiré, émis pour l’API des factures de la même entreprise. Que doit-il faire ?',
+      options: [
+        'Le refuser par un 401 : il n’a pas été émis pour ce serveur MCP',
+        'L’accepter, puis le relayer à l’API des factures dont il est l’audience',
+        'L’accepter en lecture seule, puisque l’émetteur est de confiance',
+        'Répondre 403 insufficient_scope pour obtenir un jeton plus large',
+      ],
+      answer: 0,
+      explain: 'Le serveur MCP doit vérifier que le jeton lui est destiné et refuser tout autre jeton ; le relayer vers l’aval serait du token passthrough, interdit par la spec. Le 403 insufficient_scope concerne un jeton valide pour ce serveur mais aux scopes insuffisants.',
+    },
+    {
+      q: 'Au retour d’autorisation, le paramètre iss vaut https://auth.example.com/ alors que le client a enregistré https://auth.example.com. Que fait un client conforme à la révision 2026-07-28 ?',
+      options: [
+        'Il rejette la réponse sans utiliser le code ni afficher l’erreur',
+        'Il accepte, la normalisation d’URL rendant les deux valeurs égales',
+        'Il accepte le code et vérifie plutôt l’issuer de l’ID token reçu',
+        'Il relance la découverte pour savoir quelle forme est la bonne',
+      ],
+      answer: 0,
+      explain: 'La comparaison de iss est une comparaison de chaînes simple, sans aucune normalisation, faite avant d’envoyer le code à un endpoint de jeton. Vérifier l’ID token arrive trop tard, et relancer la découverte laisserait la réponse suspecte guider le client.',
+    },
+    {
+      q: 'Un client MCP ouvre l’URL d’autorisation par exec(`start ${url}`). Quel correctif ferme réellement la classe de CVE-2025-6514 ?',
+      options: [
+        'N’accepter que https (http en boucle locale) et ouvrir sans shell',
+        'Refuser les URL qui commencent par javascript: ou par file:',
+        'Échapper les guillemets de l’URL avant de construire la commande',
+        'Vérifier que l’URL est servie en HTTPS avec un certificat valide',
+      ],
+      answer: 0,
+      explain: 'Le problème est double : un schéma dangereux et un interpréteur de commandes qui lit l’URL. Une liste noire laisse passer d’autres schémas et les sous-expressions du shell ; l’échappement des guillemets ne neutralise pas $(…) ; un certificat valide ne dit rien du contenu de l’URL.',
+    },
+    {
+      q: 'Un proxy MCP utilise un client_id statique auprès d’une API tierce et accepte l’enregistrement dynamique de clients. Quelle mesure bloque le vol de code par confused deputy ?',
+      options: [
+        'Un consentement propre au proxy, par client_id, avant d’aller chez l’AS tiers',
+        'Un cookie de consentement global qui retient que l’utilisatrice a approuvé le proxy',
+        'Un state posé dès l’arrivée sur /authorize, puis vérifié au retour de l’AS tiers',
+        'Une redirect_uri vérifiée par préfixe contre celle déclarée à l’enregistrement',
+      ],
+      answer: 0,
+      explain: 'L’attaque exploite le consentement déjà donné au client_id statique du proxy : seul un consentement par client MCP, demandé avant la redirection, l’interrompt. Un cookie global reproduit le défaut, un state posé avant le consentement rend l’écran décoratif, et une comparaison par préfixe laisse passer un hôte d’attaquant.',
+    },
+    {
+      q: 'Le serveur MCP de Novafact publie ses quarante scopes dans scopes_supported et n’envoie pas de scope dans son 401. Quel est l’effet sur les clients ?',
+      options: [
+        'Ils demandent les quarante scopes d’emblée et obtiennent des jetons maximaux',
+        'Ils demandent le scope du premier outil appelé, puis élèvent au fil de l’eau',
+        'Ils refusent de continuer, faute de savoir quel scope demander en premier',
+        'Ils laissent le serveur d’autorisation choisir le sous-ensemble minimal utile',
+      ],
+      answer: 0,
+      explain: 'Sans scope dans le challenge, la spec fait demander tout scopes_supported, censé être l’ensemble minimal d’un usage de base : publier le catalogue produit donc des jetons omnipotents. Le step-up par outil suppose que le serveur émette des challenges ciblés, et rien n’oblige l’AS à réduire la demande.',
+    },
+  ],
+
   m06: [
     {
-      q: 'Un lead dev demande de désactiver une règle SAST pour un faux positif, une heure avant une démo. Que fais-tu ?',
+      q: 'Un lead dev demande de désactiver une règle SAST pour un faux positif, une heure avant une démo. Que faut-il faire ?',
       options: [
-        'Tu poses l’annotation d’exception avec une échéance à 90 jours',
-        'Tu regardes le code avec lui, puis vous annotez ou vous corrigez',
-        'Tu désactives la règle sur son dépôt et tu la remets après la démo',
-        'Tu maintiens le blocage : les règles existent pour une raison',
+        'Poser l’annotation d’exception avec une échéance à 90 jours',
+        'Regarder le code avec lui, puis annoter ou corriger ensemble',
+        'Désactiver la règle sur son dépôt et la remettre après la démo',
+        'Maintenir le blocage : les règles existent pour une raison',
       ],
       answer: 1,
-      explain: 'Trente secondes de lecture décident, et débloquent aussi vite dans les deux cas. Signer un faux positif sans l’avoir vu engage ta signature ; désactiver la règle retire le contrôle pour des lignes que tu n’as pas regardées.',
+      explain: 'Trente secondes de lecture décident, et débloquent aussi vite dans les deux cas. Signer un faux positif sans l’avoir vu engage la signature de l’AppSec ; désactiver la règle retire le contrôle pour des lignes que personne n’a regardées.',
     },
     {
       q: 'Qu’est-ce qu’une « paved road » en sécurité applicative ?',

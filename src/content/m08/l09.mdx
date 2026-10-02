@@ -51,7 +51,7 @@ Tu sais qu'un `sha256sum` posé à côté d'un fichier ne protège de rien si tu
 
 ## Ce qu'un hash prouve, et ce qu'il ne prouve pas
 
-Un condensé est une empreinte de longueur fixe. Il vaut si deux messages distincts n'ont, en pratique, jamais la même (**résistance aux collisions**) et si l'on ne peut pas retrouver une entrée à partir d'un condensé donné (**résistance à la préimage**, que Kohnfelder range parmi les attaques les plus graves). Aucune des deux ne dit *qui* a calculé l'empreinte : sans secret, un hash détecte la corruption **accidentelle**, et face à quelqu'un qui peut modifier la donnée, il se recalcule. Le bon outil est le **MAC** de la leçon 7, ou une signature.
+Un condensé est une empreinte de longueur fixe. Il vaut si deux messages distincts n'ont, en pratique, jamais la même (**résistance aux collisions**) et si l'on ne peut pas retrouver une entrée à partir d'un condensé donné (**résistance à la préimage**, que Kohnfelder range parmi les attaques les plus graves). Aucune des deux ne dit *qui* a calculé l'empreinte : sans secret, un hash détecte la corruption **accidentelle**, et face à quelqu'un qui peut modifier la donnée, il se recalcule. Le bon outil est le **MAC** de la leçon 8, ou une signature.
 
 <Callout kind="case">
 **SHAttered (23 février 2017)**. Le CWI Amsterdam et Google publient la première collision pratique sur SHA-1 : deux PDF différents, même condensé, pour environ 9 milliards de milliards (2⁶³) de calculs, soit 6 500 années de CPU et 110 années de GPU. **Flame (2012)** en montre l'usage le plus grave : selon Microsoft, le maliciel portait une signature de code valide remontant à sa racine, obtenue en forgeant par collision à préfixe choisi un certificat md5RSA du service de licences Terminal Server, dont l'extension bloquante sous Vista et suivants avait été retirée. Dans les deux cas, l'attaquant choisit les deux versions : il fait signer l'une, livre l'autre.
@@ -83,7 +83,7 @@ Le test qui prouve la correction : modifier le PDF **et** recalculer un SHA-256 
 
 ## Réutiliser une clé ou un nonce
 
-Un flux de clé combiné par XOR n'est sûr que s'il ne sert **qu'une fois**. Kohnfelder le montre avec le masque jetable : deux chiffrés produits avec le même secret, combinés, donnent le XOR des deux clairs, la clé s'étant annulée. Un clair connu ou devinable (début de JSON, en-tête fixe) suffit alors à lire l'autre. AES-GCM chiffre en mode compteur : un IV répété rejoue le même flux, et l'authentification s'effondre aussi (règle et `seal` en leçon 7). En 2016, Böck et ses coauteurs ont trouvé 184 serveurs HTTPS qui répétaient leurs nonces GCM et pouvaient donc y injecter du contenu.
+Un flux de clé combiné par XOR n'est sûr que s'il ne sert **qu'une fois**. Kohnfelder le montre avec le masque jetable : deux chiffrés produits avec le même secret, combinés, donnent le XOR des deux clairs, la clé s'étant annulée. Un clair connu ou devinable (début de JSON, en-tête fixe) suffit alors à lire l'autre. AES-GCM chiffre en mode compteur : un IV répété rejoue le même flux, et l'authentification s'effondre aussi (règle et `seal` en leçon 8). En 2016, Böck et ses coauteurs ont trouvé 184 serveurs HTTPS qui répétaient leurs nonces GCM et pouvaient donc y injecter du contenu.
 
 <Code file="scratch/nonce-reuse.mjs" hl="3,8">
 

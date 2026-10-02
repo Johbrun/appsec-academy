@@ -1,0 +1,162 @@
+export const questions = [
+  {
+    q: "Dans EBIOS RM, à quel moment les événements redoutés sont-ils identifiés, et de quel point de vue ?",
+    options: [
+      "À l'atelier 4, à partir des modes opératoires techniques de l'attaquant",
+      "À l'atelier 1, du point de vue de l'organisation, avant tout scénario d'attaque",
+      "À l'atelier 3, à partir des chemins d'attaque passant par l'écosystème",
+      "À l'atelier 2, en même temps que les objectifs visés par chaque source de risque",
+    ],
+    answer: 1,
+    explain: "L'atelier 2 est le distracteur sérieux : l'objectif visé d'une source de risque ressemble à un événement redouté. Mais il exprime ce que l'attaquant cherche, alors que l'événement redouté exprime ce que l'organisation craint pour une valeur métier. Le guide les pose à l'atelier 1, hors de tout scénario d'attaque ; les ateliers 3 et 4 les reprennent ensuite du point de vue de l'attaquant.",
+  },
+  {
+    q: "Pourquoi l'atelier 3 cartographie-t-il les parties prenantes de l'écosystème ?",
+    options: [
+      "Pour vérifier que chaque fournisseur a signé une clause de sécurité dans son contrat",
+      "Pour lister les sous-traitants à déclarer au registre des traitements du RGPD",
+      "Parce qu'un attaquant bien renseigné passe par le maillon le plus faible",
+      "Parce que la méthode exclut d'étudier une attaque directe contre l'objet de l'étude",
+    ],
+    answer: 2,
+    explain: "Le guide part d'une logique de moindre effort : une source de risque qui connaît l'écosystème attaque la partie prenante la plus facile à exploiter, celle qui a un accès privilégié. D'où l'évaluation par exposition (dépendance, pénétration) et fiabilité cyber (maturité, confiance). Les clauses contractuelles et le registre RGPD sont des sujets voisins, mais ils ne disent rien du chemin d'attaque. Et les attaques directes restent étudiées : l'écosystème s'y ajoute.",
+  },
+  {
+    q: "Un risque est classé « tolérable sous contrôle » à l'atelier 5. Qu'est-ce que ça implique ?",
+    options: [
+      "Aucune action n'est requise, puisque le risque est jugé tolérable",
+      "Des mesures de réduction s'imposent à court terme, faute de quoi l'activité est refusée",
+      "Le risque est transféré à un assureur ou à un sous-traitant sous contrôle contractuel",
+      "Un suivi s'impose, avec des actions d'amélioration sur le moyen et le long terme",
+    ],
+    answer: 3,
+    explain: "« Aucune action » décrit la classe « acceptable en l'état », et les mesures impératives à court terme la classe « inacceptable » : c'est la frontière entre les trois classes qui piège. « Sous contrôle » ne veut pas dire « sous contrat » : le transfert est une option de traitement, pas une classe d'acceptabilité. Tolérable signifie qu'on vit avec le risque à condition de le suivre et de l'améliorer progressivement.",
+  },
+  {
+    q: "Comment les résultats d'EBIOS RM servent-ils le threat modeling de M11 ?",
+    options: [
+      "Les événements redoutés et les scénarios désignent les actifs et les chemins à modéliser",
+      "Le threat model remplace l'atelier 4, qui fait double emploi avec STRIDE",
+      "Le threat model n'est nécessaire que pour les risques classés inacceptables",
+      "EBIOS RM fournit la liste des vulnérabilités que le threat model doit corriger",
+    ],
+    answer: 0,
+    explain: "Dire que le threat model remplace l'atelier 4 est tentant parce que les deux décrivent des modes opératoires. Mais l'atelier 4 reste au niveau des biens supports critiques, pour estimer une vraisemblance ; le threat model descend dans le flux de données d'une fonctionnalité pour trouver les menaces et les mitigations. Le premier dit où regarder, le second regarde. Et EBIOS ne produit pas de liste de vulnérabilités : il produit des scénarios.",
+  },
+];
+
+<YouKnow>
+En pentest, le périmètre est donné et la question est « qu'est-ce qui casse ? ». EBIOS Risk Manager commence plus tôt : qu'est-ce qui compte pour l'entreprise, qui voudrait l'atteindre, et par où passerait-il, y compris par ses partenaires.
+</YouKnow>
+
+## La méthode en une page
+
+EBIOS Risk Manager est la méthode d'analyse de risques publiée par l'ANSSI avec le Club EBIOS, association qui la soutient depuis 2003. La version courante du guide est la **1.5** (septembre 2024, référence ANSSI-PA-048). Elle se déclare conforme à l'ISO/IEC 27005:2022 et alignée sur l'ISO 31000:2018 (leçon 1). En France, elle est le langage commun des RSSI, des auditeurs et des autorités d'homologation : quand l'ANSSI est elle-même autorité d'homologation, son usage est obligatoire, et il est fortement recommandé ailleurs.
+
+La démarche tient en cinq ateliers itératifs :
+
+| Atelier | Question | Ce qui en sort |
+| --- | --- | --- |
+| **1 · Cadrage et socle de sécurité** | Qu'est-ce qu'on protège, et quelles règles s'appliquent déjà ? | Valeurs métier, biens supports, événements redoutés et leur gravité, écarts au socle |
+| **2 · Sources de risque** | Qui voudrait nous atteindre, et pour quoi faire ? | Couples source de risque / objectif visé (SR/OV) retenus |
+| **3 · Scénarios stratégiques** | Par quels chemins, y compris l'écosystème ? | Cartographie des parties prenantes, scénarios stratégiques et leur gravité |
+| **4 · Scénarios opérationnels** | Avec quels modes opératoires techniques ? | Scénarios opérationnels et leur vraisemblance |
+| **5 · Traitement du risque** | Que fait-on, et qu'accepte-t-on ? | Stratégie de traitement, plan de mesures, risques résiduels, cadre de suivi |
+
+Le guide prévoit deux rythmes de révision : un **cycle stratégique**, qui revisite toute l'étude, et un **cycle opérationnel**, qui revient sur les scénarios techniques. Pour une homologation, il cite des durées courantes de trois ans et d'un an. Il demande aussi de désigner, dès l'atelier 1, la personne qui acceptera les risques résiduels : on sait qui signera avant de savoir quoi.
+
+## Atelier 1 : partir du métier
+
+L'atelier liste les **valeurs métier** (ce que le guide appelait « biens essentiels » dans EBIOS 2010), les **biens supports** qui les portent, puis les **événements redoutés** : des atteintes à une valeur métier, formulées du point de vue de l'organisation, sans scénario d'attaque. Chaque événement reçoit une **gravité** sur une échelle définie à l'avance ; le guide en donne une à quatre niveaux, de G1 *mineure* (« la société surmontera la situation sans trop de difficultés ») à G4 *critique* (« sa survie est menacée »).
+
+| Valeur métier | Événement redouté | Gravité |
+| --- | --- | --- |
+| Encaisser les paiements des clients finaux | Des factures partent avec l'IBAN d'un tiers | G3 · grave |
+| Confidentialité des factures entre tenants | Un tenant lit les factures d'un autre | G3 · grave |
+| Émettre et envoyer les factures | Plus aucune facture ne part pendant 48 h | G2 · significative |
+| Réputation du domaine d'envoi | Le domaine de Novafact sert à du phishing | G3 · grave |
+| Intégrité du SDK `@novafact/sdk` | Une version piégée est publiée sur npm | G4 · critique |
+
+L'atelier évalue aussi le **socle de sécurité** : les règles déjà applicables (RGPD, exigences PCI DSS du périmètre réduit, ASVS que l'équipe vise en M12). C'est l'étage « conformité » ; les ateliers suivants s'occupent de ce que la conformité ne couvre pas.
+
+## Atelier 2 : qui, et pour quoi faire
+
+On recense des couples **source de risque / objectif visé**, puis on évalue leur pertinence sur trois critères du guide : la **motivation**, les **ressources** (financières, compétences, infrastructure d'attaque) et l'**activité** observée dans le secteur. Le guide recommande de retenir trois à six couples suffisamment distincts. Pour Novafact :
+
+- un **fraudeur organisé** qui veut détourner des paiements de factures ;
+- un **groupe de rançongiciel** qui veut extorquer l'entreprise en bloquant la facturation ;
+- un **client malveillant** qui veut lire les données commerciales d'un concurrent hébergé sur la même plateforme ;
+- un **attaquant de la chaîne logicielle** qui veut atteindre les clients via le SDK npm.
+
+Le « hacktiviste qui défigure la page d'accueil » a été écarté : motivation faible, aucun objectif lié à une valeur métier.
+
+## Atelier 3 : l'écosystème
+
+C'est l'atelier qui surprend le plus les profils techniques. Le guide cartographie les **parties prenantes** (fournisseurs, partenaires, clients interconnectés) et estime leur dangerosité sur deux axes : l'**exposition** (dépendance, pénétration dans le système) et la **fiabilité cyber** (maturité, confiance). Une source de risque bien renseignée attaquera, par moindre effort, le maillon le plus faible.
+
+<Callout kind="case">
+**British Airways (2018).** Selon l'avis de sanction de l'ICO (16 octobre 2020, 20 M£), l'attaquant est entré le 22 juin 2018 avec les identifiants d'un employé de Swissport, prestataire de BA, sur une passerelle d'accès distant Citrix où la politique de BA prévoyait une authentification multifacteur qui manquait. Il a ensuite atteint le site et détourné des données de carte jusqu'au 5 septembre ; environ 429 600 personnes sont concernées. Le volet « script de paiement modifié » est traité en M8 (leçon 3). Vu par EBIOS, c'est un scénario stratégique typique : une partie prenante à forte pénétration et à fiabilité moyenne, qui devient le chemin vers la valeur métier.
+</Callout>
+
+Chez Novafact, la cartographie fait ressortir trois parties prenantes critiques : le **prestataire de paiement** (forte dépendance), les **éditeurs des scripts tiers** de la page de paiement (forte pénétration, maturité inconnue) et les **cabinets comptables** qui administrent les comptes de leurs clients (pénétration forte, maturité très variable). D'où ce scénario stratégique : *le fraudeur compromet le compte d'un comptable par phishing, modifie l'IBAN du modèle de facture d'un client, et les paiements des clients finaux partent chez lui*. Gravité reprise de l'événement redouté : G3.
+
+## Atelier 4 : le mode opératoire
+
+L'atelier 4 traduit chaque chemin stratégique en **scénario opérationnel** sur les biens supports critiques. Le guide suggère de le séquencer (connaître, rentrer, trouver, exploiter) et d'estimer sa **vraisemblance** de V1 *peu vraisemblable* à V4 *quasi certain*.
+
+<Code file="ebios/scenarios-operationnels.yaml" hl="10,11,12">
+
+```yaml
+- id: SO-02
+  strategique: SS-01            # fraudeur → comptable → IBAN du modèle
+  connaitre: annuaires publics des cabinets, page de connexion de Novafact
+  rentrer: phishing du comptable, session volée (pas de MFA imposée aux comptes cabinets)
+  trouver: liste des clients du cabinet dans le portail
+  exploiter: modification de l'IBAN du modèle, aucune revalidation ni notification
+  controles_existants:
+    - journal d'audit des modifications de modèle (non surveillé)
+  vraisemblance: V3             # mode opératoire courant, aucune barrière technique
+  # Ce que l'atelier ne fait pas : lister chaque faille. Il désigne le flux
+  # « modification d'IBAN » comme bien support critique à modéliser en M11.
+  a_modeliser: flux modification-iban
+```
+
+</Code>
+
+## Atelier 5 : décider
+
+On croise gravité et vraisemblance sur une **cartographie du risque**, puis on fixe une **stratégie de traitement** qui donne à chaque risque une classe d'acceptabilité. Le guide en propose trois :
+
+| Classe | Décision attendue |
+| --- | --- |
+| **Acceptable en l'état** | Aucune action à entreprendre |
+| **Tolérable sous contrôle** | Un suivi à mener, et des actions d'amélioration continue sur le moyen et le long terme |
+| **Inacceptable** | Des mesures de réduction à prendre impérativement à court terme ; à défaut, tout ou partie de l'activité est refusé |
+
+SO-02 (G3, V3) tombe dans « inacceptable ». Le plan de traitement en tire trois mesures : MFA imposée aux comptes des cabinets, revalidation hors bande de tout changement d'IBAN, et notification au client émetteur. Après ces mesures, le risque résiduel est réévalué (V1) et passe en « tolérable sous contrôle ». Comment on tient ce plan dans un registre et qui signe le résiduel, ce sont les leçons 5 et 6.
+
+<Callout kind="tip">
+Ce que le threat modeling reçoit d'EBIOS : les **valeurs métier** deviennent les actifs du modèle, les **événements redoutés** fixent ce qui est grave, et les **scénarios opérationnels** désignent les flux à modéliser en détail (M11, leçon 1). Le flux « modification d'IBAN » passera en STRIDE (M11, leçon 2) ; l'API d'export de logs internes, elle, n'y passera pas cette année.
+</Callout>
+
+<Callout kind="debate">
+EBIOS RM est souvent jugée lourde pour une équipe produit. Ses défenseurs répondent que le guide prévoit des usages partiels (un atelier seul, ou seulement l'atelier 1 pour une approche par conformité) et que le coût vient surtout de la volonté de tout couvrir. La pratique la plus utile en AppSec : mener les ateliers 1 et 2 une fois avec la direction, puis faire vivre 3 et 4 au rythme des changements d'architecture.
+</Callout>
+
+<Recap items={[
+  "EBIOS RM v1.5 (ANSSI, 2024) : cinq ateliers, conforme ISO/IEC 27005:2022, obligatoire quand l'ANSSI homologue.",
+  "Atelier 1 : valeurs métier, biens supports, événements redoutés notés G1 à G4, et socle de sécurité.",
+  "Atelier 2 : trois à six couples source de risque / objectif visé, jugés sur motivation, ressources et activité.",
+  "Atelier 3 : l'écosystème ; la partie prenante la plus faible devient le chemin (British Airways via Swissport).",
+  "Atelier 4 : modes opératoires et vraisemblance V1 à V4 ; atelier 5 : acceptable en l'état, tolérable sous contrôle, inacceptable.",
+  "Les événements redoutés et les scénarios disent au threat model quoi modéliser et jusqu'où.",
+]} />
+
+<Sources items={[
+  { title: "ANSSI, La méthode EBIOS Risk Manager – Le guide (v1.5)", url: "https://messervices.cyber.gouv.fr/guides/la-methode-ebios-risk-manager-le-guide", note: "ateliers, échelles G1-G4 et V1-V4, classes d'acceptabilité" },
+  { title: "Club EBIOS", url: "https://club-ebios.org/site/" },
+  { title: "ANSSI / DINUM, Guide de l'homologation de sécurité (v2.2, mars 2026)", url: "https://messervices.cyber.gouv.fr/documents-guides/guide-homologation-securite-web-04-2025.pdf", note: "note 52 sur EBIOS RM" },
+  { title: "ICO, avis de sanction British Airways (16 octobre 2020)", url: "https://ico.org.uk/media2/migrated/2618421/ba-penalty-20201016.pdf" },
+  { title: "Simmons & Simmons, British Airways Penalty Notice: the download", url: "https://www.simmons-simmons.com/en/publications/ckgkwyif32y0n09447bd3j12l/british-airways-penalty-notice-the-download" },
+  { title: "ISO/IEC 27005:2022 (IEC Webstore)", url: "https://webstore.iec.ch/publication/79713" },
+]} />

@@ -1,0 +1,143 @@
+export const questions = [
+  {
+    q: "Quelle fonction du NIST CSF 2.0 n'existait pas dans la version 1.1 et se place au centre des cinq autres ?",
+    options: [
+      "Identify, qui inventorie les actifs avant toute mesure",
+      "Govern, qui fixe la stratégie, les rôles et la politique",
+      "Protect, qui regroupe désormais le développement sécurisé",
+      "Respond, qui absorbe l'ancienne fonction Recover",
+    ],
+    answer: 1,
+    explain: "Govern est l'ajout majeur de la version 2.0 (février 2024) : stratégie, rôles, politique, gestion du risque fournisseur. Identify existait déjà en 1.1, et c'est un piège fréquent parce qu'il « vient en premier » dans les schémas. Protect contient bien le développement sécurisé (PR.PS-06), mais ce n'est pas une nouveauté de fonction. Respond et Recover restent deux fonctions distinctes.",
+  },
+  {
+    q: "Chez Novafact, l'équipe AppSec impose la vérification de l'intégrité des paquets npm et évalue chaque nouveau fournisseur SaaS. Dans quelle catégorie du CSF 2.0 ce travail se range-t-il d'abord ?",
+    options: [
+      "DE.CM, parce qu'il s'agit de surveiller en continu des composants",
+      "ID.AM, parce qu'il faut d'abord inventorier les dépendances",
+      "GV.SC, la gestion du risque de la chaîne d'approvisionnement",
+      "PR.DS, parce que l'intégrité des données est en jeu",
+    ],
+    answer: 2,
+    explain: "La gestion du risque fournisseur et composant vit dans Govern, catégorie GV.SC : c'est une décision de politique (quels fournisseurs, quelles exigences) avant d'être un contrôle technique. L'inventaire (ID.AM) en est un prérequis, pas la catégorie du travail. PR.DS vise la sécurité des données, pas le choix des composants, et DE.CM la détection d'événements, pas l'évaluation préalable.",
+  },
+  {
+    q: "Pourquoi un pentester qui rejoint une équipe AppSec a-t-il intérêt à connaître le vocabulaire du CSF, alors qu'il ne le manipulera presque jamais en revue de code ?",
+    options: [
+      "Parce que le CSF est une certification exigée par les clients américains",
+      "Parce qu'il remplace l'OWASP ASVS pour exprimer les exigences de code",
+      "Parce qu'il fixe les seuils CVSS à partir desquels un correctif est dû",
+      "Parce que c'est la langue de la direction et de la GRC qui financent l'AppSec",
+    ],
+    answer: 3,
+    explain: "Le CSF sert à décrire une posture et des priorités à un comité de direction ou à un auditeur : c'est par lui que l'AppSec justifie budget et feuille de route. Ce n'est pas une certification (on ne « certifie » pas un profil CSF), il ne définit aucun seuil CVSS, et il reste trop général pour remplacer l'ASVS, qui décrit des exigences vérifiables dans le code.",
+  },
+  {
+    q: "D'après le rapport du GAO sur Equifax, quel facteur explique que l'exfiltration ait duré des semaines sans déclencher d'alerte ?",
+    options: [
+      "Un certificat expiré empêchait l'outil d'inspection d'analyser le trafic chiffré",
+      "Les journaux du portail étaient désactivés depuis la migration vers Struts",
+      "Le SOC avait classé les alertes du portail comme faux positifs récurrents",
+      "Les attaquants avaient supprimé les journaux de requêtes SQL au fil de l'eau",
+    ],
+    answer: 0,
+    explain: "Le GAO rapporte qu'un certificat expiré depuis environ dix mois empêchait l'outil d'inspection du trafic de faire son travail : c'est une défaillance de la fonction Detect. Les journaux existaient au contraire : c'est en les relisant qu'Equifax a reconstitué les quelque 9 000 requêtes. Aucune source ne mentionne de faux positifs ignorés ni d'effacement des journaux.",
+  },
+];
+
+<YouKnow>
+Un pentester sait trouver une faille et la démontrer. Il a croisé des RSSI, des analystes SOC, des auditeurs ISO, sans toujours savoir ce que chacun fait de son rapport. Cette leçon pose la carte du métier, et la place de l'AppSec dessus.
+</YouKnow>
+
+## Un métier, plusieurs métiers
+
+« La cybersécurité » recouvre des métiers qui ne se parlent pas toujours. Le pentester en connaît surtout un : la **sécurité offensive**. Les autres reçoivent ses rapports, ou lui envoient des demandes, sans qu'il voie ce qu'ils en font. Avant de zoomer sur l'application, voici la carte :
+
+| Domaine | Ce qu'il fait | Ce qu'il attend de l'application |
+| --- | --- | --- |
+| **GRC** (gouvernance, risque, conformité) | Politique, analyse de risques, audits, conformité (ISO 27001, NIS2, RGPD) | Des preuves : inventaire, exigences, résultats de tests |
+| **SOC et renseignement** | Surveille, trie les alertes, suit les acteurs de la menace | Des journaux exploitables, des événements de sécurité nommés |
+| **Réponse à incident** | Contient, enquête, remet en service | Savoir quelles données ont fui, révoquer des sessions, rejouer une chronologie |
+| **Sécurité cloud et infrastructure** | IAM, réseau, durcissement, configuration | Des services qui tournent avec le moindre privilège |
+| **Identité** (IAM d'entreprise) | Annuaire, SSO, MFA, cycle de vie des comptes | Une intégration propre au SSO, des rôles qui ont un sens |
+| **Sécurité offensive** | Pentest, red team, bug bounty | Une application testable, une surface connue |
+| **AppSec / product security** | Rend le logiciel sûr pendant qu'on le conçoit et le construit | (c'est elle qui fournit tout ce qui précède) |
+
+La dernière ligne explique la position de l'AppSec : elle est le seul domaine qui agit **dans le code**, et presque tous les autres dépendent de ce qu'elle obtient des équipes. Un SOC ne détecte pas ce que l'application ne journalise pas. Une réponse à incident ne peut pas révoquer les sessions d'un client si l'application ne sait pas le faire. Une GRC ne peut pas prouver la conformité d'un produit dont personne ne connaît les dépendances. Les rôles détaillés et la façon de travailler avec chacun viennent au module 4 (M4, leçon 2).
+
+## Le NIST CSF 2.0, carte commune
+
+Pour que ces métiers parlent la même langue, le NIST publie le **Cybersecurity Framework** (CSF). La version 2.0 (CSWP 29) est parue le **26 février 2024**, après la 1.1 de 2018. Il ne prescrit aucune mesure technique : il découpe la sécurité d'une organisation en **six fonctions**, elles-mêmes divisées en catégories et sous-catégories référencées par un code.
+
+| Fonction | La question qu'elle pose | Exemple de catégorie | Ce que ça donne chez Novafact |
+| --- | --- | --- | --- |
+| **Govern** (GV) | Qui décide, selon quelle stratégie et quelle tolérance au risque ? | GV.SC, risque de la chaîne d'approvisionnement | Politique d'acceptation des paquets npm et des fournisseurs SaaS |
+| **Identify** (ID) | Qu'avons-nous, et qu'est-ce qui peut mal tourner ? | ID.AM (actifs), ID.RA (évaluation du risque) | Inventaire des services et des dépendances, threat models |
+| **Protect** (PR) | Quelles mesures empêchent l'incident ? | PR.AA (identité et accès), PR.PS (sécurité des plateformes) | OIDC, autorisation par tenant, SSDLC |
+| **Detect** (DE) | Comment savoir que ça arrive ? | DE.CM (surveillance continue), DE.AE (analyse des événements) | Logs pino vers Elastic, règles de détection |
+| **Respond** (RS) | Que fait-on quand ça arrive ? | RS.MA (gestion de l'incident) | Playbook de fuite de données, révocation des jetons |
+| **Recover** (RC) | Comment revenir à la normale ? | RC.RP (exécution du plan de reprise) | Restauration AWS Backup, communication client |
+
+**Govern** est la nouveauté de la version 2.0. Le NIST le dessine au centre d'une roue formée par les cinq autres : la gouvernance n'est pas une étape qui précède, c'est elle qui oriente toutes les autres. Ce choix a une conséquence directe pour l'AppSec : la gestion du risque fournisseur, qui inclut les dépendances logicielles, relève de la gouvernance, pas d'un outil de scan.
+
+Le CSF propose aussi des **profils** (un profil actuel, un profil cible, et l'écart entre les deux devient une feuille de route) et des **tiers** de 1 à 4 (*Partial*, *Risk Informed*, *Repeatable*, *Adaptive*) qui qualifient la rigueur des pratiques. La maturité est traitée plus loin (M5).
+
+## Où se range l'AppSec
+
+Une seule sous-catégorie nomme le logiciel : **PR.PS-06**, « les pratiques de développement sécurisé sont intégrées, et leur performance suivie, tout au long du cycle de vie du logiciel ». C'est le cœur du métier, et c'est la porte d'entrée vers le NIST SSDF (M3, leçon 4).
+
+Mais réduire l'AppSec à PR.PS-06 serait une erreur de lecture. Son travail touche les six fonctions :
+
+- **Govern** : les règles d'acceptation des dépendances, le seuil au-delà duquel une revue de conception est obligatoire ;
+- **Identify** : threat modeling, inventaire des API exposées, analyse de risques (M10) ;
+- **Protect** : paved road, bibliothèques sûres, revue de code, tests ;
+- **Detect** : les événements de sécurité que l'application émet (connexion échouée, refus d'autorisation, export massif), sans lesquels le SOC est aveugle ;
+- **Respond** : la capacité de corriger et de redéployer vite, de révoquer, de publier un avis ;
+- **Recover** : des données restaurables et un service qui redémarre proprement.
+
+<Callout kind="case">
+Le rapport du GAO sur la fuite d'Equifax (août 2018) se lit très bien avec cette grille. L'entreprise a elle-même identifié quatre facteurs. **Identification** : la liste de diffusion de l'alerte Apache Struts n'était pas à jour, et un scan lancé une semaine plus tard n'a pas vu la version vulnérable sur le portail de contestation. **Détection** : un certificat expiré depuis environ dix mois empêchait l'outil d'inspection d'analyser le trafic chiffré. **Segmentation** : depuis le portail, les attaquants ont atteint 48 bases sans rapport avec lui. **Gouvernance des données** : ils y ont trouvé des identifiants stockés en clair. S'y ajoute l'absence de limite sur le nombre de requêtes : environ 9 000 en 76 jours. Une faille applicative a ouvert la porte ; ce sont les autres fonctions qui ont laissé l'incident devenir une catastrophe. La leçon 5 revient sur le mécanisme.
+</Callout>
+
+## Dans la pratique : un extrait de profil
+
+Un profil CSF n'a pas besoin d'être un document de cinquante pages. Pour l'AppSec de Novafact, un extrait suffit à rendre l'écart visible et à le prioriser :
+
+<Code file="docs/securite/profil-csf-appsec.md">
+
+```md
+| Sous-catégorie | Profil actuel                                   | Profil cible                                         | Écart, action           |
+| -------------- | ----------------------------------------------- | ---------------------------------------------------- | ----------------------- |
+| GV.SC          | Aucun critère pour ajouter un paquet npm        | Critères écrits, revue au-delà d'un seuil de risque  | M18, leçon 6            |
+| ID.AM          | Liste des dépôts, pas des API exposées          | Inventaire des routes publiques, généré par la CI    | Script OpenAPI + export |
+| PR.PS-06       | Semgrep en CI, non bloquant                     | Règles bloquantes sur les classes connues            | M17                     |
+| DE.CM          | Logs pino non structurés pour la sécurité       | Événements nommés (authn, authz, export) vers Elastic | M23                     |
+| RS.MA          | Pas de procédure de révocation des sessions     | Révocation par tenant en moins de 15 minutes          | Runbook + endpoint admin |
+```
+
+</Code>
+
+Ce tableau fait trois choses qu'un rapport de pentest ne fait pas : il **nomme l'état actuel sans jugement**, il fixe une cible **vérifiable**, et il **range chaque action dans une langue que la direction connaît**. C'est souvent ce tableau, et non la liste des vulnérabilités, qui obtient un budget.
+
+<Callout kind="debate">
+Le CSF est-il utile à une équipe produit ? Contre : il est trop abstrait pour guider une ligne de code, et une équipe qui « remplit le CSF » produit de la documentation au lieu de corriger. Pour : sans lui, l'AppSec parle en CWE à une direction qui pense en risques, et perd les arbitrages. Le compromis qui marche : le CSF pour **cadrer et rendre compte**, l'ASVS et les règles de revue pour **faire**.
+</Callout>
+
+<Callout kind="novafact">
+Au premier comité sécurité de Novafact, l'AppSec ne présente pas de liste de vulnérabilités. Elle présente les six fonctions, une ligne chacune, avec l'état actuel et ce qu'elle demande. Le DSI retient une phrase : « le SOC ne voit pas nos exports de factures ». C'est DE.CM, et c'est le premier chantier financé.
+</Callout>
+
+<Recap items={[
+  "La cybersécurité regroupe GRC, SOC, réponse à incident, cloud, identité, offensif et AppSec ; l'AppSec est le seul domaine qui agit dans le code.",
+  "Le NIST CSF 2.0 (26 février 2024) découpe la sécurité en six fonctions : Govern, Identify, Protect, Detect, Respond, Recover.",
+  "Govern est la nouveauté de la 2.0, au centre de la roue ; le risque de la chaîne d'approvisionnement (GV.SC) en fait partie.",
+  "PR.PS-06 nomme le développement sécurisé, mais l'AppSec contribue aux six fonctions, notamment à Detect par les événements que l'application émet.",
+  "Un profil actuel et un profil cible transforment des constats techniques en feuille de route lisible par la direction.",
+  "Equifax : une faille applicative a ouvert la porte, l'identification, la détection et la segmentation ont fait l'ampleur.",
+]} />
+
+<Sources items={[
+  { title: "NIST, The NIST Cybersecurity Framework (CSF) 2.0, CSWP 29 (26 février 2024)", url: "https://doi.org/10.6028/NIST.CSWP.29" },
+  { title: "GAO-18-559, Data Protection: Actions Taken by Equifax and Federal Agencies in Response to the 2017 Breach (août 2018)", url: "https://www.gao.gov/products/gao-18-559" },
+  { title: "NIST SP 800-218, Secure Software Development Framework (SSDF)", url: "https://csrc.nist.gov/pubs/sp/800/218/final" },
+]} />

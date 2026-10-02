@@ -1,0 +1,129 @@
+export const questions = [
+  {
+    q: "Novafact confie sa supervision 24 h/24 à un prestataire MDR. Qu’est-ce qui reste forcément du ressort de l’équipe de Novafact ?",
+    options: [
+      "Rien d’opérationnel : le contrat transfère la détection et la réponse au prestataire",
+      "L’écriture de toutes les règles, que le prestataire se contente d’exécuter",
+      "Le contexte applicatif et les décisions métier : propriétaires, flux normaux, coupures",
+      "La collecte des journaux, que le prestataire n’a pas le droit de configurer",
+    ],
+    answer: 2,
+    explain: "Un MDR détecte et peut agir, mais il ne sait pas qu’un export massif de factures le 31 du mois est normal, ni qui peut décider de couper l’API d’un client. Le contrat transfère une activité, pas la responsabilité ni la connaissance de l’application. À l’inverse, un MDR apporte en général ses propres règles et peut configurer la collecte : c’est même une bonne part de sa valeur. Ce qui ne s’externalise pas, c’est le contexte et l’arbitrage métier.",
+  },
+  {
+    q: "Pourquoi le délai moyen de détection (MTTD) seul est-il un mauvais indicateur de la qualité d’un SOC ?",
+    options: [
+      "Parce qu’il ne mesure que les incidents détectés, pas ceux qui sont passés inaperçus",
+      "Parce qu’il dépend du fuseau horaire des analystes et n’est pas comparable",
+      "Parce qu’il est calculé par le SIEM, qui ne voit pas les alertes du MDR",
+      "Parce qu’il ne s’applique qu’aux SOC internes, pas aux prestataires externes",
+    ],
+    answer: 0,
+    explain: "Un SOC qui ne détecte rien a un MTTD indéfini, et un SOC qui ne voit que les attaques bruyantes a un excellent MTTD : l’indicateur est aveugle à ce qu’il rate. C’est pourquoi on le croise avec la couverture testée (M24) et avec la part d’incidents découverts par un tiers. Le fuseau horaire et l’outil de calcul sont des détails de mesure ; un prestataire se mesure aussi bien qu’une équipe interne, et on le lui demande d’ailleurs par contrat.",
+  },
+  {
+    q: "Dans l’affaire Target (2013), le rapport du Sénat américain relève des alertes de l’outil anti-malware restées sans suite. Quelle leçon en tirer pour l’AppSec ?",
+    options: [
+      "Qu’un outil de détection plus récent aurait suffi à éviter la fuite",
+      "Qu’il faut externaliser la supervision à un prestataire spécialisé",
+      "Qu’une alerte ne vaut que si son circuit sait qui doit décider, et comment",
+      "Qu’il faut désactiver le blocage automatique pour éviter les faux positifs",
+    ],
+    answer: 2,
+    explain: "L’outil avait vu : la défaillance était dans le circuit qui suit l’alerte, entre ceux qui la voient et ceux qui peuvent décider. Un outil plus récent ou un prestataire n’y changent rien si personne ne sait qui prévenir ni avec quel pouvoir. Désactiver le blocage automatique ne répond à rien ici : le problème n’était pas un excès de réactions, mais leur absence. Pour l’AppSec, la leçon est concrète : chaque alerte qui touche une application doit arriver à quelqu’un qui sait quoi en faire.",
+  },
+];
+
+<YouKnow>
+En pentest, le testeur est souvent le bruit que quelqu’un, quelque part, doit trier. Parfois le test déclenche une alerte, souvent non, et le testeur ne sait jamais qui l’a lue. Ce module ne forme pas des analystes : il montre l’autre côté assez pour qu’une application y soit bien traitée.
+</YouKnow>
+
+## Pourquoi l’AppSec doit connaître le SOC
+
+Un centre opérationnel de sécurité (SOC) surveille, trie et répond. L’AppSec, elle, conçoit et corrige. Les deux se croisent à chaque incident : le SOC voit un signal sur l’API de Novafact, mais ne sait pas si `invoice_export` à 3 h du matin est normal ; l’équipe applicative sait, mais n’a pas vu le signal. Ce module reste volontairement court sur le métier d’analyste. Il répond à trois questions : que fait le SOC (cette leçon), qu’attend-il de l’application (leçon 2), et qu’apportent le renseignement et la chasse (leçons 3 et 4). La journalisation et le SIEM sont traités en M23, l’écriture des détections en M24, la réponse à incident en M25.
+
+## Ce qu’un SOC fait vraiment
+
+Le livre de MITRE *11 Strategies of a World-Class Cybersecurity Operations Center* (Knerler, Parker et Zimmerman, 2022, gratuit) est la référence la plus citée. Ses onze stratégies se lisent comme une liste de dépendances, et plusieurs concernent directement l’application :
+
+| Stratégie de MITRE | Ce qu’elle demande à l’AppSec |
+| --- | --- |
+| 1. Savoir ce qu’on protège et pourquoi | Un inventaire des applications, de leurs données et de leurs propriétaires |
+| 2. Donner au SOC l’autorité d’agir | Des règles écrites : qui peut couper une API, révoquer des sessions |
+| 5. Prioriser la réponse à incident | Des runbooks par application (M25) |
+| 6. Éclairer l’adversaire par le renseignement | Partager ce que les revues et les pentests ont appris (leçon 3) |
+| 7. Choisir et collecter les bonnes données | Des journaux applicatifs exploitables (leçon 2, M23) |
+| 9. Communiquer, collaborer, partager | Un canal direct entre SOC et équipes produit |
+| 10. Mesurer pour progresser | Des indicateurs qui incluent l’application |
+
+Les autres portent sur la structure, le recrutement, l’outillage et l’extension des missions. Côté normalisation, le *CSIRT Services Framework* v2.1 du FIRST range les services d’une équipe de réponse en cinq domaines : gestion des événements de sécurité, gestion des incidents, gestion des vulnérabilités, connaissance de la situation et transfert de connaissances. Le deuxième et le troisième recoupent directement le travail de l’AppSec : un incident applicatif finit souvent en vulnérabilité à corriger (M26), et inversement.
+
+## Le circuit d’une alerte
+
+Dans le modèle classique, l’alerte traverse des **niveaux** (*tiers*) d’analyse. Beaucoup d’équipes les assouplissent, mais le circuit reste le même :
+
+<Steps items={[
+  { title: "Collecte et corrélation", text: "Les journaux arrivent dans le SIEM (M23), les règles produisent des alertes (M24)." },
+  { title: "Tri (niveau 1)", text: "Un analyste écarte les faux positifs et qualifie le reste en quelques minutes, avec le contexte disponible. S’il manque le propriétaire de l’application, l’alerte attend." },
+  { title: "Investigation (niveau 2)", text: "Reconstitution de la chronologie, étendue, premiers gestes de confinement. C’est là que l’équipe applicative est appelée." },
+  { title: "Réponse et chasse (niveau 3)", text: "Incidents majeurs, chasse proactive (leçon 4), retour vers l’ingénierie de détection." },
+]} />
+
+Un point à retenir : le tri se fait vite et avec ce qui est écrit. Une alerte sur l’API de Novafact qui n’indique ni le service, ni le tenant, ni le propriétaire, coûte une demi-heure de recherche ou finit classée « bénigne » par défaut.
+
+<Callout kind="case">
+**Target (2013).** Le rapport des services de la commission du Commerce du Sénat américain (mars 2014) relève que Target n’a pas réagi à plusieurs alertes automatiques de son outil anti-malware pendant l’intrusion qui a mené au vol de données de cartes bancaires. Selon la presse de l’époque (Bloomberg Businessweek), une équipe de supervision basée à Bangalore avait signalé ces alertes au centre de sécurité de Minneapolis, sans suite. L’outil avait vu ; le circuit entre ceux qui voient et ceux qui décident a cédé. C’est exactement l’interface que l’AppSec peut renforcer : qui est prévenu, avec quel contexte, et avec quel pouvoir d’agir.
+</Callout>
+
+## Interne, MSSP ou MDR
+
+Peu d’éditeurs SaaS de la taille de Novafact ont un SOC interne 24 h/24. Trois modèles coexistent, souvent mélangés :
+
+| Modèle | Qui détecte | Qui agit | Ce qui reste en interne |
+| --- | --- | --- | --- |
+| **SOC interne** | L’équipe interne, ses règles | L’équipe interne | Tout, y compris les nuits et les week-ends |
+| **MSSP** (service de sécurité managé) | Le prestataire, sur les outils du client ou les siens | Surtout le client : le prestataire alerte, le client répond | Contexte, décisions, réponse |
+| **MDR** (détection et réponse managées) | Le prestataire, avec ses outils et ses règles | Le prestataire peut contenir (isoler, révoquer) dans un périmètre convenu | Contexte, arbitrages métier, réponse applicative |
+
+En France, l’ANSSI qualifie les **prestataires de détection des incidents de sécurité** selon le référentiel **PDIS** (v2.0, décembre 2017) ; les prestataires de réponse relèvent du référentiel PRIS (M25, leçon 4). Une qualification ne garantit pas que le prestataire comprend l’application : elle garantit une méthode, une confidentialité et une compétence évaluées.
+
+Quel que soit le modèle, deux choses ne s’externalisent pas : la **connaissance de l’application** (ce qui est normal, ce qui est critique) et la **décision métier** (couper ou non le service d’un client). Un contrat de MDR qui ne dit pas qui joindre chez Novafact à 3 h du matin, ni ce que le prestataire a le droit de faire seul, est incomplet.
+
+<Callout kind="novafact">
+Novafact (fictif) combine les modèles : un MDR surveille 24 h/24 les journaux AWS et les alertes d’Elastic ; une petite équipe interne écrit les détections applicatives (M24) et tient l’astreinte. Le contrat liste les gestes autorisés au prestataire sans appel préalable (révoquer les sessions d’un rôle IAM, isoler une tâche ECS) et ceux qui exigent l’accord de l’astreinte (bloquer un tenant, couper l’API publique). L’AppSec a rédigé la fiche de chaque application exposée (leçon 2) et relit chaque trimestre les alertes classées « bénignes » qui la concernent.
+</Callout>
+
+## Mesurer sans se tromper
+
+Les indicateurs classiques d’un SOC sont le **MTTD** (délai moyen de détection), le **MTTR** (délai de réponse), le volume d’alertes et la part de faux positifs. Le **temps de résidence** (*dwell time*) mesure combien de temps un attaquant est resté avant d’être découvert : Mandiant le chiffre à 14 jours en médiane dans M-Trends 2026, contre 11 l’année précédente. Le même rapport indique que 52 % des compromissions ont été détectées en interne : les autres ont été signalées de l’extérieur, par un tiers ou par l’attaquant lui-même quand il réclame une rançon.
+
+Chaque indicateur a son angle mort. Le MTTD ne compte que ce qui est détecté ; le volume d’alertes récompense le bruit ; le taux de faux positifs pousse à supprimer les règles gênantes. La loi de Goodhart s’applique ici comme ailleurs (M30). Pour l’AppSec, trois mesures sont plus parlantes :
+
+- la part d’alertes applicatives qui arrivent **avec** le propriétaire et la fiche de l’application ;
+- le délai pour joindre un responsable applicatif après une alerte qualifiée ;
+- la part d’incidents applicatifs découverts par un tiers (client, chercheur, presse) plutôt que par le SOC.
+
+## Situer la maturité
+
+Pour situer un SOC, le **SOC-CMM** (Rob van Os, depuis 2016) propose une auto-évaluation gratuite en cinq domaines : métier, personnes, processus, technologie et services. Il se place à côté de SAMM pour l’AppSec ; la leçon 4 de M5 explique pourquoi il vaut mieux choisir un modèle que les collectionner. Pour l’AppSec, l’intérêt est ailleurs : le domaine « métier » d’une évaluation SOC-CMM dit si le SOC connaît ses clients internes, c’est-à-dire les applications.
+
+<Callout kind="tip">
+Le test le plus simple de l’interface AppSec-SOC : prendre le dernier rapport de pentest et demander au SOC quelles alertes il a vues pendant la mission. S’il n’a rien vu, la question n’est pas « pourquoi l’outil a-t-il raté ? », mais « l’application journalisait-elle ce qu’il fallait, et quelqu’un le regardait-il ? ».
+</Callout>
+
+<Recap items={[
+  "Le SOC surveille, trie et répond ; l’AppSec lui fournit l’inventaire, le contexte et les journaux qui rendent ses alertes applicatives traitables.",
+  "Les 11 stratégies de MITRE et le FIRST CSIRT Services Framework donnent le vocabulaire des missions.",
+  "Le tri se fait vite et avec ce qui est écrit : une alerte sans propriétaire ni contexte est une alerte perdue.",
+  "Interne, MSSP ou MDR : la connaissance de l’application et la décision métier ne s’externalisent pas ; le contrat dit qui joindre et ce que le prestataire peut faire seul.",
+  "MTTD, MTTR et dwell time ont des angles morts ; il faut aussi mesurer ce que contiennent les alertes applicatives et qui découvre les incidents.",
+]} />
+
+<Sources items={[
+  { title: "MITRE : 11 Strategies of a World-Class Cybersecurity Operations Center (2022)", url: "https://www.mitre.org/news-insights/publication/11-strategies-world-class-cybersecurity-operations-center" },
+  { title: "FIRST : CSIRT Services Framework v2.1", url: "https://www.first.org/standards/frameworks/csirts/csirt_services_framework_v2.1" },
+  { title: "ANSSI : référentiel PDIS v2.0", url: "https://cyber.gouv.fr/sites/default/files/2022-10/pdis_referentiel_v2.0%5B1%5D.pdf" },
+  { title: "SOC-CMM", url: "https://www.soc-cmm.com/" },
+  { title: "Sénat américain : rapport sur les occasions manquées de Target (mars 2014)", url: "https://www.commerce.senate.gov/2014/3/rockefeller-staff-report-details-target-s-missed-opportunities-to-stop-massive-data-breach" },
+  { title: "Mandiant : M-Trends 2026", url: "https://cloud.google.com/blog/topics/threat-intelligence/m-trends-2026" },
+]} />

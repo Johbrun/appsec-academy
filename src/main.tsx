@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import './styles.css';
 import './appsec.css';
+import './slides.css';
 import { ProgressProvider } from './store/progress';
 import { SessionProvider, useSession } from './store/session';
 import { AfterAuth, RedirectToLogin } from './components/AuthShell';
@@ -15,6 +16,8 @@ import LessonPage from './pages/LessonPage';
 import Games from './pages/Games';
 import Labs from './pages/Labs';
 import Library from './pages/Library';
+import Slides from './pages/Slides';
+import SlideViewer from './pages/SlideViewer';
 import Profile from './pages/Profile';
 import Exams, { ExamRoute } from './pages/Exams';
 import Certificate from './pages/Certificate';
@@ -57,6 +60,11 @@ const gameComponents: Record<string, React.LazyExoticComponent<() => JSX.Element
   'agent-blast-radius': lazy(() => import('./games/AgentBlastRadius')),
   'crise-j0': lazy(() => import('./games/CriseJ0')),
   'red-blue': lazy(() => import('./games/RedBlue')),
+  'tarball-inspector': lazy(() => import('./games/TarballInspector')),
+  'attack-tactics': lazy(() => import('./games/AttackTactics')),
+  'attack-mitigations': lazy(() => import('./games/AttackMitigations')),
+  'attack-killchain': lazy(() => import('./games/AttackKillChain')),
+  'cti-mapper': lazy(() => import('./games/CtiMapper')),
 };
 
 function GameRoute() {
@@ -109,6 +117,8 @@ function AppRoutes() {
         <Route path="connexion" element={<AfterAuth />} />
         <Route path="inscription" element={<AfterAuth />} />
         <Route path="reinitialiser" element={<ResetPassword />} />
+        {/* La visionneuse occupe tout l'écran : hors du gabarit, sans barre de navigation. */}
+        <Route path="slides/:moduleId" element={<SlideViewer />} />
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="parcours" element={<Parcours />} />
@@ -120,6 +130,7 @@ function AppRoutes() {
           <Route path="examens" element={<Exams />} />
           <Route path="examens/:examId" element={<ExamRoute />} />
           <Route path="certificat" element={<Certificate />} />
+          <Route path="slides" element={<Slides />} />
           <Route path="bibliotheque" element={<Library />} />
           <Route path="profil" element={<Profile />} />
           <Route path="enseignant" element={<TeacherOnly><Cohorts /></TeacherOnly>} />

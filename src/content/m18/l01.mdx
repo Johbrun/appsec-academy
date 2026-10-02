@@ -213,7 +213,7 @@ Les logs sont une cible :
 
 - **Injection** (CWE-117) : un retour à la ligne dans un champ peut fabriquer une fausse ligne dans un journal texte. Le JSON de pino échappe les caractères de contrôle ; c'est une raison de plus de ne jamais écrire de logs en texte libre.
 - **Intégrité** : l'application écrit sur `stdout` et n'a aucun droit de lecture ni de suppression sur Elastic. L'agent qui collecte utilise une clé d'API limitée à l'écriture dans ses flux (leçon 3).
-- **Accès** : Kibana est une interface de données (M13, leçon 6). Les rôles de lecture sont restreints, et les accès aux journaux sont eux-mêmes journalisés.
+- **Accès** : Kibana est une interface de données (M13, leçon 7). Les rôles de lecture sont restreints, et les accès aux journaux sont eux-mêmes journalisés.
 - **Disponibilité** : un attaquant peut noyer les logs sous le bruit. Plafonne la taille des champs libres (le `slice(0, 512)` sur le user-agent) et prévois un échantillonnage des logs techniques, jamais des événements de sécurité.
 
 <Recap items={[

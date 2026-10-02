@@ -1,0 +1,163 @@
+export const questions = [
+  {
+    q: "L’API de Novafact journalise `authz_fail` avec l’horodatage et l’adresse IP. Qu’est-ce qui manque le plus à l’analyste du SOC pour trier cette alerte ?",
+    options: [
+      "Le corps complet de la requête, pour voir exactement ce que l’attaquant a envoyé",
+      "L’utilisateur, son tenant, l’objet demandé et son tenant propriétaire",
+      "La trace d’appel de l’exception, pour localiser le contrôle dans le code",
+      "Le niveau de journalisation ERROR, pour que l’événement remonte en priorité",
+    ],
+    answer: 1,
+    explain: "Un refus d’autorisation ne se trie qu’en sachant qui a demandé quoi, et à qui appartient l’objet : un utilisateur d’Acme qui demande une facture d’Acme n’a rien de suspect, le même qui demande une facture de Globex est une tentative de BOLA. Le corps complet de la requête risque d’embarquer des données personnelles ou des secrets (M23, leçon 1). La trace d’appel aide le développeur, pas le tri. Et le niveau de journalisation n’apporte aucune information sur l’événement lui-même.",
+  },
+  {
+    q: "Qui devrait rédiger le runbook « compte client détourné » de l’API de Novafact ?",
+    options: [
+      "Le SOC seul, puisque c’est lui qui l’exécutera pendant l’incident",
+      "L’équipe applicative seule, puisque c’est elle qui connaît le code",
+      "Le prestataire MDR, qui dispose de modèles éprouvés sur d’autres clients",
+      "L’équipe applicative et l’AppSec, relus et testés avec le SOC qui l’exécute",
+    ],
+    answer: 3,
+    explain: "Le runbook mêle deux savoirs : les gestes propres à l’application (révoquer les sessions d’un utilisateur, geler un export, retrouver ses actions) et le circuit de réponse (qui prévenir, quand escalader). Écrit par le SOC seul, il ignore les leviers de l’application ; écrit par les développeurs seuls, il ignore le circuit. Les modèles d’un prestataire sont un bon point de départ, mais ils ne connaissent ni les rôles ni les tenants de Novafact. D’où l’écriture conjointe, et un test avec ceux qui l’exécuteront.",
+  },
+  {
+    q: "Dans l’affaire Storm-0558 (2023), le département d’État américain a été la première victime à détecter l’intrusion. Grâce à quoi ?",
+    options: [
+      "Une règle maison sur un journal d’accès aux boîtes mail qu’il avait les moyens de collecter",
+      "Une alerte de l’éditeur, qui surveillait les jetons signés avec des clés expirées",
+      "Un indicateur de compromission partagé par un CERT national quelques jours avant",
+      "Un pentest programmé qui a révélé des connexions anormales à la messagerie",
+    ],
+    answer: 0,
+    explain: "Le rapport du Cyber Safety Review Board décrit une règle maison, « Big Yellow Taxi », appliquée au journal MailItemsAccessed, que le département d’État pouvait exploiter parce que sa licence incluait la journalisation avancée. L’éditeur n’a rien signalé en premier : c’est le client qui l’a contacté. Aucun indicateur n’existait encore, puisque la campagne était inconnue, et aucun pentest n’est en cause. La leçon pour l’AppSec : sans le journal d’accès aux données, pas de détection possible.",
+  },
+];
+
+<YouKnow>
+Le pentester connaît le journal applicatif comme une source d’indices quand il cherche une faille, et comme une liste de choses à ne pas y laisser fuiter. Pour le SOC, c’est autre chose : la seule fenêtre sur ce que fait réellement un utilisateur dans l’application. Le WAF voit des requêtes, CloudTrail voit AWS ; seule l’application sait qu’un comptable d’Acme vient d’ouvrir une facture de Globex.
+</YouKnow>
+
+## Un contrat d’interface
+
+Entre l’AppSec et le SOC, il vaut mieux un contrat explicite qu’une bonne volonté. Le SOC attend de chaque application exposée quatre livrables, et l’AppSec est souvent la mieux placée pour les obtenir des équipes produit :
+
+| Livrable | Ce que le SOC en fait | Qui le produit |
+| --- | --- | --- |
+| **Journaux exploitables** | Détecter, trier, reconstituer | L’équipe applicative, selon le standard posé par l’AppSec |
+| **Fiche de l’application** | Savoir ce qui est normal, critique, et à qui c’est | Le propriétaire de l’application, relu par l’AppSec |
+| **Runbooks applicatifs** | Agir sans attendre un développeur | L’équipe applicative et l’AppSec, testés avec le SOC |
+| **Contacts joignables** | Escalader en minutes, pas en heures | Le propriétaire, tenus à jour par l’astreinte |
+
+L’OWASP a renommé la catégorie A09 du Top 10 2025 en *Security Logging and **Alerting** Failures* : un journal que personne ne transforme en alerte ne sert qu’à l’autopsie. Ce contrat est ce qui transforme l’un en l’autre.
+
+## Des journaux exploitables
+
+Le quoi journaliser et le format (Logging Vocabulary d’OWASP, pino au format ECS, ce qu’on ne journalise jamais) sont traités en M23, leçon 1. Ici, la question est celle du SOC : **cet événement me permet-il de décider en cinq minutes ?** Pour un analyste, un événement applicatif doit répondre à cinq questions sans ouvrir le code :
+
+| Question de l’analyste | Champ attendu (ECS) |
+| --- | --- |
+| Quoi ? | `event.action` (vocabulaire commun), `event.outcome` |
+| Qui ? | `user.id`, et pour Novafact le tenant (`organization.id`) |
+| Sur quoi ? | l’objet visé et son propriétaire (`novafact.invoice.tenant_id`, extension documentée) |
+| D’où ? | `source.ip`, `user_agent.original`, l’identifiant de session haché |
+| Dans quel contexte ? | `service.name`, `trace.id`, la version déployée |
+
+La différence se voit sur un refus d’autorisation, l’événement qui révèle une énumération BOLA (M24, leçon 5) :
+
+<Diff file="logs/api-novafact.ndjson" hlBefore="1" hlAfter="1">
+
+```json
+{"level":"warn","time":"2026-09-30T02:14:07Z","msg":"Forbidden","ip":"203.0.113.24","path":"/api/invoices/inv_8f2c"}
+```
+
+```json
+{"@timestamp":"2026-09-30T02:14:07Z","log.level":"warn","event.action":"authz_fail","event.outcome":"failure","event.reason":"tenant_mismatch","service.name":"novafact-api","service.version":"2026.09.3","trace.id":"4bf92f3577b34da6","user.id":"usr_51a0","organization.id":"ten_acme","novafact.invoice.id":"inv_8f2c","novafact.invoice.tenant_id":"ten_globex","source.ip":"203.0.113.24","novafact.session_hash":"h:9d1e…"}
+```
+
+</Diff>
+
+Le premier dit qu’un refus a eu lieu ; le second dit qu’un utilisateur d’Acme a demandé une facture de Globex, depuis quelle session et dans quelle version de l’API. Le message libre `Forbidden` est inutilisable pour une règle ; `event.action` et `event.reason` se comptent, se seuillent et se corrèlent. Le chemin de l’URL a disparu au profit d’identifiants explicites : une URL peut porter un jeton de partage.
+
+Deux exigences de plus, qui ne se voient pas dans une ligne :
+
+- **la stabilité** : un événement qui change de nom à chaque refonte casse les règles en silence. `event.action` fait partie de l’interface publique de l’application, au même titre que son API ;
+- **l’exhaustivité des chemins** : une même action accessible par deux routes (l’interface et un export, l’API et un onglet « fichiers ») doit produire le même événement. Sinon le SOC cherche au mauvais endroit, et M25 en donne un exemple réel avec l’incident du support d’Okta en 2023.
+
+<Callout kind="case">
+**Storm-0558 (2023).** Selon le rapport du Cyber Safety Review Board (publié en avril 2024), le département d’État américain a été la première victime à détecter l’intrusion, le 15 et le 16 juin 2023. Son SOC avait écrit une règle maison, surnommée « Big Yellow Taxi », sur le journal `MailItemsAccessed`, qui trace les accès aux boîtes Exchange Online. Ce journal n’était accessible qu’avec une offre de journalisation « premium », que le département avait achetée. Les autres victimes, sans ce journal, ne pouvaient pas voir l’accès. La leçon dépasse Microsoft : **l’accès aux données est l’événement que le SOC ne peut pas reconstruire s’il n’a pas été journalisé**. Pour Novafact, c’est `invoice_read` et `invoice_export`, pas seulement les échecs.
+</Callout>
+
+## La fiche de l’application
+
+Le tri d’une alerte dépend de ce qu’on sait de la cible. La fiche tient en une page, versionnée à côté du code ou dans le catalogue de services, et le SIEM l’associe à chaque alerte par `service.name` :
+
+<Code file="catalog/novafact-api.yaml">
+
+```yaml
+service: novafact-api
+proprietaire: equipe-facturation          # une équipe, pas une personne qui part en vacances
+astreinte: pagerduty:novafact-api-primary
+appsec_referent: appsec@novafact.example
+criticite: haute                          # cœur du métier, données de tous les tenants
+donnees: [factures, coordonnees-clients, iban]   # classification : M12, leçon 3
+exposition: internet (CloudFront > WAF > ALB > ECS Fargate)
+identites_aws:
+  - role/novafact-api-task                # rôle de tâche ECS, n'appelle que S3, SES, Secrets Manager
+flux_normaux:
+  - "pics d'export le dernier jour ouvré du mois (clôtures comptables)"
+  - "appels du back-office depuis le réseau d'entreprise uniquement"
+  - "pas d'appel AWS hors eu-west-3"
+evenements_cles: [authn_login_fail, authz_fail, invoice_export, authn_mfa_disabled]
+runbooks:
+  - runbooks/compte-client-detourne.md
+  - runbooks/fuite-jeton-oauth.md
+gestes_autorises_soc: [revoquer-sessions-utilisateur, geler-exports-tenant]
+gestes_avec_accord: [bloquer-tenant, couper-api-publique]
+```
+
+</Code>
+
+La ligne la plus utile pour le SOC est souvent `flux_normaux` : elle transforme des faux positifs récurrents en exclusions documentées (M24, leçon 1), et des anomalies vraies en alertes crédibles. Un rôle de tâche qui appelle AWS hors de `eu-west-3` n’a rien de normal, et le dire coûte une ligne.
+
+## Des runbooks et des contacts
+
+Un runbook applicatif dit au SOC quoi faire **sans attendre un développeur** : comment révoquer les sessions d’un utilisateur, geler les exports d’un tenant, retrouver toutes les actions d’une session. Leur écriture est le sujet de la leçon 2 de M25 ; ici, on retient deux règles d’interface. Chaque geste du runbook doit exister dans l’application, comme une commande d’administration testée ou une route protégée, et non comme une requête SQL à improviser en production. Et la fiche dit lesquels le SOC peut lancer seul.
+
+Les contacts paraissent triviaux. Ce sont pourtant eux qui manquent le plus souvent : une liste de diffusion que personne ne lit la nuit, un responsable parti depuis six mois. Le contact d’une application est une **rotation d’astreinte**, vérifiée par un test régulier : une fausse alerte qualifiée, envoyée un mardi à 22 h, mesure le temps de réponse réel.
+
+## Qui écrit quoi
+
+| Activité | AppSec | Équipe applicative | SOC | Ingénierie de détection |
+| --- | --- | --- | --- | --- |
+| Standard de journalisation | Rédige | Applique | Relit | Relit |
+| Événements de sécurité dans le code | Revoit (M16) | Écrit | — | Exprime ses besoins |
+| Fiche de l’application | Relit | Rédige et tient à jour | Utilise | Utilise |
+| Règles de détection applicatives | Propose les cas d’abus | Valide le « normal » | Trie | Écrit et teste (M24) |
+| Runbooks applicatifs | Co-rédige | Co-rédige, outille | Exécute et relit | — |
+
+L’AppSec n’est propriétaire d’aucune colonne en entier : elle est ce qui les relie. Les cas d’abus écrits pendant la conception (M12, leçon 1) et les menaces du threat model (M11) sont la meilleure source de détections applicatives, à condition que quelqu’un les fasse traverser jusqu’au SIEM.
+
+<Callout kind="novafact">
+À chaque nouvelle fonctionnalité sensible, la définition de « terminé » de Novafact (fictif) inclut trois cases : les événements de sécurité émis et documentés dans la fiche, une ligne dans `flux_normaux` si le comportement surprendra le SOC, et le runbook mis à jour si un nouveau geste de confinement est nécessaire. L’export comptable en masse, lancé en juin, a ajouté l’événement `invoice_export_bulk`, une ligne sur les pics de fin de mois et le geste « geler les exports d’un tenant ».
+</Callout>
+
+## Vérifier que l’interface tient
+
+Un contrat se teste. Une fois par trimestre, on rejoue un scénario en préproduction : vingt `authz_fail` croisés entre tenants depuis un compte de test. Puis on mesure ce qui se passe. L’alerte se déclenche-t-elle ? Arrive-t-elle avec la fiche et le bon propriétaire ? L’astreinte répond-elle dans le délai convenu ? Le runbook permet-il de geler le compte sans développeur ? Chaque « non » est un ticket, au même titre qu’une vulnérabilité.
+
+<Recap items={[
+  "Le SOC attend de chaque application quatre livrables : journaux exploitables, fiche, runbooks et contacts joignables.",
+  "Un événement exploitable répond à quoi, qui, sur quoi, d’où et dans quel contexte, sans ouvrir le code.",
+  "event.action est une interface publique : stable, et identique quel que soit le chemin d’accès.",
+  "Journaliser l’accès aux données, pas seulement les échecs : Storm-0558 n’a été vu que là où ce journal existait.",
+  "La fiche de l’application et ses flux normaux font la différence entre faux positif et vraie alerte ; l’interface se teste chaque trimestre.",
+]} />
+
+<Sources items={[
+  { title: "OWASP Top 10 2025 : A09 Security Logging and Alerting Failures", url: "https://owasp.org/Top10/2025/A09_2025-Security_Logging_and_Alerting_Failures" },
+  { title: "OWASP : Logging Vocabulary Cheat Sheet", url: "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Vocabulary_Cheat_Sheet.html" },
+  { title: "Elastic Common Schema : référence des champs", url: "https://www.elastic.co/docs/reference/ecs" },
+  { title: "CSRB : Review of the Summer 2023 Microsoft Exchange Online Intrusion", url: "https://www.cisa.gov/sites/default/files/2025-03/CSRBReviewOfTheSummer2023MEOIntrusion508.pdf" },
+  { title: "MITRE : 11 Strategies of a World-Class Cybersecurity Operations Center", url: "https://www.mitre.org/news-insights/publication/11-strategies-world-class-cybersecurity-operations-center" },
+]} />

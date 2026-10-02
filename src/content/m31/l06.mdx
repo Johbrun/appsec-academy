@@ -1,0 +1,165 @@
+export const questions = [
+  {
+    q: "Dans l'attaque du confused deputy décrite par la spec MCP, pourquoi l'utilisatrice ne voit-elle aucun écran de consentement ?",
+    options: [
+      "Parce que l'attaquant a obtenu son mot de passe et se connecte à sa place sur l'AS tiers",
+      "Parce que l'AS tiers trouve un cookie de consentement pour le client_id statique du proxy",
+      "Parce que le proxy MCP a désactivé le consentement pour les clients enregistrés dynamiquement",
+      "Parce que l'AS tiers ne demande jamais de consentement aux applications de première partie",
+    ],
+    answer: 1,
+    explain: "Le proxy présente toujours le même client_id à l'AS tiers, quel que soit le client MCP qui a déclenché le flux. L'utilisatrice ayant déjà consenti une fois pour ce client_id, l'AS tiers saute l'écran. Aucune identité n'est volée, et le proxy n'a rien désactivé volontairement : c'est l'absence de consentement par client MCP de son côté qui ouvre la brèche.",
+  },
+  {
+    q: "Où le proxy MCP doit-il poser le cookie qui porte le state du flux vers l'AS tiers ?",
+    options: [
+      "Dès l'arrivée sur /authorize, pour que l'utilisatrice soit reconnue sur l'écran de consentement",
+      "Dans la réponse du callback de l'AS tiers, une fois le code échangé contre un jeton",
+      "Après l'approbation sur l'écran de consentement du proxy, juste avant la redirection vers l'AS tiers",
+      "Nulle part : le state est transmis à l'AS tiers, qui le renvoie et le vérifie lui-même",
+    ],
+    answer: 2,
+    explain: "La spec exige que le state ne soit stocké qu'après le consentement explicite, immédiatement avant la redirection. Le poser à l'arrivée sur /authorize permettrait à une requête forgée d'obtenir un state valide sans passer par l'écran. Au callback, c'est trop tard pour lier le flux au consentement. Et l'AS tiers renvoie le state sans le vérifier : c'est au proxy de le comparer.",
+  },
+  {
+    q: "Pourquoi un cookie de consentement « l'utilisatrice a déjà approuvé » ne suffit-il pas sur le proxy ?",
+    options: [
+      "Parce qu'il doit être lié au client_id approuvé, sinon tout nouveau client en hérite",
+      "Parce qu'un cookie ne peut pas porter l'attribut SameSite sur un écran de consentement",
+      "Parce que la spec interdit tout cookie au profit d'un stockage du consentement en base",
+      "Parce qu'il expire avec la session du navigateur, ce qui force un nouveau consentement",
+    ],
+    answer: 0,
+    explain: "Un consentement global reproduit au niveau du proxy le défaut de l'AS tiers : le client malveillant enregistré dynamiquement bénéficierait de l'approbation donnée à un autre. La spec autorise les cookies, à condition d'utiliser le préfixe __Host-, Secure, HttpOnly, SameSite=Lax, une signature, et une liaison au client_id. SameSite est justement l'un des attributs exigés.",
+  },
+  {
+    q: "Un proxy vérifie la redirect_uri par startsWith('https://client.example'), la valeur enregistrée. Quelle redirect_uri casse ce contrôle ?",
+    options: [
+      "https://client.example/cb#frag, puisque le fragment n'est pas comparé",
+      "https://CLIENT.example/cb, puisque l'hôte n'est pas normalisé",
+      "http://client.example/cb, puisque seul le préfixe est comparé",
+      "https://client.example.attacker.example/cb, qui commence pareil",
+    ],
+    answer: 3,
+    explain: "La chaîne https://client.example.attacker.example/cb commence bien par https://client.example, mais son hôte appartient à l'attaquant : le code part chez lui. La spec exige une comparaison exacte de chaînes. Le changement de casse ou de schéma ferait au contraire échouer le startsWith, et une URL avec fragment reste sur l'hôte du client.",
+  },
+];
+
+<YouKnow>
+Un pentester a exploité des CSRF et des endpoints qui agissent avec leurs propres droits au nom d'un appelant qui n'en a pas autant. Il a peut-être aussi profité d'un consentement OAuth déjà donné pour obtenir un code sans clic. Le confused deputy des proxys MCP combine les deux.
+</YouKnow>
+
+## Un anti-pattern de 1988
+
+<Callout kind="case">
+**Le compilateur de Tymshare.** En 1988, Norm Hardy publie *The Confused Deputy* dans ACM SIGOPS Operating Systems Review. Un compilateur avait le droit d'écrire dans un fichier système de facturation, pour y enregistrer l'usage. Il acceptait aussi, de l'utilisateur, le nom du fichier où écrire sa sortie de débogage. Un utilisateur a donné le nom du fichier de facturation : le compilateur l'a écrasé, avec ses propres droits. Le programme agissait pour deux maîtres, et n'avait aucun moyen de savoir pour lequel il utilisait son autorité.
+</Callout>
+
+Kohnfelder range le *confused deputy* parmi ses quatre anti-patterns (chapitre 4, vu en M13, leçon 4) : un composant privilégié agit à la demande d'un appelant moins privilégié, et lui prête son autorité sans vérifier que l'appelant y a droit. La parade qu'il en tire tient en une idée : un intermédiaire doit attacher chaque usage de son autorité à **celui pour qui il agit**, et le vérifier.
+
+Un proxy MCP est un *deputy* par construction : un seul client OAuth auprès d'une API tierce, au service de tous les clients MCP qui passent par lui.
+
+## Le montage
+
+La spec appelle **proxy MCP** un serveur MCP qui expose une API tierce (GitHub, un CRM, une banque) et qui, auprès de l'AS de cette API, agit comme **un seul client OAuth**, avec un `client_id` statique. C'est exactement le « flux d'autorisation tiers » de la révision 2025-03-26 (leçon 1) : le proxy est client de l'AS tiers et serveur d'autorisation pour les clients MCP.
+
+L'attaque exige quatre conditions réunies :
+
+1. le proxy utilise un **client_id statique** auprès de l'AS tiers ;
+2. le proxy laisse les clients MCP **s'enregistrer dynamiquement**, chacun avec son `client_id` et sa `redirect_uri` ;
+3. l'AS tiers pose un **cookie de consentement** après la première approbation ;
+4. le proxy ne demande **pas de consentement par client MCP** avant de rediriger vers l'AS tiers.
+
+<Steps items={[
+  { title: "Usage légitime", text: "L'utilisatrice connecte son agent au proxy. L'AS tiers lui demande son consentement pour le client_id du proxy, puis pose un cookie qui s'en souvient." },
+  { title: "Enregistrement", text: "L'attaquant enregistre dynamiquement un client MCP auprès du proxy, avec redirect_uri=https://attacker.example/cb." },
+  { title: "Lien piégé", text: "Il envoie à l'utilisatrice un lien vers /authorize du proxy avec son client_id. Le proxy redirige aussitôt vers l'AS tiers avec son client_id statique." },
+  { title: "Consentement sauté", text: "L'AS tiers trouve le cookie pour ce client_id statique et renvoie un code au proxy sans rien afficher." },
+  { title: "Code volé", text: "Le proxy échange le code tiers, génère un code MCP et redirige vers la redirect_uri enregistrée : celle de l'attaquant, qui l'échange contre un jeton MCP." },
+]} />
+
+L'attaquant agit désormais auprès de l'API tierce au nom de l'utilisatrice, à travers le proxy. Rien n'a été cassé : chaque composant a fait ce qu'on lui demandait. Le proxy a prêté le consentement donné à **son** `client_id` à un client qu'il ne connaissait pas.
+
+## La parade : consentir par client, au bon moment
+
+La spec 2026-07-28 impose au proxy un **consentement par client MCP**, sur un écran qui lui appartient, **avant** toute redirection vers l'AS tiers. Les protections requises :
+
+| Élément | Exigence |
+| --- | --- |
+| Registre de consentement | Liste des `client_id` approuvés **par utilisateur**, vérifiée avant de lancer le flux tiers |
+| Écran de consentement | Nom du client MCP, scopes tiers demandés, `redirect_uri` de destination ; protection CSRF ; `frame-ancestors` ou `X-Frame-Options: DENY` contre le clickjacking |
+| Cookie de consentement | Préfixe `__Host-`, `Secure`, `HttpOnly`, `SameSite=Lax`, signé ou adossé à une session serveur, **lié au client_id** |
+| redirect_uri | Comparaison exacte avec la valeur enregistrée, refus si elle a changé sans réenregistrement, aucun motif ni joker |
+| state | Aléatoire, stocké **seulement après** l'approbation, posé juste avant la redirection vers l'AS tiers, vérifié au callback, à usage unique, durée courte |
+
+La règle sur `state` est la plus subtile. Si le proxy pose le cookie de `state` dès l'arrivée sur `/authorize`, avant l'écran, un attaquant qui forge la requête obtient un `state` valide sans que l'utilisatrice ait rien approuvé : l'écran devient décoratif.
+
+## Dans le code
+
+Le proxy MCP de Novafact relie l'assistant au service bancaire d'un partenaire, pour le rapprochement des paiements.
+
+<Diff file="services/mcp-bank-proxy/src/authorize.ts" hlBefore="3,4,5" hlAfter="3,4,5,6,7,8,12,13,14,17">
+
+```ts
+app.get('/authorize', async (req, res) => {
+  const client = await clients.get(String(req.query.client_id));
+  // aucun consentement propre au proxy : on part directement chez l'AS tiers
+  await pending.save({ client, redirectUri: String(req.query.redirect_uri) });
+  res.redirect(bankAuthorizeUrl({ clientId: BANK_STATIC_CLIENT_ID }));
+});
+```
+
+```ts
+app.get('/authorize', requireUser, async (req, res) => {
+  const client = await clients.get(String(req.query.client_id));
+  // comparaison exacte, pas de startsWith ni d'expression régulière
+  if (!client || !client.redirectUris.includes(String(req.query.redirect_uri))) return res.status(400).end();
+  // consentement propre au proxy, lié à CE client_id et à cet utilisateur
+  if (!(await consents.has(req.user.id, client.id))) {
+    return res.render('consent', { client, scopes: BANK_SCOPES, redirectUri: req.query.redirect_uri, csrf: req.csrfToken() });
+  }
+  return startBankFlow(req, res, client);
+});
+
+app.post('/consent', requireUser, csrfProtection, async (req, res) => {
+  const client = await clients.get(String(req.body.client_id));
+  await consents.add(req.user.id, client.id);
+  return startBankFlow(req, res, client); // le state naît ici, après l'approbation
+});
+
+function startBankFlow(req: Request, res: Response, client: Client) {
+  const state = randomBytes(32).toString('base64url');
+  res.cookie('__Host-bank_state', sign({ state, clientId: client.id }), {
+    secure: true, httpOnly: true, sameSite: 'lax', path: '/', maxAge: 10 * 60 * 1000,
+  });
+  res.redirect(bankAuthorizeUrl({ clientId: BANK_STATIC_CLIENT_ID, state }));
+}
+```
+
+</Diff>
+
+Au callback, le proxy compare le `state` reçu à celui du cookie, le supprime aussitôt, vérifie que le `clientId` signé correspond au client en attente, puis seulement échange le code. Le mauvais correctif typique est un consentement global (« cette utilisatrice a déjà approuvé le proxy ») : il reproduit au niveau du proxy le défaut de l'AS tiers, et le client malveillant hérite de l'approbation donnée au client légitime. L'autre est la comparaison de `redirect_uri` par préfixe : `startsWith('https://client.example')` accepte `https://client.example.attacker.example/cb`, dont l'hôte appartient à l'attaquant.
+
+<Callout kind="tip">
+La meilleure parade reste de ne pas réunir les quatre conditions. Un proxy qui n'accepte pas le DCR (clients pré-enregistrés ou CIMD avec liste blanche, leçon 3) supprime la deuxième. Un proxy qui obtient un `client_id` distinct par client MCP auprès de l'AS tiers, quand celui-ci le permet, supprime la première. Le consentement par client reste obligatoire, mais il cesse d'être la seule ligne de défense.
+</Callout>
+
+## Le côté détection
+
+Le scénario laisse des traces exploitables : un `client_id` enregistré récemment, dont la `redirect_uri` pointe vers un domaine jamais vu, qui obtient un code dans les minutes suivant sa création ; et, côté AS tiers, des autorisations sans écran de consentement, pour un utilisateur qui vient de cliquer sur un lien externe. Chez Novafact, le proxy journalise chaque décision de consentement (utilisateur, `client_id`, `redirect_uri`, approuvé ou non) et une règle Elastic signale le premier code émis pour un client de moins d'une heure (M24 détaille l'écriture de ce type de règle).
+
+<Recap items={[
+  "Le confused deputy (Hardy, 1988 ; Kohnfelder chap. 4) : un intermédiaire prête son autorité sans savoir pour qui il agit.",
+  "Quatre conditions : client_id statique, DCR sur le proxy, cookie de consentement de l'AS tiers, pas de consentement par client sur le proxy.",
+  "Parade : registre de consentement par utilisateur et par client_id, vérifié avant toute redirection vers l'AS tiers.",
+  "Cookie __Host-, Secure, HttpOnly, SameSite=Lax, signé, lié au client_id ; redirect_uri comparée à l'identique.",
+  "state posé seulement après l'approbation, vérifié au callback, à usage unique et de courte durée.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : Security Best Practices (Confused Deputy Problem)", url: "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices" },
+  { title: "MCP 2026-07-28 : Security Considerations (Confused Deputy Problem)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations" },
+  { title: "MCP 2025-03-26 : Authorization (Third-Party Authorization Flow)", url: "https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization" },
+  { title: "Norm Hardy, The Confused Deputy (ACM SIGOPS OSR, 1988)", url: "https://doi.org/10.1145/54289.871709" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 4, Anti-Patterns" },
+]} />

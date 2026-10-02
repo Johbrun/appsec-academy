@@ -1,0 +1,166 @@
+export const questions = [
+  {
+    q: "Novafact souscrit une cyberassurance qui couvre les frais de réponse et les pénalités contractuelles en cas de fuite. Que reste-t-il du risque « fuite de factures entre tenants » ?",
+    options: [
+      "Rien : le risque est transféré, il peut sortir du registre",
+      "La franchise seulement, à inscrire comme risque résiduel faible",
+      "La part non transférable, perte de confiance des clients en tête",
+      "Le même risque, car une assurance n'est jamais un traitement",
+    ],
+    answer: 2,
+    explain: "NIST IR 8286r1 le dit à propos du transfert : une partie des conséquences financières peut passer à un tiers, mais certaines ne se transfèrent pas, comme la perte de confiance des clients. Réduire le reste à la franchise oublie justement cette part. Dire que l'assurance n'est jamais un traitement va trop loin : c'est une réponse reconnue, qui change l'ampleur financière. Le risque reste au registre, avec un traitement de type transfert et son résiduel.",
+  },
+  {
+    q: "Quelle entrée de registre montre le mieux qu'un registre est mort ?",
+    options: [
+      "Un risque accepté, avec propriétaire et date de revue dans six mois",
+      "Un risque classé « inacceptable » dont le plan de traitement est en cours",
+      "Un risque dont la vraisemblance a baissé après une mesure livrée",
+      "Un risque « en cours » depuis un an, dont le ticket lié est fermé",
+    ],
+    answer: 3,
+    explain: "Un ticket fermé et un risque qui n'a pas bougé depuis un an veulent dire que personne n'a refait l'évaluation après la mesure : le registre ne reflète plus la réalité. Un risque accepté avec propriétaire et échéance est au contraire le signe d'un registre tenu. Un risque inacceptable en cours de traitement est normal, et une vraisemblance qui baisse après une mesure livrée est exactement ce qu'on attend d'un registre vivant.",
+  },
+  {
+    q: "D'après le rapport du CSRB sur Storm-0558, quelle décision illustre le mieux un risque pris sans être géré ?",
+    options: [
+      "L'arrêt complet de la rotation manuelle des clés de signature en 2021, sans alerte sur leur âge",
+      "Le choix d'héberger les clés de signature grand public dans un module matériel",
+      "La décision de publier un rapport détaillé dès la découverte de l'intrusion",
+      "La migration du système d'identité grand public vers l'infrastructure Entra",
+    ],
+    answer: 0,
+    explain: "Le rapport décrit l'arrêt de la rotation manuelle après une panne majeure de 2021, sans système d'alerte sur l'âge des clés actives : une clé de 2016 est restée valide jusqu'en 2023. Le CSRB y voit un exemple de décisions qui n'ont pas priorisé la gestion du risque de sécurité. La migration vers l'infrastructure automatisée est au contraire ce qui n'a pas été mené à terme, et le stockage matériel des clés n'est pas la décision mise en cause.",
+  },
+  {
+    q: "Le guide de l'ANSSI définit l'homologation de sécurité. Qu'est-ce qui la caractérise ?",
+    options: [
+      "Un audit de conformité réalisé par un prestataire qualifié PASSI",
+      "Une certification du produit délivrée par l'ANSSI pour une durée de trois ans",
+      "Une analyse de risques EBIOS RM validée par le RSSI de l'organisation",
+      "L'acceptation formelle des risques résiduels par une autorité, qui l'engage",
+    ],
+    answer: 3,
+    explain: "Le guide définit l'homologation comme la prise en compte et l'acceptation formelle des risques par une autorité, et précise que c'est un acte qui engage celle qui le prononce. L'audit et l'analyse EBIOS sont des pièces du dossier, pas la décision. Et ce n'est pas une certification de produit par l'ANSSI : c'est l'organisation elle-même qui homologue son système, pour une durée qui ne doit pas dépasser trois ans.",
+  },
+];
+
+<YouKnow>
+Un rapport de pentest se termine par une liste de recommandations, et la mission s'arrête là. Côté AppSec, la recommandation n'est que le début : il faut une décision, quelqu'un qui la porte, et un endroit où l'on voit, un an plus tard, si elle a tenu.
+</YouKnow>
+
+## Quatre réponses, et leurs limites
+
+Réduire, transférer, éviter, accepter : la liste est connue (la leçon 6 détaille l'acceptation). NIST IR 8286 Rev. 1 (décembre 2025) précise ce que chaque réponse fait réellement, et c'est dans ces précisions que les erreurs se cachent :
+
+| Réponse | Ce que dit NIST IR 8286r1 | Chez Novafact |
+| --- | --- | --- |
+| **Accepter** | Pour un risque **dans la tolérance** ; aucune action sauf la surveillance | Scraping des pages de paiement publiques, surveillé |
+| **Transférer** | Pour un risque hors tolérance : partager une part des conséquences (assurance) ; la perte de confiance des clients ne se transfère pas | Cyberassurance sur les frais de réponse |
+| **Réduire** | Des contrôles qui empêchent la perte ou en limitent l'ampleur | MFA des cabinets, revalidation des IBAN (leçon 2) |
+| **Éviter** | Faire en sorte que le risque n'existe pas, quand aucune réduction n'est rentable ; compter le coût de l'opportunité perdue | Ne plus stocker l'IBAN complet dans l'export CSV |
+
+Deux nuances méritent d'être retenues. Accepter suppose une **tolérance** définie (leçon 1) : sans seuil, « accepter » veut dire « ne rien faire ». Et transférer n'efface pas le risque du registre : il change l'ampleur financière, pas la responsabilité de Novafact envers ses clients. NIST traite aussi les **risques positifs** (une opportunité, comme adopter les passkeys pour réduire le support lié aux mots de passe), avec quatre réponses symétriques : réaliser, partager, amplifier, accepter. Un registre qui ne contient que des menaces oublie la moitié des arbitrages.
+
+## Ce que contient un registre
+
+NIST IR 8286r1 propose un modèle de **registre des risques cyber** : identifiant, priorité, description, catégorie, vraisemblance, impact, exposition (leur combinaison), type de réponse, coût de la réponse, description de la réponse, **propriétaire** et statut. Le registre reste un résumé ; le détail (hypothèses, personnes impliquées, échéances, date de la prochaine évaluation) vit dans une **fiche de détail** liée à chaque ligne. Les registres des équipes se consolident ensuite en un registre d'entreprise, ce qui n'est possible que si tout le monde utilise les mêmes catégories et les mêmes échelles (leçon 3).
+
+Voici une ligne du registre de Novafact avant et après la reprise du registre :
+
+<Diff file="risques/R-07.yaml" hlBefore="3,4,5" hlAfter="4,5,9,10,11,12,13,14,15">
+
+```yaml
+id: R-07
+titre: Sécurité des paiements
+proprietaire: équipe sécurité
+traitement: en cours
+statut: ouvert   # depuis mars 2025
+```
+
+```yaml
+id: R-07
+description: fraudeur → compte d'un cabinet → IBAN du modèle modifié → paiements détournés
+categorie: fraude / intégrité des factures
+proprietaire: directrice financière    # porte la perte, pas la mesure
+gestionnaire: lead équipe Facturation
+exposition: { avant: "G3 × V3", apres_mesures: "G3 × V1" }
+reponse: reduire
+mesures:
+  - { ticket: FACT-812, quoi: MFA imposée aux comptes cabinets, statut: livré }
+  - { ticket: FACT-845, quoi: revalidation hors bande des changements d'IBAN, statut: en cours }
+indicateurs:                            # ce qui dirait que le risque remonte
+  - changements d'IBAN par semaine sans revalidation (cible : 0)
+  - comptes cabinets exemptés de MFA (cible : 0)
+prochaine_revue: 2026-12-15
+declencheurs: [incident de fraude, nouvelle intégration comptable, exemption MFA]
+```
+
+</Diff>
+
+La première version a trois défauts courants. Le titre désigne un domaine, pas un scénario : impossible de dire quand il est traité. Le propriétaire est l'équipe sécurité, qui ne porte pas la perte et ne peut pas arbitrer un budget. Et « en cours » depuis dix-huit mois ne dit rien. La seconde relie le risque à des tickets, ce qui permet de **réévaluer l'exposition quand une mesure est livrée**, et à des **indicateurs de risque** (les KRI que NIST recommande pour savoir quand une tolérance est dépassée). Le modèle de fiche d'acceptation, avec ses hypothèses et sa date d'expiration, est celui de la leçon 6.
+
+## Un registre qui vit
+
+Un registre meurt de la même façon partout : on le remplit pour un audit, puis personne ne le relit. Trois habitudes le gardent en vie.
+
+**Des revues à cadence fixe et sur événement.** EBIOS RM prévoit un cycle opérationnel et un cycle stratégique (leçon 2). On y ajoute des déclencheurs : un incident, un changement d'architecture, une nouvelle intégration, et l'expiration d'une acceptation.
+
+**Un lien avec le travail réel.** Chaque mesure est un ticket dans le backlog de l'équipe qui la livre, pas une ligne dans un tableur que seule la sécurité ouvre. Quand le ticket se ferme, la ligne de risque doit être réévaluée.
+
+**Un contrôle automatique.** Si le registre vit dans un dépôt, une vérification dans la CI suffit à attraper les lignes abandonnées :
+
+<Code file="scripts/lint-registre.ts" hl="9,10,11,12">
+
+```ts
+import { readdirSync, readFileSync } from 'node:fs';
+import { parse } from 'yaml';
+
+const today = new Date().toISOString().slice(0, 10);
+const errors: string[] = [];
+for (const f of readdirSync('risques').filter((n) => n.endsWith('.yaml'))) {
+  const r = parse(readFileSync(`risques/${f}`, 'utf8'));
+  // Un propriétaire « équipe » ne décide rien : il faut une personne qui porte la perte.
+  if (!r.proprietaire || /équipe/i.test(r.proprietaire)) errors.push(`${r.id} : propriétaire nominatif manquant`);
+  // Comparaison de dates ISO (AAAA-MM-JJ) : l'ordre lexical est l'ordre chronologique.
+  if (!r.prochaine_revue || r.prochaine_revue < today) errors.push(`${r.id} : revue dépassée`);
+  if ((r.mesures ?? []).every((m: { statut: string }) => m.statut === 'livré') && r.reponse === 'reduire')
+    errors.push(`${r.id} : toutes les mesures sont livrées, réévaluer l'exposition`);
+}
+if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
+```
+
+</Code>
+
+Le piège du script est dans la date : il ne marche que si toutes les dates sont au format ISO complet. Une date saisie `2026-9-5` passe pour postérieure à `2026-10-01` en ordre lexical, et une revue en retard devient invisible. D'où le commentaire, et une validation de schéma en amont.
+
+<Callout kind="case">
+**Storm-0558 (rapport du CSRB, mars 2024).** Microsoft faisait tourner à la main, rarement, les clés de signature de son système d'identité grand public, en attendant d'y étendre l'automatisation déjà en place côté entreprise. En 2021, après une panne majeure liée à cette rotation manuelle, la rotation a été arrêtée complètement, sans alerte sur l'âge des clés actives. Une clé de 2016, volée, a permis en 2023 de forger des jetons. Le Cyber Safety Review Board y voit un exemple troublant de décisions qui n'ont pas priorisé la gestion du risque de sécurité. Le rapport ne dit pas si cette décision a été documentée comme une acceptation ; c'est justement la leçon : une décision de risque sans propriétaire, sans indicateur (l'âge des clés) ni date de revue n'est jamais réexaminée.
+</Callout>
+
+## Outils
+
+Un dépôt Git et des fichiers YAML suffisent pour une équipe produit. Au-delà, deux outils francophones méritent d'être connus. **MONARC**, maintenu par le NC3 Luxembourg, est libre (AGPL-3.0) ; sa dernière version est la 2.14.2, du 10 septembre 2026. **MEHARI**, la méthode du CLUSIF, reste maintenue : sa mise à jour d'octobre 2022 l'aligne sur l'ISO/IEC 27002:2022, et le CLUSIF publie depuis 2020 une base de connaissance adaptée aux ateliers d'EBIOS RM. Les plateformes de GRC du marché font le même travail ; le critère de choix est que les équipes y voient leurs risques sans passer par la sécurité.
+
+## Vers l'acceptation
+
+Le registre dit ce qui reste. Reste à savoir qui l'accepte. En France, la forme la plus aboutie de cette décision est l'**homologation de sécurité**, que le guide de l'ANSSI et de la DINUM (version 2.2, mars 2026) définit comme la prise en compte et l'acceptation formelle des risques par une autorité. C'est un acte qui engage celle qui le prononce, pour une durée qui ne doit pas dépasser trois ans. Novafact, entreprise privée, n'y est pas soumise pour son propre système, mais un client public qui l'utilise devra en tenir compte dans son dossier. Le principe se transpose à toute organisation : la leçon suivante détaille qui signe, à quel niveau, et pour combien de temps.
+
+<Recap items={[
+  "Accepter suppose une tolérance ; transférer laisse la perte de confiance ; éviter a un coût d'opportunité.",
+  "Le registre (NIST IR 8286r1) : description, exposition, réponse et son coût, propriétaire, statut, et une fiche de détail.",
+  "Le propriétaire est celui qui porte la perte ; les mesures sont des tickets ; des KRI disent quand le risque remonte.",
+  "Revues à cadence fixe et sur événement, et un contrôle automatique des lignes abandonnées.",
+  "Storm-0558 : une décision de risque sans propriétaire ni indicateur n'est jamais réexaminée.",
+  "MONARC et MEHARI pour outiller ; l'homologation comme forme française de l'acceptation formelle.",
+]} />
+
+<Sources items={[
+  { title: "NIST IR 8286 Rev. 1, Integrating Cybersecurity and ERM (décembre 2025)", url: "https://csrc.nist.gov/pubs/ir/8286/r1/final", note: "registre, fiche de détail, types de réponse (tableaux 1, 2 et 4)" },
+  { title: "CSRB, Review of the Summer 2023 Microsoft Exchange Online Intrusion (mars 2024)", url: "https://www.cisa.gov/sites/default/files/2025-03/CSRBReviewOfTheSummer2023MEOIntrusion508.pdf" },
+  { title: "MONARC (NC3 Luxembourg)", url: "https://www.monarc.lu" },
+  { title: "MONARC, dépôt GitHub", url: "https://github.com/monarc-project/MonarcAppFO" },
+  { title: "CLUSIF, mises à jour de la méthode MEHARI (octobre 2022)", url: "https://clusif.fr/analyse-de-risques-mises-a-jour-de-la-methode-mehari-du-clusif/" },
+  { title: "CLUSIF, coopération de MEHARI et EBIOS Risk Manager (2020)", url: "https://clusif.fr/management-des-risques-cooperation-de-mehari-et-ebios-risk-manager/" },
+  { title: "ANSSI / DINUM, Guide de l'homologation de sécurité (v2.2, mars 2026)", url: "https://messervices.cyber.gouv.fr/documents-guides/guide-homologation-securite-web-04-2025.pdf" },
+]} />

@@ -114,7 +114,7 @@ export const identity: ExerciseDef[] = [
       'Le jeton de réinitialisation est comparé avec `===`, qui s’arrête au premier octet différent.',
     goal: 'Retrouver un jeton de réinitialisation octet par octet, en mesurant le temps de réponse.',
     file: 'server/routes/auth.ts',
-    lessons: ['m02/l04', 'm08/l07'],
+    lessons: ['m02/l04', 'm08/l08'],
     hints: [
       'POST /api/auth/reset attend `{ email, token, password }`. Le jeton fait 8 caractères hexadécimaux. Chronomètre la réponse.',
       'La comparaison s’arrête au premier écart, et chaque caractère validé coûte un aller-retour : plus le préfixe est bon, plus la réponse est lente.',
@@ -179,7 +179,7 @@ export const identity: ExerciseDef[] = [
       'Le jeton est dérivé de l’horloge et d’un générateur non cryptographique : deux demandes dans la même milliseconde produisent le même jeton.',
     goal: 'Obtenir un jeton valide pour le compte d’un autre utilisateur en déclenchant deux réinitialisations simultanées.',
     file: 'server/routes/auth.ts',
-    lessons: ['m03/l01', 'm08/l07'],
+    lessons: ['m03/l01', 'm08/l08'],
     hints: [
       'Regarde `mintResetToken` : le générateur n’avance pas à chaque appel.',
       'Il n’avance qu’une fois par milliseconde. Deux demandes traitées dans la même milliseconde repartent donc avec la même valeur.',
@@ -222,7 +222,7 @@ export const identity: ExerciseDef[] = [
       'Les préférences sont un objet sérialisé, signé avec une clé faible, puis désérialisé sans liste de types autorisés.',
     goal: 'Forger un cookie qui, à la désérialisation, élève le rôle de son porteur.',
     file: 'server/lib/auth.ts',
-    lessons: ['m03/l09', 'm08/l07'],
+    lessons: ['m03/l09', 'm08/l08'],
     hints: [
       'POST /api/auth/prefs pose un cookie `novafact_prefs`. Décode-le : il commence par du base64url et finit par une signature.',
       'Le champ `$t` du document désigne le constructeur à appeler, et le désérialiseur en connaît deux. Le second n’a rien à faire dans un cookie.',
@@ -329,7 +329,7 @@ export const identity: ExerciseDef[] = [
       'Le jeton de réinitialisation vient de `Math.random()`. Le générateur de V8 n’est pas cryptographique et son état se reconstruit.',
     goal: 'Prédire le prochain jeton de réinitialisation après en avoir observé quelques-uns.',
     file: 'server/routes/auth.ts',
-    lessons: ['m08/l07', 'm02/l02'],
+    lessons: ['m08/l08', 'm02/l02'],
     hints: [
       'Le jeton fait 8 caractères hexadécimaux — soit exactement 32 bits. Lis `mintResetToken`.',
       'La sortie EST l’état du générateur : une seule valeur observée suffit à calculer toutes les suivantes (xorshift32 : `x ^= x<<13; x >>>= 0; x ^= x>>>17; x ^= x<<5; x >>>= 0`).',

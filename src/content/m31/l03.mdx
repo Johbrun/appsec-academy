@@ -1,0 +1,169 @@
+export const questions = [
+  {
+    q: "Un client MCP dispose d'un client_id pré-enregistré, et le serveur d'autorisation annonce aussi client_id_metadata_document_supported. Quel mécanisme la spec lui fait-elle utiliser ?",
+    options: [
+      "Le CIMD, recommandé par la spec parce qu'il ne dépend d'aucune relation préalable",
+      "Le client_id pré-enregistré, premier dans l'ordre de préférence de la spec",
+      "L'enregistrement dynamique, pour obtenir un client_id propre à cet utilisateur",
+      "Le CIMD pour l'autorisation, puis le client_id pré-enregistré pour la requête de jeton",
+    ],
+    answer: 1,
+    explain: "L'ordre de préférence est : identifiants pré-enregistrés, puis CIMD si l'AS l'annonce, puis DCR en repli, puis saisie par l'utilisateur. Le CIMD est le mécanisme recommandé quand il n'y a pas de relation préalable, ce qui n'est pas le cas ici. Mélanger deux client_id dans un même flux casse la liaison entre le code et le client qui l'échange.",
+  },
+  {
+    q: "Le serveur d'autorisation de Novafact récupère le document CIMD d'un client inconnu. Quelle vérification bloque l'usurpation la plus directe ?",
+    options: [
+      "Vérifier que le domaine du client_id possède un certificat TLS à validation étendue",
+      "Vérifier que le client_name du document n'imite pas celui d'un client connu",
+      "Vérifier que le champ client_id du document est identique à l'URL récupérée",
+      "Vérifier que le document est servi avec un Content-Type application/json",
+    ],
+    answer: 2,
+    explain: "Sans cette égalité stricte, un attaquant héberge chez lui un document qui déclare le client_id d'un éditeur légitime, avec ses propres redirect_uris. Le nom affiché reste utile contre l'hameçonnage, mais c'est une heuristique, pas une preuve. Le type de contenu et le niveau de certificat ne disent rien de l'identité revendiquée dans le document.",
+  },
+  {
+    q: "Pourquoi le CIMD ne protège-t-il pas, à lui seul, un client natif qui utilise une redirect_uri http://localhost ?",
+    options: [
+      "Parce que le document CIMD ne peut pas lister d'URL en http, réservées au DCR",
+      "Parce que n'importe quel processus local peut écouter ce port et présenter le client_id d'un autre",
+      "Parce que le navigateur bloque les redirections vers localhost depuis une origine HTTPS",
+      "Parce que le serveur d'autorisation ne vérifie pas les redirect_uri des clients natifs",
+    ],
+    answer: 1,
+    explain: "Le document prouve le contrôle d'un domaine, pas l'identité du programme qui écoute sur la boucle locale : un attaquant présente l'URL CIMD d'un client connu et une redirection vers son propre port. La spec demande donc à l'AS d'avertir pour les redirections localhost et d'afficher clairement l'hôte de redirection. Les URL de boucle locale sont bien autorisées dans un CIMD, et l'AS doit les comparer au document.",
+  },
+  {
+    q: "Quel contrôle protège réellement un serveur d'autorisation contre la SSRF lors de la récupération d'un document CIMD ?",
+    options: [
+      "Une expression régulière qui refuse les client_id contenant 127.0.0.1, localhost ou 169.254",
+      "Une résolution DNS du domaine avant la requête, en refusant les adresses privées obtenues",
+      "Une liste de domaines interdits, tenue à jour à partir des tentatives observées dans les journaux",
+      "Un proxy de sortie qui filtre les destinations privées, sans suivi automatique des redirections",
+    ],
+    answer: 3,
+    explain: "Le filtrage doit se faire au moment de la connexion, sur l'adresse réellement contactée, et chaque redirection doit être revalidée : c'est ce que fait un proxy de sortie. L'expression régulière tombe sur les encodages décimaux, octaux ou IPv6 ; la résolution préalable est contournée par un DNS qui change de réponse entre la vérification et l'usage. Une liste de domaines interdits a toujours un domaine de retard.",
+  },
+];
+
+<YouKnow>
+Un pentester a souvent déjà abusé d'un endpoint `/register` ouvert, ou d'un champ `logo_uri` qui faisait faire au serveur une requête vers l'adresse de son choix. L'enregistrement des clients est la partie d'OAuth où un inconnu fournit des URL que le serveur va consommer. MCP en a fait le cas général.
+</YouKnow>
+
+## Le problème : des clients sans relation préalable
+
+Dans un déploiement OAuth classique, chaque client est enregistré à la main : un administrateur crée l'application dans la console de l'IdP et copie le `client_id`. MCP casse cette hypothèse : un utilisateur peut brancher n'importe quel client (un IDE, un agent de bureau, un outil maison) sur n'importe quel serveur. La spec définit donc quatre voies, avec un ordre de préférence (SHOULD) :
+
+| Rang | Mécanisme | Quand |
+| --- | --- | --- |
+| 1 | Identifiants **pré-enregistrés** | Le client et le serveur d'autorisation se connaissent déjà |
+| 2 | **Client ID Metadata Document** (CIMD) | L'AS annonce `client_id_metadata_document_supported` |
+| 3 | **Enregistrement dynamique** (DCR, RFC 7591) | En repli, si l'AS expose un `registration_endpoint` ; déprécié depuis 2026-07-28 |
+| 4 | Saisie par l'utilisateur | Aucun autre moyen disponible |
+
+## CIMD : le client_id est une URL
+
+Avec un CIMD, le client n'a rien à demander. Son `client_id` **est** une URL HTTPS avec un chemin, qui pointe vers un document JSON qu'il héberge :
+
+<Code file="https://agent.novafact.example/oauth/client.json">
+
+```json
+{
+  "client_id": "https://agent.novafact.example/oauth/client.json",
+  "client_name": "Ask Novafact (bureau)",
+  "client_uri": "https://agent.novafact.example",
+  "redirect_uris": ["http://127.0.0.1:33418/callback"],
+  "grant_types": ["authorization_code"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}
+```
+
+</Code>
+
+Quand l'AS voit un `client_id` au format URL, il récupère le document et le valide. La spec impose, côté AS : que le `client_id` du document soit **identique** à l'URL récupérée ; que le JSON soit valide et contienne les champs requis (`client_id`, `client_name`, `redirect_uris`) ; que la `redirect_uri` de la requête figure dans le document. Il met le document en cache en respectant les en-têtes HTTP.
+
+L'identité du client devient le **contrôle d'un domaine**. C'est mieux qu'un `client_id` aléatoire distribué à quiconque le demande, mais ce n'est pas une garantie de bonne foi : n'importe qui peut acheter un domaine et y publier un document. D'où les **politiques de confiance** que la spec laisse à l'AS : liste blanche de domaines pour un serveur interne, acceptation de tout client HTTPS pour un serveur ouvert, contrôles de réputation ou d'ancienneté du domaine, et affichage bien visible du domaine à l'écran de consentement.
+
+<Callout kind="warn">
+**Localhost, l'angle mort du CIMD.** Un client natif reçoit le code sur `http://127.0.0.1:port`. Le document prouve qui contrôle `agent.novafact.example`, mais pas quel processus écoute sur ce port. Un logiciel malveillant local peut présenter l'URL CIMD d'Ask Novafact, une redirection vers son propre port, et l'utilisateur verra le bon nom à l'écran de consentement. La spec demande à l'AS d'afficher clairement l'hôte de redirection, d'avertir pour les clients dont toutes les redirections sont locales, et lui permet d'exiger une attestation supplémentaire.
+</Callout>
+
+## DCR : déprécié, et pourquoi
+
+L'enregistrement dynamique laisse le client poster ses métadonnées sur un endpoint ouvert et recevoir un `client_id`. Il a trois défauts que la pratique a confirmés : n'importe qui crée des clients, sans identité vérifiable ; la table des clients grossit sans limite, un client par installation ; et les métadonnées postées (`redirect_uris`, `logo_uri`, `jwks_uri`) sont autant d'entrées contrôlées par l'attaquant. C'est aussi la pièce qui rend possible le *confused deputy* des proxys MCP (leçon 6).
+
+La révision 2026-07-28 le garde pour la compatibilité, avec une exigence nouvelle : le client **doit** préciser `application_type` (`native` pour un client de bureau ou une CLI, `web` pour une application distante). Sans lui, un AS OpenID Connect suppose `web`, ce qui entre en conflit avec des redirections locales.
+
+## Des identifiants liés à leur émetteur
+
+Un `client_id` n'a de sens que pour l'AS qui l'a délivré. La spec impose au client d'**associer** chaque identifiant pré-enregistré ou obtenu par DCR à l'`issuer` de cet AS. Si la PRM d'un serveur change de serveur d'autorisation, le client ne réutilise pas ses identifiants et se réenregistre. Sans cette règle, un serveur MCP compromis qui annonce un nouvel AS récupère des identifiants, voire un secret client, émis par l'ancien. Un `client_id` CIMD, lui, reste portable : c'est une URL que chaque AS résout lui-même.
+
+## La SSRF des URL de métadonnées
+
+Tout ce flux consiste à faire récupérer des URL fournies par un inconnu, et cela vaut **dans les deux sens** :
+
+- **côté client** : `resource_metadata`, `authorization_servers`, puis `authorization_endpoint`, `token_endpoint` et les autres endpoints de l'AS viennent du serveur MCP ou de l'AS qu'il désigne. Un client MCP qui tourne sur un serveur (une plateforme d'agents hébergée, par exemple) peut ainsi être amené à requêter `http://169.254.169.254/latest/meta-data/` ;
+- **côté AS** : chaque `client_id` CIMD est une URL que l'AS récupère, avant même d'avoir authentifié qui que ce soit.
+
+<Callout kind="case">
+**SSRF par l'enregistrement de clients, 2021.** Dans *Hidden OAuth attack vectors* (PortSwigger, mars 2021), Michael Stepankin montre que l'enregistrement dynamique OpenID expose plusieurs champs que le serveur récupère lui-même : `logo_uri`, `jwks_uri`, `sector_identifier_uri`, `request_uris`. MITREid Connect téléchargeait le `logo_uri` d'un client fraîchement enregistré pour le mettre en cache et l'afficher : une SSRF de second ordre (CVE-2021-26715). Un document CIMD porte exactement les mêmes champs. La classe n'a pas changé ; seul le canal par lequel l'attaquant fournit l'URL a changé.
+</Callout>
+
+## Dans le code : récupérer un document CIMD
+
+<Diff file="services/auth/src/cimd.ts" hlBefore="2,3" hlAfter="3,4,8,9,10,12,13,15">
+
+```ts
+export async function loadClient(clientId: string) {
+  const doc = await (await fetch(clientId)).json();
+  return doc; // le document est accepté tel quel
+}
+```
+
+```ts
+import { fetch, ProxyAgent } from 'undici';
+// toutes les sorties passent par un proxy qui refuse les plages privées et de lien local
+const egress = new ProxyAgent(process.env.EGRESS_PROXY_URL!);
+
+export async function loadClient(clientId: string): Promise<ClientMetadata> {
+  const url = new URL(clientId);
+  if (url.protocol !== 'https:' || url.pathname === '/') throw new InvalidClient('client_id CIMD invalide');
+  if (!trustPolicy.allows(url.hostname)) throw new InvalidClient('domaine non autorisé');
+  const res = await fetch(url, {
+    dispatcher: egress, redirect: 'manual', signal: AbortSignal.timeout(3000),
+  });
+  if (res.status !== 200) throw new InvalidClient('document indisponible'); // 3xx inclus : pas de suivi
+  const doc = ClientMetadataSchema.parse(JSON.parse(await readCapped(res, 16_384)));
+  // l'égalité stricte empêche d'héberger chez soi l'identité d'un autre
+  if (doc.client_id !== clientId) throw new InvalidClient('client_id incohérent');
+  return doc;
+}
+```
+
+</Diff>
+
+Le mauvais correctif le plus courant est une liste noire écrite à la main : refuser `localhost`, `127.0.0.1` et `169.254.169.254` dans la chaîne de l'URL. Elle tombe sur `https://2852039166/` (la même adresse en décimal), sur `[::ffff:a9fe:a9fe]`, sur un domaine qui résout vers une adresse privée, ou sur une redirection 302 depuis un serveur public. La spec le dit sans détour : la validation d'adresse IP ne s'implémente pas à la main, les encodages octaux, hexadécimaux et IPv6 la contournent. Le contrôle fiable s'applique **à la connexion**, sur l'adresse réellement contactée : un proxy de sortie comme Smokescreen, ou une politique réseau qui interdit à l'AS de joindre le réseau interne. La résolution DNS vérifiée avant la requête ne suffit pas non plus, à cause du *rebinding* entre la vérification et l'usage (M9, leçon 11).
+
+Les autres lignes comptent aussi : pas de suivi des redirections, délai court, taille plafonnée (un document de plusieurs mégaoctets est une attaque), schéma strict des champs. Et les URL **contenues** dans le document (`logo_uri`, `jwks_uri`) passent par le même proxy si l'AS les récupère.
+
+<Callout kind="novafact">
+Le serveur d'autorisation de Novafact accepte trois catégories de clients : les clients **pré-enregistrés** de Novafact (l'assistant web, l'agent de bureau), les clients CIMD de domaines inscrits sur une liste blanche validée par l'équipe sécurité (les IDE et agents du marché que les clients utilisent), et aucun DCR. Une demande d'ajout de domaine passe par un ticket, avec le nom de l'éditeur et le document CIMD relu. Le module 28 (leçon 7) décrit l'inventaire qui alimente cette liste.
+</Callout>
+
+<Recap items={[
+  "Ordre de préférence : pré-enregistré, puis CIMD si l'AS l'annonce, puis DCR en repli, puis saisie manuelle.",
+  "CIMD : le client_id est une URL HTTPS ; l'AS vérifie que le document déclare exactement ce client_id et ses redirect_uris.",
+  "Le CIMD prouve le contrôle d'un domaine, pas l'identité du processus qui écoute sur localhost.",
+  "DCR est déprécié depuis 2026-07-28 ; application_type y devient obligatoire.",
+  "Les identifiants pré-enregistrés ou DCR sont liés à l'issuer qui les a délivrés.",
+  "SSRF des deux côtés : client (endpoints découverts) et AS (document CIMD) ; filtrer à la connexion, par un proxy de sortie.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : Client Registration", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration" },
+  { title: "MCP 2026-07-28 : Security Best Practices (SSRF, Localhost Redirect URI Impersonation, CIMD Trust Policies)", url: "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices" },
+  { title: "IETF : OAuth Client ID Metadata Document (brouillon)", url: "https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/" },
+  { title: "RFC 7591 : OAuth 2.0 Dynamic Client Registration", url: "https://www.rfc-editor.org/rfc/rfc7591" },
+  { title: "Michael Stepankin, Hidden OAuth attack vectors (PortSwigger, 2021)", url: "https://portswigger.net/research/hidden-oauth-attack-vectors" },
+  { title: "Stripe Smokescreen (proxy de sortie)", url: "https://github.com/stripe/smokescreen" },
+]} />

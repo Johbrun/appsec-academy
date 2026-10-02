@@ -1,0 +1,94 @@
+export const questions = [];
+
+<YouKnow>
+En pentest, on reçoit un périmètre et on cherche ce qui casse. Ici, le travail commence avant : décider ce qui mérite d’être protégé, contre qui, et à quel point. Cette première étape du capstone produit l’analyse de risques de Novafact avec la méthode du module 10 ; tout le dossier s’appuiera dessus.
+</YouKnow>
+
+## Étape 1 : l’analyse de risques de Novafact
+
+Le threat model de l’étape 2 dira **comment** Novafact peut être attaquée ; cette étape dit **ce qu’on ne peut pas se permettre de perdre**. Sans elle, on durcit ce qui intéresse techniquement plutôt que ce qui ferait couler l’entreprise. Livrable : un EBIOS Risk Manager allégé (M10, leçon 2) et un **registre des risques** coté. Gardez la logique des ateliers sans les dérouler tous.
+
+<Steps items={[
+  { title: "Valeurs métier", text: "Ce que Novafact fait pour ses clients, pas ses serveurs : émettre des factures conformes, encaisser, conserver les factures, garantir l’étanchéité entre tenants. Rattachez à chacune ses biens supports." },
+  { title: "Événements redoutés", text: "Pour chaque valeur métier, l’atteinte qui ferait mal (disponibilité, intégrité, confidentialité, traçabilité), en une phrase, sans scénario d’attaque à ce stade. Cotez sa gravité." },
+  { title: "Sources de risque", text: "Qui, et pour quoi faire : des couples source de risque / objectif visé. Écartez ceux qui ne concernent pas un SaaS de facturation, et dites pourquoi." },
+  { title: "Scénarios", text: "Reliez une source à un événement redouté par un chemin réaliste, y compris via l’écosystème (Stripe, GitHub, prestataires). Cotez sa vraisemblance." },
+]} />
+
+## Valeurs métier et événements redoutés
+
+| Valeur métier | Événement redouté | Gravité |
+| --- | --- | --- |
+| Étanchéité entre tenants | Un client lit ou modifie les factures d’un autre | G4 critique |
+| Émission conforme | Une facture émise est altérée après coup | G3 grave |
+| Encaissement | Une facture est marquée payée sans paiement réel | G3 grave |
+| Conservation légale | Factures perdues ou chiffrées par un rançongiciel | G3 grave |
+| Service de facturation | Plateforme indisponible plus de 4 heures en fin de mois | G2 significative |
+| Assistant IA | E-mails envoyés ou avoirs créés à l’insu de l’utilisateur | G3 grave |
+
+Le seuil de 4 heures est un choix de cadrage à faire valider par le métier : la méthode demande de préciser à partir de quelle perte de service la gravité est atteinte.
+
+## Sources de risque
+
+| Source de risque | Objectif visé | Pertinence |
+| --- | --- | --- |
+| Cybercriminel | Revendre IBAN et données clients, extorquer | Élevée |
+| Fraudeur | Détourner des paiements (fausse facture, changement d’IBAN) | Élevée |
+| Tenant malveillant | Lire les données d’un concurrent hébergé | Moyenne |
+| Attaquant de la supply chain | Pousser du code dans le pipeline ou une dépendance | Moyenne |
+
+Le tenant malveillant est la source que les pentesters oublient : il a un compte valide, connaît le produit, et vise exactement l’événement coté G4.
+
+## L’échelle et le registre
+
+Reprenez les échelles du guide EBIOS RM : gravité **G1 mineure à G4 critique**, vraisemblance **V1 peu vraisemblable à V4 quasi certain**. Ne multipliez pas les deux pour obtenir une note (M10, leçon 3) : placez chaque scénario dans la grille gravité × vraisemblance et décidez par zone.
+
+<Code file="security/risk-register.yml">
+
+```yaml
+- id: R-01
+  scenario: Un tenant malveillant énumère les identifiants de factures (BOLA)
+  gravity: G4
+  likelihood: V3          # identifiants devinables, pas encore de RLS
+  treatment: réduire      # DAL par tenant + RLS (étapes 3 et 6)
+  owner: cto
+  review: 2026-12-31
+- id: R-02
+  scenario: Un faux webhook Stripe marque des factures payées
+  gravity: G3
+  likelihood: V2
+  treatment: réduire      # signature, horodatage, idempotence
+  owner: lead-paiement
+  review: 2026-12-31
+```
+
+</Code>
+
+Chaque ligne a un **propriétaire** et une date de revue : sans eux, pas d’acceptation au bon niveau (M10, leçon 6).
+
+<Callout kind="case">
+En août 2020, l’OCC, régulateur bancaire américain, a infligé 80 millions de dollars d’amende à Capital One. Le motif cité n’est pas la faille, mais l’absence de processus efficaces d’appréciation des risques avant la migration d’une part importante de son informatique vers le cloud public.
+</Callout>
+
+## Relier aux étapes suivantes
+
+Ce registre est le point d’entrée du dossier : les événements redoutés deviennent les actifs du threat model (étape 2), les risques à réduire des exigences (étape 3), les détections de l’étape 11 visent d’abord les scénarios G3 et G4, et l’exercice de crise de l’étape 12 en joue un. Huit à douze scénarios bien cotés valent mieux que cinquante lignes que personne ne relit.
+
+## Livrable de l’étape
+
+- Les **valeurs métier** et leurs biens supports.
+- Les **événements redoutés** cotés en gravité, avec leurs seuils.
+- Les couples **source de risque / objectif visé** retenus et écartés.
+- Le **registre des risques** : scénarios cotés, traitement, propriétaire, date de revue.
+
+<Recap items={[
+  "L’analyse de risques précède le threat model : elle dit ce qu’on ne peut pas se permettre de perdre.",
+  "Partir des valeurs métier, pas des serveurs, puis des événements redoutés cotés en gravité.",
+  "Des sources de risque crédibles, dont le tenant malveillant, et des scénarios cotés en vraisemblance.",
+  "Un registre daté, possédé et revu, relié aux étapes suivantes.",
+]} />
+
+<Sources items={[
+  { title: "ANSSI : la méthode EBIOS Risk Manager, le guide (v1.5)", url: "https://messervices.cyber.gouv.fr/guides/la-methode-ebios-risk-manager-le-guide" },
+  { title: "OCC : amende de 80 M$ contre Capital One (NR 2020-101)", url: "https://www.occ.gov/news-issuances/news-releases/2020/nr-occ-2020-101.html" },
+]} />

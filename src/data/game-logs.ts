@@ -75,6 +75,11 @@ export const attackChoices = [
   'Vol de secrets dans un dépôt public',
   'Exfiltration de données par tunnel DNS',
   'Inscription d’un second facteur pirate',
+  'Règle de boîte qui masque des messages',
+  'Transfert automatique vers l’extérieur',
+  'Consentement OAuth à une application',
+  'Export massif de fiches du CRM',
+  'Ajout d’un fournisseur d’identité pirate',
 ];
 
 export const techniqueChoices = [
@@ -100,7 +105,7 @@ export const techniqueChoices = [
   { id: 'T1195.002', name: 'Compromise Software Supply Chain' },
   { id: 'T1550.001', name: 'Application Access Token' },
   { id: 'T1550.004', name: 'Web Session Cookie' },
-  { id: 'T1562.008', name: 'Disable or Modify Cloud Logs' },
+  { id: 'T1685.002', name: 'Disable or Modify Cloud Log' },
   { id: 'T1537', name: 'Transfer Data to Cloud Account' },
   { id: 'T1589.002', name: 'Email Addresses' },
   { id: 'T1595.002', name: 'Vulnerability Scanning' },
@@ -110,6 +115,11 @@ export const techniqueChoices = [
   { id: 'T1098.005', name: 'Device Registration' },
   { id: 'T1136.003', name: 'Cloud Account' },
   { id: 'T1048.003', name: 'Exfiltration Over Unencrypted Non-C2 Protocol' },
+  { id: 'T1484.002', name: 'Trust Modification' },
+  { id: 'T1671', name: 'Cloud Application Integration' },
+  { id: 'T1114.003', name: 'Email Forwarding Rule' },
+  { id: 'T1213.004', name: 'CRM Software' },
+  { id: 'T1564.008', name: 'Email Hiding Rules' },
 ];
 
 export const logCases: LogCase[] = [
@@ -390,10 +400,10 @@ export const logCases: LogCase[] = [
     ],
     attack: 'Effacement des journaux CloudTrail',
     attackOptions: ['Escalade de privilèges dans IAM', 'Extraction de secrets du coffre managé', 'Détournement d’une session valide'],
-    technique: 'T1562.008',
-    techniqueName: 'Disable or Modify Cloud Logs',
+    technique: 'T1685.002',
+    techniqueName: 'Disable or Modify Cloud Log',
     techniqueOptions: [{ id: 'T1548', name: 'Abuse Elevation Control Mechanism' }, { id: 'T1078', name: 'Valid Accounts' }, { id: 'T1530', name: 'Data from Cloud Storage' }],
-    why: 'Couper puis supprimer le trail, c’est éteindre la lumière avant d’agir (T1562.008). Le trou de vingt minutes est le signe. Un trail multi-régions verrouillé et une alerte sur StopLogging/DeleteTrail rendent le geste visible.',
+    why: 'Couper puis supprimer le trail, c’est éteindre la lumière avant d’agir (T1685.002, tactique Defense Impairment depuis ATT&CK v19, ex-T1562.008). Le trou de vingt minutes est le signe. Un trail multi-régions verrouillé et une alerte sur StopLogging/DeleteTrail rendent le geste visible.',
   },
   {
     id: 'resource-hijack',
@@ -645,6 +655,96 @@ export const logCases: LogCase[] = [
     why: 'Des couples volés testés une fois par compte, dilués sur des milliers d’IP et trois jours : c’est du stuffing « low and slow » (T1110.004), conçu pour passer sous les seuils de vélocité. Corréler par compte plutôt que par IP, et vérifier les mots de passe compromis, le rattrape.',
     avoid: ['stuffing', 'spray'],
   },
+
+  // ── Journaux SaaS (Okta, Entra ID, M365, Google Workspace, Salesforce) ──────
+  {
+    id: 'm365-inbox-rule',
+    level: 1,
+    context: 'Journal d’audit Microsoft 365 (Exchange Online), un compte de la comptabilité.',
+    events: [
+      { source: 'm365.audit', line: 'Operation=New-InboxRule user=compta@novafact Parameters: SubjectContains="virement"', suspect: true },
+      { source: 'm365.audit', line: '… MoveToFolder="Flux RSS" MarkAsRead=true DeleteMessage=false', suspect: true },
+      { source: 'm365.audit', line: 'Operation=UpdateInboxRules ClientIP=public (hors du réseau de l’entreprise)', suspect: true },
+      { source: 'm365.audit', line: 'aucune autre règle créée par ce compte dans les 90 jours précédents' },
+    ],
+    attack: 'Règle de boîte qui masque des messages',
+    attackOptions: ['Transfert automatique vers l’extérieur', 'Effacement des journaux d’audit M365', 'Détournement d’une session valide'],
+    technique: 'T1564.008',
+    techniqueName: 'Email Hiding Rules',
+    techniqueOptions: [{ id: 'T1114.003', name: 'Email Forwarding Rule' }, { id: 'T1070', name: 'Indicator Removal' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'La règle déplace et marque comme lu les messages contenant « virement » : elle les cache à la victime sans les faire sortir (T1564.008, tactique Stealth). Une règle de transfert, elle, enverrait les messages dehors. Alerter sur toute nouvelle règle qui déplace ou marque lu sur des mots sensibles la révèle.',
+    avoid: ['gws-forward'],
+  },
+  {
+    id: 'entra-consent',
+    level: 2,
+    context: 'Journaux d’audit et de connexion Entra ID (Microsoft 365).',
+    events: [
+      { source: 'entra.signin', line: 'user=j.bernard@novafact event=UserLoggedIn ok (nominal, poste habituel)' },
+      { source: 'entra.audit', line: 'Operation=Consent to application app="PDF Viewer Pro" publisher=unverified', suspect: true },
+      { source: 'entra.audit', line: '… scopes accordés: Mail.Read, offline_access (jeton de rafraîchissement persistant)', suspect: true },
+      { source: 'graph.api', line: 'app=PDF Viewer Pro lit la boîte de j.bernard, puis d’autres, sans nouvelle connexion', suspect: true },
+    ],
+    attack: 'Consentement OAuth à une application',
+    attackOptions: ['Transfert automatique vers l’extérieur', 'Détournement d’une session valide', 'Rejeu massif d’identifiants volés'],
+    technique: 'T1671',
+    techniqueName: 'Cloud Application Integration',
+    techniqueOptions: [{ id: 'T1114.002', name: 'Remote Email Collection' }, { id: 'T1528', name: 'Steal Application Access Token' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Le salarié consent lui-même à une application non vérifiée qui demande Mail.Read et offline_access (T1671) : le jeton accordé survit au mot de passe et à la MFA. La collecte de courrier qui suit en est la conséquence. Interdire le consentement utilisateur casse la chaîne.',
+  },
+  {
+    id: 'gws-forward',
+    level: 2,
+    context: 'Journaux d’audit Google Workspace (Admin et Gmail), direction financière.',
+    events: [
+      { source: 'gws.gmail', line: 'event=email_forwarding_change user=daf@novafact forwarding_address=externe@gmail.com', suspect: true },
+      { source: 'gws.gmail', line: '… disposition=archive, applied_to=all incoming mail', suspect: true },
+      { source: 'gws.login', line: 'event=login_success user=daf@novafact is_suspicious=true (nouvelle localisation)', suspect: true },
+      { source: 'gws.gmail', line: 'la règle persiste après un changement de mot de passe de l’utilisateur', suspect: true },
+    ],
+    attack: 'Transfert automatique vers l’extérieur',
+    attackOptions: ['Règle de boîte qui masque des messages', 'Détournement d’une session valide', 'Énumération d’objets par un client'],
+    technique: 'T1114.003',
+    techniqueName: 'Email Forwarding Rule',
+    techniqueOptions: [{ id: 'T1564.008', name: 'Email Hiding Rules' }, { id: 'T1114.002', name: 'Remote Email Collection' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Une règle transfère tout le courrier entrant vers une adresse Gmail externe et survit au changement de mot de passe (T1114.003, tactique Collection) : les messages sortent côté serveur, sans session. Désactiver le transfert externe supprime la technique ; l’audit des règles arrive après.',
+    avoid: ['m365-inbox-rule', 'forwarding-external'],
+  },
+  {
+    id: 'salesforce-export',
+    level: 2,
+    context: 'Journaux d’événements Salesforce (Event Monitoring), un compte commercial.',
+    events: [
+      { source: 'sfdc.login', line: 'EVENT_TYPE=Login user=v.morel status=Success (nominal, heures de bureau)' },
+      { source: 'sfdc.api', line: 'EVENT_TYPE=API client=connected-app "DataLoader" (version non standard) consent accordé', suspect: true },
+      { source: 'sfdc.api', line: '… petites requêtes de test sur Account, puis export complet de Account et Contact', suspect: true },
+      { source: 'sfdc.report', line: 'ROW_COUNT ≈ 120 000 enregistrements exportés en quelques minutes', suspect: true },
+    ],
+    attack: 'Export massif de fiches du CRM',
+    attackOptions: ['Transfert automatique vers l’extérieur', 'Rejeu massif d’identifiants volés', 'Détournement d’une session valide'],
+    technique: 'T1213.004',
+    techniqueName: 'Customer Relationship Management Software',
+    techniqueOptions: [{ id: 'T1671', name: 'Cloud Application Integration' }, { id: 'T1537', name: 'Transfer Data to Cloud Account' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Un compte légitime autorise une application connectée déguisée en outil de chargement, puis exporte des tables entières (T1213.004) — le mode opératoire des campagnes de 2025 contre Salesforce. Réserver l’API et l’export en masse à quelques profils coupe la technique à sa source.',
+  },
+  {
+    id: 'okta-rogue-idp',
+    level: 3,
+    context: 'Journaux système Okta (System Log), compte à privilèges. Inspiré du mode opératoire décrit par Okta en 2023.',
+    events: [
+      { source: 'okta.syslog', line: 'eventType=user.session.start actor=admin@novafact (session obtenue après un appel au support)', suspect: true },
+      { source: 'okta.syslog', line: 'eventType=system.idp.lifecycle.create target=IdP "partner-sso" (fournisseur externe ajouté)', suspect: true },
+      { source: 'okta.syslog', line: '… policy=JIT account linking activé (liaison automatique des comptes)', suspect: true },
+      { source: 'okta.syslog', line: 'eventType=user.authentication.auth_via_IDP via "partner-sso" pour plusieurs comptes', suspect: true },
+    ],
+    attack: 'Ajout d’un fournisseur d’identité pirate',
+    attackOptions: ['Consentement OAuth à une application', 'Inscription d’un second facteur pirate', 'Rejeu massif d’identifiants volés'],
+    technique: 'T1484.002',
+    techniqueName: 'Trust Modification',
+    techniqueOptions: [{ id: 'T1556.006', name: 'Multi-Factor Authentication' }, { id: 'T1098.005', name: 'Device Registration' }, { id: 'T1078', name: 'Valid Accounts' }],
+    why: 'Un administrateur compromis ajoute un fournisseur d’identité externe avec liaison automatique des comptes (T1484.002) : l’acteur peut ensuite se connecter comme n’importe qui, l’IdP pirate affirmant lui-même l’authentification. Okta a décrit ce mode opératoire en 2023. Réserver la création d’IdP à un rôle restreint, sous alerte, le coupe.',
+    avoid: ['mfa-device-register'],
+  },
 ];
 
 // ── Les séries ──────────────────────────────────────────────────────────────
@@ -654,6 +754,8 @@ const mix = (n1: number, n2: number, n3: number): [number, number, number] => [n
 const IDENT_IDS = ['stuffing', 'spray', 'brute-single', 'mfa-fatigue', 'session-cookie', 'mfa-replay'];
 const CLOUD_IDS = ['imds', 's3-dump', 'privesc', 'secrets-manager', 'cloudtrail-off', 'snapshot-share'];
 const REAL_IDS = ['shaihulud', 'drift-oauth-log', 'session-cookie', 'action-tamper', 'mfa-device-register'];
+const SAAS_IDS = ['m365-inbox-rule', 'entra-consent', 'gws-forward', 'salesforce-export', 'okta-rogue-idp'];
+const MAIL_IDS = ['m365-inbox-rule', 'gws-forward', 'entra-consent', 'forwarding-external', 'webhook-exfil'];
 
 const PROFILES: SeriesProfile<LogCase>[] = [
   { id: 'signature', title: 'La ligne qui signe', mix: mix(5, 0, 0), level: 1,
@@ -668,6 +770,10 @@ const PROFILES: SeriesProfile<LogCase>[] = [
     text: 'Attaques étalées et diluées : plusieurs sources à corréler, des gestes anodins un à un mais décisifs bout à bout.' },
   { id: 'reels', title: 'Incidents publics', filter: (c) => REAL_IDS.includes(c.id), level: 3,
     text: 'Cinq cas documentés : ver Shai-Hulud, jetons Drift, HAR Okta, tj-actions, enrôlement MFA façon Storm-2372.' },
+  { id: 'saas', title: 'Traces SaaS', filter: (c) => SAAS_IDS.includes(c.id), level: 2,
+    text: 'Journaux Okta, Entra ID, Microsoft 365, Google Workspace et Salesforce : règle de boîte, consentement OAuth, transfert externe, export CRM, IdP pirate.' },
+  { id: 'messagerie', title: 'Boîtes mail cloud', filter: (c) => MAIL_IDS.includes(c.id), level: 2,
+    text: 'M365, Gmail et Exchange : masquer, transférer, consentir, exfiltrer. Reconnaître la technique derrière une règle de messagerie.' },
   { id: 'expert', title: 'Corrélation', mix: mix(0, 0, 5), level: 3,
     text: 'Rien ne se lit sur une ligne : il faut relier des événements distants, sur des heures ou des jours, et distinguer cause et conséquence.' },
   { id: 'melee', title: 'Mêlée', mix: mix(2, 2, 2), level: 2, shuffleEachTime: true,

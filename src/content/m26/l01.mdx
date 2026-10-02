@@ -1,0 +1,152 @@
+export const questions = [
+  {
+    q: "Un scanner remonte une injection SQL (CVSS 9,8) dans un outil interne de génération de rapports, joignable seulement depuis le VPN d'administration et qui ne lit qu'une base de démonstration. Comment la qualifier dans le registre ?",
+    options: [
+      "Un risque critique, puisque la gravité technique est maximale",
+      "Une vulnérabilité grave ; le risque se juge sur l'actif et l'exposition",
+      "Un risque nul tant qu'aucune exploitation n'a été constatée",
+      "Un risque moyen, en appliquant les métriques environnementales CVSS",
+    ],
+    answer: 1,
+    explain: "Les métriques environnementales sont le piège : elles abaissent bien le score, mais le résultat reste une sévérité ajustée, sans valeur de l'actif ni menace réelle. FIRST le dit lui-même : CVSS mesure une sévérité, pas un risque. Le « risque nul faute d'exploitation » confond vraisemblance et constat. Et recopier le 9,8 comme niveau de risque ignore que l'actif ne vaut presque rien et que l'exposition est faible.",
+  },
+  {
+    q: "Quelle est la différence entre appétence et tolérance au risque, selon NIST IR 8286r1 ?",
+    options: [
+      "L'appétence vaut pour les risques cyber, la tolérance pour les risques métier",
+      "L'appétence se mesure avant traitement, la tolérance après traitement",
+      "L'appétence est fixée par la direction ; la tolérance la décline en seuils précis",
+      "L'appétence est quantitative, la tolérance qualitative",
+    ],
+    answer: 2,
+    explain: "La distinction avant/après traitement est tentante parce que la tolérance porte bien sur le risque qui reste, mais ce n'est pas ce qui les sépare : NIST montre une appétence générale (le service de messagerie disponible la plupart du temps) et une tolérance plus étroite qui la décline (pas plus de cinq minutes d'interruption en heures ouvrées). Les deux s'appliquent à tous les risques, et aucune n'est par nature chiffrée ou non.",
+  },
+  {
+    q: "L'OCC a sanctionné Capital One de 80 M$ en 2020. Qu'est-ce que le communiqué reproche précisément ?",
+    options: [
+      "D'avoir tardé à notifier la fuite aux clients et au régulateur",
+      "D'avoir laissé un pare-feu applicatif mal configuré exposé sur Internet",
+      "D'avoir confié ses données à un fournisseur cloud sans clause d'audit",
+      "De ne pas avoir apprécié les risques avant de migrer vers le cloud public",
+    ],
+    answer: 3,
+    explain: "Le pare-feu mal configuré est la cause technique de l'intrusion de 2019, et c'est pour ça qu'il vient à l'esprit. Mais le régulateur ne sanctionne pas une faille : il vise l'absence de processus efficace d'appréciation des risques avant une migration majeure. La notification et les clauses contractuelles ne figurent pas dans le motif cité. C'est toute la différence entre une vulnérabilité et une gestion du risque défaillante.",
+  },
+  {
+    q: "Selon le guide d'homologation de l'ANSSI, qu'est-ce qui doit fixer le niveau de la démarche (simplifiée, intermédiaire ou renforcée) ?",
+    options: [
+      "La criticité du système et son exposition aux sources de risque",
+      "La complexité technique du système et le nombre de ses composants",
+      "Le budget disponible pour l'étude et la date de mise en service",
+      "Le nombre de vulnérabilités remontées par le dernier audit",
+    ],
+    answer: 0,
+    explain: "La complexité est le distracteur naturel : un gros système semble mériter une grosse analyse. Le guide écarte explicitement ce critère : le niveau dépend de la criticité et de l'exposition. Un système simple mais très exposé et critique appelle une démarche renforcée ; un système complexe, peu critique et isolé peut se contenter d'une approche par conformité. Le budget et le nombre de vulnérabilités sont des contraintes ou des symptômes, pas des critères.",
+  },
+];
+
+<YouKnow>
+En pentest, on note une criticité : un score CVSS, parfois ajusté à l'œil. « Critique » veut dire « grave techniquement ». Côté AppSec, ce mot ne suffit plus : la question devient ce que l'entreprise risque, et combien d'effort mettre avant de concevoir.
+</YouKnow>
+
+## Pourquoi fixer le vocabulaire d'abord
+
+Le mot « risque » sert à tout : un finding, une crainte, une ligne de budget. Tant qu'il garde ce flou, deux personnes autour d'une table parlent de choses différentes et croient être d'accord. Ce module part du métier, avant le threat modeling (M11), et il a besoin de mots stables.
+
+Deux normes donnent le cadre. **ISO 31000:2018** définit le risque comme l'effet de l'incertitude sur les objectifs : pas « ce qui peut mal tourner » en général, mais ce qui peut empêcher l'entreprise d'atteindre ce qu'elle vise. **ISO/IEC 27005:2022** (4e édition, octobre 2022) applique ce cadre à la sécurité de l'information. C'est un guide de recommandations, pas une norme certifiable. Sa principale nouveauté est de proposer deux façons d'identifier les risques : partir des **événements** (scénarios et sources de menace, au niveau stratégique) ou partir des **actifs** (leurs menaces et leurs vulnérabilités). EBIOS Risk Manager, la méthode de la leçon suivante, se déclare conforme à cette édition.
+
+Côté américain, **NIST SP 800-30 Rev. 1** (2012) reste le guide d'appréciation des risques, et **NIST IR 8286 Rev. 1** (décembre 2025) relie le risque cyber à la gestion des risques de l'entreprise. Les mots changent d'un texte à l'autre ; les concepts, non.
+
+## Les mots, un par un
+
+| Terme | Ce que c'est | Chez Novafact |
+| --- | --- | --- |
+| **Valeur métier** (ou actif essentiel) | Ce que l'entreprise doit protéger pour remplir sa mission | Émettre et envoyer des factures justes ; encaisser les paiements ; la confiance des clients |
+| **Bien support** | Ce sur quoi repose la valeur métier | L'API Express, MongoDB, Amazon SES, l'iframe du prestataire de paiement |
+| **Source de risque** (menace) | Qui ou quoi peut porter atteinte, avec quelle motivation | Un fraudeur qui veut détourner des paiements ; un client curieux des données d'un autre tenant |
+| **Vulnérabilité** | Une faiblesse exploitable d'un bien support | La BOLA sur l'export, un webhook de paiement non signé |
+| **Événement redouté** | L'atteinte à une valeur métier, vue par l'entreprise | « Des factures partent avec un faux IBAN » |
+| **Vraisemblance** | La chance que le scénario se réalise sur la période | Exposition, intérêt de l'attaquant, contrôles en place |
+| **Impact** (ou gravité) | Ce que coûte l'événement s'il arrive | Remboursements, résiliations, notification à la CNIL |
+| **Risque** | La combinaison d'un scénario, de sa vraisemblance et de son impact | « Un fraudeur fait payer des factures sur son compte : vraisemblable, grave » |
+
+Trois précisions évitent la plupart des contresens. Le **risque inhérent** est celui qu'on aurait sans aucune mesure ; en pratique, NIST IR 8286r1 parle plutôt de **risque courant**, parce qu'il existe toujours quelques mesures. Le **risque résiduel** est ce qui reste après traitement : c'est lui qu'on accepte (leçon 6). Et l'**appétence** n'est pas la **tolérance** : NIST donne l'exemple d'une appétence fixée par la direction (« la messagerie doit être disponible la plus grande partie de la journée ») déclinée en une tolérance mesurable (« pas plus de cinq minutes d'interruption en heures ouvrées »). Sans tolérance chiffrée, l'appétence reste un slogan.
+
+## Une vulnérabilité n'est pas un risque
+
+Le réflexe du pentest est de partir de la faille. L'analyse de risques part de l'autre bout, et les deux ne se recouvrent pas.
+
+Une vulnérabilité sans actif ni menace ne crée presque aucun risque : une injection SQL dans un outil de démonstration isolé reste une injection SQL, mais rien de valeur n'est en jeu. À l'inverse, un risque élevé peut exister **sans aucune vulnérabilité** au sens du pentest : un agent du support de Novafact a légitimement accès aux factures de tous les tenants. S'il les exporte pour les revendre, aucun scanner ne trouvera de faille, et l'événement redouté arrive quand même.
+
+<Callout kind="warn">
+**CVSS mesure une sévérité, pas un risque.** Le guide utilisateur de CVSS v3.1 le dit à sa section 2.1 : le score est conçu pour mesurer la gravité d'une vulnérabilité et ne doit pas servir seul à apprécier un risque. Celui de CVSS v4.0 le répète : le score de base (CVSS-B) mesure une sévérité. Même ajusté par les métriques environnementales, le score ne connaît ni la valeur des factures ni l'intérêt d'un fraudeur pour elles. La gestion des vulnérabilités (M26, leçon 3) combine CVSS avec d'autres signaux ; ici, il suffit de retenir qu'il entre dans l'analyse, sans jamais la conclure.
+</Callout>
+
+## Écrire un risque, pas une faille
+
+La meilleure façon de vérifier que tout le monde parle de la même chose est de regarder comment les risques sont écrits. NIST IR 8286r1 demande des descriptions homogènes, où figurent toujours la menace, l'actif, la méthode et l'impact. Voici une entrée trouvée dans le premier registre de Novafact, et sa réécriture :
+
+<Diff file="risques/registre.yaml" hlBefore="2,3,4" hlAfter="2,3,4,5,6,7,8">
+
+```yaml
+- id: R-04
+  titre: XSS stockée dans le back-office (CVSS 6.1)
+  niveau: moyen          # recopié du CVSS : la sévérité tient lieu de risque
+  traitement: corriger
+```
+
+```yaml
+- id: R-04
+  source: fraudeur ciblant les comptables des clients
+  actif: modèles de facture (IBAN du tenant)
+  methode: XSS stockée dans le back-office, puis modification de l'IBAN en session admin
+  impact: paiements de clients finaux détournés, remboursements, perte du client
+  vraisemblance: vraisemblable   # exposée à tout utilisateur d'un tenant
+  gravite: grave                 # échelle métier, pas CVSS
+  severite_technique: "CVSS 6.1" # gardée comme une entrée parmi d'autres
+```
+
+</Diff>
+
+La première version n'est pas fausse, elle est muette : « moyen » vient du score, donc personne n'a regardé ce que la XSS permet sur cette page-là. La seconde fait apparaître le vrai sujet, la modification d'un IBAN, qui change la gravité. Le correctif « paresseux » serait de garder le titre et de remonter le niveau à « élevé » : on aurait l'air plus prudent sans avoir décrit le scénario. Le jour où quelqu'un corrige la XSS, il fermera le risque… alors que le changement d'IBAN sans seconde validation reste ouvert, par phishing du comptable par exemple. Un risque bien écrit survit à la correction d'une faille ; une faille déguisée en risque disparaît avec elle.
+
+<Callout kind="case">
+**Capital One (OCC, 6 août 2020).** Après l'intrusion de 2019, le régulateur bancaire américain inflige une amende de 80 millions de dollars. Le motif cité dans son communiqué n'est pas la faille technique : c'est l'absence de processus efficaces d'appréciation des risques **avant** de migrer une part importante de l'informatique vers le cloud public. Le régulateur ne sanctionne pas une vulnérabilité, il sanctionne une décision prise sans analyse. Le détail technique de l'intrusion est traité en M19 (leçon 3).
+</Callout>
+
+## Combien d'analyse ?
+
+L'analyse de risques a un coût, et une erreur fréquente est de lui donner la même profondeur partout. Le guide d'homologation de l'ANSSI et de la DINUM (version 2.2, mars 2026) propose une règle simple : trois niveaux de démarche, **simplifiée**, **intermédiaire** et **renforcée**, choisis en croisant la **criticité** du système et son **exposition** aux sources de risque. Il précise que ce choix ne doit pas dépendre de la complexité du système. Pour un système peu critique et quasiment pas exposé, une approche par conformité aux règles d'hygiène suffit, sans analyse de risque dédiée.
+
+SAMM dit la même chose avec d'autres mots : le premier stream de *Threat Assessment* est l'**Application Risk Profile**, un classement des applications par risque qui décide où investir (M5, leçon 2). Chez Novafact, la règle devient :
+
+| Profil | Exemple | Analyse de risques | Threat model (M11) |
+| --- | --- | --- | --- |
+| Critique et exposé | API de facturation, paiement, assistant IA avec outils | EBIOS RM complète, revue annuelle | Complet, tenu à jour à chaque changement d'architecture |
+| Important ou exposé | Portail client, envoi d'e-mails, SDK npm | Ateliers ciblés sur les événements redoutés existants | Par fonctionnalité, dans la PR |
+| Mineur et interne | Outil de rapports internes, wiki | Conformité au socle | Checklist |
+
+C'est cette décision que l'analyse de risques transmet au threat modeling : où creuser, et jusqu'où.
+
+<Recap items={[
+  "ISO 31000 : le risque est l'effet de l'incertitude sur les objectifs ; ISO/IEC 27005:2022 l'applique à la sécurité, sans certification.",
+  "Valeur métier, bien support, source de risque, vulnérabilité, événement redouté, vraisemblance, impact : des mots distincts.",
+  "On accepte le risque résiduel ; l'appétence (direction) se décline en tolérances mesurables.",
+  "Une vulnérabilité n'est pas un risque, et un risque peut exister sans vulnérabilité (l'initié légitime).",
+  "CVSS mesure une sévérité, pas un risque : FIRST l'écrit dans les guides v3.1 et v4.0.",
+  "Un risque s'écrit avec menace, actif, méthode et impact ; il survit à la correction d'une faille.",
+  "L'effort d'analyse se règle sur la criticité et l'exposition, pas sur la complexité.",
+]} />
+
+<Sources items={[
+  { title: "ISO 31000:2018, Management du risque — Lignes directrices", url: "https://www.iso.org/standard/65694.html" },
+  { title: "ISO/IEC 27005:2022 (IEC Webstore)", url: "https://webstore.iec.ch/publication/79713" },
+  { title: "ANSI Blog, ISO/IEC 27005:2022 : approches par événements et par actifs", url: "https://blog.ansi.org/ansi/iso-iec-27005-2022-security-risk-management/" },
+  { title: "NIST SP 800-30 Rev. 1, Guide for Conducting Risk Assessments (2012)", url: "https://csrc.nist.gov/pubs/sp/800/30/r1/final" },
+  { title: "NIST IR 8286 Rev. 1, Integrating Cybersecurity and ERM (décembre 2025)", url: "https://csrc.nist.gov/pubs/ir/8286/r1/final", note: "appétence et tolérance, éléments d'une description de risque" },
+  { title: "FIRST, CVSS v3.1 User Guide", url: "https://www.first.org/cvss/v3.1/user-guide", note: "§2.1, « CVSS Measures Severity, not Risk »" },
+  { title: "FIRST, CVSS v4.0 User Guide", url: "https://www.first.org/cvss/v4.0/user-guide" },
+  { title: "OCC, sanction de Capital One (NR 2020-101, 6 août 2020)", url: "https://www.occ.gov/news-issuances/news-releases/2020/nr-occ-2020-101.html" },
+  { title: "ANSSI / DINUM, Guide de l'homologation de sécurité (v2.2, mars 2026)", url: "https://messervices.cyber.gouv.fr/documents-guides/guide-homologation-securite-web-04-2025.pdf", note: "§3.2, niveau de la démarche" },
+  { title: "OWASP SAMM, Threat Assessment", url: "https://owaspsamm.org/model/design/threat-assessment/" },
+]} />

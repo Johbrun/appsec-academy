@@ -1,0 +1,163 @@
+export const questions = [
+  {
+    q: "La passerelle de Novafact bloque `Mcp-Name: delete_invoice` pour les comptes en lecture seule. Le serveur MCP derrière elle lit l'outil dans le corps. Quelle requête un attaquant envoie-t-il ?",
+    options: [
+      "Une requête sans `Mcp-Method`, que la passerelle laisse passer faute de savoir la classer",
+      "Une requête par lots JSON-RPC, que la passerelle ne sait pas découper en appels",
+      "Une requête dont `Mcp-Name` est encodé en base64, que la passerelle ne décode pas",
+      "Une requête avec `Mcp-Name: list_invoices` et `\"name\": \"delete_invoice\"` dans le corps",
+    ],
+    answer: 3,
+    explain: "C'est le scénario que cite la spécification : un composant décide sur l'en-tête, un autre exécute selon le corps. D'où l'obligation pour le serveur qui lit le corps de rejeter toute incohérence (400, `HeaderMismatch`, -32020). Une requête sans en-tête requis est aussi rejetée par un serveur conforme, et la passerelle devrait la refuser elle-même. Le batching JSON-RPC a été retiré en 2025-06-18. L'encodage base64 est légitime pour les valeurs non ASCII et le serveur doit décoder avant de comparer ; ce n'est pas un contournement en soi.",
+  },
+  {
+    q: "Le serveur MCP de Novafact émet des handles aléatoires de 128 bits pour les brouillons d'avoirs. Pourquoi faut-il quand même lier chaque handle à l'utilisateur ?",
+    options: [
+      "Parce qu'un handle aléatoire peut entrer en collision avec celui d'un autre tenant",
+      "Parce que le handle transite par le contexte du modèle et peut fuiter ou être injecté",
+      "Parce que la spécification impose des handles signés en JWT depuis 2026-07-28",
+      "Parce que le répartiteur de charge route les requêtes sur la valeur du handle",
+    ],
+    answer: 1,
+    explain: "Un handle est un argument d'outil ordinaire : le modèle le lit, le répète, peut le recopier dans une réponse, un journal ou un transcript partagé, et une injection peut lui en faire utiliser un autre. L'aléa empêche de le deviner, pas de le voler. La spécification demande donc de ne jamais traiter sa possession comme une authentification et de stocker l'état sous `<user_id>:<handle>`, l'identifiant venant du jeton vérifié. Elle ne prescrit aucun format de handle, et une collision sur 128 bits est négligeable.",
+  },
+  {
+    q: "Le serveur MCP de Novafact répond à `tools/list` par des outils différents selon le tenant du jeton, et marque la réponse `cacheScope: \"public\"`. Quel est le risque ?",
+    options: [
+      "Un intermédiaire partagé peut servir la liste d'un tenant à un autre",
+      "Le client ignore la réponse, car une liste publique ne peut pas varier",
+      "Le modèle traite les outils publics comme approuvés et saute la confirmation",
+      "Le serveur doit alors republier la liste dans le registre officiel",
+    ],
+    answer: 0,
+    explain: "`cacheScope` dit aux intermédiaires partagés s'ils peuvent mettre la réponse en cache : `public` autorise un cache commun, `private` le réserve au client. Une réponse qui dépend de l'autorisation marquée `public` peut donc être resservie à un autre appelant, une fuite inter-tenants classique de cache. Le client ne rejette pas une liste qui varie : la spécification autorise une liste différente selon l'autorisation présentée. Et ce champ n'a aucun rapport avec l'approbation des outils.",
+  },
+  {
+    q: "Le serveur MCP distant de Novafact propose un outil `fetch_supplier_invoice(url)`. Il tourne sur ECS. Quel contrôle traite la cause de la SSRF plutôt qu'un symptôme ?",
+    options: [
+      "Refuser les URL qui contiennent `169.254` ou `localhost` avant de les appeler",
+      "Exiger `https://` dans l'URL, puisque le service de métadonnées parle HTTP",
+      "Une sortie par proxy qui n'autorise que les domaines de fournisseurs déclarés",
+      "Résoudre le nom une fois, vérifier l'adresse, puis laisser `fetch` résoudre à nouveau",
+    ],
+    answer: 2,
+    explain: "Une liste de motifs tombe devant les encodages d'adresses (décimal, octal, IPv6 mappée), et la spécification déconseille explicitement de valider les IP à la main. Résoudre puis laisser `fetch` résoudre de nouveau ouvre la fenêtre du DNS rebinding. Exiger HTTPS n'empêche pas une redirection ni une cible interne en HTTPS. Le proxy de sortie à liste blanche décide hors de l'application, à la connexion, et vaut aussi pour les redirections : c'est la recommandation de la spécification et de M9.",
+  },
+];
+
+<YouKnow>
+Désynchronisation entre un frontal et un backend, IDOR, SSRF : un pentester les connaît côté web. Un serveur MCP distant les retrouve sous des formes que la révision 2026-07-28 a rendues plus visibles. L'authentification OAuth du serveur est traitée en M29 ; ici, on part d'un jeton vérifié et on regarde ce qui se passe ensuite.
+</YouKnow>
+
+## L'en-tête dit une chose, le corps une autre
+
+Depuis 2026-07-28, chaque POST porte `Mcp-Method` et, pour `tools/call`, `resources/read` et `prompts/get`, `Mcp-Name`. Un outil peut aussi faire recopier un paramètre en en-tête `Mcp-Param-…` grâce à `x-mcp-header`. Le but est que les répartiteurs, passerelles et WAF routent et appliquent des règles sans parser le JSON.
+
+Le schéma est connu : deux composants, deux sources de vérité. La spécification le nomme elle-même, « un répartiteur qui route sur la valeur de l'en-tête pendant que le serveur MCP exécute selon le corps », et en tire une obligation : tout serveur qui traite le corps **doit** rejeter une requête dont les en-têtes ne correspondent pas, avec un **400** et l'erreur JSON-RPC **`HeaderMismatch` (-32020)**. Un en-tête requis manquant ou mal formé est aussi un échec. Les valeurs non ASCII arrivent encodées (`=?base64?…?=`) et se décodent avant comparaison.
+
+<Code file="services/mcp-novafact/src/middleware/header-match.ts" hl="9,10,13,14,15">
+
+```ts
+const decode = (v: string) => {
+  const m = /^=\?base64\?(.*)\?=$/.exec(v);
+  return m ? Buffer.from(m[1], 'base64').toString('utf8') : v;
+};
+const NAMED = new Set(['tools/call', 'resources/read', 'prompts/get']);
+
+export function headerMatch(req: Request, res: Response, next: NextFunction) {
+  const body = req.body, method = req.get('mcp-method'), name = req.get('mcp-name');
+  // Absent n'est pas « rien à comparer » : sinon il suffit d'omettre l'en-tête.
+  const expectedName = NAMED.has(body?.method) ? (body.params?.name ?? body.params?.uri) : undefined;
+  const ok = method === body?.method
+    && (expectedName === undefined || (name !== undefined && decode(name) === expectedName));
+  if (!ok) {
+    return res.status(400).json({ jsonrpc: '2.0', id: body?.id ?? null,
+      error: { code: -32020, message: 'Header mismatch' } });
+  }
+  next();
+}
+```
+
+</Code>
+
+Les correctifs ratés ont tous la même forme : ne comparer que si l'en-tête est présent, oublier de décoder le base64, ou comparer sans tenir compte de la casse alors que les **valeurs** sont sensibles à la casse (`Delete_invoice` n'est pas `delete_invoice`). Côté passerelle, la spécification ajoute qu'un intermédiaire qui applique une politique sur ces en-têtes devrait refuser les requêtes d'une version antérieure, où rien ne garantit que le serveur les confronte au corps. Enfin, aucun paramètre sensible ne doit être marqué avec `x-mcp-header` : un en-tête se lit et se journalise sur tout le trajet.
+
+## Le handle n'est pas une clé
+
+Le protocole ne garde plus d'état : un brouillon d'avoir ou un import en plusieurs étapes vit sous un **handle** émis par le serveur, que le modèle repasse en argument. La spécification le dit en une phrase, « un handle est un nom, pas une capacité » : le serveur **ne doit pas** traiter sa possession comme une authentification, **devrait** l'émettre aléatoire et le lier à l'utilisateur authentifié.
+
+<Diff file="services/mcp-novafact/src/tools/credit-note-draft.ts" hlBefore="1,4,9" hlAfter="1,4,5,10,11,12">
+
+```ts
+let seq = 0;
+const drafts = new Map<string, Draft>();
+
+server.registerTool('create_credit_note_draft', schema, async (args) => {
+  const handle = `cn_${++seq}`;                  // devinable, et lié à personne
+  drafts.set(handle, { ...args, lines: [] });
+  return result({ draft: handle });
+});
+server.registerTool('add_line', lineSchema, async ({ draft, ...line }) => {
+  drafts.get(draft)!.lines.push(line);           // n'importe quel appelant, n'importe quel brouillon
+  return result({ ok: true });
+});
+```
+
+```ts
+const key = (ctx: Ctx, handle: string) => `${subOf(ctx.http?.authInfo)}:${handle}`;
+server.registerTool('create_credit_note_draft', schema, async (args, ctx) => {
+  const handle = `cn_${randomUUID()}`;
+  // Le sub vient du jeton vérifié, jamais d'un argument que le modèle fournit.
+  await drafts.set(key(ctx, handle), { ...args, tenantId: tenantOf(ctx), lines: [] }, { ttlMs: 3_600_000 });
+  return result({ draft: handle });
+});
+server.registerTool('add_line', lineSchema, async ({ draft, ...line }, ctx) => {
+  const d = await drafts.get(key(ctx, draft));
+  // Handle d'un autre utilisateur ou expiré : même réponse, pour ne rien révéler.
+  if (!d) return toolError('Brouillon inconnu ou expiré : crée-en un nouveau.');
+  d.lines.push(line);
+  return result({ ok: true });
+});
+```
+
+</Diff>
+
+Le payload qui casse le correctif « on passe à `randomUUID()` et c'est réglé » : le handle traverse le contexte du modèle. Il apparaît dans la conversation, dans les journaux de l'hôte, dans un transcript partagé avec le support. Un collègue d'un autre tenant qui le récupère, ou une injection qui demande à l'agent d'utiliser `cn_…` vu dans un document, accède au brouillon si la clé ne contient pas l'utilisateur. Même logique pour le `requestState` des allers-retours (leçon 2) : la spécification exige de le traiter comme contrôlé par l'attaquant, de le protéger en intégrité (HMAC ou AEAD) dès qu'il influence une décision, et d'y inclure l'utilisateur, une expiration courte et l'empreinte de la requête d'origine.
+
+## L'isolation des tenants
+
+<Callout kind="case">
+Selon BleepingComputer (18 juin 2025), Asana a prévenu ses clients qu'une « faille de logique » de son serveur MCP, active du 1er mai au 4 juin 2025, avait rendu visibles à des utilisateurs d'autres organisations des tâches, métadonnées de projets, commentaires et fichiers. Un porte-parole d'Asana a évoqué environ 1 000 clients touchés ; le serveur a été coupé, puis rétabli le 17 juin. Asana n'a pas publié de communiqué public, et le détail de la faille n'est pas connu.
+</Callout>
+
+Faute de détail, on retient les points de contrôle qu'un serveur MCP multi-tenant ajoute à ceux d'une API classique :
+
+- **Le tenant vient du jeton**, jamais d'un argument d'outil ni d'un `_meta`, que le client remplit à sa guise (`clientInfo` est auto-déclaré).
+- **Les listes peuvent varier** : la spécification permet à `tools/list` de dépendre de l'autorisation présentée. Dans ce cas, la réponse doit être marquée `cacheScope: "private"`, sinon un cache partagé la resservira à un autre tenant.
+- **Les caches et index côté serveur** (embeddings, résultats de recherche, handles) portent le tenant dans leur clé.
+- **Le test qui prouve le refus** : deux tenants de test, un handle et une ressource créés par l'un, appelés par l'autre, réponse identique à « inconnu ».
+
+## SSRF : le serveur va chercher pour le modèle
+
+Un outil qui prend une URL (importer une facture fournisseur, prévisualiser un lien) est une SSRF qu'un texte peut déclencher : l'URL vient du modèle, donc d'un document. **CVE-2026-26118** (Azure MCP Server, CVSS 8,8, corrigée au Patch Tuesday de mars 2026) est décrite par Microsoft comme une SSRF permettant à un attaquant authentifié d'élever ses privilèges ; l'avis ne détaille pas le mécanisme. La révision 2026-07-28 signale un piège moins visible : un `$ref` de schéma pointant vers une URL ne doit pas être résolu automatiquement, et si cette résolution est activée, les mêmes restrictions s'appliquent.
+
+Sur ECS, les identifiants de la tâche sont servis par l'agent de conteneur sur une adresse link-local : aucun outil ne doit pouvoir l'atteindre. La défense (M9, leçon 11) ne change pas : liste blanche de destinations appliquée par un **proxy de sortie**, redirections revalidées, aucune résolution DNS faite deux fois. La spécification déconseille explicitement les validations d'IP écrites à la main. L'excel-mcp-server de la leçon 2 le rappelle : la traversée de chemin la plus simple devient critique dès que le serveur écoute en HTTP sans authentification.
+
+<Recap items={[
+  "Mcp-Method, Mcp-Name et Mcp-Param-* doublent le corps : le serveur rejette toute incohérence (400, HeaderMismatch -32020), en-tête absent compris, après décodage base64.",
+  "Une passerelle qui décide sur les en-têtes refuse les versions antérieures, et aucun paramètre sensible ne passe en x-mcp-header.",
+  "Un handle est un nom, pas une capacité : aléatoire, stocké sous user_id:handle avec le sub du jeton, expirant ; requestState protégé en intégrité.",
+  "Multi-tenant : tenant tiré du jeton, cacheScope private pour les réponses qui dépendent de l'appelant, test croisé entre deux tenants.",
+  "SSRF : un outil qui prend une URL obéit à un document ; proxy de sortie à liste blanche, pas de validation d'IP maison.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : Streamable HTTP (Request Metadata, Server Validation)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http" },
+  { title: "MCP 2026-07-28 : Security Best Practices (State Handle Hijacking, SSRF)", url: "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices" },
+  { title: "MCP 2026-07-28 : Tools (Stateful Tools, x-mcp-header)", url: "https://modelcontextprotocol.io/specification/2026-07-28/server/tools" },
+  { title: "MCP 2026-07-28 : Multi Round-Trip Requests (requestState)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr" },
+  { title: "MCP 2026-07-28 : changelog (cacheScope, $ref)", url: "https://modelcontextprotocol.io/specification/2026-07-28/changelog" },
+  { title: "BleepingComputer : Asana warns MCP AI feature exposed customer data to other orgs", url: "https://www.bleepingcomputer.com/news/security/asana-warns-mcp-ai-feature-exposed-customer-data-to-other-orgs/" },
+  { title: "GHSA-hhfx-wfvq-7g9c : Azure MCP Server (CVE-2026-26118)", url: "https://github.com/advisories/GHSA-hhfx-wfvq-7g9c" },
+  { title: "MSRC : CVE-2026-26118", url: "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-26118" },
+]} />

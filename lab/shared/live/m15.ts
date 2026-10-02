@@ -188,7 +188,7 @@ export const m15: ExerciseDef[] = [
     brief: 'La politique de la clé de chiffrement accorde toutes les opérations à un principal universel, « parce que c’est plus simple ».',
     goal: 'Restreindre aux rôles nommés et au service appelant, sans casser le déchiffrement applicatif.',
     file: 'novafact/infra/iam/kms-key-policy.json',
-    lessons: ['m15/l01', 'm08/l07'],
+    lessons: ['m15/l01', 'm08/l08'],
     hints: [
       'Le chiffrement au repos ne vaut que ce que vaut la politique de la clé.',
       'Deux choses à séparer : qui administre la clé, et qui s’en sert. Et personne ne doit être « tout le monde ». Attention : l’instruction du compte racine est le pivot voulu par AWS, la retirer rend la clé inutilisable.',

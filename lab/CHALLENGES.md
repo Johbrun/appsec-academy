@@ -144,7 +144,7 @@ marche encore. Le corrigé est dans [SOLUTIONS.md](SOLUTIONS.md).
 | 113 | [JWT : jku et jwk honorés](#jwt-jku-jwk) | M3 | N3 | CWE-347 | D1, D5 | [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) |
 | 114 | [Jeton valable d’un tenant à l’autre](#jwt-no-audience) | M3 | N2 | CWE-863 | D1, D5 | [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) |
 | 115 | [Session qu’on ne peut pas révoquer](#session-not-revocable) | M3 | N2 | CWE-613 | D1, D5 | [Protocoles d’authentification avancés](http://127.0.0.1:5173/#/modules/m03/l10) |
-| 116 | [Jeton tiré de Math.random](#weak-random) | M8 | N2 | CWE-338 | D1, D5 | [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) |
+| 116 | [Jeton tiré de Math.random](#weak-random) | M8 | N2 | CWE-338 | D1, D5 | [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) |
 | 117 | [redirect_uri validée par préfixe](#oauth-redirect) | M9 | N2 | CWE-601 | D1, D5 | [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l03) |
 | 118 | [Connexion fédérée sans state](#oauth-state) | M9 | N2 | CWE-352 | D1, D5 | [OAuth 2.1 et Authorization Code + PKCE](http://127.0.0.1:5173/#/modules/m09/l03) |
 | 119 | [nOAuth : e-mail non vérifié](#oauth-email-unverified) | M9 | N2 | CWE-287 | D1, D5 | [Attaques OAuth et OIDC](http://127.0.0.1:5173/#/modules/m09/l06) |
@@ -728,7 +728,7 @@ Une même route sert les réglages du tenant et ceux de la plateforme, discrimin
 
 **Dans le cours.**
 - [Entrées non fiables dans Express](http://127.0.0.1:5173/#/modules/m02/l01) · [source](../src/content/m02/l01.mdx)
-- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
+- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1064,7 +1064,7 @@ Le jeton de réinitialisation est comparé avec `===`, qui s’arrête au premie
 
 **Dans le cours.**
 - [Erreurs, exceptions et atomicité](http://127.0.0.1:5173/#/modules/m02/l04) · [source](../src/content/m02/l04.mdx)
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1402,7 +1402,7 @@ Le gabarit d’e-mail éditable par le tenant est compilé par le moteur de temp
 
 **Dans le cours.**
 - [SSTI et injection de code](http://127.0.0.1:5173/#/modules/m03/l08) · [source](../src/content/m03/l08.mdx)
-- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
+- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1426,7 +1426,7 @@ La recherche de clients relaie la requête vers une API interne en concaténant 
 
 **Dans le cours.**
 - [API avancée et GraphQL](http://127.0.0.1:5173/#/modules/m03/l03) · [source](../src/content/m03/l03.mdx)
-- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l06) · [source](../src/content/m08/l06.mdx)
+- [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1618,7 +1618,7 @@ Le jeton est dérivé de l’horloge et d’un générateur non cryptographique 
 
 **Dans le cours.**
 - [Race conditions](http://127.0.0.1:5173/#/modules/m03/l01) · [source](../src/content/m03/l01.mdx)
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -1666,7 +1666,7 @@ Les préférences sont un objet sérialisé, signé avec une clé faible, puis d
 
 **Dans le cours.**
 - [Désérialisation et prototype pollution avancées](http://127.0.0.1:5173/#/modules/m03/l09) · [source](../src/content/m03/l09.mdx)
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -2758,7 +2758,7 @@ Le jeton de réinitialisation vient de `Math.random()`. Le générateur de V8 n�
 **Où.** `server/routes/auth.ts`
 
 **Dans le cours.**
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
 - [Footguns JavaScript et argent](http://127.0.0.1:5173/#/modules/m02/l02) · [source](../src/content/m02/l02.mdx)
 
 <details>
@@ -3077,7 +3077,7 @@ On sait qu’un locataire ne doit pas lire les factures d’un autre. On ne sait
 
 **Dans le cours.**
 - [Choisir sa méthode](http://127.0.0.1:5173/#/modules/m11/l03) · [source](../src/content/m11/l03.mdx)
-- [Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l10) · [source](../src/content/m08/l10.mdx)
+- [Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l11) · [source](../src/content/m08/l11.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -4237,7 +4237,7 @@ La politique de la clé de chiffrement accorde toutes les opérations à un prin
 
 **Dans le cours.**
 - [Le modèle IAM et la logique d’évaluation](http://127.0.0.1:5173/#/modules/m15/l01) · [source](../src/content/m15/l01.mdx)
-- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) · [source](../src/content/m08/l07.mdx)
+- [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) · [source](../src/content/m08/l08.mdx)
 
 <details>
 <summary>La classe de bugs à éliminer (spoiler)</summary>
@@ -6299,7 +6299,7 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/scripts/c
 
 ### Par leçon
 
-**158 des 237 leçons** du parcours sont rattachées à au moins un challenge.
+**158 des 238 leçons** du parcours sont rattachées à au moins un challenge.
 
 <details>
 <summary><strong>M1 · Cybersécurité et panorama de la menace</strong> — 0/6 leçons couvertes</summary>
@@ -6485,7 +6485,7 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/scripts/c
 </details>
 
 <details>
-<summary><strong>M13 · Spécifier et concevoir</strong> — 8/10 leçons couvertes</summary>
+<summary><strong>M13 · Spécifier et concevoir</strong> — 8/11 leçons couvertes</summary>
 
 | Leçon | Challenges |
 | --- | --- |
@@ -6494,11 +6494,12 @@ Détail et code corrigé : [SOLUTIONS.md](SOLUTIONS.md) · [`solutions/scripts/c
 | [Les 14 patterns](http://127.0.0.1:5173/#/modules/m08/l03) | Nommer les patterns déjà présents *(à venir)* |
 | [Les 4 anti-patterns](http://127.0.0.1:5173/#/modules/m08/l04) | [Script tiers piloté par la configuration](#third-party-script)<br>[Injection indirecte dans « Ask Novafact »](#prompt-injection)<br>[Le tool shadowing](#tool-shadowing)<br>[À qui fait-on confiance, au juste](#trust-inventory)<br>[Accès inter-comptes sans ExternalId](#iam-external-id)<br>Nommer les patterns déjà présents *(à venir)* |
 | [Patterns d’architecture](http://127.0.0.1:5173/#/modules/m08/l05) | [Pièce jointe servie sur l’origine de l’application](#attachment-same-origin)<br>[Logo SVG exécutable](#svg-logo)<br>[TOCTOU sur le téléversement](#toctou-upload)<br>[Pipeline d’upload non isolé](#upload-pipeline)<br>[SSRF par le générateur de PDF](#ssrf-pdf-renderer)<br>[Zip Slip à l’import d’un lot de factures](#zip-slip) |
-| [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l06) | [Endpoint à double usage mal isolé](#dual-use-endpoint)<br>[SSTI dans le gabarit de relance](#ssti-email-template)<br>[Pollution de paramètres côté serveur](#param-pollution) |
-| [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l07) | [Comparaison de jeton à temps variable](#timing-attack)<br>[Jetons de réinitialisation collidants](#reset-token-collision)<br>[Cookie de préférences désérialisé](#cookie-deserialization)<br>[Jeton tiré de Math.random](#weak-random)<br>[Politique de clé trop permissive](#kms-key-policy)<br>Webhook signé mais rejouable *(à venir)*<br>Mots de passe hachés trop vite *(à venir)*<br>Clé de signature unique et éternelle *(à venir)*<br>Le secret de repli *(à venir)* |
-| [Crypto : hash, nonces et métadonnées](http://127.0.0.1:5173/#/modules/m08/l08) | — |
-| [La spécification technique : le design doc](http://127.0.0.1:5173/#/modules/m08/l09) | Étape 2 · Design doc et revue de conception *(à venir)* |
-| [Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l10) | [L’arbre d’attaque coupé](#attack-tree)<br>Étape 2 · Design doc et revue de conception *(à venir)* |
+| [Architectures multi-tenant : silo, pool, bridge](http://127.0.0.1:5173/#/modules/m08/l06) | — |
+| [Conception d’interfaces](http://127.0.0.1:5173/#/modules/m08/l07) | [Endpoint à double usage mal isolé](#dual-use-endpoint)<br>[SSTI dans le gabarit de relance](#ssti-email-template)<br>[Pollution de paramètres côté serveur](#param-pollution) |
+| [Crypto pour développeurs](http://127.0.0.1:5173/#/modules/m08/l08) | [Comparaison de jeton à temps variable](#timing-attack)<br>[Jetons de réinitialisation collidants](#reset-token-collision)<br>[Cookie de préférences désérialisé](#cookie-deserialization)<br>[Jeton tiré de Math.random](#weak-random)<br>[Politique de clé trop permissive](#kms-key-policy)<br>Webhook signé mais rejouable *(à venir)*<br>Mots de passe hachés trop vite *(à venir)*<br>Clé de signature unique et éternelle *(à venir)*<br>Le secret de repli *(à venir)* |
+| [Crypto : hash, nonces et métadonnées](http://127.0.0.1:5173/#/modules/m08/l09) | — |
+| [La spécification technique : le design doc](http://127.0.0.1:5173/#/modules/m08/l10) | Étape 2 · Design doc et revue de conception *(à venir)* |
+| [Mener une Security Design Review](http://127.0.0.1:5173/#/modules/m08/l11) | [L’arbre d’attaque coupé](#attack-tree)<br>Étape 2 · Design doc et revue de conception *(à venir)* |
 
 </details>
 
@@ -6840,7 +6841,8 @@ Ces leçons n’ont aucun challenge, et c’est délibéré. Une seule des raiso
 | **M10** · [Quantifier avec FAIR](http://127.0.0.1:5173/#/modules/m26/l04) | Sujet de jugement ou d’animation : traité par les jeux du site. |
 | **M10** · [Traiter le risque et tenir le registre](http://127.0.0.1:5173/#/modules/m26/l05) | Sujet de jugement ou d’animation : traité par les jeux du site. |
 | **M13** · [La spécification fonctionnelle de sécurité](http://127.0.0.1:5173/#/modules/m08/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |
-| **M13** · [Crypto : hash, nonces et métadonnées](http://127.0.0.1:5173/#/modules/m08/l08) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M13** · [Architectures multi-tenant : silo, pool, bridge](http://127.0.0.1:5173/#/modules/m08/l06) | Sujet de jugement ou d’animation : traité par les jeux du site. |
+| **M13** · [Crypto : hash, nonces et métadonnées](http://127.0.0.1:5173/#/modules/m08/l09) | Sujet de jugement ou d’animation : traité par les jeux du site. |
 | **M17** · [Tests de limites, de ressources et de fuites](http://127.0.0.1:5173/#/modules/m13/l12) | Sujet de jugement ou d’animation : traité par les jeux du site. |
 | **M18** · [Vérifier qu’un paquet n’est pas vérolé](http://127.0.0.1:5173/#/modules/m14/l07) | Sujet de jugement ou d’animation : traité par les jeux du site. |
 | **M22** · [Ce que fait un SOC](http://127.0.0.1:5173/#/modules/m27/l01) | Sujet de jugement ou d’animation : traité par les jeux du site. |

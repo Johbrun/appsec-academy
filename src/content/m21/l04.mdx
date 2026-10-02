@@ -1,0 +1,160 @@
+export const questions = [
+  {
+    q: "M-Trends 2026 estime le délai moyen d'exploitation à -7 jours. Quelle conséquence en tirer pour l'AppSec d'un SaaS ?",
+    options: [
+      "Raccourcir le SLA des critiques à 24 heures règle l'essentiel du problème",
+      "Le chiffre ne concerne que les équipements réseau, pas les applications web",
+      "Le patch ne suffit pas : réduire la surface et éliminer des classes en amont",
+      "Il faut attendre le correctif officiel, puisque l'exploit le précède déjà",
+    ],
+    answer: 2,
+    explain: "Si l'exploitation précède couramment le correctif, aucun SLA, même de 24 heures, ne couvre la fenêtre : il faut que la faille ne soit pas atteignable (surface réduite, défense en profondeur) ou qu'elle n'existe pas (classe éliminée par l'API). Le chiffre porte sur les vulnérabilités exploitées en général, pas sur le seul matériel réseau. Et attendre le correctif revient à accepter la fenêtre entière.",
+  },
+  {
+    q: "Pendant la campagne UNC6395 (août 2025), qu'ont cherché les attaquants dans les données Salesforce exfiltrées via les jetons OAuth de Drift ?",
+    options: [
+      "Des numéros de carte bancaire stockés dans les fiches clients",
+      "Des secrets : clés d'accès AWS, mots de passe, jetons Snowflake",
+      "Des jetons de session Salesforce pour revenir après la révocation",
+      "Les adresses e-mail des administrateurs pour une campagne de phishing",
+    ],
+    answer: 1,
+    explain: "Google GTIG décrit une campagne tournée vers la collecte d'identifiants : les attaquants fouillaient les données (notamment les tickets) à la recherche de clés AWS (AKIA), de mots de passe et de jetons Snowflake. C'est ce qui en fait un problème AppSec : des secrets collés dans un outil de support deviennent la porte suivante. Les cartes, les sessions Salesforce et le phishing des administrateurs ne sont pas l'objectif décrit.",
+  },
+  {
+    q: "Chez Novafact, le support réinitialise la MFA d'un utilisateur qui appelle après avoir vérifié son nom, son e-mail et les quatre derniers chiffres de son IBAN. Pourquoi ce contrôle ne protège-t-il pas contre le vishing ?",
+    options: [
+      "Parce que l'IBAN est une donnée bancaire que le support ne doit pas voir",
+      "Parce que le support devrait exiger une pièce d'identité scannée",
+      "Parce que la MFA ne devrait jamais être réinitialisable par un humain",
+      "Parce que ces données se trouvent dans les fuites et les factures",
+    ],
+    answer: 3,
+    explain: "Un secret de connaissance ne vaut que si l'attaquant ne peut pas le connaître : nom, e-mail et fin d'IBAN figurent sur les factures et dans les fuites. Une pièce d'identité scannée se falsifie et ne prouve pas que l'appelant est le titulaire. Interdire toute réinitialisation humaine est irréaliste : des utilisateurs perdent leur téléphone. La bonne réponse passe par un canal déjà lié au compte, un délai et une notification.",
+  },
+  {
+    q: "Le ver Shai-Hulud (septembre 2025) s'est propagé dans npm. Quel mécanisme lui a permis de passer d'un paquet à d'autres ?",
+    options: [
+      "Il réutilisait les jetons npm et GitHub volés pour publier de nouvelles versions",
+      "Il exploitait une faille du registre npm qui autorisait l'écrasement de versions",
+      "Il s'installait comme dépendance transitive grâce au typosquatting",
+      "Il modifiait les lockfiles des projets qui l'installaient pour s'y ajouter",
+    ],
+    answer: 0,
+    explain: "L'alerte CISA décrit un ver qui vole des identifiants de développeurs (jetons GitHub, npm, clés cloud) puis s'authentifie avec eux pour injecter son code dans d'autres paquets et en publier des versions. Le registre n'avait pas de faille d'écrasement : les publications étaient légitimes du point de vue de npm. Le typosquatting et la modification des lockfiles sont d'autres techniques, pas celle-ci.",
+  },
+];
+
+<YouKnow>
+En test d'intrusion externe, on commence par la surface : sous-domaines, services exposés, versions. Les attaquants font la même chose, à l'échelle d'Internet et en continu. Ils ajoutent trois portes que le périmètre d'un pentest couvre rarement : les identités, les dépendances et les SaaS connectés.
+</YouKnow>
+
+## Quatre portes, une seule application
+
+Les rapports de la leçon 3 convergent sur quatre familles de vecteurs initiaux. Toutes passent, à un moment, par une décision prise dans l'application ou dans son pipeline :
+
+| Porte | Ce que disent les rapports | Ce qui, dans l'application, l'ouvre ou la ferme |
+| --- | --- | --- |
+| **Vulnérabilités exposées** | Exploits en tête chez Mandiant (32 %), exploitation à 31 % des violations dans le DBIR | Surface exposée, dépendances serveur, classes de bugs non éliminées |
+| **Identifiants et sessions** | Vishing deuxième vecteur (11 %), compromission antérieure revendue, comptes cloud en tête chez Red Canary | Parcours de réinitialisation, durée et liaison des sessions, MFA |
+| **Chaîne d'approvisionnement** | Paquets compromis, builds altérés | Lockfile, scripts d'installation, droits des jetons de publication |
+| **SaaS et intégrations** | Jetons OAuth de tiers volés et rejoués | Portée des consentements, secrets qui traînent dans les données |
+
+## Les vulnérabilités exposées
+
+C'est la porte la plus fréquentée selon Verizon et Mandiant. Ce que le délai d'exploitation négatif change, c'est la stratégie : on ne gagne pas en patchant plus vite que l'attaquant, puisqu'il exploite souvent avant le correctif. Il faut jouer sur deux autres leviers.
+
+- **Moins de surface.** Chaque route publique, chaque back-office joignable depuis Internet, chaque environnement de préproduction exposé est une entrée. L'inventaire des routes, généré depuis le code et non tenu à la main, est la première mesure.
+- **Moins de classes.** Une injection SQL ne peut pas exister si les requêtes passent par une API qui paramètre toujours ; une SSRF ne peut pas exister si les appels sortants passent par un client qui filtre les destinations. C'est le raisonnement de toute la suite du parcours.
+
+La gestion des correctifs reste nécessaire, mais elle devient la dernière ligne, pas la première : priorisation par l'exploitation réelle (KEV, EPSS) au module 26.
+
+## Les identifiants et les sessions
+
+L'attaquant qui possède des identifiants ou une session valide n'exploite rien : il se connecte. M-Trends 2026 note la forte hausse du **vishing**, l'hameçonnage par téléphone, devenu le deuxième vecteur initial. La cible habituelle n'est pas l'utilisateur, c'est le **support** : on appelle en se faisant passer pour un employé ou un client, et on obtient une réinitialisation de mot de passe ou de MFA.
+
+Pour l'AppSec, c'est une découverte importante : **le parcours de réinitialisation est une fonctionnalité de sécurité**, au même titre que la page de connexion. Les cas réels de cette famille (Uber, MGM) sont décortiqués au module 2.
+
+<Diff file="apps/api/src/routes/support-mfa.ts" hlBefore="3-6" hlAfter="5-17">
+
+```ts
+// L'agent coche « identité vérifiée » après quelques questions au téléphone.
+router.post('/support/users/:id/mfa/reset', requireRole('support'), async (req, res) => {
+  const { verified } = bodyOf(req, ResetSchema);
+  if (!verified) return res.status(400).end();
+  await prisma.mfaFactor.deleteMany({ where: { userId: req.params.id } });
+  res.status(204).end();
+});
+```
+
+```ts
+// Le support ne réinitialise plus : il déclenche une procédure que l'utilisateur
+// doit confirmer par un canal déjà lié au compte, avec un délai qui laisse réagir.
+router.post('/support/users/:id/mfa/reset-request', requireRole('support'), async (req, res) => {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.params.id } });
+  const request = await prisma.mfaResetRequest.create({
+    data: {
+      userId: user.id,
+      requestedBy: req.user.id,
+      // 24 h : le vrai titulaire est prévenu et peut annuler avant l'effet.
+      effectiveAt: addHours(clock.now(), 24),
+    },
+  });
+  await notify.allChannels(user, 'mfa_reset_requested', { cancelUrl: cancelLink(request) });
+  // Un admin du tenant client doit approuver : le support seul ne suffit pas.
+  await approvals.requireTenantAdmin(user.tenantId, request.id);
+  audit.warn({ event: 'mfa_reset_requested', target: user.id, agent: req.user.id });
+  res.status(202).json({ requestId: request.id });
+});
+```
+
+</Diff>
+
+Le mauvais correctif le plus courant consiste à durcir le **questionnaire** : ajouter la date de création du compte, les quatre derniers chiffres de l'IBAN, le montant de la dernière facture. Il casse dès que l'attaquant a mis la main sur une facture ou sur un ancien export, ce qui est justement le cas après une fuite. Le correctif tient parce qu'il ne repose sur rien que l'attaquant puisse savoir : il prévient le vrai titulaire, retarde l'effet et exige un second approbateur.
+
+## La chaîne d'approvisionnement
+
+L'attaquant peut aussi entrer **avant** le déploiement, par ce que l'application importe ou par la machine qui la construit.
+
+<Callout kind="case">
+Le 23 septembre 2025, la CISA publie une alerte sur une compromission massive de l'écosystème npm par un ver baptisé **Shai-Hulud** : plus de 500 paquets touchés. Le code malveillant récupère les jetons GitHub et npm et les clés cloud (AWS, GCP, Azure) présents sur la machine du développeur ou dans la CI, les exfiltre, puis s'en sert pour injecter son code dans d'autres paquets du même mainteneur et publier de nouvelles versions. Recommandations : rotation de tous les identifiants de développeur, MFA résistante au phishing sur GitHub et npm, audit des dépendances et des lockfiles.
+</Callout>
+
+Pour Novafact, qui consomme des centaines de paquets et publie `@novafact/sdk`, la porte est double : comme victime (une dépendance compromise s'exécute dans la CI qui a accès à AWS) et comme vecteur (un jeton de publication volé fait de Novafact le prochain maillon). Les contrôles sont détaillés au module 18 : `npm ci` sur lockfile, scripts d'installation désactivés par défaut, publication par OIDC sans jeton longue durée.
+
+## Les SaaS et les intégrations
+
+Une entreprise moderne est un réseau de SaaS reliés par des jetons OAuth. Chaque intégration est une relation de confiance qui contourne la MFA des utilisateurs.
+
+<Callout kind="case">
+Google Threat Intelligence décrit une campagne de l'acteur **UNC6395** du 8 au 18 août 2025 : des jetons OAuth de l'application tierce Salesloft Drift, connectée à Salesforce, sont volés puis utilisés pour exporter massivement les données de nombreuses instances. Les attaquants y cherchent ensuite des **secrets** : clés d'accès AWS, mots de passe, jetons Snowflake. Ils suppriment les tâches de requête pour masquer leur passage, mais les journaux restent consultables. La recommandation de Google : traiter tous les jetons de l'intégration comme compromis, les révoquer et faire tourner les secrets trouvés.
+</Callout>
+
+Deux leçons pour l'application. D'abord, **la portée du consentement** : une intégration qui n'a besoin que de lire des contacts ne doit pas recevoir un accès API complet, et un jeton doit pouvoir être révoqué par tenant. Ensuite, **les secrets n'ont rien à faire dans les données métier** : une clé d'API collée par un client dans un ticket de support devient une porte pour qui vole les tickets. Un scan de secrets sur les champs libres (tickets, commentaires, notes de facture) coûte peu.
+
+## Ce que la menace dit des priorités
+
+| Priorité | Pourquoi maintenant | Où dans le parcours |
+| --- | --- | --- |
+| Inventaire de la surface exposée | Exploits en tête des vecteurs, délai d'exploitation négatif | M26 |
+| Éliminer les classes d'injection par l'API | Une faille qui n'existe pas n'a pas de délai de correctif | M7, M16 |
+| Durcir les parcours de récupération de compte | Vishing en forte hausse | M14, M15 |
+| Pipeline sans secrets longue durée | Vers npm qui volent les jetons de CI | M18 |
+| Consentements OAuth minimaux et révocables | Jetons d'intégration volés et rejoués | M2, M14 |
+| Événements de sécurité applicatifs | Une intrusion sur deux encore détectée par un tiers | M23 |
+
+<Recap items={[
+  "Quatre portes : vulnérabilités exposées, identifiants et sessions, chaîne d'approvisionnement, SaaS et intégrations.",
+  "Avec un délai d'exploitation négatif, le patch devient la dernière ligne : réduire la surface et éliminer les classes passe avant.",
+  "Le vishing vise le support : la réinitialisation de MFA est une fonctionnalité de sécurité, qui ne doit reposer sur rien que l'attaquant puisse savoir.",
+  "Shai-Hulud : un jeton npm volé transforme une victime en vecteur.",
+  "UNC6395 : un jeton OAuth d'intégration contourne la MFA, et les secrets oubliés dans les tickets deviennent la porte suivante.",
+]} />
+
+<Sources items={[
+  { title: "Mandiant, M-Trends 2026 (23 mars 2026)", url: "https://cloud.google.com/blog/topics/threat-intelligence/m-trends-2026" },
+  { title: "Verizon, 2026 Data Breach Investigations Report", url: "https://www.verizon.com/business/resources/reports/dbir/" },
+  { title: "CISA, Widespread Supply Chain Compromise Impacting npm Ecosystem (23 septembre 2025)", url: "https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem" },
+  { title: "Google Threat Intelligence, Widespread Data Theft Targets Salesforce Instances via Salesloft Drift (août 2025)", url: "https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift" },
+  { title: "Red Canary, 2026 Threat Detection Report", url: "https://redcanary.com/threat-detection-report/" },
+]} />

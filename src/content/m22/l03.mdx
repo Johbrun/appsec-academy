@@ -1,0 +1,150 @@
+export const questions = [
+  {
+    q: "Pourquoi un cookie de session volé par un proxy de phishing (AiTM) contourne-t-il une MFA par code TOTP ?",
+    options: [
+      "Parce que le proxy relaie aussi le code TOTP, et récupère la session déjà authentifiée",
+      "Parce que le TOTP repose sur une horloge, que le proxy décale pour rejouer un code expiré",
+      "Parce que le cookie contient le secret TOTP, que l'attaquant réutilise ensuite à volonté",
+      "Parce que les fournisseurs désactivent la MFA pour les sessions ouvertes depuis un navigateur",
+    ],
+    answer: 0,
+    explain: "Le proxy se place entre la victime et le vrai site : la victime saisit mot de passe et code, le proxy les transmet en temps réel et garde le cookie émis à la fin. La MFA a bien eu lieu, mais pour le compte de l'attaquant. Le secret TOTP ne quitte jamais l'application d'authentification, et l'horloge n'a rien à voir : le code est utilisé pendant sa fenêtre de validité. Seule une méthode liée à l'origine, comme WebAuthn, refuse de signer pour le domaine du proxy.",
+  },
+  {
+    q: "Pour confirmer la création d'un webhook, Novafact redemande le mot de passe de l'administrateur. Pourquoi ce correctif est-il insuffisant ?",
+    options: [
+      "Parce qu'un mot de passe redemandé trop souvent pousse les utilisateurs à en choisir de plus faibles",
+      "Parce que l'attaquant qui a volé la session par AiTM ou infostealer connaît souvent aussi le mot de passe",
+      "Parce que la vérification argon2 du mot de passe est trop lente pour une action interactive",
+      "Parce que le mot de passe transite dans le corps de la requête, où le WAF peut le journaliser",
+    ],
+    answer: 1,
+    explain: "Les deux vols les plus courants livrent les deux secrets ensemble : le proxy AiTM voit passer le mot de passe saisi, l'infostealer récupère les mots de passe enregistrés en même temps que les cookies. Redemander un secret que l'attaquant possède ne prouve rien. Une confirmation WebAuthn récente, liée à l'origine et à un authentificateur que l'attaquant ne détient pas, change la donne. Le coût d'argon2 est de l'ordre de la centaine de millisecondes, sans effet sur l'usage.",
+  },
+  {
+    q: "Quelle technique ATT&CK décrit le mieux un attaquant qui ajoute, dans le compte Novafact d'un client, une règle d'envoi automatique de toutes les factures vers une adresse externe ?",
+    options: [
+      "T1564.008 Email Hiding Rules, parce que la règle agit sans que la victime la remarque",
+      "T1098 Account Manipulation, parce que la règle modifie la configuration du compte",
+      "T1114.003 Email Forwarding Rule, l'équivalent applicatif du transfert de boîte mail",
+      "T1621 Multi-Factor Authentication Request Generation, qui précède souvent ce type de règle",
+    ],
+    answer: 2,
+    explain: "Une règle qui envoie en continu les données à l'extérieur est de la collecte persistante : c'est le comportement de T1114.003, transposé à la fonctionnalité de Novafact. T1564.008 désigne une règle qui masque des messages à la victime ; c'est souvent la compagne de la première, mais pas le même objectif. T1098 est trop large et ne dit rien de la donnée qui sort ; T1621 décrit comment on a pu entrer, pas ce que fait la règle.",
+  },
+  {
+    q: "En août 2025, des jetons OAuth de l'intégration Salesloft Drift servent à vider des instances Salesforce. Côté Salesforce, pourquoi la MFA des utilisateurs n'a-t-elle rien arrêté ?",
+    options: [
+      "Parce que les comptes visés n'avaient pas activé la MFA, comme dans la campagne Snowflake",
+      "Parce que l'attaquant a d'abord désactivé la MFA par une modification de l'accès conditionnel",
+      "Parce que la MFA était contournée par fatigue, l'attaquant envoyant des demandes en rafale",
+      "Parce qu'un jeton d'intégration déjà délivré n'implique aucune connexion interactive à vérifier",
+    ],
+    answer: 3,
+    explain: "Un jeton d'accès ou de rafraîchissement délivré à une intégration représente un consentement déjà donné : l'API l'accepte sans redemander de facteur. Le contrôle se déplace alors vers le cycle de vie du jeton (portée, durée, révocation, restrictions d'origine) et vers la détection des volumes anormaux. Rien dans le rapport de Google n'évoque d'absence de MFA, de modification d'accès conditionnel ou de fatigue MFA : ce serait transposer un autre incident.",
+  },
+];
+
+<YouKnow>
+Un pentester sait voler une session, abuser d'un flux OAuth ou récupérer un jeton dans un fichier de configuration. Dans le SaaS, l'attaquant fait rarement plus compliqué : il se connecte, il utilise les fonctionnalités prévues, et il reste. Cette leçon passe en revue ces techniques et ce qui, dans l'application conçue par l'équipe, les rend faciles ou difficiles.
+</YouKnow>
+
+## Le SaaS, ou l'attaque par la fonctionnalité
+
+Dans un SaaS, il n'y a ni réseau interne à traverser ni poste à compromettre durablement. Le périmètre, c'est l'identité, et l'outil de l'attaquant, ce sont les fonctions légitimes du produit : l'API, les intégrations, les règles automatiques, le partage. Rien de cela ne déclenche un antivirus. Cinq familles reviennent dans presque tous les incidents :
+
+| Famille | Techniques (v19) | Tactique | Ce qui est détourné |
+| --- | --- | --- | --- |
+| Fatigue MFA | T1621 | Credential Access | La notification push qu'on approuve d'un geste |
+| Consentement OAuth | T1528, T1671 | Credential Access, Persistence | Un jeton délivré à une application, qui survit au mot de passe |
+| Session ou jeton rejoué | T1539, puis T1550.004 ou T1550.001 | Credential Access, Lateral Movement | Un cookie ou un jeton déjà validé par la MFA |
+| Règles de boîte mail | T1564.008, T1114.003 | Stealth, Collection | Les règles de tri et de transfert |
+| Partage externe | T1537, T1567 | Exfiltration | Les liens publics, le partage vers un compte extérieur, l'export par API |
+
+Novafact est des deux côtés de ce tableau. Ses employés utilisent des SaaS (GitHub, AWS, la messagerie) ; et Novafact **est** le SaaS de ses clients. Chaque famille a donc un équivalent dans son produit, et c'est celui-là que l'équipe conçoit.
+
+## Fatigue MFA
+
+L'attaquant connaît le mot de passe et déclenche des demandes d'approbation en série jusqu'à ce que la victime accepte, par lassitude ou par erreur, souvent après un message qui se fait passer pour le support. La CISA classe la notification push **sans** correspondance de nombre parmi les méthodes vulnérables à ce « push bombing », et la notification avec correspondance de nombre parmi celles qui y résistent. Microsoft a imposé cette correspondance à tous les utilisateurs d'Authenticator à partir du 8 mai 2023.
+
+Côté produit, trois décisions : ne pas proposer de push sans correspondance de nombre ; limiter le nombre de demandes par compte et par heure, comme toute limite de débit (M15, leçon 3) ; et émettre un événement `auth.mfa.challenge` avec son résultat, pour qu'une rafale de refus suivie d'une acceptation soit visible. C'est exactement ce que décrit l'analytic SaaS de la Detection Strategy de T1621.
+
+## Consentement OAuth et jetons d'intégration
+
+Le consentement abusif et ses contre-mesures côté serveur d'autorisation sont traités en M14 (leçon 6). L'essentiel ici est le déplacement qu'il opère : une fois le jeton délivré, plus aucune connexion interactive n'a lieu, donc plus aucune MFA ne s'applique. Le risque se reporte sur **ceux qui détiennent les jetons**.
+
+En août 2025, Google décrit UNC6395, qui utilise des jetons OAuth volés de l'intégration Salesloft Drift pour exporter des données de nombreuses instances Salesforce, du 8 au 18 août. L'attaquant cherche dans les données des clés d'accès AWS, des mots de passe et des jetons Snowflake, et supprime ses tâches de requête ; les journaux, eux, restent intacts. Le 20 août, Salesloft et Salesforce révoquent tous les jetons de l'application. La leçon pour un éditeur qui expose une API, comme Novafact : chaque intégration tierce est un porteur de jetons qui peut tomber, et le produit doit permettre à un client de voir, restreindre et révoquer ce qu'elle peut faire, sans ouvrir de ticket.
+
+## Sessions et jetons rejoués
+
+Le cookie de session est le produit final de toute la chaîne d'authentification : qui le détient n'a plus à passer la MFA. Deux voies dominent pour l'obtenir : l'infostealer sur le poste, et le proxy de phishing qui relaie toute la connexion.
+
+<Callout kind="case">
+En juillet 2022, Microsoft décrit une campagne de phishing par proxy (AiTM) qui a visé plus de 10 000 organisations depuis septembre 2021. Le proxy relaie la page de connexion réelle, MFA comprise, et conserve le cookie de session. Parfois en moins de cinq minutes, l'attaquant ouvre la boîte mail, crée une règle qui range les réponses dans le dossier Archive, cherche les échanges de paiement et lance des fraudes au virement en supprimant ses propres traces. Les recommandations : une authentification résistante au phishing (FIDO2, certificats), l'accès conditionnel et l'évaluation continue de l'accès.
+</Callout>
+
+Le cas montre l'enchaînement complet : T1539, puis T1550.004, puis T1564.008 pour masquer, et la fraude (T1657). Côté produit : durées de session courtes pour les rôles d'administration, révocation de toutes les sessions au changement de mot de passe ou de facteur, et un événement quand une session change brutalement d'ASN ou d'empreinte de client.
+
+## Règles et partage : la persistance qui ne se voit pas
+
+La règle de boîte mail est la persistance idéale : elle tourne sans session ouverte, et la victime ne la regarde jamais. Novafact a trois fonctions qui jouent le même rôle : l'**envoi automatique** des factures à une adresse, les **webhooks** de facturation, et les **liens publics** de facture. Un attaquant qui tient une session d'administrateur client y installe une sortie de données permanente, qui survit à la réinitialisation du mot de passe.
+
+<Diff file="apps/api/src/routes/webhooks.ts" hlAfter="2,3,4,5,6,9,10,11">
+
+```ts
+router.post('/webhooks', requireSession, requireRole('admin'), async (req, res) => {
+  const { url, events } = bodyOf(req, webhookSchema);
+  const hook = await webhooks.create({ tenantId: req.user.tenantId, url, events });
+  res.status(201).json(hook);
+});
+```
+
+```ts
+router.post('/webhooks', requireSession, requireRole('admin'), async (req, res) => {
+  // AiTM et infostealer livrent le mot de passe avec la session : seule une preuve
+  // WebAuthn récente, liée à l'origine, ne se rejoue pas depuis le proxy de l'attaquant.
+  const stepUp = await verifyStepUp(req, { action: 'webhook.create', maxAgeSec: 300 });
+  if (!stepUp.ok) throw new HttpError(401, 'step_up_required');
+  const { url, events } = bodyOf(req, webhookSchema); // https, pas d'IP privée (SSRF, M7)
+  const hook = await webhooks.create({ tenantId: req.user.tenantId, url, events, createdBy: req.user.id });
+  // Ce que la règle cachée exploite, c'est le silence : on prévient tous les admins du tenant.
+  audit('webhook.created', { hookId: hook.id, targetHost: new URL(url).host, sessionAgeSec: req.session.ageSec });
+  await notifyTenantAdmins(req.user.tenantId, 'webhook.created', { host: new URL(url).host });
+  res.status(201).json(hook);
+});
+```
+
+</Diff>
+
+Le mauvais correctif, déjà vu en revue, consiste à redemander le mot de passe : l'attaquant qui sort d'un proxy AiTM vient de le lire en clair. Le second mauvais correctif notifie… l'adresse e-mail de l'utilisateur qui a créé le webhook, c'est-à-dire la boîte où l'attaquant a peut-être déjà posé sa règle de masquage. La notification part vers **tous** les administrateurs, et l'événement d'audit porte de quoi corréler : hôte cible, âge de la session.
+
+## Ce qui relève de l'application
+
+| Technique | Ce que le produit peut faire |
+| --- | --- |
+| T1621 | Pas de push sans correspondance de nombre, limite de demandes, événement par tentative |
+| T1528, T1671 | Scopes étroits, éditeurs vérifiés, page de révocation par intégration, restrictions d'origine |
+| T1539, T1550 | Sessions courtes pour les admins, révocation globale, confirmation WebAuthn sur les actions sensibles |
+| T1114.003, T1564.008 | Règles et webhooks journalisés, notifiés à tous les admins, listés dans une page unique |
+| T1537, T1567 | Liens publics expirants, exports massifs journalisés et limités |
+
+Aucune de ces mesures ne demande de produit de sécurité : ce sont des décisions de conception, qui se prennent au moment de la spécification (M13) et se vérifient en revue.
+
+<Recap items={[
+  "Dans le SaaS, l'attaquant utilise les fonctionnalités prévues : identité, API, intégrations, règles, partage.",
+  "Fatigue MFA : correspondance de nombre au minimum, limite de demandes et événement par tentative ; FIDO2 en cible.",
+  "Un jeton délivré n'est plus soumis à la MFA : le risque se reporte sur ceux qui détiennent les jetons (Salesloft Drift, 2025).",
+  "AiTM et infostealers livrent la session et le mot de passe : redemander le mot de passe ne prouve rien.",
+  "Webhooks, envois automatiques et liens publics sont les règles de boîte mail de Novafact : step-up, audit et notification de tous les admins.",
+]} />
+
+<Sources items={[
+  { title: "CISA : Implementing Phishing-Resistant MFA (octobre 2022)", url: "https://www.cisa.gov/sites/default/files/publications/fact-sheet-implementing-phishing-resistant-mfa-508c.pdf" },
+  { title: "Microsoft : From cookie theft to BEC (AiTM, juillet 2022)", url: "https://www.microsoft.com/en-us/security/blog/2022/07/12/from-cookie-theft-to-bec-attackers-use-aitm-phishing-sites-as-entry-point-to-further-financial-fraud/" },
+  { title: "BleepingComputer : Microsoft impose la correspondance de nombre (mai 2023)", url: "https://www.bleepingcomputer.com/news/microsoft/microsoft-enforces-number-matching-to-fight-mfa-fatigue-attacks/" },
+  { title: "Google Threat Intelligence : vol de données Salesforce via Salesloft Drift (août 2025)", url: "https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift" },
+  { title: "ATT&CK T1621", url: "https://attack.mitre.org/techniques/T1621/" },
+  { title: "ATT&CK T1671 Cloud Application Integration", url: "https://attack.mitre.org/techniques/T1671/" },
+  { title: "ATT&CK T1550.004 Web Session Cookie", url: "https://attack.mitre.org/techniques/T1550/004/" },
+  { title: "ATT&CK T1114.003 Email Forwarding Rule", url: "https://attack.mitre.org/techniques/T1114/003/" },
+]} />

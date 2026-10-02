@@ -1,0 +1,157 @@
+export const questions = [
+  {
+    q: "Dans ATT&CK v19, M1017 User Training est reliée à plus de techniques SaaS que M1032 Multi-factor Authentication. Faut-il en conclure qu'elle protège davantage ?",
+    options: [
+      "Oui : le nombre de techniques reliées est la mesure de couverture que MITRE recommande d'utiliser",
+      "Oui, mais seulement pour les techniques de la tactique Initial Access",
+      "Non : un lien « mitigates » dit qu'une mesure aide, pas qu'elle bloque ni dans quelle mesure",
+      "Non : les mitigations génériques comme M1017 sont dépréciées depuis la v18",
+    ],
+    answer: 2,
+    explain: "Les relations « mitigates » sont des pistes, pas des scores : la formation aide face à la fatigue MFA, mais un utilisateur fatigué finit par approuver, alors qu'une clé FIDO2 rend la demande sans objet. MITRE ne publie aucune mesure de couverture fondée sur ce décompte. M1017 n'est pas dépréciée ; elle est seulement large, comme M1047 Audit, parce qu'elle est générique.",
+  },
+  {
+    q: "Novafact rend la MFA obligatoire pour les rôles administrateur de ses clients. Quel cas casse encore ce correctif ?",
+    options: [
+      "Un administrateur qui se connecte depuis un nouveau navigateur et doit refaire sa MFA",
+      "Un administrateur qui a enregistré deux facteurs : une passkey et une application TOTP",
+      "Un utilisateur promu administrateur pendant une session ouverte sans MFA, qui la garde",
+      "Un administrateur dont la session expire après huit heures d'inactivité",
+    ],
+    answer: 2,
+    explain: "Si l'exigence n'est vérifiée qu'à la connexion, une session ouverte sans MFA, puis élevée au rôle d'administrateur, garde ses nouveaux droits sans jamais présenter de facteur. L'exigence doit porter sur la session au moment où le rôle sert (niveau d'authentification de la session, réévalué à l'élévation). Le même raisonnement vaut pour un repli par SMS ou par e-mail laissé actif. Les autres situations sont le comportement attendu.",
+  },
+  {
+    q: "Le rapport du CSRB sur Storm-0558 recommande une journalisation d'audit par défaut. Qu'en tire Novafact pour son propre produit ?",
+    options: [
+      "Les journaux d'accès aux données des clients sont fournis sans surcoût, conservés au moins six mois",
+      "Les journaux d'audit sont réservés à l'offre Entreprise, où les clients ont un SOC pour les lire",
+      "Les journaux sont conservés par Novafact seule, et transmis aux clients sur réquisition",
+      "Les journaux d'audit sont désactivés par défaut et activables par chaque client selon ses besoins",
+    ],
+    answer: 0,
+    explain: "C'est la recommandation 10 du CSRB : tout accès aux données métier des clients, y compris par le fournisseur, produit des journaux disponibles sans frais supplémentaires, avec une rétention par défaut d'au moins six mois. Le Département d'État n'a détecté Storm-0558 que parce qu'il payait une licence donnant accès à MailItemsAccessed. Réserver les journaux à une offre, ou les rendre optionnels, reproduit exactement cette situation.",
+  },
+  {
+    q: "Snowflake, 2024 : Mandiant relève trois facteurs communs aux comptes compromis. Lequel n'en fait pas partie ?",
+    options: [
+      "L'absence de MFA sur les comptes utilisés",
+      "Des identifiants volés jamais changés, parfois depuis des années",
+      "L'absence de liste d'adresses autorisées pour la connexion",
+      "Une vulnérabilité de la plateforme exploitée pour lire les données",
+    ],
+    answer: 3,
+    explain: "Mandiant n'a trouvé aucun indice d'une compromission de l'environnement de Snowflake : chaque incident remonte à des identifiants de clients. Les trois facteurs sont l'absence de MFA (M1032), des identifiants volés par des infostealers et jamais renouvelés, et l'absence de liste d'adresses autorisées (M1036, M1035). Trois mitigations banales, dont aucune n'était en place sur ces comptes.",
+  },
+];
+
+<YouKnow>
+En pentest, un rapport se termine par des recommandations, une par faille. Côté défense, la question est inverse : avec un budget et une équipe limités, quelles mesures retirent le plus de techniques à l'attaquant, et dans quel ordre ? ATT&CK donne une première réponse, à condition de savoir la lire.
+</YouKnow>
+
+## Ce que sont les mitigations d'ATT&CK
+
+Une mitigation ATT&CK (identifiant M) est une **catégorie** de mesure, volontairement générique : *Multi-factor Authentication*, *Audit*, *User Account Management*. Enterprise en compte 44 actives en v19.2. Chaque technique liste les mitigations qui la concernent, avec une phrase qui dit comment elles s'appliquent à ce cas précis. C'est cette phrase qui a de la valeur, plus que l'identifiant.
+
+Deux limites à garder en tête. Une relation « mitigates » dit qu'une mesure **aide**, pas qu'elle **bloque**. Et ATT&CK ne dit rien de l'effort de déploiement : « Audit » peut désigner une revue trimestrielle ou un pipeline de détection complet.
+
+## Les mesures qui couvrent le plus
+
+En comptant, dans les données ATT&CK v19.2, les techniques actives des plateformes SaaS, Identity Provider et Office Suite (une centaine) reliées à chaque mitigation, on obtient ce classement :
+
+| Mitigation | Techniques SaaS et identité reliées | Ce qu'elle recouvre ici |
+| --- | --- | --- |
+| M1018 User Account Management | 39 | Moindre privilège, revue des accès, gouvernance des applications |
+| M1047 Audit | 35 | Revue des configurations, des intégrations et des journaux |
+| M1032 Multi-factor Authentication | 28 | Second facteur, idéalement résistant au phishing |
+| M1017 User Training | 23 | Reconnaître le faux support, la fatigue MFA, le consentement piégé |
+| M1026 Privileged Account Management | 22 | Peu d'administrateurs, élévation juste à temps |
+| M1054 Software Configuration | 15 | Durée des sessions, partage externe, transfert automatique |
+| M1036 Account Use Policies | 11 | Accès conditionnel, restrictions d'origine |
+
+Ce décompte est un point de départ, pas une conclusion. M1017 et M1047 sont hautes parce qu'elles sont larges ; M1032 est plus bas, mais chacun de ses liens est **fort** : une clé FIDO2 rend la fatigue MFA et le proxy AiTM sans objet, là où la formation réduit seulement la probabilité qu'un utilisateur se trompe.
+
+<Callout kind="case">
+En juin 2024, Mandiant décrit la campagne UNC5537 contre des clients de Snowflake : environ 165 organisations potentiellement exposées sont prévenues. Aucune compromission de l'environnement de Snowflake n'est trouvée. Trois facteurs se retrouvent dans les comptes visés : pas de MFA ; des identifiants volés par des infostealers, parfois dès novembre 2020, toujours valides faute d'avoir été changés ; pas de liste d'adresses autorisées. Trois mitigations parmi les plus banales, M1032, M1027 et M1036, absentes en même temps : chacune fermait à elle seule cette porte d'entrée-là.
+</Callout>
+
+## L'ordre de déploiement
+
+Le classement dit **quoi**, pas **dans quel ordre**. L'ordre se décide sur trois critères : ce que la mesure retire à l'attaquant, ce qu'elle coûte, et si elle protège ceux qui détiennent les clés.
+
+<Steps items={[
+  { title: "MFA résistante au phishing là où sont les clés", text: "Administrateurs, support, comptes à privilèges d'abord : c'est l'ordre que recommande la CISA, en commençant par les services qui acceptent déjà FIDO2. Supprimer ensuite les replis faibles (SMS, e-mail) pour ces comptes, sinon l'attaquant choisit le facteur." },
+  { title: "Fermer ce qui est oublié", text: "Comptes et tenants de test, comptes de prestataires partis, protocoles hérités sans MFA. Midnight Blizzard est entré par un tenant de test." },
+  { title: "Gouverner consentements et intégrations", text: "Approbation par un administrateur pour les nouvelles applications, inventaire, révocation des jetons inutilisés. Depuis septembre 2025, Salesforce bloque les applications connectées non installées par un administrateur, sauf pour les utilisateurs dotés d'une permission dédiée." },
+  { title: "Journaliser, conserver, rendre lisible", text: "Les journaux d'accès aux données, pas seulement les connexions, conservés assez longtemps pour une enquête." },
+  { title: "Réduire et encadrer les privilèges", text: "Une poignée d'administrateurs, élévation juste à temps, alertes sur chaque attribution de rôle." },
+  { title: "Former, en appui", text: "Le faux support, la demande MFA non sollicitée, l'application qui demande trop : utile, jamais à la place des mesures techniques." },
+]} />
+
+## Prouver qu'une mitigation est en place
+
+Une mitigation cochée dans un tableur ne retire rien à l'attaquant. Chacune doit avoir un **indicateur vérifiable** que quelqu'un peut recalculer :
+
+| Mitigation | Indicateur chez Novafact | Seuil |
+| --- | --- | --- |
+| M1032 | Part des comptes à privilèges avec passkey et sans repli SMS | 100 % |
+| M1018 | Intégrations OAuth sans propriétaire interne identifié | 0 |
+| M1026 | Nombre d'administrateurs permanents par SaaS critique | 3 au plus |
+| M1047 | Rétention effective des journaux d'accès aux données, mesurée sur l'événement le plus ancien | 180 jours |
+| M1054 | Durée maximale d'une session d'administration | 8 heures |
+
+L'indicateur se mesure sur l'état réel (l'API du fournisseur d'identité, la configuration exportée), jamais sur une déclaration. C'est le même principe que pour la couverture de détection (leçon 2) : la case verte doit pouvoir être contestée.
+
+## Novafact de l'autre côté du guichet
+
+Tout ce qui précède s'applique aux SaaS qu'utilisent les employés de Novafact. Mais Novafact est aussi un fournisseur : ses clients appliqueront ces mitigations… **si son produit le permet**. Une MFA que le produit ne propose pas, un journal qu'il ne produit pas, une intégration qu'il ne sait pas révoquer : autant de mitigations impossibles chez le client.
+
+Après Storm-0558, le Cyber Safety Review Board a formulé une recommandation qui s'applique directement à un éditeur : tout accès aux données métier des clients, y compris par le fournisseur lui-même, doit produire des journaux disponibles **sans surcoût**, avec une rétention par défaut d'au moins six mois. Les paramètres par défaut des tenants de Novafact ne la respectaient pas :
+
+<Diff file="apps/api/src/tenants/defaults.ts" hlBefore="2,3,4,5" hlAfter="2,3,4,5,6,7">
+
+```ts
+export const tenantDefaults = {
+  auditLog: { plans: ['enterprise'], retentionDays: 30 },
+  mfa: { required: false, methods: ['totp', 'sms', 'passkey'] },
+  integrations: { userConsent: true },
+  publicInvoiceLinks: { expiresInDays: null },
+} satisfies TenantDefaults;
+```
+
+```ts
+export const tenantDefaults = {
+  // Recommandation 10 du CSRB : journaux d'accès aux données sans surcoût, six mois minimum.
+  auditLog: { plans: 'all', retentionDays: 183, includeProviderAccess: true },
+  // Exigence évaluée sur la session au moment où le rôle sert, pas seulement à la connexion.
+  mfa: { requiredForRoles: ['owner', 'admin'], methods: ['passkey', 'totp'], allowSmsFallback: false },
+  integrations: { userConsent: false, adminApproval: true },
+  publicInvoiceLinks: { expiresInDays: 30 },
+} satisfies TenantDefaults;
+```
+
+</Diff>
+
+Le premier mauvais correctif, que Novafact a d'abord livré, rendait la MFA obligatoire pour les administrateurs **à la connexion**. Un utilisateur connecté sans MFA puis promu administrateur pendant sa session gardait ses nouveaux droits sans facteur ; il suffisait à l'attaquant de compromettre un compte simple et de se faire promouvoir par un administrateur trompé. La vérification porte désormais sur le niveau d'authentification de la session, réévalué à chaque élévation (M14, leçon 1). Le second : garder le SMS en repli « pour ne bloquer personne », ce qui rend la passkey facultative pour un attaquant qui fait transférer la ligne.
+
+<Callout kind="debate">
+**Sécurisé par défaut, ou configurable par le client ?** Imposer la passkey aux administrateurs ou l'approbation des intégrations fera râler certains clients, et l'équipe commerciale le rappellera. Laisser le choix déplace la décision vers ceux qui ont le moins d'informations pour la prendre. Le compromis de Novafact : défauts sûrs, dérogation possible par un propriétaire du tenant, journalisée et rappelée tous les trimestres.
+</Callout>
+
+<Recap items={[
+  "Une mitigation ATT&CK est une catégorie générique ; la phrase qui l'applique à chaque technique vaut plus que l'identifiant.",
+  "M1018, M1047, M1032, M1017 et M1026 couvrent le plus de techniques SaaS et identité, mais compter des liens ne mesure pas l'efficacité.",
+  "Ordre : MFA résistante au phishing pour ceux qui tiennent les clés, fermeture de l'oublié, gouvernance des intégrations, journaux, privilèges, puis formation.",
+  "Snowflake 2024 : trois mitigations banales absentes, aucune faille de plateforme.",
+  "Un éditeur SaaS rend possibles, ou impossibles, les mitigations de ses clients : journaux sans surcoût et défauts sûrs (recommandation 10 du CSRB).",
+]} />
+
+<Sources items={[
+  { title: "MITRE ATT&CK : mitigations Enterprise", url: "https://attack.mitre.org/mitigations/enterprise/" },
+  { title: "ATT&CK M1032 Multi-factor Authentication", url: "https://attack.mitre.org/mitigations/M1032/" },
+  { title: "Mandiant : UNC5537 et Snowflake (juin 2024)", url: "https://cloud.google.com/blog/topics/threat-intelligence/unc5537-snowflake-data-theft-extortion" },
+  { title: "CISA : Implementing Phishing-Resistant MFA (octobre 2022)", url: "https://www.cisa.gov/sites/default/files/publications/fact-sheet-implementing-phishing-resistant-mfa-508c.pdf" },
+  { title: "Cyber Safety Review Board : Review of the Summer 2023 Microsoft Exchange Online Intrusion (20 mars 2024)", url: "https://www.cisa.gov/sites/default/files/2024-04/CSRB_Review_of_the_Summer_2023_MEO_Intrusion_Final_508c.pdf" },
+  { title: "Microsoft : Midnight Blizzard, guide pour les équipes de réponse (janvier 2024)", url: "https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/" },
+  { title: "Salesforce Admins : changements des restrictions d'usage des applications connectées (2025)", url: "https://admin.salesforce.com/blog/2025/get-ready-for-changes-to-connected-app-usage-restrictions" },
+]} />

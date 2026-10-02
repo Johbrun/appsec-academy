@@ -1,0 +1,166 @@
+export const questions = [
+  {
+    q: "Pour inventorier les serveurs MCP utilisés chez Novafact, l'équipe veut s'appuyer uniquement sur l'en-tête `Mcp-Method` vu par le proxy de sortie. Qu'est-ce qui lui échappera ?",
+    options: [
+      "Les serveurs distants appelés en HTTPS, dont le proxy ne voit jamais l'en-tête",
+      "Les serveurs internes, qui n'envoient pas cet en-tête sur le réseau de l'entreprise",
+      "Les serveurs stdio des postes et les clients antérieurs à la révision 2026-07-28",
+      "Les serveurs qui répondent en SSE, car l'en-tête n'apparaît que dans les réponses JSON",
+    ],
+    answer: 2,
+    explain: "Un serveur stdio ne fait aucun trafic réseau : il tourne comme processus enfant sur le poste, et seul un inventaire des fichiers de configuration le trouve. Les clients des révisions précédentes n'envoient pas `Mcp-Method`. Le HTTPS n'est un obstacle que si le proxy ne déchiffre pas, ce qui est un choix de déploiement, pas une limite de l'en-tête. Et `Mcp-Method` est un en-tête de requête, présent quel que soit le format de la réponse.",
+  },
+  {
+    q: "Que doit contenir, au minimum, l'événement de journal d'un appel d'outil pour permettre une enquête du type de celle d'Asana en 2025 ?",
+    options: [
+      "Le prompt complet de l'utilisateur et la réponse finale du modèle, pour rejouer la conversation",
+      "L'utilisateur et le tenant du jeton, le serveur, l'outil, les objets touchés et la décision d'approbation",
+      "L'adresse IP du client, l'en-tête User-Agent et la durée de la requête HTTP",
+      "Les arguments complets en clair, pour pouvoir rejouer l'appel à l'identique",
+    ],
+    answer: 1,
+    explain: "Pour dire à quelle organisation notifier quoi, il faut savoir qui (utilisateur et tenant tirés du jeton) a appelé quel outil de quel serveur, sur quels objets, et qui l'a approuvé. Le prompt et la réponse aident à comprendre une injection, mais ne disent pas quelles données ont été servies à qui. Les métadonnées HTTP identifient un poste, pas un tenant. Et les arguments en clair font du journal une seconde base de données personnelles : on les résume ou on les hache.",
+  },
+  {
+    q: "Selon l'OWASP MCP Top 10 (en bêta), quelle catégorie couvre un serveur MCP installé par une équipe sans que la sécurité le sache ?",
+    options: [
+      "MCP04 Software Supply Chain Attacks & Dependency Tampering",
+      "MCP08 Lack of Audit and Telemetry",
+      "MCP02 Privilege Escalation via Scope Creep",
+      "MCP09 Shadow MCP Servers",
+    ],
+    answer: 3,
+    explain: "MCP09 désigne les serveurs déployés hors de tout inventaire et de toute gouvernance. MCP08 en est souvent la conséquence, puisqu'un serveur inconnu n'est pas journalisé, mais il décrit l'absence de traces, pas l'absence d'inventaire. MCP04 concerne un composant compromis, qu'il soit connu ou non. MCP02 décrit des droits qui s'étendent au fil du temps.",
+  },
+  {
+    q: "Une passerelle MCP centrale est déployée devant tous les serveurs d'Ask Novafact. Quel contrôle reste nécessairement dans l'hôte de l'assistant ?",
+    options: [
+      "La vérification de l'audience des jetons, que la passerelle ne peut pas lire",
+      "Le marquage de session après lecture d'un contenu non fiable, que seul l'hôte voit",
+      "La validation de l'en-tête Origin, qui n'est envoyé qu'au premier serveur",
+      "La liste des outils autorisés, que la spécification interdit de filtrer en route",
+    ],
+    answer: 1,
+    explain: "La passerelle voit des requêtes et des réponses, une par une ; elle ne sait pas ce qui se trouve dans le contexte du modèle ni dans quelle conversation s'inscrit un appel. Le suivi de ce qui est entré dans la session (leçon 3) appartient donc à l'hôte. La passerelle peut au contraire valider des jetons, filtrer les outils exposés par rôle et vérifier des en-têtes : c'est même son intérêt.",
+  },
+];
+
+<YouKnow>
+Un pentester a déjà trouvé, en test d'intrusion, l'application que personne ne savait exposée. Les serveurs MCP sont le shadow IT de 2026 : une ligne dans un fichier de configuration suffit à en brancher un. Cette leçon assemble les contrôles du module en programme : savoir ce qui tourne, décider ce qui est permis, voir ce qui se passe.
+</YouKnow>
+
+## Trouver ce qui tourne
+
+Un serveur MCP peut vivre à trois endroits, et chaque endroit demande sa méthode de découverte :
+
+| Où | Exemple | Méthode |
+| --- | --- | --- |
+| Poste de développeur | `.cursor/mcp.json`, `.vscode/mcp.json`, configuration de Claude Desktop | Collecte des fichiers de configuration par l'outil de gestion de parc ou l'EDR |
+| Dépôt de code | Configuration MCP versionnée avec le projet | Recherche de code dans l'organisation GitHub, à chaque PR |
+| Réseau et cloud | Service ECS qui expose `/mcp`, appel vers un serveur SaaS | Journaux du proxy de sortie et de l'ALB, inventaire des services |
+
+La révision 2026-07-28 aide la troisième méthode : chaque POST porte `Mcp-Method`, ce qui rend le trafic MCP reconnaissable. À condition que le proxy de Novafact déchiffre le TLS et journalise cet en-tête, une requête sur Elastic recense les serveurs appelés hors de la liste approuvée :
+
+<Code file="detections/mcp/serveurs-non-approuves.esql">
+
+```sql
+FROM logs-proxy-*
+| WHERE http.request.method == "POST" AND http.request.headers.mcp_method IS NOT NULL
+// Liste tenue par le comité d'approbation, exportée chaque nuit
+| WHERE url.domain NOT IN ("mcp.novafact.example", "mcp.compta-editeur.example")
+| STATS appels = COUNT(*), postes = COUNT_DISTINCT(host.name) BY url.domain, http.request.headers.mcp_method
+| SORT postes DESC
+```
+
+</Code>
+
+Cette requête ne voit ni les serveurs stdio (aucun trafic réseau), ni les clients des révisions antérieures. Elle complète l'inventaire des fichiers, elle ne le remplace pas. Pour l'analyse des postes, Snyk Agent Scan (ex-mcp-scan) recense les serveurs configurés et lit leurs descriptions ; il les démarre pour cela, donc à lancer dans un environnement isolé (leçon 6).
+
+## Décider ce qui est permis
+
+Un inventaire sans politique ne fait que mesurer le problème. Novafact a fixé trois niveaux :
+
+| Niveau | Exemples | Qui approuve | Conditions |
+| --- | --- | --- | --- |
+| Interne | `mcp-novafact` | L'équipe propriétaire, revue AppSec à la création | Jetons émis pour le serveur (M29), outils d'écriture sous confirmation |
+| Tiers approuvé | Serveur de l'éditeur comptable | Comité d'approbation (AppSec, juridique, propriétaire métier) | Entrée au catalogue : version, empreinte, définitions d'outils figées, revue fournisseur (M18) |
+| Interdit | Serveurs personnels sur des données de l'entreprise, tout serveur avec une commande libre | — | Exception datée et signée, revue à échéance |
+
+Chaque changement de version ou de définition d'outil remet le serveur en attente : c'est l'empreinte de la leçon 1, appliquée par le catalogue de la leçon 6.
+
+## Une passerelle, et ce qu'elle ne voit pas
+
+Une **passerelle MCP** centralise ce qui serait sinon répété dans chaque client : authentification des utilisateurs, liste des serveurs et des outils permis par rôle, épinglage des définitions, injection des identifiants vers les serveurs en aval (les postes n'en détiennent plus), journalisation. Deux exemples : **agentgateway**, projet open source désormais hébergé par l'Agentic AI Foundation, et **Amazon Bedrock AgentCore Gateway**, service géré d'AWS qui expose des API et fonctions Lambda comme outils MCP et gère l'authentification entrante et sortante.
+
+Deux limites. La passerelle voit des requêtes, pas le contexte du modèle : le marquage de session après lecture d'un contenu non fiable (leçon 3) reste dans l'hôte. Et si elle décide sur les en-têtes `Mcp-Name`, elle doit refuser les versions qui n'imposent pas leur confrontation au corps (leçon 5).
+
+## Journaliser les appels d'outils
+
+La page Tools demande aux clients de journaliser l'usage des outils pour l'audit. Chez Novafact, l'hôte émet un événement par appel :
+
+<Code file="apps/assistant/src/mcp/audit.ts" hl="5,6,9,10">
+
+```ts
+logger.info({
+  event: 'mcp.tool.call',
+  trace_id: span.spanContext().traceId,        // propagé dans _meta (traceparent)
+  user_id: auth.sub, tenant_id: auth.tenantId, // tirés du jeton, jamais du modèle
+  server_id: 'compta-editeur', tool: 'get_ledger_balance',
+  tools_digest: 'sha256:9c1e…',                // définitions approuvées en vigueur
+  args_digest: sha256(canonical(args)),        // pas d'arguments en clair : données client
+  objects: ['invoice:F-1042'],
+  session_tainted: true, approval: { by: 'u_831', at: '2026-09-30T14:02:11Z' },
+  result: { is_error: false, bytes: 2184 },
+});
+```
+
+</Code>
+
+Sur ces événements, quatre détections rapportent plus que les autres : un serveur ou un outil jamais vu, une empreinte de définitions qui change, un outil de sortie demandé dans une session marquée, et un pic de refus `HeaderMismatch` côté serveur, signe que quelqu'un teste la désynchronisation. Le cas Asana (leçon 5) montre l'autre usage du journal : pour prévenir chaque organisation touchée, il faut pouvoir dire quels objets ont été servis à quel tenant, et depuis quand.
+
+<Callout kind="case">
+Dans son avis du 15 avril 2026, OX Security rapporte que plusieurs mainteneurs de plateformes d'agents ont qualifié de « by design » l'exécution d'une commande stdio saisie dans leurs écrans de configuration : exécuter une commande serait le but de la fonctionnalité, ou la sécurité reviendrait au développeur qui l'intègre. Quelle que soit la position qu'on prend dans ce débat, la conséquence pour un programme est la même : ce que l'éditeur ne considère pas comme une faille ne sera pas corrigé par une mise à jour. La politique de l'entreprise doit couvrir ce risque elle-même.
+</Callout>
+
+## Les référentiels
+
+L'**OWASP MCP Top 10**, en phase de bêta, classe les risques propres à MCP. Le tableau renvoie à ce module :
+
+| Catégorie | Où dans le module |
+| --- | --- |
+| MCP01 Token Mismanagement & Secret Exposure | Leçon 6 (secrets chez l'hébergeur), M29 |
+| MCP02 Privilege Escalation via Scope Creep | Leçon 3 (jetons trop larges), M29 |
+| MCP03 Tool Poisoning | Leçons 1 et 3 |
+| MCP04 Software Supply Chain Attacks & Dependency Tampering | Leçon 6 |
+| MCP05 Command Injection & Execution | Leçon 4 |
+| MCP06 Prompt Injection via Contextual Payloads | Leçon 3 |
+| MCP07 Insufficient Authentication & Authorization | Leçon 5, M29 |
+| MCP08 Lack of Audit and Telemetry | Cette leçon |
+| MCP09 Shadow MCP Servers | Cette leçon |
+| MCP10 Context Injection & Over-Sharing | Leçons 3 et 5 |
+
+L'OWASP GenAI Security Project a publié le 16 février 2026 *A Practical Guide for Secure MCP Server Development* (architecture, authentification et autorisation, validation, isolation des sessions, déploiement durci), à donner aux équipes qui écrivent un serveur, et une fiche sur l'usage sûr des serveurs tiers.
+
+## La gouvernance du protocole
+
+Le 9 décembre 2025, Anthropic a confié MCP à l'**Agentic AI Foundation**, un fonds dirigé de la Linux Foundation cofondé avec Block et OpenAI ; la gouvernance des mainteneurs n'a pas changé. La révision 2026-07-28 a adopté une politique de dépréciation avec une fenêtre d'au moins douze mois : Sampling, Roots, Logging et HTTP+SSE y sont entrés. La migration des serveurs se planifie comme une montée de version majeure. La feuille de route publiée le 22 août 2026 vise DPoP et la fédération d'identité de workload pour les agents : c'est l'objet de M29.
+
+<Recap items={[
+  "Inventaire en trois sources : fichiers de configuration des postes, dépôts, trafic réseau reconnaissable par Mcp-Method ; aucune ne suffit seule.",
+  "Trois niveaux d'approbation, et toute nouvelle version ou définition d'outil remet le serveur en attente.",
+  "La passerelle centralise authentification, liste d'outils et journaux ; le suivi du contexte reste dans l'hôte.",
+  "Un événement par appel d'outil : utilisateur et tenant du jeton, serveur, outil, objets, approbation, empreintes, sans arguments en clair.",
+  "OWASP MCP Top 10 (bêta) et guide OWASP de février 2026 ; MCP gouverné par l'Agentic AI Foundation depuis décembre 2025.",
+]} />
+
+<Sources items={[
+  { title: "OWASP MCP Top 10", url: "https://owasp.org/www-project-mcp-top-10/" },
+  { title: "OWASP : A Practical Guide for Secure MCP Server Development (16 février 2026)", url: "https://genai.owasp.org/resource/a-practical-guide-for-secure-mcp-server-development/" },
+  { title: "OWASP : A Practical Guide for Securely Using Third-Party MCP Servers", url: "https://genai.owasp.org/resource/cheatsheet-a-practical-guide-for-securely-using-third-party-mcp-servers-1-0/" },
+  { title: "OX Security : MCP Supply Chain Advisory (15 avril 2026)", url: "https://www.ox.security/blog/mcp-supply-chain-advisory-rce-vulnerabilities-across-the-ai-ecosystem/" },
+  { title: "Anthropic : Donating the Model Context Protocol and establishing the Agentic AI Foundation", url: "https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation" },
+  { title: "Blog MCP : feuille de route (22 août 2026)", url: "https://blog.modelcontextprotocol.io/posts/mcp-roadmap/" },
+  { title: "agentgateway rejoint l'Agentic AI Foundation", url: "https://agentgateway.dev/blog/2026-06-04-agentgateway-joins-aaif/" },
+  { title: "AWS : Amazon Bedrock AgentCore Gateway", url: "https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway.html" },
+  { title: "MCP 2026-07-28 : Tools (journalisation, considérations de sécurité)", url: "https://modelcontextprotocol.io/specification/2026-07-28/server/tools" },
+]} />

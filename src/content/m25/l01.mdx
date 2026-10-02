@@ -1,0 +1,148 @@
+export const questions = [
+  {
+    q: "En avril 2018, des utilisateurs de MyEtherWallet ont accepté un certificat auto-signé présenté par un faux serveur après un détournement DNS. Quel contrôle, côté site, aurait empêché ce clic ?",
+    options: [
+      "Un enregistrement CAA limitant les autorités autorisées à émettre pour le domaine",
+      "Une surveillance des journaux Certificate Transparency pour le domaine",
+      "HSTS sur le domaine, idéalement préchargé : le navigateur refuse alors toute dérogation",
+      "Un certificat à validation étendue (EV), bien plus difficile à obtenir pour un attaquant",
+    ],
+    answer: 2,
+    explain: "Sur un hôte HSTS, le RFC 6797 interdit au navigateur de laisser l'utilisateur passer outre une erreur de certificat : la page d'avertissement n'a plus de bouton « continuer ». CAA et Certificate Transparency visent une autorité qui émet un vrai certificat à tort ; ici le certificat était auto-signé, aucune autorité n'a été sollicitée et rien n'apparaît dans les journaux. Un certificat EV ne change rien : l'attaquant ne l'imitait pas, il comptait sur le clic.",
+  },
+  {
+    q: "La SPA de Novafact est servie depuis S3 par CloudFront ; l'API Express pose une CSP stricte avec helmet. Que vaut cette CSP pour la SPA ?",
+    options: [
+      "Rien : une CSP ne vaut que pour le document qui la porte, pas pour la SPA",
+      "Elle la protège, car toute page qui appelle l'API hérite de sa politique",
+      "Elle la protège dès que l'API et la SPA appartiennent au même site novafact.example",
+      "Rien, parce qu'une CSP ne s'applique que posée dans une balise meta du HTML",
+    ],
+    answer: 0,
+    explain: "Un en-tête de réponse ne protège que la réponse qui le porte : la CSP d'un JSON d'API ne gouverne pas le document HTML de la SPA. Les en-têtes de la SPA doivent venir de celui qui la sert, ici une response headers policy CloudFront. La notion de site joue pour les cookies et Fetch Metadata, pas pour l'héritage d'une politique. Et la CSP fonctionne très bien en en-tête ; c'est même la balise meta qui ignore certaines directives, comme frame-ancestors.",
+  },
+  {
+    q: "Pourquoi le RFC de TLS 1.3 demande-t-il de n'accepter en données 0-RTT que des requêtes sans effet de bord ?",
+    options: [
+      "Parce que ces données ne sont pas encore chiffrées, faute de clé de session établie",
+      "Parce qu'un attaquant peut les rejouer : rien ne garantit un traitement unique",
+      "Parce que le certificat du serveur n'a pas encore été vérifié par le client",
+      "Parce qu'elles passent en clair par le CDN, qui ne peut pas les déchiffrer",
+    ],
+    answer: 1,
+    explain: "Les données précoces sont chiffrées avec une clé issue d'une session précédente, mais un attaquant qui les capture peut les renvoyer : rien dans le protocole ne garantit qu'elles ne seront traitées qu'une fois. Un POST de paiement rejoué est un double paiement. Elles ne sont pas en clair, le serveur a été authentifié lors de la session d'origine, et un CDN qui termine TLS les déchiffre comme le reste.",
+  },
+  {
+    q: "Une XSS exécute du JavaScript sur app.novafact.example. Quel mécanisme peut encore restreindre l'envoi des données volées vers evil.test ?",
+    options: [
+      "La same-origin policy, qui interdit d'émettre une requête vers une autre origine",
+      "CORS, puisque evil.test doit autoriser l'origine app.novafact.example",
+      "Le cookie de session en SameSite=Strict, qui ne part pas vers evil.test",
+      "La directive connect-src de la CSP, qui borne les destinations de fetch",
+    ],
+    answer: 3,
+    explain: "La same-origin policy empêche de lire une réponse d'une autre origine, pas d'envoyer une requête. CORS est configuré par le serveur de destination : evil.test autorise qui il veut. SameSite décide si les cookies de Novafact accompagnent une requête vers Novafact, ce qui ne concerne pas l'exfiltration. Seule la CSP de la page limite les destinations, et encore partiellement : une navigation ou une image restent des canaux, d'où la CSP stricte de M8.",
+  },
+];
+
+<YouKnow>
+Un pentester a intercepté des milliers de requêtes et sait où chaque attaque web frappe. Ce qui manque souvent, c'est la carte complète : pour une même page, quelles étapes traverse le navigateur, quelle protection s'applique à chacune, et surtout qui la configure. C'est la carte de ce module.
+</YouKnow>
+
+## Une traversée, neuf frontières
+
+Quand un utilisateur tape `novafact.example/factures`, au moins quatre équipes ont déjà décidé de sa sécurité : celle qui gère le DNS, celle qui configure CloudFront et l'ALB, celle qui écrit l'API, celle qui construit le front. Une vulnérabilité naît presque toujours à une frontière : deux composants qui ne lisent pas la même chose, ou un contrôle que chacun croit posé par l'autre.
+
+| Étape | Ce qui peut casser | Protection | Qui la configure | Leçon |
+| --- | --- | --- | --- | --- |
+| 1. Saisie de l'URL | Premier accès en HTTP, rétrogradé en clair | HSTS, liste de préchargement | Équipe web (en-tête), navigateur (liste) | 7 |
+| 2. Résolution DNS | Réponse falsifiée, sous-domaine orphelin, rebinding | DNSSEC, hygiène des enregistrements | Équipe plateforme (Route 53) | 3 |
+| 3. Transport et TLS | Interception, rejeu 0-RTT | Vérification du certificat, TLS 1.3 | ACM, CloudFront, clients Node | 4 |
+| 4. Requête et cookies | Cookies envoyés depuis un autre site | SameSite, préfixes, Fetch Metadata | Application (BFF) | 6 |
+| 5. CDN, répartiteur, application | Désaccord sur la requête, cache, Host | Normalisation, clé de cache, `trust proxy` | Plateforme et application | 2 |
+| 6. Réponse | En-têtes absents ou contradictoires | En-têtes de sécurité, `Cache-Control` | Bordure et application | 7 |
+| 7. Parsing et sous-ressources | Script tiers modifié, type deviné | SRI, CORS, `nosniff` | Front | M8 |
+| 8. Exécution JavaScript | XSS, lecture inter-origine | SOP, CSP, Trusted Types | Navigateur, front | 5 |
+| 9. Rendu et isolation | Clickjacking, fuite entre fenêtres | `frame-ancestors`, COOP, isolation des sites | Bordure, navigateur | 5, 7 |
+
+La suite s'arrête, à chaque étape, sur le détail qui fonde une classe de vulnérabilités.
+
+## Avant le premier octet : saisie et DNS
+
+Un utilisateur tape rarement `https://`. Sans autre information, le navigateur tente HTTP, et le serveur redirige : c'est la fenêtre que l'outil sslstrip exploitait dès 2009 (leçon 7). Deux mécanismes la ferment. **HSTS** : une fois l'en-tête reçu en HTTPS, le navigateur réécrit lui-même toute URL `http://` du domaine, et refuse toute dérogation sur une erreur de certificat. La **liste de préchargement** embarquée dans les navigateurs règle le premier accès. Le navigateur durcit aussi son défaut : Google a annoncé l'activation par défaut du réglage « Always Use Secure Connections » avec Chrome 154, prévu pour octobre 2026, qui demande une confirmation avant de charger un site public en HTTP.
+
+Vient ensuite la résolution DNS, que le navigateur délègue au système ou à un résolveur DoH. D'abord, la réponse DNS n'est authentifiée que si la zone est signée **et** que le résolveur valide : sinon, TLS reste la seule barrière. Ensuite, un enregistrement DNS est un **actif** : un `CNAME` qui pointe vers un compartiment S3 supprimé ou une distribution CloudFront détruite permet à un tiers de reprendre le sous-domaine, avec ses cookies et sa réputation de « même site ». La résolution elle-même (TTL, rebinding) est le sujet de la leçon 3.
+
+<Callout kind="case">
+**MyEtherWallet, 24 avril 2018.** Entre 11 h 05 et 12 h 55 UTC environ, l'opérateur eNet (AS10297) a annoncé des préfixes appartenant aux serveurs DNS d'Amazon Route 53. Selon l'analyse de Cloudflare, le résolveur 1.1.1.1 a reçu ces routes dans plusieurs villes et a obtenu, pour `myetherwallet.com`, l'adresse d'un serveur contrôlé par l'attaquant. Ce serveur présentait un certificat auto-signé : il fallait que l'utilisateur accepte l'avertissement. Ceux qui l'ont fait ont livré leurs identifiants, réutilisés sur le vrai site pour vider des portefeuilles. La leçon tient en une ligne : quand le DNS ment, TLS sauve l'utilisateur à condition qu'il ne puisse pas cliquer sur « continuer », et c'est exactement ce que garantit HSTS.
+</Callout>
+
+## Transport, TLS et la requête
+
+Le navigateur ouvre une connexion TCP puis TLS, ou une connexion QUIC (UDP) qui intègre TLS 1.3, s'il sait que le serveur parle HTTP/3 (en-tête `Alt-Svc` ou enregistrement DNS `HTTPS`). TLS 1.3 négocie en un aller-retour, et autorise une reprise en **0-RTT** : la requête part avec le premier paquet. Ces données précoces ne sont pas protégées contre le rejeu ; le RFC 8446 demande de ne les accepter que pour des requêtes sans effet de bord. Le nom demandé (SNI) circule en clair, sauf avec Encrypted Client Hello (RFC 9849, mars 2026). Ce que vérifier un certificat veut dire est en leçon 4.
+
+Avant d'envoyer la requête, le navigateur choisit les cookies à joindre. Il raisonne en **site**, pas en origine, et regarde qui initie la requête : c'est le terrain de SameSite et du CSRF (leçon 6). Il ajoute aussi des en-têtes que JavaScript ne peut pas forger, les `Sec-Fetch-*`, qui permettent au serveur de refuser une requête venue d'un autre site (M8, leçon 7).
+
+## La chaîne côté serveur
+
+Chez Novafact, la requête traverse CloudFront, qui termine TLS, applique le WAF et peut répondre depuis son cache, puis l'ALB, qui ouvre une autre connexion, ajoute `X-Forwarded-For` et choisit une cible, puis le serveur Node. Chacun **réinterprète** la requête : sa longueur, son hôte, son chemin. Trois familles de vulnérabilités naissent de ces réinterprétations : la désynchronisation (M9, leçon 5), l'empoisonnement de cache (M9, leçon 6) et la confiance dans l'en-tête Host (M9, leçon 2). La leçon 2 pose le vocabulaire commun.
+
+La réponse repart par le même chemin, et chaque maillon peut ajouter, réécrire ou oublier des en-têtes. Une page d'erreur générée par l'ALB ou par S3 ne passe jamais par helmet : la leçon 7 dresse la carte de ce que chaque en-tête ferme, et M21 (leçon 5) qui le pose où.
+
+## Dans le navigateur : parsing, exécution, rendu
+
+Le parseur HTML découvre les sous-ressources au fil du document et les demande, souvent à d'autres origines. Un `<script src>` tiers s'exécute avec tous les droits de la page : seule l'intégrité (`integrity`, SRI) garantit qu'il n'a pas changé, et seulement pour un fichier versionné (M8, leçons 3 et 4). `X-Content-Type-Options: nosniff` empêche d'exécuter comme script une réponse servie avec un autre type.
+
+Le JavaScript s'exécute ensuite sous deux régimes. La **same-origin policy** décide de ce qu'il peut **lire** : une réponse d'une autre origine reste opaque, sauf si ce serveur l'autorise par CORS. Elle ne l'empêche pas d'**envoyer** des requêtes, ni d'en déclencher par un formulaire ou une image (leçon 5). La **CSP**, posée par la page, décide de ce qu'il peut charger et exécuter, et c'est la seule à limiter les destinations d'une exfiltration (M8, leçon 5).
+
+Enfin, le rendu. Le navigateur place les documents de sites différents dans des **processus séparés** (isolation des sites, Chrome 67 sur ordinateur, en 2018) : même une faille du moteur JavaScript ne lit pas directement la mémoire d'un autre site. Mais l'isolation de processus ne dit rien de l'affichage : une page peut encore être intégrée dans une iframe invisible (clickjacking) si `frame-ancestors` ne l'interdit pas, ou garder une référence vers une fenêtre qu'elle a ouverte si COOP ne la coupe pas.
+
+## La traversée en commandes
+
+Refaire le chemin à la main vérifie qui pose quoi ; chaque commande renvoie à une ligne du tableau :
+
+<Code file="notes/traversee.sh">
+
+```bash
+# 2. Résolution : quel nom, quel CNAME, vers quoi ? Un CNAME orphelin se voit ici.
+dig +short app.novafact.example CNAME
+dig +short app.novafact.example HTTPS          # annonce HTTP/3 et ECH ?
+
+# 1 et 6. Le premier saut en HTTP : redirection, et HSTS sur la réponse HTTPS seulement
+curl -sI http://app.novafact.example | grep -i -E '^(location|strict-transport)'
+curl -sI https://app.novafact.example | grep -i strict-transport
+
+# 3. Le certificat présenté, et la version négociée
+openssl s_client -connect app.novafact.example:443 -servername app.novafact.example </dev/null 2>/dev/null \
+  | grep -E 'subject=|issuer=|Protocol'
+
+# 5 et 6. Qui a répondu ? Cache CloudFront, ALB, ou application (et avec quels en-têtes)
+curl -sI https://api.novafact.example/health | grep -i -E '^(x-cache|via|server|content-security)'
+curl -sI https://app.novafact.example/inexistant | grep -i -E '^(content-security|x-frame|server)'
+```
+
+</Code>
+
+La dernière ligne est la plus instructive : comparer les en-têtes d'une page normale et d'une erreur 404 ou 403 révèle presque toujours un maillon qui n'applique pas la politique.
+
+<Callout kind="novafact">
+Après cette traversée, l'équipe AppSec de Novafact a tenu un tableau d'une ligne par étape, avec une colonne « propriétaire » nommée. Trois trous sont apparus : un `CNAME` vers une ancienne distribution de documentation, les pages d'erreur de S3 sans aucun en-tête de sécurité, et un HSTS sans `includeSubDomains`, ce qui laissait `support.novafact.example` joignable en HTTP. Aucun ne se voyait dans le code de l'API.
+</Callout>
+
+<Recap items={[
+  "Chaque étape, de la saisie au rendu, a sa protection et son propriétaire : une faille naît le plus souvent à la frontière entre deux composants.",
+  "HSTS ferme la rétrogradation et supprime le clic « continuer » sur une erreur de certificat ; le préchargement couvre le premier accès.",
+  "Le DNS n'est authentifié que si la zone est signée et le résolveur valide ; un CNAME orphelin est un sous-domaine offert.",
+  "TLS 1.3 en 0-RTT n'empêche pas le rejeu : pas d'effet de bord dans les données précoces.",
+  "La SOP borne la lecture, pas l'envoi ; la CSP borne le chargement et les destinations ; l'isolation des sites borne la mémoire, pas l'affichage.",
+]} />
+
+<Sources items={[
+  { title: "Cloudflare : BGP leaks and cryptocurrencies (MyEtherWallet, 24 avril 2018)", url: "https://blog.cloudflare.com/bgp-leaks-and-crypto-currencies/" },
+  { title: "RFC 6797 : HTTP Strict Transport Security", url: "https://www.rfc-editor.org/rfc/rfc6797" },
+  { title: "hstspreload.org : conditions de préchargement HSTS", url: "https://hstspreload.org/" },
+  { title: "Google Security Blog : HTTPS by default (Chrome 154, octobre 2026)", url: "https://security.googleblog.com/2025/10/https-by-default.html" },
+  { title: "RFC 8446 : TLS 1.3 (section 8, rejeu des données 0-RTT)", url: "https://www.rfc-editor.org/rfc/rfc8446" },
+  { title: "RFC 9849 : TLS Encrypted Client Hello", url: "https://www.rfc-editor.org/rfc/rfc9849" },
+  { title: "Chromium : Site Isolation", url: "https://www.chromium.org/Home/chromium-security/site-isolation/" },
+]} />

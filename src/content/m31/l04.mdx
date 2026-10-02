@@ -1,0 +1,155 @@
+export const questions = [
+  {
+    q: "Pourquoi la spec MCP exige-t-elle le paramètre resource dans la requête d'autorisation ET dans la requête de jeton ?",
+    options: [
+      "Pour que le jeton soit émis pour ce serveur MCP précis, même si le client a obtenu un code pour plusieurs ressources",
+      "Pour que le serveur d'autorisation puisse vérifier le code_verifier contre la ressource demandée",
+      "Pour permettre au serveur MCP de retrouver la session de l'utilisateur à partir du jeton reçu",
+      "Pour que le serveur d'autorisation choisisse l'algorithme de signature adapté à chaque ressource",
+    ],
+    answer: 0,
+    explain: "RFC 8707 permet de demander l'autorisation pour une ou plusieurs ressources, puis de restreindre chaque jeton à l'une d'elles au moment de l'échange : l'audience du jeton dépend donc de la seconde requête. La spec impose d'envoyer resource même si l'AS ne le gère pas encore. PKCE est indépendant de la ressource, et le protocole 2026-07-28 n'a plus de session côté serveur.",
+  },
+  {
+    q: "Au retour d'autorisation, le client reçoit iss=https://auth.novafact.example/ alors qu'il a enregistré https://auth.novafact.example. Que doit-il faire ?",
+    options: [
+      "Accepter : un slash final ne change pas l'URL selon les règles de normalisation de RFC 3986",
+      "Rejeter la réponse sans utiliser le code ni afficher d'éventuel message d'erreur",
+      "Accepter le code, mais vérifier l'issuer de l'ID token avant d'établir la session",
+      "Relancer la découverte des métadonnées pour savoir laquelle des deux formes est correcte",
+    ],
+    answer: 1,
+    explain: "La révision 2026-07-28 impose une comparaison de chaînes simple et interdit toute normalisation (casse, port par défaut, slash final, encodage). Vérifier l'ID token après coup arrive trop tard : le code a déjà été envoyé à un endpoint de jeton. Relancer la découverte laisserait la réponse suspecte décider de la suite. En cas d'écart, le client ne doit même pas afficher error ni error_description.",
+  },
+  {
+    q: "Une équipe corrige un client qui ouvre l'URL d'autorisation par exec(`start ${url}`) en refusant les URL qui commencent par javascript:. Pourquoi est-ce insuffisant ?",
+    options: [
+      "Parce que l'attaquant peut encoder javascript: en majuscules, ce que le filtre ne voit pas",
+      "Parce que le problème vient du serveur d'autorisation, qui doit valider ses propres métadonnées",
+      "Parce que file:, d'autres schémas et les métacaractères du shell restent exploitables",
+      "Parce qu'une URL HTTPS légitime ne peut jamais contenir de caractère interprété par le shell",
+    ],
+    answer: 2,
+    explain: "Une liste noire laisse passer file:, data:, vbscript: et surtout l'injection dans le shell lui-même : CVE-2025-6514 a été démontrée avec file:, et le correctif de mcp-remote encode jusqu'à l'utilisateur et au mot de passe d'une URL http(s) pour neutraliser $(…). La casse est un vrai contournement, mais il ne résume pas le problème. Et une URL HTTPS peut tout à fait contenir des caractères dangereux pour un shell.",
+  },
+  {
+    q: "Pourquoi PKCE ne protège-t-il pas contre l'attaque mix-up ?",
+    options: [
+      "Parce que PKCE ne s'applique qu'aux clients confidentiels, et que les clients MCP sont publics",
+      "Parce que le code_challenge est visible dans l'URL, donc connu du serveur d'autorisation malveillant",
+      "Parce que le mix-up vise le refresh token, que PKCE ne protège pas lors du renouvellement",
+      "Parce que le client envoie lui-même code et code_verifier à l'endpoint de jeton de l'attaquant",
+    ],
+    answer: 3,
+    explain: "Dans un mix-up, le client se trompe de destinataire : il remet le code et le verifier au mauvais serveur, qui peut alors les rejouer auprès du vrai. PKCE lie le code au client, pas au serveur d'autorisation. Le code_challenge est effectivement visible, mais c'est sans conséquence puisqu'on ne peut pas en déduire le verifier. PKCE s'applique à tous les clients, publics compris.",
+  },
+];
+
+<YouKnow>
+Un pentester connaît le flux Authorization Code + PKCE par cœur (M14, leçon 3) et les attaques qui le visent (M14, leçon 6). Cette leçon ne refait pas le cours : elle liste ce que la spec MCP ajoute à OAuth 2.1, et pourquoi chaque ajout répond à un serveur qu'on ne connaît pas.
+</YouKnow>
+
+## Le flux, vu du client MCP
+
+Une fois la découverte (leçon 2) et l'enregistrement (leçon 3) faits, le client déroule le flux. Les étapes qui portent une exigence propre à MCP :
+
+<Steps items={[
+  { title: "Préparer", text: "Générer code_verifier et code_challenge (S256), un state, et enregistrer dans la même entrée l'issuer validé de l'AS choisi." },
+  { title: "Rediriger", text: "Ouvrir l'authorization_endpoint validé avec code_challenge, scope et resource=https://mcp.novafact.example/mcp." },
+  { title: "Recevoir", text: "Sur le callback, comparer iss à l'issuer enregistré (RFC 9207) et vérifier state, avant toute autre action." },
+  { title: "Échanger", text: "Envoyer code, code_verifier et à nouveau resource à l'endpoint de jeton de cet issuer, et de lui seul." },
+  { title: "Appeler", text: "Présenter Authorization: Bearer sur chaque requête HTTP au serveur MCP, jamais dans l'URL." },
+]} />
+
+## PKCE : obligatoire et vérifié avant de partir
+
+PKCE est obligatoire pour tous les clients MCP, avec `S256` dès que le client en est capable. La spec ajoute une obligation absente d'OAuth 2.1 : **vérifier** que l'AS gère PKCE avant de commencer, via `code_challenge_methods_supported` (leçon 2). Sans elle, un AS qui ignore `code_challenge` émet un code utilisable sans verifier, et le client ne le saura jamais.
+
+## resource : un jeton pour un serveur
+
+Le client **doit** envoyer `resource` (RFC 8707) avec l'URI canonique du serveur MCP, dans la requête d'autorisation **et** dans la requête de jeton, que l'AS gère ou non ce paramètre. L'URI canonique est la plus précise possible : schéma et hôte en minuscules, pas de fragment, pas de slash final sauf s'il a un sens. `https://mcp.novafact.example/mcp` désigne le serveur MCP ; `https://mcp.novafact.example` désignerait tout l'hôte.
+
+Ce paramètre est ce qui permet au serveur MCP de vérifier l'audience (leçon 5). Sans lui, l'AS émet un jeton générique que n'importe quel autre serveur MCP du même AS accepterait, y compris un serveur malveillant qui le rejouerait ailleurs.
+
+## iss : savoir qui a répondu
+
+Un client MCP parle à des dizaines de serveurs d'autorisation au cours de sa vie, dont certains sont contrôlés par des inconnus. C'est le terrain idéal du *mix-up* : un AS malveillant amène le client à lui remettre un code émis par un AS honnête. L'attaque a été décrite en 2016 par Daniel Fett, Ralf Küsters et Guido Schmitz dans leur analyse formelle d'OAuth 2.0 ; la RFC 9207 en est la réponse standard.
+
+La révision 2026-07-28 la rend obligatoire côté client :
+
+1. **avant** de rediriger, le client enregistre l'`issuer` validé à la découverte, dans le même enregistrement que le `code_verifier` et le `state` ;
+2. **au retour**, il compare le paramètre `iss` à cette valeur par une **comparaison de chaînes simple**, sans aucune normalisation (casse, port par défaut, slash final, encodage) ;
+3. si l'AS annonce `authorization_response_iss_parameter_supported` et que `iss` est absent, la réponse est rejetée ; si `iss` est présent, il est toujours comparé, même quand l'AS ne l'annonce pas ;
+4. en cas d'écart, le client n'utilise pas le code et **n'affiche même pas** `error`, `error_description` ou `error_uri`, qui sont alors du contenu d'attaquant.
+
+PKCE ne suffit pas ici : c'est le client lui-même qui envoie code **et** verifier à l'endpoint de jeton de l'attaquant. Le `resource` non plus : l'AS malveillant intercepte avant que l'AS honnête n'intervienne. La spec ajoute une limite honnête : la protection dépend d'un AS honnête qui émet `iss`. Elle ne vaut rien face à un AS qui ne l'envoie pas et ne l'annonce pas.
+
+## Le reste du flux
+
+- **state** reste recommandé (SHOULD) : il lie le retour au navigateur qui a démarré le flux.
+- **Refresh tokens** : pour les clients publics, l'AS **doit** les faire tourner à chaque usage ; un refresh token volé et rejoué après rotation trahit le vol. Le client ne présume pas qu'il en recevra un.
+- **Le jeton** voyage dans `Authorization: Bearer`, sur **chaque** requête HTTP, et jamais dans la query string, où il finirait dans les journaux d'accès et les en-têtes `Referer`.
+- **Les redirect_uri** sont `localhost` ou HTTPS, et l'AS les compare à l'identique.
+
+## Ouvrir l'URL d'autorisation : la leçon de CVE-2025-6514
+
+Pour un client de bureau, l'étape « rediriger » consiste à ouvrir le navigateur sur l'`authorization_endpoint`. Cette URL vient des métadonnées d'un AS que le serveur MCP a désigné : c'est une entrée d'attaquant.
+
+<Callout kind="case">
+**CVE-2025-6514, mcp-remote (juillet 2025, CVSS 9.6, CWE-78).** `mcp-remote` permet à un client qui ne parle que stdio d'utiliser un serveur MCP distant, et gère pour lui le flux OAuth. Il passait l'URL d'autorisation au paquet npm `open`, qui délègue l'ouverture à un programme du système (PowerShell sous Windows). Or Peles (JFrog) a montré qu'un serveur malveillant pouvait fournir un `authorization_endpoint` piégé et obtenir l'exécution de commandes sur le poste ; la démonstration utilisait `file:/c:/windows/system32/calc.exe`. Versions 0.0.5 à 0.1.15, corrigé en 0.1.16. Le commit référencé par l'avis GitHub est instructif : il ajoute l'encodage du nom d'utilisateur et du mot de passe de l'URL, avec un test sur `http://user$(calc)r:pass$(calc)word@domain.com`. Même une URL `http:` bien formée pouvait porter une sous-expression PowerShell.
+</Callout>
+
+<Diff file="packages/mcp-client/src/open-browser.ts" hlBefore="4" hlAfter="5,6,7,9,10,11,15">
+
+```ts
+import { exec } from 'node:child_process';
+
+export function openAuthorizationUrl(url: string) {
+  exec(process.platform === 'win32' ? `start "" "${url}"` : `xdg-open "${url}"`);
+}
+```
+
+```ts
+import { execFile } from 'node:child_process';
+
+export function openAuthorizationUrl(raw: string, expected: AsMetadata) {
+  const url = new URL(raw);
+  // liste blanche de schémas : https, et http seulement en boucle locale pour le développement
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLoopback(url.hostname))) throw new UnsafeUrl(raw);
+  if (url.username || url.password) throw new UnsafeUrl(raw); // aucun usage légitime dans une URL d'autorisation
+  // l'URL doit être celle des métadonnées validées, pas une valeur reçue ailleurs
+  if (`${url.origin}${url.pathname}` !== expected.authorization_endpoint) throw new UnsafeUrl(raw);
+  const target = url.href; // forme sérialisée par le parseur WHATWG, pas la chaîne reçue
+  // pas de shell : l'URL est un argument, jamais une partie de commande
+  if (process.platform === 'darwin') execFile('open', [target]);
+  else if (process.platform === 'win32') execFile('rundll32', ['url.dll,FileProtocolHandler', target]);
+  else execFile('xdg-open', [target]);
+}
+```
+
+</Diff>
+
+Le mauvais correctif, c'est la liste noire : refuser `javascript:` et considérer l'affaire close. `file:`, `data:`, `vbscript:` passent, et l'injection dans le shell aussi, puisque le problème n'est pas le schéma mais l'interprétation de la chaîne par un interpréteur de commandes. La spec 2026 l'écrit en deux règles : n'accepter **que** `https:` (et `http:` en boucle locale), et **ne jamais** ouvrir une URL par un shell (`cmd.exe`, `sh`, PowerShell), au profit d'un mécanisme de la plateforme sans shell. Un client web, lui, protège son `window.open` par une CSP sans `'unsafe-inline'`, sans quoi `javascript:` devient une XSS dans le client, puis une exécution de commandes si ce client pilote un proxy stdio local (M28, leçon 4).
+
+En revue de code d'un client MCP, on cherche tout chemin qui mène une URL découverte vers `exec`, `spawn` avec `shell: true`, `open`, `shell.openExternal` d'Electron ou `window.open`, et on vérifie qu'une liste blanche de schémas s'applique **avant**.
+
+<Lab id="ps-oauth" note="Les labs OAuth de PortSwigger rejouent le vol de code et la redirection ouverte : repérez, pour chacun, la vérification MCP qui l'aurait bloqué." />
+
+<Recap items={[
+  "PKCE S256 obligatoire, et vérifié dans les métadonnées avant de démarrer.",
+  "resource (RFC 8707) dans la requête d'autorisation et dans la requête de jeton, avec l'URI canonique du serveur MCP.",
+  "issuer validé enregistré avec le code_verifier ; iss comparé sans normalisation avant d'utiliser le code ; rien d'affiché en cas d'écart.",
+  "Rotation des refresh tokens pour les clients publics ; jeton en Authorization: Bearer sur chaque requête, jamais dans l'URL.",
+  "CVE-2025-6514 : une URL d'autorisation est une entrée d'attaquant ; liste blanche https, aucun shell pour l'ouvrir.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : Authorization (flux, Authorization Response Validation, resource)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" },
+  { title: "MCP 2026-07-28 : Security Best Practices (OAuth Authorization URL Validation, Mix-Up Attacks)", url: "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices" },
+  { title: "RFC 9207 : OAuth 2.0 Authorization Server Issuer Identification", url: "https://www.rfc-editor.org/rfc/rfc9207" },
+  { title: "RFC 8707 : Resource Indicators for OAuth 2.0", url: "https://www.rfc-editor.org/rfc/rfc8707" },
+  { title: "Fett, Küsters, Schmitz, A Comprehensive Formal Security Analysis of OAuth 2.0 (2016)", url: "https://arxiv.org/abs/1601.01229" },
+  { title: "GHSA-6xpm-ggf7-wc3p : CVE-2025-6514", url: "https://github.com/advisories/GHSA-6xpm-ggf7-wc3p" },
+  { title: "JFrog : mcp-remote command injection (CVE-2025-6514)", url: "https://research.jfrog.com/vulnerabilities/mcp-remote-command-injection-rce-jfsa-2025-001290844" },
+  { title: "mcp-remote : commit de correctif référencé par l'avis", url: "https://github.com/geelen/mcp-remote/commit/607b226a356cb61a239ffaba2fb3db1c9dea4bac" },
+]} />

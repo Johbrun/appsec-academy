@@ -1,0 +1,147 @@
+export const questions = [
+  {
+    q: "Novafact n’a jamais organisé d’exercice de crise et veut y faire participer sa direction. Quel format le guide de l’ANSSI recommande-t-il pour commencer ?",
+    options: [
+      "Une simulation impromptue, pour mesurer la réaction réelle sans préparation des joueurs",
+      "Un exercice sur table planifié, avec un animateur et un observateur",
+      "Un exercice technique sur cyber range, pour entraîner d’abord les équipes d’investigation",
+      "Une simulation de deux jours avec cellule d’animation, pour couvrir toute la crise",
+    ],
+    answer: 1,
+    explain: "Le guide recommande un exercice sur table planifié pour un premier exercice de crise cyber : deux à trois heures, environ six semaines de préparation, adapté à des décideurs qui ont peu de temps. Les exercices impromptus sont réservés aux organisations déjà entraînées et à éviter avec des décideurs. La simulation teste mieux le dispositif, mais demande deux à six mois de préparation. Le cyber range entraîne les techniciens, pas la décision.",
+  },
+  {
+    q: "Le post-mortem d’une fuite inter-tenants conclut : « Cause : erreur humaine, le développeur a oublié le contrôle d’appartenance. » Pourquoi cette conclusion est-elle insuffisante ?",
+    options: [
+      "Parce qu’elle devrait nommer le développeur pour que l’action corrective lui soit confiée",
+      "Parce qu’un post-mortem ne doit pas parler du code, seulement de la gestion de crise",
+      "Parce qu’elle arrête l’analyse là où elle commence : pourquoi le système a laissé passer l’oubli",
+      "Parce qu’une erreur humaine relève des ressources humaines, pas du post-mortem",
+    ],
+    answer: 2,
+    explain: "L’oubli est un fait ; la question utile est pourquoi il a atteint la production : pas de couche d’accès aux données qui impose le tenant, pas de test inter-tenants, une revue qui ne regardait pas ce point. Ce sont ces causes qui produisent des actions durables. Nommer une personne enseigne surtout aux équipes à cacher leurs erreurs. Le post-mortem couvre aussi bien la technique que la conduite de crise, et le traiter comme une affaire disciplinaire est précisément ce que la culture sans recherche de coupable écarte.",
+  },
+  {
+    q: "Que montre l’incident de Cloudflare de novembre 2023 sur les actions issues d’un incident précédent ?",
+    options: [
+      "Qu’une action de rotation non vérifiée jusqu’au bout laisse un accès ouvert à l’attaquant",
+      "Qu’il vaut mieux ne pas faire tourner les secrets d’un fournisseur compromis",
+      "Qu’un fournisseur d’identité compromis oblige à changer de fournisseur",
+      "Que les comptes de service inutilisés ne présentent pas de risque particulier",
+    ],
+    answer: 0,
+    explain: "Après la compromission d’Okta en octobre 2023, Cloudflare n’avait pas fait tourner un jeton de service et trois identifiants de comptes de service, qu’elle croyait à tort inutilisés. L’attaquant les a utilisés en novembre. L’action existait ; c’est sa clôture, vérifiée sur un inventaire exact, qui manquait. Rien dans le rapport ne recommande de renoncer aux rotations ni de changer de fournisseur, et l’incident montre au contraire qu’un compte réputé inutilisé reste un accès.",
+  },
+  {
+    q: "Une action de post-mortem est rédigée ainsi : « Améliorer la sensibilisation des développeurs à l’autorisation. » Que lui manque-t-il pour être suivie jusqu’à sa clôture ?",
+    options: [
+      "Une priorité élevée, pour qu’elle passe devant les fonctionnalités du trimestre",
+      "Un propriétaire, une échéance et un critère de clôture qu’on peut vérifier",
+      "L’accord écrit de chaque développeur concerné par la formation",
+      "Un lien vers le rapport complet de l’incident dans le ticket",
+    ],
+    answer: 1,
+    explain: "Une action sans propriétaire n’appartient à personne, une action sans échéance n’arrive jamais, et une action sans critère de clôture se ferme sur une impression. Reformulée, elle devient par exemple : « règle de revue sur les requêtes sans tenant, active en CI, propriétaire AppSec, fin du mois ». Une priorité élevée ne remplace pas ces trois éléments, l’accord des développeurs n’en est pas un, et un lien vers le rapport est utile mais ne rend pas l’action vérifiable.",
+  },
+];
+
+<YouKnow>
+Un pentester connaît le retour d’expérience sous sa forme la plus brève : la restitution, où l’on explique ce qui a marché. Côté défense, il prend deux formes : l’exercice, qui teste le dispositif avant l’incident, et le post-mortem, qui en tire les leçons après. L’étape 12 du capstone (M32) applique les deux à un scénario de Novafact ; cette leçon donne la méthode et ses pièges.
+</YouKnow>
+
+## S’exercer : choisir le format
+
+Le guide de l’ANSSI *Organiser un exercice de gestion de crise cyber* (octobre 2020) découpe l’organisation en quatre étapes (concevoir, préparer, dérouler, tirer les enseignements) et propose des kits réutilisables, dont un scénario fil rouge de rançongiciel, RANSOM20. Ses exercices sont de niveau décisionnel. Il en décrit deux formats :
+
+| | Exercice sur table | Simulation |
+| --- | --- | --- |
+| Principe | Les joueurs, réunis autour d’une table, réfléchissent aux actions à partir de la situation présentée par un animateur | Une cellule d’animation simule les événements et toutes les interactions avec l’extérieur |
+| Intérêt | Premier exercice, direction peu disponible ; produit des pistes d’amélioration | Immersion, test des interactions entre cellules |
+| Limite | Ne teste pas réellement le dispositif de crise | Préparation lourde, coordination entre entités |
+| Durée | 2 à 3 heures | Une demi-journée à deux jours |
+| Préparation | Environ six semaines | Environ deux à six mois |
+
+Pour un premier exercice, le guide recommande une table **planifiée**. Les exercices impromptus sont réservés aux organisations déjà entraînées, avec des astreintes mobilisables, et à éviter quand on convie des décideurs. Il rappelle que le rythme d’un exercice est accéléré (des investigations de plusieurs semaines y sont compressées) et qu’il faut le dire aux joueurs.
+
+Le guide sur la crise cyber de 2021 ajoute un volet que celui de 2020 ne traite pas : l’entraînement **opérationnel** des équipes cyber et IT, avec des exercices qui testent l’articulation entre le stratégique et l’opérationnel. Pour une application, c’est le plus rentable : un exercice sur table pour la direction, et des exercices techniques où l’équipe exécute réellement les runbooks de la leçon 2 en préproduction.
+
+## Ce qu’un exercice applicatif doit faire jouer
+
+La préparation (objectifs, chronogramme, rôles) est détaillée à l’étape 12 du capstone. Ce qui distingue un bon exercice applicatif, ce sont ses **stimuli** : chacun doit forcer une décision ou un geste que la réalité exigera.
+
+| Stimulus | Ce qu’il vérifie |
+| --- | --- |
+| « Un tenant demande la liste des factures lues » | Les journaux d’accès aux données répondent-ils par tenant ? |
+| « Il faut révoquer toutes les sessions d’un tenant » | Le geste existe-t-il, et combien de temps prend-il ? |
+| « Le DPO demande l’heure de prise de connaissance » | Le T0 est-il tracé (leçon 5) ? |
+| « La messagerie est indisponible » | L’annuaire de crise est-il accessible hors du système ? |
+| « Un journaliste appelle l’AppSec directement » | Le point de contact unique est-il connu de tous ? |
+
+La fiche pratique n° 10 du guide recense les biais de simulation. L’un d’eux est le désengagement du joueur : « Ce n’est pas la vraie vie, il suffit de dire que l’on a réalisé cette action et que cela a fonctionné. » La parade recommandée est un stimulus qui exige une action. Pour une application, la traduction est directe : dire « on révoque les sessions » ne compte pas, il faut lancer la commande en préproduction et montrer que l’ancien jeton est refusé.
+
+## RETEX à chaud, à froid
+
+Le guide de 2020 sépare deux temps. Le **RETEX à chaud**, d’environ une heure, se tient juste après la fin de l’exercice, quand les joueurs sont encore dans l’immersion. Le **RETEX à froid**, quelques jours à un mois plus tard, réunit les observations, propose les actions et clôt l’exercice par un rapport écrit et une restitution. Le guide sur la crise cyber applique le même schéma à une crise réelle, avec une borne : **trente jours au plus** entre la fin de la crise et la fin du RETEX. Il précise qu’un RETEX n’est pas un audit, mais une action de capitalisation.
+
+## Le post-mortem sans recherche de coupable
+
+Le chapitre « Postmortem Culture » du livre *Site Reliability Engineering* de Google donne la définition de référence : un post-mortem **sans recherche de coupable** (*blameless*) identifie les causes contributives d’un incident sans mettre en cause une personne ou une équipe pour un comportement fautif. En 2012, John Allspaw, chez Etsy, en a donné la raison dans *Blameless PostMortems and a Just Culture* : si l’on sanctionne celui qui explique ce qu’il a fait, les équipes cessent de l’expliquer, et l’organisation perd l’information dont elle a besoin pour s’améliorer.
+
+Ce n’est pas une absence de responsabilité. Chacun reste responsable de raconter précisément ce qu’il a vu, pensé et fait. Ce qui change, c’est la question : non plus « qui a fait l’erreur ? », mais « qu’est-ce qui, dans le système, l’a rendue possible et l’a laissée passer ? ». Le même principe vaut pour la conduite de crise : les décisions se jugent sur ce qu’on savait au moment de les prendre, d’où le journal de décisions de la leçon 4.
+
+Le livre de Google liste des déclencheurs : indisponibilité au-delà d’un seuil, perte de données, intervention de l’astreinte, résolution trop longue, défaut de supervision. Côté sécurité, on y ajoute naturellement tout incident déclaré, toute notification réglementaire, et tout incident découvert par un tiers plutôt que par les détections.
+
+## Remonter à la cause racine
+
+La méthode des « cinq pourquoi » est un bon départ et une mauvaise arrivée : elle suit une seule chaîne, alors qu’un incident a presque toujours plusieurs causes contributives. Le post-mortem les cherche à trois niveaux, qui produisent des actions différentes : ce qui a introduit le défaut, ce qui ne l’a pas arrêté, et ce qui a retardé sa détection.
+
+<Diff file="postmortems/2026-11-fuite-export.md" hlBefore="2,3" hlAfter="2,3,4,5">
+
+```text
+## Cause racine
+Erreur humaine : le développeur a oublié le contrôle d'appartenance sur /exports/:id.
+Action : rappeler les règles de développement sécurisé à l'équipe.
+```
+
+```text
+## Causes contributives
+Introduction : /exports/:id interroge la base directement, hors de la DAL qui impose le tenant (M13, leçon 6).
+Non-arrêt    : aucun test inter-tenants sur les routes d'export ; la revue ne cible pas ce point.
+Détection    : export lu par un autre tenant journalisé, mais sans règle associée (M24).
+Crise        : 2 h 40 entre T0 et le message aux tenants ; modèle de message absent du runbook.
+```
+
+</Diff>
+
+La première version désigne un coupable et produit une action invérifiable. La seconde produit quatre actions, et aucune ne dépend de la vigilance d’une personne.
+
+## Des actions suivies jusqu’à leur clôture
+
+Un post-mortem vaut ce que valent ses actions. Chacune a un **propriétaire** (une équipe ou une personne nommée), une **échéance**, et un **critère de clôture vérifiable** : « test inter-tenants exécuté en CI sur toutes les routes `/exports` », pas « améliorer les tests ». Elles vivent dans le même outil que les vulnérabilités (M26), avec les mêmes revues, et pas dans un document qu’on ne rouvre plus. La révision 3 de SP 800-61 (leçon 1) range d’ailleurs cette amélioration dans la catégorie Improvement du CSF 2.0, continue plutôt que réservée à la fin de l’incident.
+
+La clôture se vérifie : une rotation de secrets est close quand l’inventaire montre que **chaque** secret a changé, pas quand le ticket est fermé. Les dérogations du registre de crise (leçon 4) suivent le même chemin : chacune est supprimée, ou transformée en acceptation de risque formelle avec une date de revue.
+
+<Callout kind="case">
+**Cloudflare (novembre 2023).** Après la compromission du support d’Okta en octobre 2023 (leçon 1), Cloudflare avait fait tourner les identifiants exposés, sauf un jeton de service et trois comptes de service, qu’elle croyait à tort inutilisés. Du 14 au 24 novembre, un attaquant que Cloudflare estime soutenu par un État s’en est servi pour accéder à son Confluence, à son Jira et à son Bitbucket. Détecté le 23 novembre, l’incident a déclenché un chantier « Code Red » : plus de 5 000 identifiants de production renouvelés et près de 4 900 systèmes examinés. Cloudflare indique qu’aucune donnée ni aucun système de ses clients n’a été touché. L’action de rotation existait ; c’est sa clôture, vérifiée sur un inventaire exact, qui manquait.
+</Callout>
+
+<Callout kind="novafact">
+Novafact (fictif) organise un exercice sur table par semestre avec la direction, et un exercice technique par trimestre où l’astreinte exécute en préproduction deux runbooks tirés au sort. Les actions de post-mortem sont des tickets étiquetés `postmortem`, revus chaque mois avec ceux des vulnérabilités ; une action en retard de plus de trente jours remonte au comité de sécurité.
+</Callout>
+
+<Recap items={[
+  "Pour commencer, un exercice sur table planifié ; la simulation teste mieux le dispositif mais coûte des mois de préparation.",
+  "Un exercice applicatif force des gestes réels : révoquer, retrouver les accès d’un tenant, dater T0, joindre sans messagerie.",
+  "RETEX à chaud juste après, à froid dans le mois, avec un rapport et une restitution ; trente jours au plus après une crise réelle.",
+  "Sans recherche de coupable : on cherche ce qui, dans le système, a rendu l’erreur possible, ce qui ne l’a pas arrêtée et ce qui a retardé sa détection.",
+  "Chaque action a un propriétaire, une échéance et un critère de clôture vérifiable ; une rotation se clôt sur l’inventaire, pas sur le ticket.",
+]} />
+
+<Sources items={[
+  { title: "ANSSI : Organiser un exercice de gestion de crise cyber (2020) et ses kits", url: "https://messervices.cyber.gouv.fr/guides/organiser-un-exercice-de-gestion-de-crise-cyber" },
+  { title: "ANSSI et CDSE : Crise d’origine cyber, les clés d’une gestion opérationnelle et stratégique (2021)", url: "https://messervices.cyber.gouv.fr/guides/crise-cyber-les-cles-dune-gestion-operationnelle-et-strategique" },
+  { title: "Google : Site Reliability Engineering, chapitre « Postmortem Culture: Learning from Failure »", url: "https://sre.google/sre-book/postmortem-culture/" },
+  { title: "John Allspaw : Blameless PostMortems and a Just Culture (Etsy, 2012)", url: "https://www.etsy.com/codeascraft/blameless-postmortems" },
+  { title: "Cloudflare : Thanksgiving 2023 security incident", url: "https://blog.cloudflare.com/thanksgiving-2023-security-incident/" },
+  { title: "NIST SP 800-61 Rev. 3", url: "https://csrc.nist.gov/pubs/sp/800/61/r3/final" },
+]} />

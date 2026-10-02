@@ -1,0 +1,146 @@
+export const questions = [
+  {
+    q: "Le DBIR 2026 attribue 31 % des violations à l'exploitation de vulnérabilités, l'ENISA 21,3 % des intrusions. Quelle explication est la plus solide ?",
+    options: [
+      "L'un des deux rapports se trompe, puisqu'ils couvrent la même période",
+      "Les échantillons diffèrent : violations confirmées contre incidents publics",
+      "L'ENISA ne compte que les vulnérabilités inscrites au catalogue KEV",
+      "Le DBIR exclut les petites entreprises, plus touchées par le phishing",
+    ],
+    answer: 1,
+    explain: "Les deux rapports ne mesurent ni la même chose ni sur la même population : le DBIR agrège des violations confirmées transmises par ses contributeurs, l'ENISA recense des incidents à partir de sources ouvertes, sur une période qui ne coïncide d'ailleurs pas exactement. Aucun des deux ne se limite au KEV, et rien ne dit que le DBIR exclut les petites entreprises. Un écart entre rapports se lit d'abord dans leur méthode.",
+  },
+  {
+    q: "M-Trends 2026 donne un dwell time médian de 14 jours. Que mesure exactement ce chiffre ?",
+    options: [
+      "Le délai médian entre la publication d'un correctif et son exploitation",
+      "Le temps médian qu'il faut à un attaquant pour devenir administrateur",
+      "La durée médiane de présence de l'attaquant avant sa détection",
+      "La durée médiane d'une intervention de réponse à incident Mandiant",
+    ],
+    answer: 2,
+    explain: "Le dwell time est la durée entre le début de l'intrusion et sa détection, calculée sur les intrusions que Mandiant a investiguées. Le délai entre correctif et exploitation est une autre mesure du même rapport (le time-to-exploit, estimé à -7 jours). Le temps pour devenir administrateur ressemble au breakout time de CrowdStrike, qui mesure le premier mouvement latéral. La durée de l'intervention n'est pas l'objet de l'indicateur.",
+  },
+  {
+    q: "Pourquoi la répartition sectorielle du Panorama de l'ANSSI (éducation et recherche 34 %, ministères et collectivités 24 %) ne prouve-t-elle pas que ces secteurs sont les plus attaqués en France ?",
+    options: [
+      "Parce que ces pourcentages portent sur les rançongiciels uniquement",
+      "Parce que les entreprises privées sont exclues du périmètre de l'ANSSI",
+      "Parce que l'ANSSI les présente comme une estimation, sans données mesurées",
+      "Parce qu'ils reflètent les signalements reçus, qui dépendent de qui signale",
+    ],
+    answer: 3,
+    explain: "L'ANSSI compte les événements qu'elle traite, donc ceux qu'on lui signale ou qu'elle détecte : le secteur public et la recherche ont des obligations et des habitudes de signalement que beaucoup d'entreprises n'ont pas. Le privé n'est pas exclu, il est sous-représenté. Les pourcentages portent sur l'ensemble des signalements, pas sur les seuls rançongiciels, et ce sont des données comptées, pas une estimation.",
+  },
+  {
+    q: "Un éditeur d'EDR publie que la technique la plus observée chez ses clients concerne les comptes cloud. Quel est le premier biais à garder en tête avant d'en tirer une priorité ?",
+    options: [
+      "Il ne voit que ce que ses capteurs et ses clients lui montrent",
+      "Il ne publie que les techniques que son produit sait détecter",
+      "Il gonfle volontairement les chiffres pour vendre son produit",
+      "Il agrège plusieurs années, ce qui écrase les tendances récentes",
+    ],
+    answer: 0,
+    explain: "Le biais structurel est la visibilité : un éditeur mesure la menace à travers sa base de clients et sa télémétrie, qui ne représentent pas tout le monde. Dire qu'il ne publie que ce qu'il détecte ou qu'il truque ses chiffres est un procès d'intention invérifiable. Et un rapport annuel couvre en général une seule année. Le constat peut être juste et quand même peu transposable à un autre contexte.",
+  },
+];
+
+<YouKnow>
+Les restitutions de pentest citent souvent des chiffres : « la majorité des attaques commencent par… ». Ces chiffres viennent de rapports annuels qui ne mesurent pas la même chose, et un auditeur averti demandera lequel, sur quelle période et sur quel échantillon.
+</YouKnow>
+
+## Avant le chiffre, la méthode
+
+Chaque printemps, les rapports annuels tombent et leurs chiffres circulent sans leur contexte. Avant de citer un pourcentage, quatre questions :
+
+<Steps items={[
+  { title: "Quelle période ?", text: "Un rapport « 2026 » porte souvent sur des données de 2025, voire sur une période à cheval. Le DBIR 2026 couvre du 1er novembre 2024 au 31 octobre 2025 ; l'ENISA, de juillet 2024 à juin 2025." },
+  { title: "Quel échantillon ?", text: "Des violations confirmées, des intrusions investiguées par un prestataire, des incidents publics, des signalements à une agence : ce ne sont pas les mêmes populations, et les pourcentages ne se comparent pas." },
+  { title: "Quelle unité ?", text: "« 31 % des violations » et « 32 % des intrusions » se ressemblent, mais une violation implique une divulgation de données confirmée, une intrusion non." },
+  { title: "Qui publie, et que voit-il ?", text: "Un éditeur voit ses clients et sa télémétrie ; un cabinet de réponse à incident voit les incidents assez graves pour qu'on l'appelle ; une agence voit ce qu'on lui signale." },
+]} />
+
+## Les rapports qui comptent
+
+| Rapport | Publié | Ce qui est mesuré | Chiffres clés |
+| --- | --- | --- | --- |
+| **Verizon DBIR 2026** | 2026 | Incidents et violations transmis par ses contributeurs | 31 % des violations commencent par l'exploitation d'une vulnérabilité, devant les mots de passe volés ; 48 % impliquent un rançongiciel |
+| **Mandiant M-Trends 2026** | 23 mars 2026 | Intrusions investiguées par Mandiant en 2025 | Dwell time médian de 14 jours (11 l'année précédente) ; 52 % des détections faites en interne ; exploits en tête des vecteurs initiaux (32 %), puis vishing (11 %) |
+| **CrowdStrike Global Threat Report 2026** | 24 février 2026 | Télémétrie et interventions de l'éditeur | Breakout time moyen de l'eCrime de 29 minutes, le plus rapide observé en 27 secondes |
+| **ENISA Threat Landscape 2025** | 1er octobre 2025 | 4 875 incidents publics, juillet 2024 à juin 2025 | Hacktivisme à près de 80 % des incidents ; DDoS à 77 % ; phishing (60 %) puis exploitation de vulnérabilités (21,3 %) comme accès |
+| **ANSSI, Panorama de la cybermenace 2025** | 11 mars 2026 | Événements traités par l'ANSSI en France | 3 586 événements (-18 %), dont 1 366 incidents ; éducation et recherche 34 %, ministères et collectivités 24 % |
+
+Deux remarques sur ce tableau. D'abord, **les vecteurs d'accès divergent** : l'exploitation de vulnérabilités est en tête chez Verizon et Mandiant, le phishing en tête chez l'ENISA. Ce n'est pas une contradiction, ce sont des échantillons différents : un cabinet comme Mandiant est appelé pour des intrusions profondes, l'ENISA recense ce qui est public, y compris des campagnes de masse. Ensuite, **les durées racontent une même histoire** : 14 jours de présence médiane, un mouvement latéral qui se compte en minutes, et un délai d'exploitation que M-Trends estime à **-7 jours**, c'est-à-dire que l'exploitation précède couramment la disponibilité du correctif.
+
+## Les biais de celui qui publie
+
+Aucun rapport n'est neutre, et ce n'est pas un reproche : chacun mesure ce qu'il voit.
+
+- **Biais de visibilité.** Red Canary classe les comptes cloud en tête des techniques observées dans son rapport 2026. C'est cohérent avec la menace SaaS (M2), mais c'est aussi le reflet de ce que ses clients lui confient comme télémétrie.
+- **Biais de gravité.** Un prestataire de réponse à incident ne voit pas les attaques arrêtées au premier jour par un MFA bien configuré. Ses durées et ses vecteurs décrivent les échecs de défense, pas la menace en général.
+- **Biais de déclaration.** Une agence compte les signalements. Le secteur public, soumis à des obligations et habitué à signaler, y pèse plus lourd que sa part réelle des attaques.
+- **Biais de définition.** « Rançongiciel » peut inclure ou non l'extorsion sans chiffrement ; « identifiants volés » peut inclure ou non les jetons de session. Le glossaire se lit avant les chiffres.
+- **Biais commercial.** Un rapport d'éditeur met en avant les menaces que son produit traite. Les faits peuvent rester justes ; c'est la hiérarchie qu'il faut relire.
+
+<Callout kind="case">
+Le Panorama 2025 de l'ANSSI donne un exemple de prudence utile : sur 460 événements liés à une fuite de données potentielle, seuls **42 %** ont pu être associés à une fuite avérée. Une revendication sur un canal Telegram ou un forum n'est pas une preuve : des données recyclées d'anciennes fuites, ou simplement inventées, circulent sous de nouveaux noms. Pour une équipe produit, la conséquence est concrète : il faut pouvoir **vérifier vite** si un échantillon revendiqué sort réellement de sa base, ce qui suppose des journaux d'accès et d'export qui le permettent.
+</Callout>
+
+## Ce que les chiffres disent à l'AppSec
+
+Lus ensemble, ces rapports convergent sur trois points qui intéressent directement l'application :
+
+1. **L'exploitation de failles exposées est un vecteur majeur**, et le délai pour corriger se réduit à rien. On ne gagne pas cette course uniquement en patchant plus vite : il faut moins de surface exposée et des classes de bugs éliminées en amont (leçon 4).
+2. **L'identité est l'autre grande porte** : vishing en forte hausse, comptes cloud en tête des techniques, compromissions antérieures revendues. Les parcours de réinitialisation et les sessions sont des fonctionnalités de sécurité (M14, M15).
+3. **La détection dépend de l'application.** Avec 52 % de détections internes, près d'une intrusion sur deux est encore signalée par un tiers. Une application qui n'émet pas d'événements de sécurité exploitables prolonge le dwell time.
+
+## Dans la pratique : une fiche de lecture
+
+Chez Novafact, l'AppSec ne fait pas circuler les PDF. Elle produit une fiche d'une page par rapport, qui oblige à répondre aux questions de méthode avant de citer :
+
+<Code file="docs/veille/2026-m-trends.md">
+
+```md
+# M-Trends 2026 (Mandiant, 23 mars 2026)
+
+Période     : intrusions investiguées en 2025
+Échantillon : clients de Mandiant (biais vers les incidents graves)
+Unité       : % des intrusions, pas des violations
+
+À retenir pour Novafact
+- Exploits en tête des vecteurs initiaux (32 %), 6e année consécutive
+  -> inventaire des routes exposées, revue des dépendances serveur
+- Vishing à 11 %, 2e vecteur
+  -> revoir le parcours de réinitialisation MFA par le support
+- Time-to-exploit estimé à -7 jours
+  -> notre SLA de 7 jours sur les critiques ne protège pas seul
+
+Ce qu'on ne peut PAS en conclure
+- La part de ces vecteurs pour un SaaS de notre taille
+```
+
+</Code>
+
+La dernière rubrique est la plus importante. Elle évite de transformer une statistique mondiale en certitude locale, et elle prépare la question que posera tôt ou tard un comité : « est-ce que ça nous concerne ? ». La réponse vient de l'analyse de risques (M10), pas du rapport.
+
+<Callout kind="tip">
+Pour citer un chiffre en restitution ou dans un ticket, on garde le format complet : source, édition, période, unité. « 32 % des intrusions investiguées par Mandiant en 2025 » résiste à la question d'un auditeur ; « un tiers des attaques » n'y résiste pas.
+</Callout>
+
+<Recap items={[
+  "Avant un chiffre : période, échantillon, unité et position de celui qui publie.",
+  "DBIR 2026 : exploitation de vulnérabilités à 31 % des violations, rançongiciel dans 48 %.",
+  "M-Trends 2026 : dwell time médian de 14 jours, exploits à 32 % des vecteurs initiaux, time-to-exploit estimé à -7 jours.",
+  "ENISA 2025 : hacktivisme et DDoS dominent en nombre ; phishing en tête des accès, devant l'exploitation de vulnérabilités.",
+  "ANSSI 2025 : 3 586 événements traités ; une revendication de fuite n'est pas une fuite avérée.",
+  "Les rapports convergent : failles exposées, identité et détection applicative sont les priorités de l'AppSec.",
+]} />
+
+<Sources items={[
+  { title: "Verizon, 2026 Data Breach Investigations Report", url: "https://www.verizon.com/business/resources/reports/dbir/" },
+  { title: "Mandiant, M-Trends 2026 (23 mars 2026)", url: "https://cloud.google.com/blog/topics/threat-intelligence/m-trends-2026" },
+  { title: "CrowdStrike, 2026 Global Threat Report", url: "https://www.crowdstrike.com/en-us/global-threat-report/" },
+  { title: "ENISA Threat Landscape 2025", url: "https://www.enisa.europa.eu/publications/enisa-threat-landscape-2025" },
+  { title: "ANSSI, Panorama de la cybermenace 2025 (11 mars 2026)", url: "https://cyber.gouv.fr/actualites/panorama-de-la-cybermenace-2025/" },
+  { title: "Red Canary, 2026 Threat Detection Report", url: "https://redcanary.com/threat-detection-report/" },
+]} />

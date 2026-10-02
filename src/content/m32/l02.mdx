@@ -1,0 +1,161 @@
+export const questions = [
+  {
+    q: "« Toute API publique de Novafact satisfait aux exigences ASVS 5.0 de niveau 2. » Dans quel type de document cette phrase a-t-elle sa place ?",
+    options: [
+      "Dans la politique de sécurité, signée par la direction",
+      "Dans un standard, qui fixe des exigences vérifiables",
+      "Dans un guide, qui explique comment s'y prendre",
+      "Dans la charte de l'équipe AppSec, qui décrit son périmètre",
+    ],
+    answer: 1,
+    explain: "La phrase fixe une exigence précise et vérifiable : c'est la définition d'un standard, que l'AppSec rédige et qu'un comité approuve. La politique dit pourquoi et quoi à haut niveau (« les produits respectent les standards de sécurité en vigueur ») et change rarement ; y inscrire une version d'ASVS l'obligerait à repasser devant la direction à chaque révision. Un guide explique comment satisfaire l'exigence, et la charte dit ce que fait l'équipe, pas ce que doivent les produits.",
+  },
+  {
+    q: "Que retient le Cyber Safety Review Board de la décision de Microsoft, en 2021, d'arrêter la rotation manuelle des clés de signature MSA ?",
+    options: [
+      "Qu'elle avait été formellement acceptée comme risque, mais mal documentée",
+      "Qu'elle respectait les standards internes, qui ne prévoyaient pas de rotation",
+      "Qu'elle illustre des décisions qui ne donnaient pas à la gestion des risques sa juste place",
+      "Qu'elle avait été imposée par un client pour éviter une nouvelle panne",
+    ],
+    answer: 2,
+    explain: "Le rapport qualifie cette décision, prise après une panne majeure et sans alerte sur l'âge des clés, d'exemple troublant de processus de décision qui ne plaçaient pas la gestion des risques au niveau de la menace. Il ne dit pas qu'une acceptation formelle a été documentée : l'affirmer serait inventer. Il ne présente pas la décision comme conforme à un standard interne, ni comme demandée par un client.",
+  },
+  {
+    q: "Un standard de Novafact a fait l'objet de quatorze exceptions en un an, toutes sur la même règle. Que doit en tirer la revue annuelle ?",
+    options: [
+      "Que la règle est sans doute mal calibrée, et qu'il faut la réviser ou la reformuler",
+      "Que les équipes contournent le standard, et qu'il faut durcir la procédure d'exception",
+      "Que la procédure fonctionne, puisque les exceptions ont été demandées et tracées",
+      "Que la règle doit passer de la politique au standard, pour être plus facile à modifier",
+    ],
+    answer: 0,
+    explain: "Des exceptions répétées sur la même règle sont un signal sur la règle, pas sur les équipes : soit elle exige quelque chose d'irréaliste, soit elle est mal formulée, soit le paved road ne propose pas d'alternative. Durcir la procédure pousserait au contournement silencieux. Une procédure qui trace bien ne dit rien de la qualité de la règle. Et une règle d'exception porte déjà sur un standard, pas sur la politique.",
+  },
+  {
+    q: "Pourquoi l'équipe AppSec ne devrait-elle pas approuver seule les standards qu'elle rédige ?",
+    options: [
+      "Parce qu'un standard doit être signé par le DPO pour être opposable aux équipes",
+      "Parce que l'AppSec n'a pas l'expertise technique pour fixer des exigences de code",
+      "Parce que les modèles de maturité interdisent à une même équipe de rédiger et d'approuver",
+      "Parce qu'un standard engage les équipes produit : elles doivent le juger tenable avant",
+    ],
+    answer: 3,
+    explain: "Un standard crée une obligation pour des équipes qui ne l'ont pas écrit ; s'il n'est pas tenable, il produira des exceptions ou du contournement. Le faire approuver par un comité où siègent l'ingénierie et le produit le confronte à la réalité avant qu'il s'impose. L'AppSec a précisément l'expertise pour le rédiger. Aucun modèle de maturité n'interdit formellement ce cumul, et le DPO n'a pas à signer un standard technique.",
+  },
+];
+
+<YouKnow>
+En audit, on lit souvent des politiques de sécurité de quatre-vingts pages, signées il y a cinq ans, que personne dans l'équipe ne connaît. On voit aussi l'inverse : une règle orale que tout le monde applique, mais que rien ne permet de vérifier.
+</YouKnow>
+
+## Pourquoi écrire
+
+Un programme AppSec fait des choix : quelles exigences, quels contrôles bloquants, qui peut accepter quel risque. Tant qu'ils restent dans la tête de l'équipe AppSec, ils dépendent de sa présence et se renégocient à chaque désaccord. La gouvernance, c'est l'écrit qui rend ces choix **stables**, **connus** et **opposables**, et le circuit qui les fait évoluer.
+
+Dans SAMM, c'est la pratique **Policy & Compliance** de la fonction Governance ; dans le SSDF, la tâche PO.1 commence par définir les exigences de sécurité qui s'imposent au développement, y compris celles qui viennent des politiques internes. Ce qui suit est la version légère qui convient à une organisation de la taille de Novafact.
+
+## Trois niveaux d'écrit
+
+Le piège classique est un seul document qui mélange tout : des principes, des exigences techniques précises et des conseils pratiques. Il devient impossible à faire évoluer, parce que changer une version de TLS demande la signature de la direction. On sépare donc trois niveaux :
+
+| Niveau | Ce qu'il dit | Qui le décide | Qui le fait appliquer | Révision |
+| --- | --- | --- | --- | --- |
+| **Politique** | Pourquoi et quoi : principes, responsabilités, appétence au risque | Direction | Le RSSI, par le comité | Annuelle, change rarement |
+| **Standard** | Les exigences vérifiables : ce qui est obligatoire, mesurable | Comité sécurité produit, sur proposition de l'AppSec | La CI, les revues, l'audit | Annuelle, et à chaque évolution majeure |
+| **Guide** | Comment : exemples, paved road, procédures | L'équipe AppSec, avec les champions | Personne : il aide, il n'oblige pas | En continu |
+
+La politique de Novafact tient en deux pages. Elle dit que les produits respectent les standards de sécurité en vigueur, qui décide d'une exception selon le niveau de risque, et qui rend compte à la direction. Elle ne cite aucune version d'ASVS, aucun outil, aucun seuil : ce sont des standards.
+
+<Code file="docs/gouvernance/standard-api.md" hl="3,4,5,6">
+
+```markdown
+---
+id: STD-API-001
+proprietaire: appsec
+approuve_par: comite-securite-produit
+approuve_le: 2026-03-12
+prochaine_revue: 2027-03-12
+---
+# Standard : API exposées
+
+1. Toute API publique satisfait aux exigences ASVS 5.0 de niveau 2.
+2. Toute route passe par le middleware d'autorisation central.
+3. Aucun secret dans le code ni dans la configuration versionnée.
+
+Vérification : règles Semgrep novafact.*, tests d'autorisation en CI, revue annuelle.
+Exceptions : voir la procédure (leçon 3), approbation selon la matrice de la politique.
+```
+
+</Code>
+
+L'en-tête compte autant que le contenu. Un standard sans **propriétaire** n'est maintenu par personne ; sans **date de prochaine revue**, il vieillit sans que personne s'en aperçoive. Un contrôle de CI peut d'ailleurs échouer quand une date de revue est dépassée : c'est le même mécanisme que pour les exceptions expirées (leçon 3).
+
+## Qui décide, qui fait appliquer
+
+Le **comité sécurité produit** est l'instance qui approuve les standards, tranche les désaccords et suit les risques acceptés. Chez Novafact, il réunit le CTO (président), le RSSI, le DPO, un représentant produit, un lead technique et l'AppSec (secrétariat). Il se tient une heure par mois, avec un ordre du jour fixe :
+
+<Steps items={[
+  { title: "Risques au-delà du seuil", text: "Les vulnérabilités qui dépassent leur SLA, les exceptions qui arrivent à échéance, les risques acceptés à renouveler." },
+  { title: "Décisions à prendre", text: "Nouveaux standards ou modifications, exceptions qui relèvent de son niveau, désaccords remontés par les équipes." },
+  { title: "Indicateurs", text: "Les trois indicateurs de résultat du programme (leçon 4), avec une phrase d'explication chacun." },
+  { title: "Relevé de décisions", text: "Publié dans la journée : qui a décidé quoi, sur quelle base, avec quelle échéance." },
+]} />
+
+Trois principes empêchent le comité de devenir une chambre d'enregistrement ou un goulot :
+
+- **séparer rédaction, approbation et contrôle** : l'AppSec rédige, le comité approuve, la CI et l'audit vérifient. Celui qui écrit la règle n'est pas celui qui l'approuve ;
+- **déléguer par niveau de risque** : un risque faible se décide dans l'équipe, un risque élevé au comité, un risque critique à la direction. Seuls les cas au-delà d'un seuil montent ;
+- **tracer le désaccord** : quand le comité tranche contre l'avis de l'AppSec, l'avis et la décision sont écrits. M30 (leçon 2) détaille ce que Kohnfelder dit du désaccord documenté.
+
+## Comment une exception remonte
+
+La politique fixe la matrice ; la leçon 3 décrit l'outillage. La matrice tient en un tableau :
+
+| Risque résiduel | Qui peut accepter | Durée maximale | Vu par le comité |
+| --- | --- | --- | --- |
+| Faible | Propriétaire produit | 12 mois | Dans le rapport mensuel |
+| Moyen | Responsable d'ingénierie, sur avis AppSec | 6 mois | Oui, pour information |
+| Élevé | CTO, en comité | 3 mois | Oui, pour décision |
+| Critique | Direction générale | 1 mois, renouvelable une fois | Oui, avec plan de sortie |
+
+L'essentiel n'est pas les chiffres, mais le fait qu'ils existent avant la demande. Sans matrice, chaque exception devient une négociation où gagne celui qui crie le plus fort ou livre le plus tôt.
+
+<Callout kind="case">
+Le Cyber Safety Review Board américain a analysé l'intrusion de Storm-0558 dans Exchange Online, à l'été 2023 (rapport publié en avril 2024). Les attaquants avaient forgé des jetons avec une clé de signature MSA créée en 2016. Selon le rapport, Microsoft faisait tourner ces clés manuellement et rarement, puis a cessé toute rotation en 2021 après une panne majeure liée à cette procédure, sans créer d'alerte sur l'âge des clés actives. Le Board qualifie cette décision, avec l'absence de priorité donnée à l'automatisation, d'exemples troublants de processus de décision qui ne plaçaient pas la gestion des risques au niveau de la menace, et parle d'une culture d'entreprise qui avait fait passer au second plan les investissements de sécurité. Le rapport ne dit pas qu'une acceptation formelle du risque a été documentée. C'est précisément le problème qu'une gouvernance doit traiter : une décision opérationnelle qui change le niveau de risque doit passer par le circuit où ce risque se décide, avec une échéance.
+</Callout>
+
+## La revue annuelle
+
+Une politique meurt de deux façons : personne ne la lit, ou elle ne correspond plus à ce que fait l'organisation. La revue annuelle traite les deux, et elle se prépare avec des données plutôt qu'avec une relecture :
+
+- **ce qui est utilisé** : pour chaque règle d'un standard, combien de violations détectées, d'exceptions demandées, de contournements constatés. Une règle sans aucune violation ni exception est soit parfaitement appliquée, soit jamais vérifiée : reste à savoir laquelle ;
+- **ce qui coince** : des exceptions répétées sur une même règle signalent une règle irréaliste ou un paved road qui manque, pas des équipes indisciplinées ;
+- **ce qui a changé** : nouvelles obligations (le signalement CRA depuis le 11 septembre 2026, leçon 5), nouvelle architecture, incidents de l'année ;
+- **ce qui disparaît** : retirer une règle obsolète est aussi un résultat. Un standard qui ne fait que grossir finit par ne plus être lu.
+
+La revue se conclut en comité par une décision par document (reconduit, modifié, retiré) et une nouvelle date de revue. Le relevé de cette séance est la preuve qu'un client ou un auditeur demandera.
+
+<Callout kind="novafact">
+Première revue annuelle chez Novafact. Le standard API passe tel quel. Le standard de journalisation est réécrit : sa règle sur la rétention de 13 mois avait fait l'objet de quatre exceptions, toutes motivées par le coût de stockage des journaux de débogage ; la nouvelle version distingue journaux de sécurité et journaux techniques. Deux règles du standard de conteneurs sont retirées, devenues inutiles depuis le passage à Fargate. Le relevé tient en une page.
+</Callout>
+
+<Callout kind="debate">
+Faut-il un comité dédié à la sécurité produit, ou ajouter le sujet au comité d'architecture existant ? Pour un comité dédié : les risques ont un temps garanti et ne passent pas après les sujets de plateforme. Contre : une instance de plus, avec les mêmes personnes, et la sécurité traitée à part de l'architecture qu'elle concerne. Dans une petite organisation, une demi-heure réservée en tête du comité d'architecture, avec son propre relevé de décisions, est souvent un compromis suffisant.
+</Callout>
+
+<Recap items={[
+  "La gouvernance rend les choix du programme stables, connus et opposables, et organise leur évolution.",
+  "Trois niveaux : la politique (pourquoi, quoi), le standard (exigences vérifiables), le guide (comment).",
+  "Chaque document a un propriétaire, un approbateur et une date de prochaine revue, vérifiable par la CI.",
+  "Le comité sépare rédaction, approbation et contrôle, délègue par niveau de risque et trace les désaccords.",
+  "La matrice d'acceptation existe avant la demande d'exception ; Storm-0558 montre ce que coûte une décision de risque prise hors circuit.",
+  "La revue annuelle part des données d'usage et se conclut par une décision par document, y compris le retrait.",
+]} />
+
+<Sources items={[
+  { title: "OWASP SAMM : Policy & Compliance", url: "https://owaspsamm.org/model/governance/policy-and-compliance/" },
+  { title: "NIST SP 800-218, SSDF version 1.1", url: "https://csrc.nist.gov/pubs/sp/800/218/final", note: "pratique PO.1" },
+  { title: "CSRB, Review of the Summer 2023 Microsoft Exchange Online Intrusion (2024)", url: "https://www.cisa.gov/sites/default/files/2025-03/CSRBReviewOfTheSummer2023MEOIntrusion508.pdf", note: "p. 5, 11 et 22" },
+  { title: "Loren Kohnfelder, Designing Secure Software", url: "https://nostarch.com/designing-secure-software", note: "chapitre 7" },
+]} />

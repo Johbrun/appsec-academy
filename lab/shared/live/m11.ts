@@ -55,7 +55,7 @@ export const m11: ExerciseDef[] = [
     goal:
       'Construire dans `threats/tenant-breach.deciduous.yaml` l’arbre qui mène au vol d’une facture d’un autre tenant, et montrer que chaque chemin est coupé par une mitigation réellement implémentée.',
     file: 'threats/tenant-breach.deciduous.yaml',
-    lessons: ['m11/l03', 'm08/l10'],
+    lessons: ['m11/l03', 'm08/l11'],
     hints: [
       'Le format, dans l’esprit de Deciduous : `facts: [{id, label}]`, `attacks: [{id, label, from: [], challenge?}]`, `goals: [{id, label, from: []}]`, `mitigations: [{id, mitigates: [], implemented_by, evidence}]`.',
       'Une mitigation ne compte que si elle est faite : `implemented_by` doit désigner un fichier du corrigé (`solutions/…`) et `evidence` un fragment de code qu’on y retrouve vraiment.',

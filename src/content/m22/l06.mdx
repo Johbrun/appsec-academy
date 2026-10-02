@@ -1,0 +1,147 @@
+export const questions = [
+  {
+    q: "En v19, les fiches techniques d'ATT&CK ne citent plus de motif CAPEC. Où se lit désormais le lien entre les deux, et avec quel défaut ?",
+    options: [
+      "Dans les Detection Strategies, qui reprennent les motifs CAPEC comme hypothèses de détection",
+      "Nulle part : MITRE a déprécié CAPEC en 2025 au profit des Analytics d'ATT&CK",
+      "Dans D3FEND, qui relie chaque motif CAPEC à la contre-mesure et à la technique correspondantes",
+      "Dans les Taxonomy Mappings de CAPEC, figés depuis la version 3.9 de 2023 et parfois périmés",
+    ],
+    answer: 3,
+    explain: "Le lien se lit côté CAPEC, dans ses correspondances vers ATT&CK. Or la dernière version de CAPEC (3.9) date de janvier 2023 : CAPEC-578 pointe encore vers T1562.008, révoquée en v19 au profit de T1685.002. CAPEC n'est pas déprécié, il évolue simplement moins vite qu'ATT&CK. Les Detection Strategies ne citent pas CAPEC, et D3FEND relie des contre-mesures aux techniques ATT&CK, pas aux motifs CAPEC.",
+  },
+  {
+    q: "Storm-0558 relève de T1606 Forge Web Credentials, que CAPEC-196 relie à CWE-384 et CWE-664. Quelles faiblesses décrivent la cause réelle établie par le CSRB ?",
+    options: [
+      "CWE-384 Session Fixation et CWE-664, puisque ce sont celles que liste le motif CAPEC",
+      "CWE-324, une clé utilisée après sa date de retrait, et CWE-345, une authenticité mal vérifiée",
+      "CWE-798, une clé de signature écrite en dur dans le code source du service d'identité",
+      "CWE-312, une clé stockée en clair dans un vidage mémoire accessible depuis le réseau",
+    ],
+    answer: 1,
+    explain: "La clé de 2016 devait être retirée en 2021 et ne l'a pas été (CWE-324), et la validation acceptait une clé grand public pour des comptes d'entreprise (CWE-345). Les CWE de CAPEC-196 décrivent la fixation de session, sans rapport avec l'incident : la chaîne générique donne des candidats, l'incident donne la cause. L'hypothèse du vidage mémoire a été avancée par Microsoft puis corrigée en 2024 ; personne ne sait comment la clé a été obtenue, et rien n'indique qu'elle était en dur dans le code.",
+  },
+  {
+    q: "Novafact vérifie les jetons SSO de ses clients avec un cache global de clés indexé par kid. Quel correctif laisse passer un jeton signé par l'IdP d'un tenant d'essai et qui revendique l'émetteur d'un autre tenant ?",
+    options: [
+      "Résoudre le tenant depuis la route, puis vérifier avec le seul JWKS de son émetteur configuré",
+      "Vérifier que la claim iss figure dans la liste des émetteurs configurés par les clients",
+      "Exiger en plus que l'audience du jeton soit le client_id enregistré pour le tenant de la route",
+      "Construire un jeu de clés par émetteur et ne chercher le kid que dans celui du tenant attendu",
+    ],
+    answer: 1,
+    explain: "L'attaquant écrit lui-même l'iss de la victime dans son jeton, et la clé de son propre IdP est dans le cache global : signature valide, émetteur « connu », le contrôle passe. C'est le motif de Storm-0558 à l'échelle d'un SaaS : une clé d'un domaine de confiance acceptée pour un autre. Les trois autres mesures attachent la clé à l'émetteur attendu, choisi par la route et non par le jeton, et se complètent.",
+  },
+  {
+    q: "T1621 (fatigue MFA) n'est reliée à aucun motif CAPEC. Que fait l'AppSec de Novafact ?",
+    options: [
+      "Elle cherche la faiblesse de conception du flux MFA et l'écrit en exigence testable",
+      "Elle classe la technique hors périmètre : c'est de l'ingénierie sociale, pas un bug du code",
+      "Elle rattache la menace à CAPEC-98 Phishing, le motif le plus proche disponible",
+      "Elle attend une prochaine version de CAPEC avant de documenter la menace dans le modèle",
+    ],
+    answer: 0,
+    explain: "Une demande MFA approuvable d'un geste, sans limite de fréquence ni correspondance de nombre, est une décision de conception : on la nomme (CWE-307 appliquée aux défis MFA, CWE-1390 pour une authentification affaiblie) et on la transforme en exigence et en test. La classer hors périmètre ignore que le produit choisit les facteurs qu'il propose. Forcer CAPEC-98 donne un lien de façade, et attendre CAPEC, figé depuis 2023, revient à ne rien faire.",
+  },
+];
+
+<YouKnow>
+Le module 11 (leçon 4) déroule la chaîne CWE → CAPEC → ATT&CK dans le sens du threat model : de la faiblesse vers le comportement. Ici, on la remonte. On part d'une technique observée chez de vrais attaquants (leçons 2 et 5) et on cherche quelle classe de bug, dans le code ou la conception, la rend possible.
+</YouKnow>
+
+## Pourquoi remonter la chaîne
+
+Le renseignement arrive en techniques : « T1606 », « T1550.004 », « T1671 ». Le backlog, lui, se remplit de CWE, de règles SAST et de tests. Entre les deux, il manque une traduction, et c'est l'AppSec qui la fait. La question n'est pas « quelle CWE correspond à T1606 ? » dans l'absolu, mais : **quelle ligne de notre code permettrait à cette technique de réussir chez nous ?**
+
+Deux constats rendent l'exercice moins mécanique qu'il n'y paraît.
+
+**Le lien ne se lit plus que d'un côté.** Dans la version 19 d'ATT&CK, les fiches techniques ne citent plus aucun motif CAPEC : on le vérifie sur la fiche T1110.004 comme dans les données STIX publiées. La correspondance se lit désormais dans CAPEC, section *Taxonomy Mappings*. Or la dernière version de CAPEC, la 3.9, date de janvier 2023. Résultat : CAPEC-578 (*Disable Security Software*) pointe toujours vers T1562.008, que la v19 a révoquée au profit de T1685.002. Une chaîne automatisée qui ne vérifie pas le statut des identifiants (leçon 1) produit des liens morts.
+
+**Beaucoup de techniques SaaS n'ont pas de motif.** T1621, T1671 ou T1550.004 ne sont pas des bugs au sens classique : l'attaquant utilise une fonction qui marche comme prévu. Aucun motif CAPEC ne relie T1621 ou T1671 dans la version 3.9. La faiblesse est alors une **décision de conception**, et il faut la nommer soi-même.
+
+## Ce que donnent les correspondances existantes
+
+| Technique | Motif CAPEC (3.9) | CWE listées par CAPEC | CWE qui comptent dans le code de Novafact |
+| --- | --- | --- | --- |
+| T1539 Steal Web Session Cookie | CAPEC-21, CAPEC-31 | CWE-384, CWE-539, CWE-315… | CWE-1004 (cookie sans HttpOnly), CWE-613 (expiration de session insuffisante) |
+| T1550.004 Web Session Cookie | CAPEC-60 *Reusing Session IDs* | CWE-294, CWE-384, CWE-613… | CWE-613, et l'absence de liaison de la session à l'appareil |
+| T1528 Steal Application Access Token | CAPEC-21 | CWE-290, CWE-346, CWE-384… | CWE-522 (jetons mal protégés), CWE-532 (jetons dans les journaux) |
+| T1606 Forge Web Credentials | CAPEC-196 | CWE-384, CWE-664 | CWE-324, CWE-345 (cas Storm-0558, ci-dessous) |
+| T1621 MFA Request Generation | aucun | — | CWE-307 appliquée aux défis MFA, CWE-1390 |
+| T1671 Cloud Application Integration | aucun | — | CWE-1220 (scopes trop larges), CWE-451 (écran de consentement trompeur) |
+
+La colonne de droite est la seule qui produise un ticket. Les CWE listées par CAPEC sont des **candidates** génériques ; on garde celles qui correspondent à un endroit précis du code, et on en ajoute quand l'incident montre une autre cause.
+
+<Callout kind="case">
+Storm-0558 en est l'illustration. La technique est T1606, CAPEC-196 la relie à la fixation de session (CWE-384), qui n'a rien à voir avec l'incident. Le rapport du CSRB (20 mars 2024) décrit deux causes : une clé de signature grand public de 2016, qui devait être retirée en 2021 et dont la rotation avait été suspendue sans alerte sur l'âge des clés (CWE-324, *Use of a Key Past its Expiration Date*) ; et une validation de jetons qui, après la mise en place d'un point de terminaison commun publiant les clés grand public et entreprise, acceptait ces jetons pour des comptes d'entreprise (CWE-345, *Insufficient Verification of Data Authenticity*). Aucune de ces deux CWE n'est dans la fiche CAPEC.
+</Callout>
+
+## Le motif Storm-0558 dans un SaaS multi-tenant
+
+Les clients entreprise de Novafact branchent leur propre fournisseur d'identité en OIDC. Novafact récupère les JWKS de chacun et vérifie les jetons d'identité. Rien n'empêche un attaquant d'ouvrir un compte d'essai et de configurer **son** fournisseur d'identité, dont il maîtrise les clés. La première version du code les mettait toutes dans le même panier :
+
+<Diff file="apps/api/src/auth/sso/verify.ts" hlBefore="1,4,5,8" hlAfter="2,3,4,5,7,8">
+
+```ts
+const keysByKid = new Map<string, CryptoKey>(); // rempli avec les JWKS de tous les IdP clients
+
+export async function verifySsoToken(idToken: string) {
+  const { kid } = decodeProtectedHeader(idToken);
+  const key = keysByKid.get(kid ?? '');
+  if (!key) throw new HttpError(401, 'unknown_key');
+  const { payload } = await jwtVerify(idToken, key, { algorithms: ['RS256', 'ES256'] });
+  const tenant = await tenants.byIssuer(String(payload.iss)); // le jeton choisit son tenant
+  return { tenant, subject: payload.sub };
+}
+```
+
+```ts
+export async function verifySsoToken(idToken: string, tenantSlug: string) {
+  // Le tenant vient de la route /sso/:tenant/callback, jamais du jeton :
+  // c'est lui qui fixe l'émetteur, l'audience et le seul jeu de clés acceptable.
+  const tenant = await tenants.bySlug(tenantSlug);
+  const jwks = jwksFor(tenant); // createRemoteJWKSet(tenant.jwksUri), un cache par émetteur
+  const { payload } = await jwtVerify(idToken, jwks, {
+    issuer: tenant.oidcIssuer, audience: tenant.oidcClientId, algorithms: ['RS256', 'ES256'],
+  });
+  return { tenant, subject: payload.sub };
+}
+```
+
+</Diff>
+
+Le jeton d'attaque est signé par la clé de l'IdP du tenant d'essai et porte l'`iss` du tenant victime. Dans la version vulnérable, la clé est trouvée dans le cache global, la signature est valide, et le tenant est choisi d'après l'`iss`… écrit par l'attaquant. Le correctif tentant, déjà proposé en revue, ajoute `issuer: tousLesEmetteursConfigures` à `jwtVerify` : il échoue, puisque l'émetteur revendiqué fait bien partie de la liste. La correction attache la clé à l'émetteur **attendu**, déduit de la route. Le test de régression le dit en une phrase : un jeton signé par l'IdP du tenant A est refusé sur `/sso/b/callback`, et le jeton légitime du tenant B est accepté.
+
+La deuxième cause de Storm-0558 se traite de la même façon. Les clés avec lesquelles Novafact signe ses propres jetons internes ont une date de retrait, une rotation automatique, et une alerte quand une clé active dépasse son âge prévu : CWE-324 devient une exigence vérifiable, pas une bonne intention.
+
+## La méthode, en quatre questions
+
+<Steps items={[
+  { title: "Que fait la technique chez nous ?", text: "Traduire la procédure dans le vocabulaire de Novafact : quel point d'entrée, quel secret, quelle fonction." },
+  { title: "Quelle décision la rend possible ?", text: "Une ligne de code, un paramètre par défaut, un flux. C'est là que se trouve la CWE, qu'elle soit listée par CAPEC ou non." },
+  { title: "Comment l'éliminer comme classe ?", text: "Une API qui empêche l'erreur (verifySsoToken exige le tenant), une règle Semgrep qui interdit decodeProtectedHeader hors du module d'authentification, une configuration sûre par défaut." },
+  { title: "Comment prouver que c'est fait ?", text: "Un test qui rejoue la procédure et échoue, un test légitime qui passe, et l'événement qui la rendrait visible en production." },
+]} />
+
+<Callout kind="debate">
+**ATT&CK est-il un bon point de départ pour l'AppSec ?** Il est construit à partir d'intrusions observées, donc biaisé vers ce que les enquêteurs voient : comptes, postes, cloud. Les abus de logique applicative, une BOLA ou une fraude à l'avoir, y sont presque absents, et le Top 10 OWASP ou les CWE les décrivent mieux. À l'inverse, ATT&CK dit ce que les attaquants **font réellement**, ce que ne dit aucune liste de faiblesses. L'usage raisonnable : CWE et OWASP pour couvrir le code, ATT&CK pour hiérarchiser ce que le renseignement montre, et la remontée décrite ici pour relier les deux.
+</Callout>
+
+<Recap items={[
+  "Remonter la chaîne : partir d'une technique observée et chercher la décision de code ou de conception qui la rend possible chez nous.",
+  "En v19, ATT&CK ne cite plus CAPEC ; les correspondances se lisent dans CAPEC 3.9 (2023), qui pointe parfois vers des techniques révoquées.",
+  "Les CWE listées par CAPEC sont des candidates ; Storm-0558 relève de CWE-324 et CWE-345, absentes de CAPEC-196.",
+  "Dans un SaaS multi-tenant, la clé doit être liée à l'émetteur attendu, choisi par la route ; vérifier que l'iss est « connu » ne suffit pas.",
+  "Chaque traduction finit en exigence, en garde-fou de code et en test qui rejoue la procédure.",
+]} />
+
+<Sources items={[
+  { title: "MITRE CAPEC : téléchargements (version 3.9)", url: "https://capec.mitre.org/data/downloads.html" },
+  { title: "CAPEC-196 Session Credential Falsification through Forging", url: "https://capec.mitre.org/data/definitions/196.html" },
+  { title: "CAPEC-578 Disable Security Software", url: "https://capec.mitre.org/data/definitions/578.html" },
+  { title: "ATT&CK T1606 Forge Web Credentials", url: "https://attack.mitre.org/techniques/T1606/" },
+  { title: "CWE-324 Use of a Key Past its Expiration Date", url: "https://cwe.mitre.org/data/definitions/324.html" },
+  { title: "CWE-345 Insufficient Verification of Data Authenticity", url: "https://cwe.mitre.org/data/definitions/345.html" },
+  { title: "Cyber Safety Review Board : Review of the Summer 2023 Microsoft Exchange Online Intrusion (20 mars 2024)", url: "https://www.cisa.gov/sites/default/files/2024-04/CSRB_Review_of_the_Summer_2023_MEO_Intrusion_Final_508c.pdf" },
+  { title: "jose : jwtVerify et createRemoteJWKSet", url: "https://github.com/panva/jose" },
+]} />

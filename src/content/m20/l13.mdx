@@ -1,0 +1,113 @@
+export const questions = [];
+
+<YouKnow>
+Ask Novafact lit les factures d’un tenant, envoie des e-mails et crée des avoirs, à travers un serveur MCP interne. Pour un attaquant, c’est une API privilégiée pilotée par un texte qu’il peut écrire. Cette étape en fait le threat model, l’autorisation OAuth et les tests, avec les modules 28 et 29.
+</YouKnow>
+
+## Étape 13 : le serveur MCP d’Ask Novafact
+
+Le serveur `mcp.novafact.example` suit la révision **2026-07-28** de la spécification (Streamable HTTP, sans état, état porté par des *handles*) et expose trois outils : `search_invoices`, `send_invoice_email` et `create_credit_note`. Livrable : un **threat model** de ce serveur, une **autorisation** conforme à la spec, et des **tests** qui prouvent que chaque attaque échoue et que l’usage légitime passe.
+
+## Le threat model
+
+Descendez de la menace « l’agent agit au-delà des droits de l’utilisateur » (étape 2) au niveau du serveur :
+
+| Menace | Mécanisme | Parade |
+| --- | --- | --- |
+| Token passthrough | Le serveur accepte un jeton émis pour l’API et le relaie | Audience vérifiée ; jeton distinct pour l’aval (M29, leçon 5) |
+| Fuite inter-tenants | Un *handle* d’un autre tenant rejoué dans un appel d’outil | Handle lié à `user_id` et `tenant_id`, revérifié à chaque appel (M28, leçon 5) |
+| Routage divergent | La passerelle route sur `Mcp-Method`, le serveur exécute le corps | Rejet de toute incohérence en-tête / corps |
+| Lethal trifecta | Une facture piégée pousse l’agent à envoyer des données par e-mail | Destinataires limités aux contacts du tenant, confirmation humaine (M27) |
+| Scope trop large | Un jeton unique ouvre la création d’avoirs | `invoices:read` par défaut, step-up vers `credit_notes:write` |
+
+<Callout kind="case">
+En juin 2025, Asana a prévenu ses clients qu’un défaut logique de son serveur MCP avait rendu des données d’une organisation visibles par des utilisateurs d’autres organisations, entre début mai et début juin. BleepingComputer cite environ un millier de clients concernés, chiffre attribué à Asana. L’isolation des tenants se teste dans le serveur MCP lui-même ; elle ne s’hérite pas de l’API.
+</Callout>
+
+## L’autorisation, selon la spec
+
+Le serveur MCP est un **resource server** OAuth : il n’émet pas de jetons, le serveur d’autorisation de Novafact s’en charge. Ask Novafact étant un client de première partie, il est **pré-enregistré** : ni CIMD ni DCR, qui servent aux clients inconnus d’avance.
+
+<Steps items={[
+  { title: "Répondre 401 avec la découverte", text: "Sans jeton valide : 401 et WWW-Authenticate: Bearer resource_metadata=\"…\", scope=\"invoices:read\"." },
+  { title: "Publier la PRM (RFC 9728)", text: "Le document liste authorization_servers et scopes_supported. Le client y découvre l’émetteur et valide iss (RFC 9207) au retour." },
+  { title: "Valider le jeton et son audience", text: "Signature, émetteur, expiration, et aud égal à l’URI canonique du serveur MCP. Tout autre jeton est refusé." },
+  { title: "Appeler l’API en aval avec son propre jeton", text: "Le serveur est un client OAuth distinct pour l’API de facturation ; le jeton reçu ne sort jamais." },
+  { title: "Step-up par outil", text: "create_credit_note sans le scope : 403 avec error=\"insufficient_scope\" et le scope manquant, pour que le client redemande l’union des scopes." },
+]} />
+
+<Code file="services/mcp-novafact/.well-known/oauth-protected-resource.json">
+
+```json
+{
+  "resource": "https://mcp.novafact.example",
+  "authorization_servers": ["https://auth.novafact.example"],
+  "scopes_supported": ["invoices:read", "invoices:email", "credit_notes:write"],
+  "bearer_methods_supported": ["header"]
+}
+```
+
+</Code>
+
+Jeton en en-tête seulement : dans l’URL, il finirait dans les journaux d’accès. Le SDK TypeScript v2 fournit `requireBearerAuth` et un vérificateur de jetons (M29, leçon 9).
+
+## Les tests qui prouvent le refus
+
+Chaque menace reçoit un test où l’attaque **échoue**, et la suite garde un cas légitime qui **marche encore** : sinon, un serveur qui refuse tout la passerait.
+
+<Code file="services/mcp-novafact/test/authz.test.ts" hl="9,10,15,16">
+
+```ts
+// mint() signe un jeton de test avec la clé du faux AS ; on ne varie qu’un paramètre à la fois.
+test('sans jeton : 401 et pointeur vers la PRM', async () => {
+  const res = await call(app, 'search_invoices', {});
+  assert.equal(res.status, 401);
+  assert.match(res.headers['www-authenticate'], /resource_metadata=/);
+});
+
+test('jeton émis pour l’API de facturation : refusé', async () => {
+  const token = mint({ aud: 'https://api.novafact.example', scope: 'invoices:read' });
+  assert.equal((await call(app, 'search_invoices', {}, token)).status, 401);
+});
+
+test('handle d’un autre tenant : rien ne fuit', async () => {
+  const handle = await openSearch(mint({ tenant: 'A' }));
+  const res = await call(app, 'search_invoices', { handle }, mint({ tenant: 'B' }));
+  assert.ok(res.body.error && !res.body.result);  // une erreur, jamais les factures de A
+});
+
+test('avoir sans credit_notes:write : 403 insufficient_scope', async () => {
+  const res = await call(app, 'create_credit_note', { invoiceId: 'F-1' }, mint({ scope: 'invoices:read' }));
+  assert.equal(res.status, 403);
+  assert.match(res.headers['www-authenticate'], /insufficient_scope/);
+});
+
+test('cas légitime : le bon jeton lit les factures de son tenant', async () => {
+  const res = await call(app, 'search_invoices', {}, mint({ tenant: 'A', scope: 'invoices:read' }));
+  assert.equal(res.status, 200);
+});
+```
+
+</Code>
+
+Ajoutez l’incohérence `Mcp-Method` / corps, et un faux serveur d’API qui vérifie que le jeton reçu n’est **pas** celui du client.
+
+## Livrable de l’étape
+
+- Le **threat model** du serveur MCP, rattaché à celui de l’étape 2.
+- La **configuration d’autorisation** : PRM, validation de l’audience, jeton distinct pour l’aval, scopes et step-up.
+- La **suite de tests** : chaque attaque refusée, chaque cas légitime accepté, rejouée en CI.
+
+<Recap items={[
+  "Un serveur MCP est une API privilégiée pilotée par du texte : il mérite son propre threat model.",
+  "Resource server OAuth : 401 avec PRM, audience vérifiée, aucun token passthrough, jeton distinct vers l’aval.",
+  "Isolation des tenants dans le serveur MCP lui-même : un handle se lie à l’utilisateur et se revérifie.",
+  "Des tests qui prouvent le refus et le cas légitime, pour chaque menace retenue.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : Authorization", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" },
+  { title: "MCP 2026-07-28 : Security Best Practices", url: "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices" },
+  { title: "RFC 9728 : OAuth 2.0 Protected Resource Metadata", url: "https://www.rfc-editor.org/rfc/rfc9728" },
+  { title: "BleepingComputer : Asana warns MCP AI feature exposed customer data to other orgs", url: "https://www.bleepingcomputer.com/news/security/asana-warns-mcp-ai-feature-exposed-customer-data-to-other-orgs/" },
+]} />

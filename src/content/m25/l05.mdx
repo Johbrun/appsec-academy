@@ -1,0 +1,139 @@
+export const questions = [
+  {
+    q: "Une XSS sur support.novafact.example envoie un formulaire POST enctype=text/plain vers api.novafact.example, dont le parseur JSON accepte tous les types. Pourquoi aucun preflight n'est-il envoyé ?",
+    options: [
+      "Parce qu'un preflight n'est déclenché que pour les méthodes PUT, PATCH et DELETE",
+      "Parce qu'un POST en text/plain, sans en-tête ajouté, est une requête simple",
+      "Parce que la requête est same-site, et le preflight ne vise que les requêtes cross-site",
+      "Parce que l'API ne déclare aucun middleware cors, donc rien ne réclame de preflight",
+    ],
+    answer: 1,
+    explain: "Le navigateur décide seul : un GET, HEAD ou POST dont le Content-Type est text/plain, application/x-www-form-urlencoded ou multipart/form-data, sans en-tête hors liste autorisée, part directement. Un POST en application/json, lui, déclenche un preflight. Le critère est l'origine, pas le site : support et api sont deux origines. Et le serveur n'a aucun moyen de réclamer un preflight ; c'est en refusant les types inattendus qu'il ferme la porte.",
+  },
+  {
+    q: "Pourquoi la same-origin policy ne suffisait-elle plus après la divulgation de Spectre, en janvier 2018 ?",
+    options: [
+      "Parce que Spectre permettait de désactiver la SOP depuis JavaScript",
+      "Parce que Spectre exposait en clair les réponses protégées par TLS",
+      "Parce qu'une page pouvait charger des données d'un autre site dans son processus et les y lire",
+      "Parce que les iframes d'autres origines partageaient alors le DOM de la page parente",
+    ],
+    answer: 2,
+    explain: "La SOP est une règle appliquée par le moteur : elle interdit à JavaScript d'accéder à la réponse, mais si l'octet est dans la mémoire du même processus, une attaque par exécution spéculative peut le lire sans passer par l'API. D'où l'isolation des sites, qui garde ces données hors du processus. Spectre ne désactive pas la SOP, ne touche pas au chiffrement réseau, et les iframes cross-origin n'ont jamais partagé le DOM.",
+  },
+  {
+    q: "L'API reflète l'en-tête Origin dans Access-Control-Allow-Origin quand il est dans sa liste blanche, mais sans Vary: Origin, et CloudFront met la réponse en cache. Quel est le risque ?",
+    options: [
+      "Aucun : un en-tête Access-Control-Allow-Origin n'est jamais conservé par un cache",
+      "Aucun : le navigateur ajoute Vary: Origin de lui-même à toute réponse CORS",
+      "CloudFront retire ACAO des réponses servies depuis le cache, ce qui casse seulement l'application",
+      "Le cache peut servir à une origine la réponse calculée pour une autre",
+    ],
+    answer: 3,
+    explain: "Sans Vary: Origin, la clé de cache ignore l'origine : la réponse stockée, calculée pour l'origine qui l'a demandée, est servie à tout le monde. Selon le cas, l'application légitime est cassée ou une origine reçoit une autorisation qui ne lui était pas destinée. Un cache conserve les en-têtes de réponse, et le navigateur n'a aucun moyen de modifier ce que le cache a stocké. C'est un cas particulier de clé de cache mal définie (M9, leçon 6).",
+  },
+  {
+    q: "Pour « sécuriser » une route POST /api/invoices/:id/send, un collègue retire ses en-têtes CORS. Qu'est-ce que cela change pour une page d'un autre site ?",
+    options: [
+      "Elle ne lit plus la réponse, mais une requête simple est toujours exécutée",
+      "Le navigateur bloque désormais la requête avant de l'envoyer au serveur",
+      "Les cookies de Novafact ne sont plus joints aux requêtes vers cette route",
+      "La route devient aussi inaccessible aux clients non navigateurs, comme le SDK",
+    ],
+    answer: 0,
+    explain: "CORS ne gouverne que la lecture des réponses et l'autorisation des requêtes non simples. Une requête simple part, avec les cookies que SameSite autorise, et l'effet de bord a lieu même si la page ne voit rien. Retirer CORS n'ajoute aucune protection : il faut un contrôle côté serveur (type de contenu, Fetch Metadata, jeton). Les clients non navigateurs ignorent CORS entièrement.",
+  },
+];
+
+<YouKnow>
+Un pentester sait qu'une page d'un autre site peut envoyer une requête mais pas lire la réponse, et a souvent exploité des CORS trop généreux. Cette leçon reprend la règle avec précision : ce que le navigateur bloque, ce qu'il laisse passer, ce que CORS change, et pourquoi la règle a dû s'appuyer sur une isolation matérielle après 2018.
+</YouKnow>
+
+## La règle : écrire et intégrer, oui ; lire, non
+
+La same-origin policy n'interdit presque rien en émission. Elle protège la **lecture**. Le web est né avec des liens, des formulaires et des images qui pointent ailleurs, et la règle a été posée par-dessus sans casser cela :
+
+| Ce qu'une page de `evil.test` fait vers `api.novafact.example` | Autorisé ? | Conséquence |
+| --- | --- | --- |
+| Soumettre un formulaire, charger une image, `fetch` en mode `no-cors` | Oui | La requête part, avec les cookies que `SameSite` autorise : c'est le CSRF |
+| Intégrer un script, une feuille de style, une iframe | Oui | Un script intégré **s'exécute** dans la page de l'attaquant : JSONP et XSSI |
+| Lire la réponse d'un `fetch`, le DOM d'une iframe, les pixels d'une image dans un canvas | Non | Sauf autorisation CORS du serveur pour la réponse |
+| Lire les cookies, le `localStorage` de Novafact | Non | Le stockage est cloisonné par origine (par domaine pour les cookies) |
+
+Deux conséquences reviennent dans tout le bloc. D'abord, une protection contre les requêtes inter-sites ne peut pas venir de la SOP : elle vient du serveur (jeton, en-tête exigé, Fetch Metadata) ou du cookie (`SameSite`, leçon 6). Ensuite, une réponse qui **s'exécute** quand on l'intègre (du JavaScript, ou un JSON qui en est syntaxiquement) peut fuir par simple inclusion : `X-Content-Type-Options: nosniff` et `Cross-Origin-Resource-Policy` ferment ce canal (leçon 7).
+
+L'origine utilisée ici est celle définie en leçon 3 : schéma, hôte, port. `app.novafact.example` et `api.novafact.example` sont deux origines, même si elles sont le même site. L'ancien moyen de les fusionner, l'affectation de `document.domain`, n'a plus d'effet par défaut depuis Chrome 115 : un bon débarras, car il permettait à n'importe quel sous-domaine compromis de rejoindre l'origine parente.
+
+## Requêtes simples et preflight
+
+Pour les requêtes émises par `fetch`, le navigateur distingue deux cas. Une requête **simple** (GET, HEAD ou POST, sans en-tête ajouté hors d'une courte liste, et avec un `Content-Type` parmi `application/x-www-form-urlencoded`, `multipart/form-data` et `text/plain`) part directement : c'est ce qu'un formulaire HTML savait déjà faire, la spécification n'ouvre donc rien de neuf. Toute autre requête est précédée d'un **preflight**, un `OPTIONS` qui demande au serveur s'il accepte la méthode et les en-têtes. Sans réponse favorable, la vraie requête ne part pas.
+
+Le preflight protège donc les serveurs qui reçoivent du JSON, des `PUT` ou un en-tête `Authorization`, à une condition : que le serveur n'accepte **que** ces formes-là. Un parseur trop accueillant transforme une requête simple en appel d'API :
+
+<Diff file="apps/api/src/app.ts" hlBefore="1-2" hlAfter="1-7">
+
+```ts
+// Certains clients envoient « text/plain » par erreur : on parse tout comme du JSON
+app.use(express.json({ type: '*/*' }));
+```
+
+```ts
+// Seul application/json est accepté sur les écritures : un formulaire d'un autre site ne sait pas l'envoyer sans preflight
+const WRITES = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+app.use((req, res, next) => {
+  if (WRITES.has(req.method) && !req.is('application/json')) return res.status(415).json({ error: 'Type de contenu non pris en charge' });
+  next();
+});
+app.use(express.json()); // type par défaut : application/json
+```
+
+</Diff>
+
+Le payload qui casse la version vulnérable est un formulaire `enctype="text/plain"` dont l'unique champ s'appelle `{"invoiceId":"inv_123","to":"x@evil.test","pad":"` et vaut `"}` : le navigateur concatène nom, `=` et valeur, et le corps devient un JSON valide. Le mauvais correctif consiste à exiger `Content-Type: application/json` seulement sur quelques routes « sensibles » : la suivante, ajoutée en urgence, l'oubliera. Le contrôle doit être global.
+
+## CORS : un assouplissement, pas une protection
+
+CORS permet au serveur de dire au navigateur : « cette origine-là peut lire ma réponse ». Il n'ajoute aucune restriction à la situation par défaut ; il en retire. Les règles qui comptent :
+
+- `Access-Control-Allow-Origin: *` est refusé par le navigateur dès que la requête porte des identifiants (cookies) : il faut nommer l'origine et ajouter `Access-Control-Allow-Credentials: true`. C'est pour cela que les configurations « refléter l'origine reçue » existent, et qu'elles sont dangereuses (M8, leçon 2).
+- Une réponse dont `Access-Control-Allow-Origin` dépend de l'en-tête `Origin` doit porter `Vary: Origin`. Sinon, un cache la sert à la mauvaise origine : un cas de clé de cache mal définie (M9, leçon 6).
+- Retirer CORS d'une route ne la protège pas des requêtes simples : il empêche seulement de lire la réponse.
+
+<Lab id="ps-cors" />
+
+## Isolation des sites : quand la règle logicielle ne suffit plus
+
+<Callout kind="case">
+**Spectre (janvier 2018) et l'isolation des sites.** Les attaques par exécution spéculative ont montré qu'un JavaScript pouvait lire, par canal auxiliaire, des octets présents dans la mémoire de son propre processus, sans passer par aucune API. Or rien n'empêchait une page d'intégrer une image ou un script d'un autre site, et donc de faire charger ces données dans son processus. Chrome a répondu par l'**isolation des sites** : depuis Chrome 67, sur ordinateur, chaque site a ses propres processus, et le mécanisme CORB (Cross-Origin Read Blocking) évite de livrer au processus d'une page des réponses HTML, XML, JSON ou PDF d'un autre site que CORS n'autorise pas. Sur Android, l'isolation a commencé avec Chrome 77, pour les sites où l'utilisateur se connecte.
+</Callout>
+
+Trois limites de l'isolation des sites servent en M8 et M9. Elle isole par **site**, pas par origine : les sous-domaines de `novafact.example` peuvent partager un processus. Elle ne protège pas ce que la page **intègre volontairement** : une image ou un script chargé en mode `no-cors` reste dans le processus de l'attaquant, d'où `Cross-Origin-Resource-Policy`. Et elle ne coupe pas les références entre fenêtres : une page qui en ouvre une autre garde un `window` vers elle, d'où COOP. Les en-têtes qui renforcent l'isolation (COOP, CORP, COEP) sont présentés en leçon 7 et déployés en M8 (leçon 7) ; les fuites qui subsistent malgré tout, les XS-Leaks, sont en M9 (leçon 12).
+
+## En pratique
+
+- Chercher dans le code les parseurs de corps configurés avec un `type` élargi (`*/*`, `text/*`) et les routes qui lisent `req.body` sans passer par le parseur JSON : chacune accepte une requête simple.
+- Lister les routes `GET` qui modifient un état (annuler, valider, se désabonner) : la SOP et le preflight ne les protègent jamais, et `SameSite=Lax` les laisse passer en navigation.
+- Pour chaque réponse CORS, vérifier trois choses : origine exacte, `Access-Control-Allow-Credentials` seulement là où c'est nécessaire, `Vary: Origin` présent.
+- Repérer les points de terminaison JSONP (paramètre `callback`) et les données privées servies avec un type JavaScript : ce sont les candidates à l'inclusion par une balise `script`.
+
+<Callout kind="novafact">
+Revue faite par l'équipe AppSec sur l'API : parseur JSON par défaut et refus 415 des écritures non JSON, `Vary: Origin` ajouté sur les réponses CORS, aucune route `GET` qui modifie l'état, et CORP `same-origin` sur tout ce qui n'est pas explicitement public. Le centre d'aide du prestataire, bien que « same-site », est traité comme une origine hostile dans la liste CORS.
+</Callout>
+
+<Recap items={[
+  "La SOP protège la lecture ; l'envoi et l'intégration restent permis. Toute défense anti-CSRF vient du serveur ou du cookie.",
+  "Une requête simple part sans preflight ; un serveur qui accepte text/plain comme du JSON perd la protection du preflight.",
+  "CORS retire une restriction, il n'en ajoute aucune ; une réponse CORS qui dépend d'Origin porte Vary: Origin.",
+  "Depuis Spectre, l'isolation des sites et CORB gardent les données des autres sites hors du processus de la page.",
+  "L'isolation se fait par site, pas par origine, et ne couvre ni l'intégration volontaire ni les références entre fenêtres.",
+]} />
+
+<Sources items={[
+  { title: "MDN : Same-origin policy", url: "https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy" },
+  { title: "MDN : Cross-Origin Resource Sharing (requêtes simples, preflight, identifiants)", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS" },
+  { title: "WHATWG : Fetch Standard (protocole CORS)", url: "https://fetch.spec.whatwg.org/#http-cors-protocol" },
+  { title: "Chromium : Site Isolation (Chrome 67, Android, CORB)", url: "https://www.chromium.org/Home/chromium-security/site-isolation/" },
+  { title: "Google Security Blog : Mitigating Spectre with Site Isolation in Chrome (11 juillet 2018)", url: "https://security.googleblog.com/2018/07/mitigating-spectre-with-site-isolation.html" },
+  { title: "MDN : Document.domain (affectation sans effet depuis Chrome 115)", url: "https://developer.mozilla.org/en-US/docs/Web/API/Document/domain" },
+  { title: "Express : express.json et l'option type", url: "https://expressjs.com/en/5x/api.html#express.json" },
+]} />

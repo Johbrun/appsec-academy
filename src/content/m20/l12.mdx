@@ -1,0 +1,75 @@
+export const questions = [];
+
+<YouKnow>
+Les rapports de pentest s’arrêtent à « impact : fuite de données ». Côté défense, c’est là que le travail commence : qualifier, décider, notifier dans les délais. Cette étape fait jouer à Novafact un incident simulé, avec la méthode du module 25.
+</YouKnow>
+
+## Étape 12 : exercice de crise
+
+Les détections de l’étape 11 disent qu’il se passe quelque chose ; reste à savoir qui décide, qui prévient les clients, et quand l’horloge réglementaire a démarré. Livrable : un **exercice sur table** préparé, joué et débriefé. Le scénario vient du registre des risques (étape 1) : la fuite inter-tenants, cotée G4.
+
+## Préparer l’exercice
+
+Le guide de l’ANSSI *Organiser un exercice de gestion de crise cyber* insiste sur la préparation, avec une équipe d’animation distincte des joueurs.
+
+<Steps items={[
+  { title: "Fixer les objectifs", text: "Trois au plus, vérifiables : cellule réunie en moins d’une heure, décision de notifier tracée dans les délais, message validé aux clients touchés." },
+  { title: "Écrire le chronogramme", text: "Les stimuli horodatés que l’animation injecte : alerte, appel d’un client, résultat d’enquête qui change la donne." },
+  { title: "Distribuer les rôles", text: "Une cellule stratégique qui décide (direction, juridique, DPO, communication), une cellule opérationnelle qui enquête et contient (AppSec, SRE), des observateurs qui notent." },
+]} />
+
+## Le scénario et sa chronologie
+
+Scénario fictif : un tenant malveillant exploite la BOLA de l’export comptable (le risque accepté de M10, leçon 6). T0 est le moment où Novafact **prend connaissance** de l’incident, pas celui de l’attaque : c’est lui qui fait courir les délais.
+
+| Heure | Stimulus | Décision attendue |
+| --- | --- | --- |
+| T0 (ven. 17 h 40) | Honeytoken (étape 11) : la facture-appât du tenant A lue par un compte du tenant B | Qualifier, réunir la cellule opérationnelle, ouvrir le journal |
+| T0 + 1 h | Journaux : 4 000 exports, environ 40 tenants touchés | Désactiver l’export, suspendre B, préserver les preuves |
+| T0 + 3 h | Les factures contiennent noms, adresses et IBAN | Réunir la cellule stratégique : violation de données probable |
+| T0 + 20 h | Un tenant appelle : « nos factures circulent sur un forum » | Valider le message aux clients, un seul porte-parole |
+| T0 + 48 h | Correctif en production, test inter-tenant ajouté | Compléter les notifications |
+
+Le journal de crise note chaque décision : heure, auteur, informations disponibles, options écartées. Sous incertitude, on décide avec ce qu’on sait et on l’écrit.
+
+## Les notifications et leurs délais
+
+Le cœur de l’exercice, à trancher avec le juridique et le DPO (M25, leçon 5) :
+
+| Texte | Qui | Délai | Point à trancher |
+| --- | --- | --- | --- |
+| RGPD art. 33 | Sous-traitant pour les factures, Novafact alerte chaque tenant touché dans les meilleurs délais | Le tenant, responsable de traitement, a 72 h pour notifier la CNIL | Fournir à chaque tenant nature des données, volume, mesures prises |
+| RGPD art. 34 | Les personnes, si le risque est élevé | Dans les meilleurs délais | Des IBAN exposés font pencher vers le risque élevé ; le tenant décide |
+| NIS2 art. 23 | L’autorité, si Novafact est dans le champ et l’incident significatif | Alerte 24 h, notification 72 h, rapport final un mois après | Transposition française non adoptée au 1er octobre 2026 : vérifiez le texte en vigueur |
+| CRA art. 14 | Plateforme unique de l’ENISA, si un produit au sens du CRA est touché | 24 h, 72 h, puis rapport final | La route est-elle indispensable au SDK `@novafact/sdk` ? (M26, leçon 6) |
+
+<Callout kind="warn">
+Ces délais résument les textes européens : recoupez-les sur EUR-Lex et la loi française avant de les mettre dans un runbook, et faites valider la qualification (sous-traitant, entité NIS2, produit CRA) **avant** la crise. Si elle manque le jour de l’exercice, c’est une action du post-mortem.
+</Callout>
+
+## Le post-mortem
+
+À froid, sans recherche de coupable (M25, leçon 6) : pourquoi le système a permis l’erreur, pas qui l’a commise.
+
+Reconstituez la chronologie technique et celle des décisions, puis remontez à la cause racine : pas la ligne fautive, mais une acceptation de risque prolongée sans plan de sortie et une route hors de la DAL par tenant. Chaque action a un propriétaire, une date et un critère de clôture, et rejoint le registre des risques ou la roadmap (étape 14). Exemple : « modèles de notification (tenants, NIS2, CRA) validés par le juridique et rangés dans le runbook ; DPO ; fin du trimestre ».
+
+## Livrable de l’étape
+
+- Le **dossier d’exercice** : objectifs, scénario, chronogramme, rôles.
+- Le **journal de crise** et le **tableau des notifications** joué, avec la qualification de chaque obligation.
+- Le **post-mortem** sans recherche de coupable et son **plan d’actions** suivi.
+
+<Recap items={[
+  "Un exercice sur table se prépare : objectifs vérifiables, chronogramme, animation distincte des joueurs.",
+  "T0 est la prise de connaissance de l’incident : c’est elle qui fait courir les délais.",
+  "RGPD, NIS2 et CRA se qualifient avant la crise, avec le juridique ; les délais se recoupent sur les textes.",
+  "Le post-mortem cherche la cause racine dans le système et finit par des actions suivies.",
+]} />
+
+<Sources items={[
+  { title: "ANSSI : organiser un exercice de gestion de crise cyber", url: "https://messervices.cyber.gouv.fr/guides/organiser-un-exercice-de-gestion-de-crise-cyber" },
+  { title: "ANSSI : crise cyber, les clés d’une gestion opérationnelle et stratégique", url: "https://messervices.cyber.gouv.fr/guides/crise-cyber-les-cles-dune-gestion-operationnelle-et-strategique" },
+  { title: "CNIL : notifier une violation de données personnelles", url: "https://www.cnil.fr/fr/notifier-une-violation-de-donnees-personnelles" },
+  { title: "NIS2, article 23 (miroir non officiel, à recouper sur EUR-Lex)", url: "https://www.nis-2-directive.com/NIS_2_Directive_Article_23.html" },
+  { title: "Commission européenne : obligations de signalement du CRA", url: "https://digital-strategy.ec.europa.eu/en/policies/cra-reporting" },
+]} />

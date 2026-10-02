@@ -1,0 +1,171 @@
+export const questions = [
+  {
+    q: "La story « changer l'IBAN de réception » a pour critère d'acceptation : « l'administrateur peut modifier l'IBAN depuis les paramètres ». Qu'est-ce qui manque d'abord à ce critère, du point de vue de la sécurité ?",
+    options: [
+      "Le format de validation de l'IBAN, qui doit être vérifié avec la clé de contrôle",
+      "Les cas où la modification est refusée, retardée ou notifiée, écrits comme des critères",
+      "Le nom de la bibliothèque de chiffrement utilisée pour stocker l'IBAN en base",
+      "Le niveau ASVS visé par la story, pour que l'auditeur sache quoi vérifier",
+    ],
+    answer: 1,
+    explain: "Le critère ne décrit que le chemin heureux : il sera validé par une démonstration où l'administrateur change l'IBAN, y compris si un voleur de session peut le faire. La clé de contrôle de l'IBAN est une validation de format utile, mais elle ne dit rien de qui a le droit d'agir. Le choix d'une bibliothèque de chiffrement relève du design doc, pas de la spécification fonctionnelle. Le niveau ASVS est une référence de catalogue, pas un comportement testable : c'est sa traduction en refus, délais et notifications qui manque.",
+  },
+  {
+    q: "La matrice des droits de Novafact contient la ligne « comptable × exporter × factures ». Pourquoi la spécification ajoute-t-elle une colonne « tenant » plutôt que de se contenter du rôle ?",
+    options: [
+      "Parce qu'un rôle est global à la plateforme et doit être redéclaré pour chaque client",
+      "Parce que le rôle dit quelles actions sont permises, pas sur quels objets elles portent",
+      "Parce que le tenant détermine le niveau de journalisation exigé pour l'export",
+      "Parce que les comptables de deux tenants n'ont pas les mêmes permissions par défaut",
+    ],
+    answer: 1,
+    explain: "Une matrice rôle × action est exactement celle qui produit les BOLA : le comptable a bien le droit d'exporter, et la question qui reste ouverte est « les factures de qui ? ». La colonne tenant (et plus largement la relation à l'objet) fait de cette question un critère explicite, donc un test. Les rôles de Novafact sont définis par tenant, mais ce n'est pas ce qui justifie la colonne. La journalisation ne dépend pas du tenant, et des permissions qui différeraient d'un tenant à l'autre seraient une autre affaire, celle de la personnalisation des rôles.",
+  },
+  {
+    q: "En atelier, le PO refuse la double validation du changement d'IBAN pour les tenants d'une seule personne : « ils n'ont pas de second administrateur ». Quelle est la bonne suite ?",
+    options: [
+      "Maintenir l'exigence : la sécurité ne se négocie pas avec le produit sur un flux de paiement",
+      "Abandonner la mesure pour ces tenants, puisqu'elle ne peut pas s'appliquer à eux",
+      "Écrire une variante pour ce cas (délai et notification) et consigner le risque accepté",
+      "Reporter la décision à la revue de conception, où l'architecte tranchera",
+    ],
+    answer: 2,
+    explain: "Le PO a raison sur le fait : l'exigence est inapplicable telle quelle à une partie des clients, et l'imposer bloquerait la fonctionnalité. Mais l'abandonner purement laisse le scénario de la session volée sans réponse. La spécification fonctionnelle est le bon endroit pour écrire la variante (un délai de prise d'effet avec notification sur un canal déjà connu) et la décision d'acceptation, signée par celui qui porte le risque. Repousser à la revue de conception fait trancher une question produit par quelqu'un qui n'en est pas le propriétaire.",
+  },
+  {
+    q: "Quelle phrase appartient à la spécification fonctionnelle de sécurité, plutôt qu'au design doc ?",
+    options: [
+      "Le jeton de réinitialisation est un HMAC de 256 bits stocké haché, valable 20 minutes",
+      "Le worker d'export reçoit un contexte de tenant signé par l'API, jamais lu dans le message",
+      "Les demandes de réinitialisation sont limitées par Redis à 5 par heure et par adresse",
+      "Une demande de réinitialisation répond pareil, que l'adresse ait un compte ou non",
+    ],
+    answer: 3,
+    explain: "La réponse identique est un comportement observable de l'extérieur, que le produit doit accepter (le message ne pourra pas dire « adresse inconnue ») et qu'un test de bout en bout vérifie. Les trois autres décrivent comment on obtient une propriété : format et stockage du jeton, mécanisme d'isolation du worker, technologie de limitation. Ce sont des choix techniques, qui ont leur place dans le design doc et qui renvoient au critère fonctionnel qu'ils servent.",
+  },
+];
+
+<YouKnow>
+En pentest, il arrive souvent qu'une faille signalée soit contestée par l'équipe : « c'est le comportement voulu ». Personne n'avait écrit le contraire. La spécification fonctionnelle de sécurité est ce texte qui manquait : ce que le produit refuse, à qui, et comment on le prouve, écrit avant le code et avec le produit.
+</YouKnow>
+
+## Trois documents, trois questions
+
+Le bloc C produit trois écrits qu'on confond facilement :
+
+| Document | Question | Rédigé par | Exemple Novafact |
+| --- | --- | --- | --- |
+| **Exigences** (M12, leçon 1) | Que doit garantir le système, en général ? | AppSec, à partir d'ASVS et de M11 | ASVS 8.2.2 : accès aux données réservé à qui a une permission explicite sur elles |
+| **Spécification fonctionnelle de sécurité** (cette leçon) | Que voit-on faire, ou refuser, dans *cette* fonctionnalité ? | Le PO et l'équipe, avec l'AppSec | « Un comptable qui ouvre la facture d'un autre tenant obtient la même page qu'une facture inexistante » |
+| **Design doc** (leçon 10) | Comment le construit-on ? | Les développeurs | « La DAL ajoute `tenantId` issu de la session à toute requête ; aucune route ne lit le tenant dans l'URL » |
+
+Entre les deux, la spécification fonctionnelle décrit le **comportement observable de l'extérieur** : ce qu'un utilisateur, un attaquant ou un test de bout en bout constatent. C'est elle que les tests de M17 vérifient, et chaque choix technique de la leçon 10 renvoie à l'un de ses critères. Le test pour classer une phrase : si elle change quand on remplace PostgreSQL par DynamoDB, elle va dans le design doc ; si elle change ce que le client voit ou subit, elle va dans la spécification, et le PO doit l'avoir lue.
+
+## Les user stories de sécurité
+
+Il en existe deux sortes, et un backlog sain contient les deux.
+
+**Les fonctionnalités de sécurité**, que l'utilisateur voit et demande : « en tant qu'administrateur de tenant, je vois les sessions actives et je peux les révoquer ». Elles ont une valeur produit et se priorisent comme les autres ; les 36 stories publiées par SAFECode en 2012 sont un bon point de départ.
+
+**Les contraintes de sécurité d'une story métier** : « exporter les factures du trimestre » porte des règles sur qui exporte, quoi, combien de fois. Personne ne les a demandées, donc on les oublie. Elles s'écrivent comme **critères d'acceptation** de la story métier, pas comme une story « sécurité » séparée qui glissera de sprint en sprint.
+
+## Des critères d'acceptation où le refus est un critère
+
+Un critère qui ne décrit que le chemin heureux sera validé par une démonstration du chemin heureux. Le refus se rédige, se démontre et se teste.
+
+<Code file="docs/specs/changement-iban.feature">
+
+```text
+# language: fr
+# Spécification fonctionnelle : SPEC-PAY-03, revue PO + AppSec le 2026-09-14
+Fonctionnalité: Changer l'IBAN de réception des paiements
+
+  Scénario: un administrateur change l'IBAN après réauthentification
+    Étant donné un administrateur du tenant A connecté depuis plus de 15 minutes
+    Quand il saisit un nouvel IBAN
+    Alors une réauthentification par passkey ou TOTP lui est demandée
+    Et l'IBAN est en attente de validation par un second administrateur
+
+  Scénario: le changement est refusé à un rôle sans le droit
+    Étant donné un comptable du tenant A
+    Quand il tente de modifier l'IBAN, par l'interface ou par l'API
+    Alors la demande est refusée sans rien modifier
+    Et un événement "iban.change_denied" est écrit dans le journal d'audit
+```
+
+</Code>
+
+Un bon critère est **observable** (ce que l'utilisateur voit et ce que le journal contient ; « par l'interface ou par l'API » ferme la porte à la route oubliée), **négatif autant que positif** (au moins un refus par action sensible, avec ce qui se passe après) et **chiffré par une décision produit** : 15 minutes et un second administrateur sont arbitrés par le PO, pas par un développeur.
+
+## La matrice des droits
+
+Pour une fonctionnalité qui touche des données, la spécification contient une **matrice des droits** : qui fait quoi sur quoi, et dans quel périmètre. Les quatre dimensions sont le rôle, l'action, l'objet et le tenant ; il faut les quatre.
+
+| Rôle | Voir une facture | Créer un avoir | Exporter | Changer l'IBAN |
+| --- | --- | --- | --- | --- |
+| Propriétaire du tenant | Son tenant | Son tenant | Son tenant | Son tenant, réauth. + délai |
+| Administrateur | Son tenant | Son tenant | Son tenant | Son tenant, réauth. + second admin |
+| Comptable | Son tenant | Son tenant, ≤ montant de la facture | Son tenant, 5 par jour | Non |
+| Lecteur | Son tenant | Non | Non | Non |
+| Support Novafact | Sur ticket, accès accordé par le client, 24 h | Non | Non | Non |
+| Destinataire d'un lien de facture | Cette facture seulement, lien expirant | Non | Non | Non |
+| Tout acteur, autre tenant | Comme inexistante | Comme inexistante | Comme inexistante | Comme inexistante |
+
+Une matrice rôle × action, sans objet ni tenant, est celle qui produit les BOLA : le comptable a bien le droit d'exporter, mais « les factures de qui ? » n'a jamais été posé. Les lignes les plus utiles sont celles qu'on n'écrit pas spontanément : le **support** (un accès borné et accordé) et le **destinataire d'un lien**, acteur sans compte que les spécifications oublient presque toujours.
+
+<Callout kind="case">
+**First American Financial (2019).** En mai 2019, Brian Krebs révèle que le site de cet assureur de titres immobiliers donnait accès, sans authentification, à environ 885 millions de documents remontant à 2003 : relevés bancaires, numéros de sécurité sociale, justificatifs de virements. Il suffisait de changer un chiffre de l'identifiant séquentiel dans le lien reçu pour son propre document. La SEC l'a sanctionnée en juin 2021, notant que ses équipes connaissaient la faille depuis des mois. La ligne « destinataire d'un lien : ce document seulement » manquait, et avec elle le test qui l'aurait vérifiée.
+</Callout>
+
+La matrice devient un jeu de tests générés (chaque cellule, deux tenants, le statut attendu), la méthode décrite en M14 (leçon 2) : une route ajoutée sans cellule fait échouer le test de complétude.
+
+## Les parcours sensibles
+
+Trois parcours concentrent le risque chez Novafact et méritent plus qu'une ligne de matrice : **réinitialisation du mot de passe**, **changement d'IBAN** et **export**. Pour chacun, la spécification répond aux mêmes questions :
+
+| Question | Réinitialisation | Changement d'IBAN | Export |
+| --- | --- | --- | --- |
+| Quelle preuve exige-t-on ? | Possession de la boîte mail | Réauthentification forte | Session active |
+| Que voit un attaquant qui sonde ? | Le même message, compte existant ou non | Un refus sans détail | Comme inexistant hors tenant |
+| Qui est prévenu ? | L'utilisateur, après coup | Tous les administrateurs | L'administrateur, au-delà d'un seuil |
+| Peut-on annuler ou revenir en arrière ? | Les autres sessions sont révoquées | Annulation pendant 72 h | Le lien expire en 1 h |
+| Que trace le journal d'audit ? | Demande et usage du lien | Demande, validation, annulation | Demande, périmètre, téléchargement |
+
+Ce tableau dit *quoi*, jamais *comment* : le jeton de réinitialisation relève de M14 (leçon 1) et du design doc. Mais « que voit un attaquant qui sonde » a une conséquence produit directe : le message ne dira jamais « adresse inconnue », et le support devra l'expliquer.
+
+## Relire les cas d'abus avec le PO
+
+Les cas d'abus s'écrivent en atelier (M12, leçon 1). Relus avec le PO, chacun débouche sur **une décision du produit**, consignée dans la spécification :
+
+<Steps items={[
+  { title: "Traiter", text: "Le cas devient un critère et un test : une session volée ne change pas l'IBAN sans réauthentification ni second administrateur." },
+  { title: "Adapter", text: "Un tenant d'une seule personne n'a pas de second administrateur : délai de 72 h et notification sur l'adresse connue à la place." },
+  { title: "Accepter", text: "La décision est écrite, signée par celui qui porte le risque, avec une date de réexamen (M10)." },
+]} />
+
+Le PO n'est pas un obstacle : il connaît les clients, sait que les petites entreprises n'ont qu'un administrateur. Une exigence que le produit n'a pas comprise est contournée au premier ticket client ; une variante qu'il a négociée, il la défend.
+
+<Callout kind="novafact">
+Revue (fictive) de la spec d'export : 11 critères dont 5 de refus, 4 cas d'abus relus. La limite de 5 exports par jour passe à 20 pour les cabinets comptables, avec alerte (adapté) ; l'export depuis un nouvel appareil reste possible sans réauthentification, avec notification (accepté, réexamen dans six mois). Chaque critère porte un identifiant `SPEC-EXP-nn`.
+</Callout>
+
+## De la spécification aux tests
+
+Chaque critère porte un **identifiant stable**, cité par le design doc et par les tests : c'est la matrice de traçabilité de M12 (leçon 2), alimentée dès la conception. En revue de conception (leçon 11), un design doc qui ne dit pas comment il satisfait `SPEC-PAY-03` a un trou, quel que soit le soin apporté au reste.
+
+<Recap items={[
+  "Exigences (le catalogue), spécification fonctionnelle (le comportement observable), design doc (le comment).",
+  "Le refus est un critère d'acceptation : observable, négatif autant que positif, chiffré par une décision produit.",
+  "La matrice des droits a quatre dimensions : rôle, action, objet, tenant ; sans les deux dernières, elle fabrique des BOLA.",
+  "Les parcours sensibles se spécifient question par question : preuve, ce que voit l'attaquant, notification, retour arrière, journal.",
+  "Chaque cas d'abus relu avec le PO débouche sur une décision écrite : traiter, adapter ou accepter.",
+]} />
+
+<Sources items={[
+  { title: "SAFECode : Practical Security Stories and Security Tasks (2012)", url: "https://safecode.org/publication/SAFECode_Agile_Dev_Security0712.pdf" },
+  { title: "OWASP ASVS 5.0 : chapitre V8 Authorization", url: "https://github.com/OWASP/ASVS/blob/master/5.0/en/0x17-V8-Authorization.md" },
+  { title: "OWASP Cheat Sheet : Authorization", url: "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html" },
+  { title: "OWASP Cheat Sheet : Abuse Case", url: "https://cheatsheetseries.owasp.org/cheatsheets/Abuse_Case_Cheat_Sheet.html" },
+  { title: "KrebsOnSecurity : First American Financial (mai 2019)", url: "https://krebsonsecurity.com/2019/05/first-american-financial-corp-leaked-hundreds-of-millions-of-title-insurance-records/" },
+  { title: "SEC : sanction de First American (2021)", url: "https://www.sec.gov/news/press-release/2021-102" },
+]} />

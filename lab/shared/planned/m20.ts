@@ -19,7 +19,7 @@ export const m20: ExerciseDef[] = [
   P('capstone-design-review', 'm20', 'Étape 2 · Design doc et revue de conception', 3, 'artifact', 'CWE-1059', ['D4'],
     'Une nouvelle fonctionnalité — l’export comptable multi-tenant — arrive en conception. C’est le moment le moins cher pour la corriger.',
     'Écrire le design doc, mener la revue selon les six étapes, et classer les constats en Must / Ought / Should.',
-    'capstone/02-design/', ['m20/l04', 'm08/l10', 'm08/l09'],
+    'capstone/02-design/', ['m20/l04', 'm08/l11', 'm08/l10'],
     'Le harnais vérifie la présence des rubriques du gabarit, que chaque constat cite un élément du design, et que les positions divergentes sont documentées. Le designer a le dernier mot : ce qui compte est que le désaccord soit tracé, pas qu’il soit gagné.', [6, 7]),
 
   P('capstone-threat-model', 'm20', 'Étape 3 · Threat model', 3, 'artifact', 'CWE-1059', ['D4'],

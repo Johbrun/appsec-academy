@@ -1,0 +1,139 @@
+export const questions = [
+  {
+    q: "Une clé d’accès compromise a été désactivée. Pourquoi l’enquête doit-elle encore chercher les événements `CreateAccessKey`, `CreateLoginProfile` et `UpdateAssumeRolePolicy` faits avec cette clé ?",
+    options: [
+      "Parce que ces événements prouvent que la clé appartenait à un administrateur",
+      "Parce que l’attaquant a pu créer un autre accès, qui survit à la clé désactivée",
+      "Parce qu’AWS réactive automatiquement une clé désactivée si elle est encore utilisée",
+      "Parce que ces appels sont les seuls que CloudTrail journalise par défaut",
+    ],
+    answer: 1,
+    explain: "Un attaquant qui obtient des droits IAM installe vite une persistance : une nouvelle clé, un mot de passe console sur un utilisateur existant, un rôle dont la politique de confiance accepte désormais son propre compte. Désactiver la clé d’origine ne touche aucun de ces accès. Ces événements ne disent rien du propriétaire de la clé, AWS ne réactive jamais une clé seul, et CloudTrail journalise par défaut tous les événements de gestion, pas seulement ceux-là.",
+  },
+  {
+    q: "Un bucket de Novafact voit ses objets réécrits en SSE-C, et une règle de cycle de vie fixée à sept jours vient d’apparaître. Quel est le premier geste de confinement ?",
+    options: [
+      "Supprimer le bucket et le recréer depuis l’IaC, pour repartir d’un état sain",
+      "Supprimer immédiatement le rôle IAM utilisé par l’attaquant, avec ses sessions",
+      "Bloquer l’identité utilisée et retirer la règle de cycle de vie, après l’avoir capturée",
+      "Payer la rançon si aucune sauvegarde n’existe, pour récupérer la clé avant J+7",
+    ],
+    answer: 2,
+    explain: "Deux urgences : arrêter les écritures (refus explicite sur l’identité, révocation de ses sessions) et désamorcer la suppression programmée, sans perdre la preuve, donc en exportant la configuration avant de la retirer. Supprimer le bucket détruit les versions antérieures qui permettraient de restaurer. Supprimer le rôle casse ses usages légitimes et efface une partie du contexte d’enquête, alors qu’une politique de refus suffit. Payer n’est pas un geste de confinement, et les playbooks d’AWS le déconseillent.",
+  },
+  {
+    q: "Dans la séquence E3R de l’ANSSI, pourquoi l’éviction du « cœur de confiance » précède-t-elle l’éradication ?",
+    options: [
+      "Parce qu’on ne peut nettoyer le reste qu’à partir d’une position d’où l’attaquant est exclu",
+      "Parce que l’éviction est plus rapide que l’éradication et rassure la direction",
+      "Parce que l’éradication exige l’accord préalable de l’autorité de contrôle",
+      "Parce que le cœur de confiance contient les données métier à restaurer en premier",
+    ],
+    answer: 0,
+    explain: "Le cœur de confiance, ce sont les moyens d’administration : dans AWS, le compte de gestion de l’organisation, Identity Center, les rôles d’administration et de réponse. Tant que l’attaquant y a accès, tout nettoyage ailleurs peut être défait. L’ANSSI souligne qu’un échec de cette étape entraîne des cycles de compromission et de remédiation qui durent des mois. La rapidité et la communication ne sont pas le critère, aucune autorité n’autorise une éradication, et le cœur de confiance est l’administration, pas les données métier.",
+  },
+];
+
+<YouKnow>
+Un pentester sait lire CloudTrail du point de vue de l’attaquant : quels appels sont bruyants, lesquels passent inaperçus, comment une clé de développeur mène à un rôle d’administration. La leçon 6 de M24 a posé l’enquête de base (qui, quand, quoi, d’où, comment) et le confinement d’un rôle par `aws:TokenIssueTime`. Ici, on élargit : préparer le compte, chercher la persistance, contenir chaque type de ressource sans détruire la preuve, puis remédier.
+</YouKnow>
+
+## Ce qui doit exister avant l’incident
+
+Dans le cloud, ce qui n’est pas préparé ne s’improvise pas : un journal non activé n’existe pas rétroactivement. L’*AWS Security Incident Response Guide* (refondu en 2023) consacre d’ailleurs une large part à cette préparation. Pour Novafact, le minimum :
+
+| Élément | Pourquoi | Piège |
+| --- | --- | --- |
+| **Trail d’organisation** vers un compte d’archive des journaux | Un attaquant dans le compte de production ne peut ni lire ni effacer les journaux | L’historique d’événements de la console ne garde que 90 jours d’événements de gestion |
+| **Événements de données** S3 sur les buckets sensibles | Sans eux, on voit `ListBuckets`, pas `GetObject` (M23, leçon 2) | Coût : à cibler sur les buckets de factures et d’exports |
+| **GuardDuty** dans toutes les régions | Signale l’usage d’identifiants depuis l’extérieur, les appels anormaux | Les régions non utilisées sont celles où l’attaquant lance ses ressources |
+| **Rôle de réponse** pré-provisionné, accès d’urgence | L’équipe enquête sans demander de droits en pleine crise | Accès protégé et surveillé : c’est un rôle de très haute valeur |
+| **Requêtes prêtes** (Athena, CloudTrail Lake ou Elastic) | Les premières questions ont des réponses en minutes | Les tester sur des données réelles, pas seulement les écrire |
+
+L’outil **Invictus-AWS** d’Invictus IR illustre ce que doit pouvoir faire ce rôle : il énumère les services actifs, récupère leur configuration, extrait les journaux disponibles et lance des requêtes Athena sur CloudTrail, avec la politique gérée `ReadOnlyAccess` et une politique complémentaire fournie. Le préparer, c’est vérifier que ces quatre étapes passent avant d’en avoir besoin.
+
+## Enquêter : de l’identité à la persistance
+
+La leçon 6 de M24 reconstitue l’activité **d’une** identité. La deuxième question, plus importante, est : **qu’a-t-elle laissé derrière elle ?** Un attaquant qui obtient des droits IAM installe une persistance en quelques minutes, et désactiver la clé d’origine ne la touche pas. L’aide-mémoire CloudTrail d’Invictus IR range les événements par tactique ; ceux de persistance et d’escalade sont à chercher en premier :
+
+<Code file="enquete/persistance.esql" hl="3,4,5,6">
+
+```sql
+FROM logs-aws.cloudtrail-*
+| WHERE @timestamp > TO_DATETIME("2026-09-20T00:00:00Z")
+  AND (aws.cloudtrail.user_identity.access_key_id == "AKIA…COMPROMISE"
+       OR aws.cloudtrail.user_identity.arn LIKE "*assumed-role/novafact-ci-deploy/*")
+  AND event.action IN ("CreateAccessKey", "CreateUser", "CreateLoginProfile", "UpdateLoginProfile",
+       "AttachUserPolicy", "PutRolePolicy", "UpdateAssumeRolePolicy", "CreateRole",
+       "PutBucketPolicy", "PutBucketLifecycleConfiguration", "StopLogging", "DeleteTrail")
+| KEEP @timestamp, event.action, event.outcome, cloud.region, source.ip,
+       aws.cloudtrail.request_parameters, aws.cloudtrail.response_elements
+| SORT @timestamp ASC
+```
+
+</Code>
+
+Trois habitudes complètent la requête :
+
+- **toutes les régions** : filtrer sur `eu-west-3` parce que Novafact n’utilise que Paris, c’est rater les instances lancées à São Paulo ;
+- **les chaînes de rôles** : chaque `AssumeRole` réussi ouvre une nouvelle session, avec un nouvel identifiant à suivre ;
+- **les réponses**, pas seulement les requêtes : `CreateAccessKey` dit qu’une clé a été créée, `responseElements` dit laquelle. C’est elle qu’il faut ensuite chercher.
+
+Pour relier ces observations à une technique, le *Threat Technique Catalog for AWS* (leçon 2) décrit chaque comportement observé par l’AWS CIRT avec ses événements et sa détection.
+
+## Contenir sans détruire
+
+Le principe est constant : **couper l’accès de façon réversible, capturer la preuve avant tout geste destructif**. Sa traduction dépend de la ressource :
+
+| Ressource | Geste de confinement | À éviter |
+| --- | --- | --- |
+| Clé d’accès IAM | La rendre inactive, garder la trace de son identifiant | La supprimer tout de suite, avant d’avoir fini de la chercher dans les journaux |
+| Rôle IAM | Révoquer les sessions (`aws:TokenIssueTime`, M24 leçon 6), restreindre la politique de confiance | Supprimer le rôle, ce qui casse ses usages légitimes |
+| Instance EC2 | Instantané des volumes, groupe de sécurité d’isolement, protection contre l’arrêt | La terminer : disque et mémoire disparaissent |
+| Tâche ECS Fargate | Exporter ses journaux, noter le digest de l’image, la retirer du service | Redéployer sans garder l’image ni les journaux : il n’y a pas de disque à capturer ensuite |
+| Bucket S3 | Politique de refus sur l’identité, capture de la configuration, suspension des règles suspectes | Supprimer le bucket ou désactiver le versioning |
+| SES | Rotation des identifiants SMTP, revue des identités vérifiées | Laisser des identités de domaine ajoutées par l’attaquant |
+
+Les playbooks d’AWS (leçon 2) détaillent chaque geste ; l’important est que le choix soit fait **avant**, par ressource, et pas sous pression.
+
+<Callout kind="case">
+**Chiffrement de buckets S3 par SSE-C (2025).** En janvier 2025, Halcyon a décrit la campagne « Codefinger » : avec des identifiants AWS volés, l’attaquant réécrivait les objets S3 en SSE-C avec sa propre clé, puis posait une règle de cycle de vie qui les supprimait sous sept jours. L’AWS CIRT a publié ses propres observations, mises à jour en mars 2025 : une hausse de chiffrements SSE-C anormaux, des rafales de `CopyObject` qui réécrivaient les objets, toujours avec des identifiants valides obtenus par l’attaquant, sans vulnérabilité d’AWS. La prévention (bloquer SSE-C, versioning, Object Lock) est en M21, leçon 6. Côté réponse, l’incident fixe l’ordre : arrêter les écritures de l’identité, **exporter puis retirer** la règle de cycle de vie avant l’échéance, vérifier que le versioning conserve les versions d’avant. Et il rappelle une limite : `PutObject` et `CopyObject` sont des événements de **données**, invisibles si ce journal n’était pas activé.
+</Callout>
+
+## Remédier : la séquence E3R
+
+L’ANSSI, dans *Cyberattaques et remédiation : les clés de décision* (janvier 2024), découpe la remédiation en quatre temps, la séquence **E3R**. Elle se transpose bien à un compte AWS :
+
+<Steps items={[
+  { title: "Endiguement", text: "Freiner la progression pour gagner du temps : refus explicites, révocation des sessions, isolement. C’est le confinement vu plus haut." },
+  { title: "Éviction du cœur de confiance", text: "Reprendre les moyens d’administration : compte de gestion de l’organisation, Identity Center, rôles d’administration et de réponse, fournisseur d’identité fédéré. Tant que l’attaquant y a accès, tout le reste peut être défait." },
+  { title: "Éradication", text: "Retirer les emprises résiduelles : clés et utilisateurs créés, politiques modifiées, ressources lancées dans d’autres régions, webhooks et jetons applicatifs." },
+  { title: "Reconstruction", text: "Rebâtir ce qui ne peut être nettoyé avec certitude, depuis l’IaC (M20) et des sauvegardes vérifiées, et durcir au passage." },
+]} />
+
+L’ANSSI insiste sur l’éviction : son échec mène à des cycles de compromission et de remédiation qui peuvent durer des mois, voire des années. Dans AWS, elle a un sens précis. Si l’attaquant a créé une politique de confiance qui accepte un compte externe sur un rôle d’administration, ou ajouté un fournisseur d’identité, nettoyer le compte de production ne sert à rien tant que ces portes restent ouvertes. Le guide distingue aussi trois ambitions, de la restauration au plus vite des services vitaux à la transformation durable de la posture : ce choix est une décision de direction (leçon 4), pas une décision technique.
+
+<Callout kind="novafact">
+Le rôle de réponse de Novafact (fictif) vit dans le compte d’outillage de sécurité. Il peut lire les journaux de tous les comptes, prendre des instantanés, poser des politiques de refus et révoquer des sessions, mais pas supprimer de ressource. La suppression passe par un second rôle, qui exige deux personnes. Le runbook « accès AWS suspect » enchaîne la requête de persistance ci-dessus, la révocation des sessions et la capture de configuration des buckets touchés, avant toute éradication.
+</Callout>
+
+<Recap items={[
+  "Dans le cloud, ce qui n’est pas préparé n’existe pas : trail d’organisation, événements de données ciblés, GuardDuty partout, rôle de réponse testé.",
+  "Après l’identité, on cherche la persistance : nouvelles clés, profils de connexion, politiques de confiance, dans toutes les régions et avec les réponses.",
+  "Contenir de façon réversible et capturer avant de détruire, avec un geste choisi d’avance pour chaque type de ressource.",
+  "Contre un chiffrement SSE-C : arrêter les écritures, exporter puis retirer la règle de cycle de vie, s’appuyer sur le versioning.",
+  "E3R : endiguer, évincer du cœur de confiance, éradiquer, reconstruire ; l’éviction de l’administration conditionne tout le reste.",
+]} />
+
+<Lab id="flaws2" note="Faites le parcours « Defender » de flAWS 2 : reconstituez l’attaque dans CloudTrail, de l’identifiant volé aux données lues." />
+
+<Sources items={[
+  { title: "AWS Security Incident Response Guide", url: "https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/aws-security-incident-response-guide.pdf" },
+  { title: "AWS : Preventing unintended encryption of Amazon S3 objects (AWS CIRT, 2025)", url: "https://aws.amazon.com/blogs/security/preventing-unintended-encryption-of-amazon-s3-objects" },
+  { title: "BleepingComputer : un rançongiciel détourne SSE-C pour chiffrer des buckets S3 (janvier 2025, d’après Halcyon)", url: "https://www.bleepingcomputer.com/news/security/ransomware-abuses-amazon-aws-feature-to-encrypt-s3-buckets/" },
+  { title: "Invictus IR : Invictus-AWS et aws-cheatsheet", url: "https://github.com/invictus-ir" },
+  { title: "Invictus IR : Cloud native incident response in AWS", url: "https://www.invictus-ir.com/news/cloud-native-incident-response-in-aws---part-i" },
+  { title: "ANSSI : Cyberattaques et remédiation, les clés de décision (2024)", url: "https://messervices.cyber.gouv.fr/guides/cyberattaques-et-remediation-les-cles-de-decision" },
+  { title: "AWS CIRT : Threat Technique Catalog for AWS", url: "https://aws-samples.github.io/threat-technique-catalog-for-aws/" },
+  { title: "AWS : révoquer les identifiants temporaires d’un rôle", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_revoke-sessions.html" },
+]} />

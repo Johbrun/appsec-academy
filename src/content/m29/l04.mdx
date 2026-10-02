@@ -1,0 +1,161 @@
+export const questions = [
+  {
+    q: "Selon le guide de l’ANSSI sur la crise cyber (2021), qu’est-ce qui distingue une crise d’origine cyber d’un incident de sécurité grave ?",
+    options: [
+      "La présence d’un rançongiciel, seul scénario retenu par le guide comme une crise",
+      "La déstabilisation majeure du fonctionnement courant, que les processus habituels ne traitent plus",
+      "La notification obligatoire à une autorité, qui fait basculer l’incident en crise",
+      "L’intervention d’un prestataire externe de réponse à incident qualifié par l’ANSSI",
+    ],
+    answer: 1,
+    explain: "Le guide définit la crise cyber par son effet : une déstabilisation immédiate et majeure du fonctionnement de l’organisation, qui ne peut plus être traitée par les processus habituels. Le rançongiciel n’est qu’un exemple, avec le déni de service. Une notification réglementaire peut être due pour un incident qui n’a rien d’une crise, et faire appel à un prestataire est un choix de moyens, pas un critère de bascule.",
+  },
+  {
+    q: "En pleine crise, l’équipe technique de Novafact propose de couper l’API publique pour stopper une exfiltration en cours. Qui doit valider cette mesure ?",
+    options: [
+      "Le responsable technique seul, puisque c’est une mesure d’endiguement",
+      "Le prestataire de détection managée, qui a le contexte de l’alerte",
+      "La cellule stratégique, parce que la mesure arrête le service de tous les clients",
+      "Le DPO, parce que l’exfiltration concerne des données personnelles",
+    ],
+    answer: 2,
+    explain: "Le guide de l’ANSSI demande que les mesures d’endiguement qui ont des conséquences sur la continuité de l’activité (isolement, déconnexion d’une application, coupure d’Internet) soient validées par la cellule stratégique. La cellule opérationnelle propose, avec les options et leur coût. Le prestataire n’a que les gestes que son contrat lui délègue, et le DPO qualifie les obligations de notification sans décider de l’arrêt du service.",
+  },
+  {
+    q: "Après l’incident de son sous-traitant Sitel (2022), qu’est-ce qu’Okta a reconnu comme une erreur ?",
+    options: [
+      "Ne pas avoir obtenu plus tôt et plus fermement les informations de son sous-traitant",
+      "Avoir publié un périmètre maximal de clients touchés au lieu d’attendre le rapport final",
+      "Avoir prévenu ses clients avant d’avoir notifié les autorités de contrôle compétentes",
+      "Avoir laissé son directeur général s’exprimer au lieu d’un porte-parole technique",
+    ],
+    answer: 0,
+    explain: "Okta a écrit qu’elle aurait dû exiger plus activement les informations de Sitel, dont elle restait responsable : la tentative avait été détectée le 20 janvier 2022, mais les clients n’ont été informés qu’en mars, après la publication de captures d’écran par Lapsus$. Publier le périmètre maximal (366 clients) n’est pas ce qui lui a été reproché ; c’est le premier message, qui parlait d’une simple tentative, qui a coûté. Rien n’indique de reproche sur l’ordre autorités-clients ni sur le choix du porte-parole.",
+  },
+  {
+    q: "Un client appelle pendant la crise et demande si ses factures ont été lues. L’enquête n’a pas encore de réponse. Que doit contenir le message de Novafact ?",
+    options: [
+      "Une réponse négative provisoire, à corriger plus tard si l’enquête le contredit",
+      "Rien tant que l’enquête n’a pas abouti, pour ne pas engager la responsabilité de l’éditeur",
+      "Le détail technique de l’attaque, pour prouver la maîtrise de la situation",
+      "Ce qui est établi, ce qui ne l’est pas encore, ce qui est fait, et l’heure du prochain point",
+    ],
+    answer: 3,
+    explain: "Sous incertitude, le message utile sépare les faits établis des questions ouvertes, dit ce qui est fait et fixe le rendez-vous suivant. Une réponse négative provisoire est la pire option : si elle doit être corrigée, la confiance part avec elle. Le silence laisse le client sans moyen de protéger ses propres clients et nourrit les rumeurs. Le détail technique de l’attaque n’aide pas le client et peut servir à d’autres attaquants.",
+  },
+];
+
+<YouKnow>
+Un rapport de pentest décrit un risque à froid, pour un lecteur qui a le temps. Une crise inverse les conditions : décideurs pressés, informations partielles, clients qui appellent, et chaque phrase publiée engage l’entreprise. Au-dessus des rôles de la leçon 1, il y a le niveau où l’on décide et parle au nom de toute l’organisation.
+</YouKnow>
+
+## Quand un incident devient une crise
+
+L’ANSSI, dans *Crise d’origine cyber, les clés d’une gestion opérationnelle et stratégique* (décembre 2021, avec le CDSE), définit la crise par son effet : une **déstabilisation immédiate et majeure** du fonctionnement courant (arrêt des activités, services impossibles à rendre), qu’on ne peut plus traiter par les processus habituels. Un SEV1 de la grille de la leçon 1 peut en devenir une ; la plupart des incidents, même graves, n’en sont pas.
+
+Le guide relève cinq traits propres aux crises cyber :
+
+| Trait | Ce qu’il change pour une application SaaS |
+| --- | --- |
+| Double temporalité : impacts immédiats, remédiation de plusieurs semaines ou mois | La cellule tient dans la durée : rotations, relèves, fatigue |
+| Pas d’unité de lieu, propagation possible par les interconnexions | Les tenants, leurs intégrations et les fournisseurs sont dans le périmètre |
+| Une menace qui s’adapte à l’endiguement | Couper un accès peut déclencher une destruction ou une exfiltration plus rapide |
+| Incertitude sur le périmètre de la compromission | On décide avant de savoir quels tenants sont touchés |
+| Difficulté à comprendre les objectifs de l’attaquant | Espionnage, fraude ou rançon n’appellent pas les mêmes décisions |
+
+Le guide demande des **critères d’activation et de désactivation** écrits, connus de tous, avec deux voies : **par le bas**, quand l’équipe de réponse constate qu’un seuil est franchi, et **par le haut**, quand la direction décide de mobiliser. La chaîne d’alerte a deux modes, « alerte » et « crise », pour prévenir les décideurs sans tout mobiliser.
+
+## Deux niveaux : décider et opérer
+
+Le dispositif proposé par l’ANSSI sépare deux volets, que la leçon 1 ne distinguait pas :
+
+| | Cellule stratégique | Cellule opérationnelle cyber et IT |
+| --- | --- | --- |
+| Rôle | Face à l’extérieur : décide, arbitre, coordonne | En interne : comprend, décide au niveau technique, exécute |
+| Chez Novafact | Direction générale (directrice de crise), juridique, DPO, communication, commercial, sécurité | Commandant d’incident (leçon 1), AppSec, SRE, équipe applicative, prestataire |
+| Produit | Décisions datées, messages validés, arbitrages de continuité | Points de situation, options chiffrées, actions réalisées |
+
+Entre les deux circulent des objets que le guide nomme : une **main courante** partagée, un **rythme de bataille** (points de situation à heure fixe), une **interface unique** de type tableau de bord, et un **registre des risques et des dérogations** pour ce qu’on accepte temporairement (un service remis en ligne sans durcissement complet). À la sortie de crise, chaque dérogation devient une action à clore (leçon 6).
+
+Chez un éditeur de quarante personnes, la cellule stratégique tient en cinq personnes et une visioconférence ; ce qui compte est qu’elles sachent d’avance qu’elles en font partie, et qu’un annuaire de crise existe **hors des systèmes** qui pourraient tomber. Même logique pour le prestataire de réponse, que l’ANSSI qualifie en France selon le référentiel **PRIS** : il se choisit et se contractualise avant la crise, pas le jour de l’attaque.
+
+## Décider sous incertitude
+
+La cellule stratégique décide avec ce qu’elle sait, et ce qu’elle sait change toutes les heures. Le guide en tire des règles de pilotage. Les mesures d’endiguement qui touchent la continuité de l’activité (isoler, déconnecter une application) sont **validées par la cellule stratégique**. Les équipes techniques partagent le **niveau de confiance** qu’elles accordent aux données et aux systèmes. Le rythme des points laisse aux équipes le temps d’agir. Le paiement d’une rançon est à éviter : il entretient le système et ne garantit pas la récupération.
+
+Deux guides plus récents complètent ce cadre : *Cyberattaques et remédiation* (2024) fait du choix de la stratégie de remédiation une décision de direction (leçon 3), et *L’investigation et la qualification d’incidents* (16 septembre 2026) s’adresse aux décideurs, parce que la qualification est l’entrée de toutes les décisions qui suivent.
+
+La discipline la plus utile est d’**écrire chaque décision** au moment où elle est prise, avec ce qu’on savait :
+
+<Code file="crise/2026-11-journal-decisions.md" hl="4,5">
+
+```text
+D-07 · 14:20 UTC · Décideuse : directrice de crise (DG) · Rédigé par : scribe
+Question   : couper l'export comptable pour tous les tenants ?
+Savait-on  : 3 tenants confirmés (journaux d'accès), 41 possibles (même fenêtre, même route)
+Options    : A) couper pour tous (2 h d'indisponibilité de l'export, clôtures de fin de mois bloquées)
+             B) couper pour les 41 tenants possibles seulement (enquête incomplète sur les autres)
+Décision   : A, réexaminée au point de 16:00
+Pourquoi   : la route vulnérable n'est pas identifiée avec certitude
+Messages   : comms/export-indisponible.md, validé par le juridique, envoyé 14:40
+```
+
+</Code>
+
+Ce journal évite de rejouer la discussion, justifie la décision devant une autorité (leçon 5) et permet au post-mortem de la juger sur ce qu’on savait alors (leçon 6).
+
+## Communiquer : un plan, plusieurs publics
+
+En juin 2026, l’ANSSI a publié une nouvelle version de *Anticiper et gérer sa communication de crise cyber* : dix fiches (dialogue interne et scénarios, boîte à outils, entraînement, organisation, stratégie, messages clés, pilotage interne et externe, remerciements et RETEX, partage d’expérience) et une liste de contrôle. Son point de départ : une bonne communication de crise cyber reprend d’abord les réflexes de toute communication de crise. Le guide de 2021 en précise les spécificités : deux plans, l’un interne et l’autre externe ; un ou plusieurs **porte-parole** formés au cyber, pour que les experts restent sur la crise ; des **messages types** préparés par scénario ; des **canaux de secours** si la messagerie tombe ; un **point de contact unique** pour la presse, et un **canal sortant unique** pour les demandes techniques.
+
+Pour un éditeur SaaS, les publics et leurs besoins diffèrent nettement :
+
+| Public | Ce dont il a besoin | Porté par |
+| --- | --- | --- |
+| Équipes internes | Ce qu’on peut dire, à qui renvoyer les questions, consignes de sécurité | Communication interne, managers |
+| Clients touchés (tenants) | Ce qui les concerne, ce qu’ils doivent faire, de quoi notifier à leur tour | Liaison client, un interlocuteur par client |
+| Autorités | Faits, chronologie, mesures, dans les formes prévues (leçon 5) | DPO, juridique, responsable sécurité |
+| Presse et réseaux sociaux | Un message cohérent, une seule voix | Porte-parole |
+
+Le message à un client touché garde une structure constante, même quand l’enquête n’a pas abouti :
+
+<Code file="comms/client-tenant-touche.md" hl="3,4">
+
+```text
+Objet : Incident de sécurité concernant votre espace Novafact — point n°2, 14 nov., 18:00 UTC
+Ce qui est établi : entre le 12 nov. 22:10 et le 13 nov. 03:40 UTC, 212 factures de votre espace ont été exportées par un compte qui n'est pas le vôtre.
+Ce qui ne l'est pas encore : si d'autres données ont été consultées. Réponse attendue sous 24 h.
+Ce que nous avons fait : route d'export désactivée, sessions du compte en cause révoquées.
+Ce que vous pouvez faire : vérifier les IBAN de vos factures émises depuis le 12 nov. ; liste jointe.
+Vos obligations : ces factures contiennent des données personnelles ; votre DPO peut avoir à notifier la CNIL.
+Prochain point : 15 nov., 12:00 UTC. Contact unique : votre chargée de liaison.
+```
+
+</Code>
+
+La ligne « ce qui ne l’est pas encore », qu’on est tenté de supprimer, protège la crédibilité des messages suivants.
+
+<Callout kind="case">
+**Okta et Sitel (2022).** Le 20 janvier 2022, Okta détecte l’ajout d’un facteur d’authentification sur le compte d’un ingénieur du support de son sous-traitant Sitel, réinitialise le compte et prévient Sitel. Le 21 mars, le groupe Lapsus$ publie des captures d’écran de l’outil interne d’Okta. Le premier message public parle d’une tentative ; Okta annonce ensuite qu’au plus 366 clients ont pu être touchés. Le 25 mars, l’entreprise reconnaît une erreur : elle restait responsable de son sous-traitant et aurait dû exiger ses informations plus activement. En avril, le rapport final réduit l’impact à deux tenants, consultés pendant 25 minutes. L’erreur n’était pas le périmètre maximal, mais le délai et le premier message.
+</Callout>
+
+<Callout kind="novafact">
+L’exercice de mars (fictif) a montré que la page de statut de Novafact était hébergée dans le même compte AWS que l’application, donc exposée à la même compromission : elle a été déplacée chez un prestataire externe. Les modèles de messages par scénario sont versionnés avec les runbooks de la leçon 2 et relus par le juridique chaque semestre.
+</Callout>
+
+<Recap items={[
+  "Une crise cyber se définit par une déstabilisation majeure que les processus habituels ne traitent plus ; la bascule suit des critères écrits, par le bas ou par le haut.",
+  "La cellule stratégique décide et parle à l’extérieur, la cellule opérationnelle comprend et exécute ; main courante, rythme de bataille et registre des dérogations les relient.",
+  "Les mesures qui touchent la continuité sont validées au niveau stratégique ; chaque décision s’écrit avec ce qu’on savait au moment de la prendre.",
+  "Plans interne et externe, porte-parole, messages préparés, canaux de secours hors du système attaqué.",
+  "Sous incertitude, le message sépare l’établi de l’inconnu et fixe le prochain point ; minimiser puis corriger coûte cher.",
+]} />
+
+<Sources items={[
+  { title: "ANSSI et CDSE : Crise d’origine cyber, les clés d’une gestion opérationnelle et stratégique (2021)", url: "https://messervices.cyber.gouv.fr/guides/crise-cyber-les-cles-dune-gestion-operationnelle-et-strategique" },
+  { title: "ANSSI : Anticiper et gérer sa communication de crise cyber (nouvelle version, juin 2026)", url: "https://messervices.cyber.gouv.fr/guides/anticiper-et-gerer-sa-communication-de-crise-cyber" },
+  { title: "ANSSI : L’investigation et la qualification d’incidents (septembre 2026)", url: "https://messervices.cyber.gouv.fr/guides/investigation-qualification-incidents" },
+  { title: "ANSSI : Cyberattaques et remédiation, les clés de décision (2024)", url: "https://messervices.cyber.gouv.fr/guides/cyberattaques-et-remediation-les-cles-de-decision" },
+  { title: "BleepingComputer : Okta reconnaît une erreur dans la divulgation de l’incident Lapsus$ (mars 2022)", url: "https://www.bleepingcomputer.com/news/security/okta-we-made-a-mistake-delaying-the-lapsus-hack-disclosure" },
+  { title: "Okta : conclusion de l’enquête sur la compromission de janvier 2022 (avril 2022)", url: "https://www.okta.com/blog/company-and-culture/okta-concludes-its-investigation-into-the-january-2022-compromise/" },
+]} />

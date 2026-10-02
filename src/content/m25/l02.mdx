@@ -1,0 +1,146 @@
+export const questions = [
+  {
+    q: "Un intermédiaire HTTP/1.1 reçoit une requête qui porte à la fois Content-Length et Transfer-Encoding: chunked, et choisit de la transmettre. Que lui impose le RFC 9112 ?",
+    options: [
+      "Garder les deux en-têtes intacts : c'est au serveur d'origine de trancher",
+      "Retirer Content-Length et traiter le corps en chunked avant de transmettre",
+      "Se fier à Content-Length, plus simple à vérifier que le découpage en blocs chunked",
+      "Convertir la requête en HTTP/2, où ces deux en-têtes sont sans effet",
+    ],
+    answer: 1,
+    explain: "Transfer-Encoding l'emporte sur Content-Length, et le RFC 9112 demande à l'intermédiaire qui transmet de supprimer Content-Length et de redécouper le corps lui-même. Laisser les deux, c'est exactement laisser deux maillons choisir chacun leur lecture : la désynchronisation. Privilégier Content-Length contredit la règle et crée le même désaccord. HTTP/2 interdit Transfer-Encoding, mais la question porte sur un saut HTTP/1.1, et convertir ne règle pas ce que fera le maillon suivant.",
+  },
+  {
+    q: "Un pentester fait passer une injection SQL derrière le WAF associé à l'ALB en la plaçant après 9 Ko de JSON de remplissage. Quel réglage ferme ce contournement ?",
+    options: [
+      "Activer l'inspection « JSON body » du WAF à la place de l'inspection du corps brut",
+      "Déplacer le WAF de l'ALB vers l'ALB interne, plus proche de l'application",
+      "Une règle prioritaire qui bloque tout corps dépassant la taille inspectée",
+      "Passer l'ALB en mode de désynchronisation « strictest »",
+    ],
+    answer: 2,
+    explain: "Sur un ALB, AWS WAF n'inspecte que les 8 premiers Ko du corps, et hors console la gestion des dépassements vaut « Continue » : le reste passe sans examen, alors qu'Express lit tout. Bloquer explicitement ce qui dépasse la limite aligne ce que voit le WAF sur ce que lit l'application. L'inspection JSON a la même limite de taille. Un WAF s'associe à un ALB, CloudFront ou API Gateway, et sur l'ALB la limite reste de 8 Ko. Le mode strictest de l'ALB traite l'encadrement ambigu des requêtes, pas leur taille.",
+  },
+  {
+    q: "CloudFront reçoit en HTTP/2 une requête dont :authority vaut app.novafact.example et qui porte aussi Host: evil.test. Il la retransmet en HTTP/1.1. Que demande le RFC 9113 à cet intermédiaire ?",
+    options: [
+      "Conserver le Host reçu, qui reflète l'intention du client",
+      "Transmettre Host tel quel et ajouter X-Forwarded-Host avec la valeur de :authority",
+      "Ne rejeter la requête que si le Host reçu contient un numéro de port",
+      "Construire le Host à partir de :authority, en remplaçant celui reçu",
+    ],
+    answer: 3,
+    explain: "Le RFC 9113 impose à un intermédiaire qui fabrique un Host pour HTTP/1.1 d'utiliser la valeur de :authority et de remplacer tout Host existant, précisément pour éviter qu'un composant route sur une valeur et qu'un autre en lise une autre. Garder le Host reçu ou le doubler d'un X-Forwarded-Host recrée ce désaccord, base des attaques sur l'en-tête Host (M9, leçon 2). La présence d'un port n'a rien à voir.",
+  },
+  {
+    q: "L'API de Novafact saute l'authentification quand une requête porte x-novafact-internal: 1, posé par les autres services. Quel correctif tient ?",
+    options: [
+      "Faire supprimer cet en-tête par CloudFront sur toutes les requêtes entrantes",
+      "Authentifier chaque service par un jeton signé, à durée courte, vérifié par l'API",
+      "N'accepter l'en-tête que si req.ip appartient aux plages du VPC",
+      "N'accepter l'en-tête que sur les requêtes GET, qui ne modifient rien",
+    ],
+    answer: 1,
+    explain: "Un en-tête que le client peut écrire ne prouve rien, quel que soit le maillon censé le poser. Le filtrer à CloudFront suppose que tout le trafic y passe, ce qu'un accès direct à l'ALB ou un autre point d'entrée dément. Derrière l'ALB, toutes les requêtes arrivent depuis une adresse du VPC, et req.ip dépend de X-Forwarded-For. Un GET suffit à lire toutes les factures. Seule une preuve cryptographique distingue un service d'un client.",
+  },
+];
+
+<YouKnow>
+Un pentester a souvent pratiqué le request smuggling, l'empoisonnement de cache et les attaques sur l'en-tête Host. Toutes reposent sur la même idée : deux composants lisent la même requête différemment. Cette leçon pose le vocabulaire commun et la chaîne de Novafact, pour que les leçons de M9 n'aient plus qu'à exploiter les écarts.
+</YouKnow>
+
+## Une sémantique, trois encadrements
+
+Depuis 2022, HTTP est découpé en un document de **sémantique** (RFC 9110 : méthodes, statuts, en-têtes, ce qu'une requête veut dire) et un document par **version** qui dit comment la transporter. La sémantique est commune ; c'est l'encadrement qui change, et c'est lui qui produit les désaccords.
+
+| Version | Fin du corps | Hôte | Ce qui compte en sécurité |
+| --- | --- | --- | --- |
+| HTTP/1.1 (RFC 9112) | `Content-Length` ou `Transfer-Encoding: chunked`, lus dans du texte | En-tête `Host` | Deux façons de dire la longueur, des en-têtes séparés par CRLF : le terrain de la désynchronisation et de l'injection d'en-têtes |
+| HTTP/2 (RFC 9113) | Trames binaires de longueur explicite | Pseudo-en-tête `:authority` | Plusieurs flux sur une connexion ; `Transfer-Encoding` interdit ; CR, LF et NUL interdits dans les valeurs |
+| HTTP/3 (RFC 9114) | Trames sur QUIC (UDP) | `:authority` | Même modèle que HTTP/2, sans la file d'attente de TCP ; TLS 1.3 intégré au transport |
+
+HTTP/2 et HTTP/3 ont supprimé l'ambiguïté de longueur **sur leur propre saut**. Le problème revient dès qu'un maillon les traduit en HTTP/1.1 : la longueur annoncée en HTTP/2 doit devenir un `Content-Length`, et un en-tête refusé en HTTP/2 peut être recopié tel quel. C'est pourquoi le RFC 9113 exige la validation des noms et valeurs d'en-têtes, et c'est l'origine des variantes H2.CL et H2.TE (M9, leçon 5).
+
+En HTTP/1.1, la règle est écrite noir sur blanc : si une requête porte à la fois `Content-Length` et `Transfer-Encoding`, le second l'emporte, la situation « devrait être traitée comme une erreur », et un intermédiaire qui transmet malgré tout doit retirer `Content-Length`. Chaque implémentation qui s'écarte de cette règle, même légèrement, ouvre une désynchronisation.
+
+## La chaîne de Novafact, maillon par maillon
+
+| Maillon | Ce qu'il lit | Ce qu'il ajoute ou réécrit | Ce qu'il décide |
+| --- | --- | --- | --- |
+| CloudFront | Requête du navigateur en HTTP/1.1, 2 ou 3 ; termine TLS | `Via`, `X-Amz-Cf-Id`, `X-Forwarded-For` ; en-têtes transmis selon la politique de requête d'origine | Réponse depuis le cache ou non, selon la clé de cache |
+| AWS WAF (sur CloudFront) | Les 16 premiers Ko du corps par défaut (jusqu'à 64 Ko) | Rien | Bloquer, compter, laisser passer |
+| ALB | Requête de CloudFront, en HTTP/1.1 | `X-Forwarded-For`, `-Proto`, `-Port` | Cible, selon l'hôte et le chemin ; rejet des requêtes ambiguës selon le mode de désynchronisation |
+| Node (llhttp) puis Express | Requête de l'ALB | Rien | Route, selon `req.path` ; adresse du client selon `trust proxy` |
+
+Trois questions résument tout ce que M9 exploite dans ce tableau :
+
+<Steps items={[
+  { title: "Où finit la requête ?", text: "Si CloudFront, l'ALB et Node ne coupent pas le flux au même octet, le reste devient le début de la requête suivante d'un autre utilisateur, sur une connexion amont partagée. C'est la désynchronisation (M9, leçon 5)." },
+  { title: "Pour quel hôte ?", text: "Host, :authority, X-Forwarded-Host : chaque maillon peut en lire un différent. L'application qui construit un lien de réinitialisation à partir de la mauvaise valeur l'envoie chez l'attaquant (M9, leçon 2)." },
+  { title: "Quel chemin, et est-ce la même ressource ?", text: "Le cache normalise le chemin d'une façon, Express d'une autre : /compte;x.css ou un %2F décodé ici et pas là suffisent à mettre une page privée en cache (M9, leçon 6) ou à passer à côté d'un filtre (M9, leçon 7)." },
+]} />
+
+Un quatrième désaccord, moins connu, concerne la **quantité** lue. Le WAF ne voit qu'un préfixe du corps : 8 Ko quand il est associé à un ALB, 16 Ko par défaut sur CloudFront. Au-delà, la documentation AWS est claire : la requête entière est transmise, et hors de la console la gestion par défaut des dépassements est « Continue », c'est-à-dire l'inspection de ce qui tient dans la limite. Une charge placée après 20 Ko de remplissage traverse les règles gérées, et Express la lit en entier. La correction est une règle prioritaire qui bloque les corps plus grands que la limite inspectée, avec des exceptions explicites pour les routes d'upload.
+
+## Les en-têtes ajoutés par un maillon
+
+Chaque maillon ajoute des en-têtes, et l'application finit par s'en servir pour décider : adresse du client, protocole, hôte, pays, et parfois identité. Le piège est toujours le même : **un en-tête qu'un maillon amont ajoute, le client peut aussi l'envoyer**. Il n'a de valeur que si le maillon qui le pose supprime d'abord celui du client, et si personne ne peut contourner ce maillon.
+
+<Callout kind="case">
+**CVE-2025-29927, Next.js (mars 2025).** Next.js utilisait un en-tête interne, `x-middleware-subrequest`, pour éviter que son middleware ne s'appelle lui-même en boucle. Le framework ne vérifiait pas d'où venait cet en-tête : un client qui l'envoyait avec la bonne valeur faisait sauter le middleware, et avec lui les contrôles d'authentification qui y étaient placés. Le détail est en M7 (leçon 8) ; la cause racine est celle de cette section.
+</Callout>
+
+L'équivalent maison est fréquent dans une architecture de microservices :
+
+<Diff file="apps/api/src/middleware/actor.ts" hlBefore="1-4" hlAfter="1-7">
+
+```ts
+// Les autres services passent par l'ALB interne avec cet en-tête : inutile de les authentifier
+app.use((req, res, next) => {
+  if (req.get('x-novafact-internal') === '1') { req.actor = { kind: 'service' }; return next(); }
+  return requireSession(req, res, next);
+});
+```
+
+```ts
+// Un service prouve son identité par un jeton signé et court, jamais par un en-tête que tout le monde peut écrire
+app.use(async (req, res, next) => {
+  const token = req.get('authorization')?.replace(/^Bearer /, '');
+  const svc = token ? await verifyServiceToken(token, { audience: 'novafact-api' }) : null;
+  if (svc) { req.actor = { kind: 'service', name: svc.sub }; return next(); }
+  return requireSession(req, res, next);
+});
+```
+
+</Diff>
+
+Le payload qui casse le mauvais correctif est une simple ligne : `curl -H 'x-novafact-internal: 1' https://api.novafact.example/api/invoices`. Si CloudFront transmet tous les en-têtes du navigateur (politique `AllViewer`), il passe. Si l'équipe ajoute une fonction CloudFront qui retire l'en-tête, il passe encore dès que l'ALB est joignable sans CloudFront, ou qu'un nouveau point d'entrée (un API Gateway pour un partenaire) est branché sur le même service. Le contrôle doit être dans l'application, et fondé sur une preuve que le client ne peut pas fabriquer.
+
+<Callout kind="case">
+**HTTP/2 Rapid Reset, CVE-2023-44487 (divulguée le 10 octobre 2023).** Le multiplexage de HTTP/2 permet d'ouvrir de nombreux flux sur une connexion, et le client peut annuler un flux à tout moment par une trame `RST_STREAM`. Les attaquants ouvraient des flux et les annulaient aussitôt, en boucle : le serveur engageait le travail de chaque requête, le client ne payait presque rien. Google a mesuré un pic de plus de 398 millions de requêtes par seconde. La version du protocole n'est donc pas qu'un détail de performance : chaque fonctionnalité de l'encadrement est une surface, et les correctifs ont consisté à fermer la **connexion** entière quand le taux d'annulation devient anormal.
+</Callout>
+
+## En pratique
+
+- Dessiner la chaîne réelle de chaque domaine (navigateur, CDN, WAF, répartiteur, proxys, application) avec le protocole de chaque saut : c'est le premier schéma demandé en M9.
+- Lister les en-têtes que l'application **utilise pour décider** et, pour chacun, le maillon qui le pose et celui qui retire la valeur du client.
+- Vérifier que l'origine n'accepte que le CDN (liste de préfixes CloudFront dans le groupe de sécurité de l'ALB) : sans cela, chaque garantie posée en bordure se contourne.
+- Comparer la taille maximale de corps acceptée par Express avec la taille inspectée par le WAF.
+
+<Recap items={[
+  "La sémantique HTTP est commune (RFC 9110) ; l'encadrement change selon la version, et c'est lui qui crée les désaccords.",
+  "HTTP/2 et HTTP/3 suppriment l'ambiguïté de longueur sur leur saut, pas lors de la traduction en HTTP/1.1.",
+  "Trois questions par maillon : où finit la requête, pour quel hôte, quel chemin. Elles fondent smuggling, attaques Host et cache.",
+  "Un WAF n'inspecte qu'un préfixe du corps : bloquer ce qui dépasse, sinon la charge passe après le remplissage.",
+  "Un en-tête ajouté par un maillon ne prouve rien si le client peut l'envoyer ou contourner ce maillon.",
+]} />
+
+<Sources items={[
+  { title: "RFC 9110 : HTTP Semantics", url: "https://www.rfc-editor.org/rfc/rfc9110" },
+  { title: "RFC 9112 : HTTP/1.1 (section 6.3, longueur du corps)", url: "https://www.rfc-editor.org/rfc/rfc9112" },
+  { title: "RFC 9113 : HTTP/2 (sections 8.2 et 8.3.1)", url: "https://www.rfc-editor.org/rfc/rfc9113" },
+  { title: "RFC 9114 : HTTP/3", url: "https://www.rfc-editor.org/rfc/rfc9114" },
+  { title: "AWS WAF : limites d'inspection et gestion des composants trop grands", url: "https://docs.aws.amazon.com/waf/latest/developerguide/web-request-body-inspection.html" },
+  { title: "Google Cloud : How it works, the novel HTTP/2 Rapid Reset DDoS attack", url: "https://cloud.google.com/blog/products/identity-security/how-it-works-the-novel-http2-rapid-reset-ddos-attack" },
+  { title: "Next.js : avis de sécurité CVE-2025-29927", url: "https://github.com/vercel/next.js/security/advisories/GHSA-f82v-jwr5-mffw" },
+]} />

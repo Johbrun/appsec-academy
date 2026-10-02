@@ -11,7 +11,7 @@ export const questions = [
     explain: "Le recensement par équipe fait le bon diagnostic mais s'arrête au constat : les routes d'aujourd'hui sont nettoyées, celles de demain recommencent. Le test de non-régression protège une seule route. Le filtre WAF vise la forme de l'attaque, pas la cause, et se contourne dès qu'un opérateur arrive autrement. Il faut l'instance, les variantes et un contrôle qui rend la classe impossible.",
   },
   {
-    q: "Tu dois définir ce qu'une équipe doit respecter et comment le vérifier. Quel référentiel utilises-tu en premier ?",
+    q: "Il faut définir ce qu'une équipe doit respecter et comment le vérifier. Quel référentiel utiliser en premier ?",
     options: ["OWASP SAMM", "OWASP Top 10", "OWASP ASVS", "BSIMM"],
     answer: 2,
     explain: "Le Top 10 est le piège : tout le monde le connaît et on le cite volontiers dans un ticket, mais ses catégories sont des familles de risques, pas des exigences vérifiables. ASVS donne des exigences numérotées, réparties en niveaux, qu'on peut citer dans un critère d'acceptation ou un contrat. SAMM pilote le programme, BSIMM sert à se comparer.",
@@ -28,7 +28,7 @@ export const questions = [
     explain: "L'adoption du kit durci est le distracteur sérieux : c'est un bon indicateur, mais un indicateur avancé — il mesure ce qu'on a déployé, pas ce qui échappe encore. Le compte de findings du pentest mesure surtout l'effort du pentest. Les formations et les règles activées comptent de l'activité. Le progrès se lit à ce qui n'arrive plus en production, classe par classe, et à la vitesse de correction.",
   },
   {
-    q: "Tu as ajouté un middleware de validation zod sur les routes d'authentification de Novafact. Qu'est-ce qui garantit le mieux que la classe « opérateur Mongo dans une entrée » ne reviendra pas dans une nouvelle route ?",
+    q: "Un middleware de validation zod vient d'être ajouté sur les routes d'authentification de Novafact. Qu'est-ce qui garantit le mieux que la classe « opérateur Mongo dans une entrée » ne reviendra pas dans une nouvelle route ?",
     options: [
       "Un test de régression sur /login rejoué à chaque build",
       "Un modèle de route dans le générateur de projet, avec son schéma zod déjà écrit",
@@ -41,20 +41,20 @@ export const questions = [
 ];
 
 <YouKnow>
-Tu trouves des vulnérabilités, tu les prouves et tu les rapportes. Ta valeur se mesure à la qualité des findings et à leur criticité. Le rapport s'arrête là où la correction commence.
+Un pentester trouve des vulnérabilités, les prouve et les rapporte. Sa valeur se mesure à la qualité des findings et à leur criticité. Le rapport s'arrête là où la correction commence.
 </YouKnow>
 
 ## Changer d'échelle
 
 Un pentest regarde une application, à un instant donné, avec un budget en jours. Un programme AppSec regarde **toutes** les applications, **en continu**, avec un budget en personnes et en outils. Ce changement d'échelle modifie la question centrale : on ne se demande plus « qu'est-ce qui est vulnérable ici ? », mais « pourquoi ce type de vulnérabilité continue-t-il d'apparaître, et qu'est-ce qui l'empêcherait partout ? ».
 
-Pour Novafact, ton futur terrain de jeu dans tout le parcours, ça change tout. La même injection NoSQL trouvée dans la route de connexion existe probablement dans trois autres routes, et réapparaîtra dans la prochaine si rien ne change dans la façon d'écrire du code.
+Pour Novafact, terrain d'application de tout le parcours, cela change tout. La même injection NoSQL trouvée dans la route de connexion existe probablement dans trois autres routes, et réapparaîtra dans la prochaine si rien ne change dans la façon d'écrire du code.
 
 <Callout kind="novafact">
-Novafact est le SaaS de facturation fictif qui sert de fil rouge : React et Next.js côté front, Express côté API, MongoDB et PostgreSQL, hébergé sur AWS, livré par GitHub Actions. Tu viens d'y être recruté comme premier ingénieur AppSec, pour une quarantaine de développeurs répartis en six équipes (chiffres fictifs).
+Novafact est le SaaS de facturation fictif qui sert de fil rouge : React et Next.js côté front, Express côté API, MongoDB et PostgreSQL, hébergé sur AWS, livré par GitHub Actions. L'entreprise vient d'y recruter son premier ingénieur AppSec, pour une quarantaine de développeurs répartis en six équipes (chiffres fictifs).
 </Callout>
 
-Ce qui bouge quand tu changes de métier :
+Ce qui change avec le métier :
 
 | | Pentest | AppSec |
 | --- | --- | --- |
@@ -67,16 +67,16 @@ Ce qui bouge quand tu changes de métier :
 
 ## Penser en classes de bugs
 
-Un finding corrigé ne vaut pas grand-chose à l'échelle d'un programme. Un **contrôle qui rend la classe impossible** vaut des centaines de findings. Face à chaque vulnérabilité, prends l'habitude de te poser quatre questions :
+Un finding corrigé ne vaut pas grand-chose à l'échelle d'un programme. Un **contrôle qui rend la classe impossible** vaut des centaines de findings. Face à chaque vulnérabilité, on se pose quatre questions :
 
 <Steps items={[
   { title: "La cause racine", text: "Pas « le paramètre n'est pas filtré », mais « rien n'impose de valider la forme des entrées avant qu'elles n'atteignent la base »." },
-  { title: "Les variantes", text: "Où ailleurs la même cause produit-elle le même effet ? C'est là que ton œil de pentester fait gagner un temps énorme." },
+  { title: "Les variantes", text: "Où ailleurs la même cause produit-elle le même effet ? C'est là que l'œil d'un pentester fait gagner beaucoup de temps." },
   { title: "Le contrôle de classe", text: "Un schéma de validation obligatoire, une API qui ne permet pas l'erreur, une règle de lint bloquante." },
   { title: "La détection", text: "Une règle SAST pour les régressions, un test de régression dans la CI, une alerte en production si le contrôle est contourné." },
 ]} />
 
-Appliqué à l'injection NoSQL de Novafact, ça donne ceci. La cause racine : le corps de la requête arrive tel quel dans un filtre Mongo, donc un objet peut remplacer une chaîne. Les variantes : toutes les routes qui passent `req.body`, `req.query` ou `req.params` à `find`, `findOne` ou `updateOne` sans passer par un schéma. Le contrôle de classe : un middleware qui valide le corps contre un schéma zod et **remplace** `req.body` par la version validée, si bien que le handler ne voit jamais l'entrée brute.
+Appliqué à l'injection NoSQL de Novafact, cela donne ceci. La cause racine : le corps de la requête arrive tel quel dans un filtre Mongo, donc un objet peut remplacer une chaîne. Les variantes : toutes les routes qui passent `req.body`, `req.query` ou `req.params` à `find`, `findOne` ou `updateOne` sans passer par un schéma. Le contrôle de classe : un middleware qui valide le corps contre un schéma zod et **remplace** `req.body` par la version validée, si bien que le handler ne voit jamais l'entrée brute.
 
 <Diff file="apps/api/src/routes/auth.ts" hlBefore="2" hlAfter="1-6,9,10">
 
@@ -108,7 +108,7 @@ router.post('/login', validateBody(LoginBody), async (req, res) => {
 
 </Diff>
 
-Le correctif de la route ne suffit pas : ce qui élimine la classe, c'est que `validateBody` soit **obligatoire**. Chez Novafact, ça veut dire un routeur maison qui refuse d'enregistrer une route mutante sans schéma, un test qui parcourt la table de routage d'Express et échoue si une route n'en déclare pas, et une règle Semgrep qui signale un accès à `req.body` dans un handler non validé. Le module 7 détaille ce motif ; retiens ici la forme du raisonnement.
+Le correctif de la route ne suffit pas : ce qui élimine la classe, c'est que `validateBody` soit **obligatoire**. Chez Novafact, cela suppose un routeur maison qui refuse d'enregistrer une route mutante sans schéma, un test qui parcourt la table de routage d'Express et échoue si une route n'en déclare pas, et une règle Semgrep qui signale un accès à `req.body` dans un handler non validé. Le module 7 détaille ce motif ; ce qui compte ici est la forme du raisonnement.
 
 <Callout kind="case">
 Les variantes ne sont pas une vue de l'esprit. Dans sa revue des 0-days exploités en 2022, Google (Project Zero et TAG) compte 17 vulnérabilités sur 41 qui étaient des variantes de failles déjà publiées, soit plus de 40 %. Plusieurs auraient pu être évitées par un correctif qui traitait la cause racine plutôt que l'instance, et par des tests de régression plus complets.
@@ -122,27 +122,27 @@ Dans un rapport de mars 2024 (*Secure by Design: Google's Perspective on Memory 
 
 ## Le rôle change aussi
 
-Côté pentest, tu es évalué sur ce que tu trouves. Côté AppSec, tu es évalué sur **ce qui n'arrive plus en production**. Ça implique de travailler avec les équipes plutôt que de les auditer : proposer le correctif dans leur code, négocier les délais, outiller leur pipeline. Kohnfelder le résume dans la postface de *Designing Secure Software* : la sécurité est l'affaire de tous, et le rôle de l'expert est de rendre les autres capables.
+Côté pentest, on est évalué sur ce qu'on trouve. Côté AppSec, on est évalué sur **ce qui n'arrive plus en production**. Cela implique de travailler avec les équipes plutôt que de les auditer : proposer le correctif dans leur code, négocier les délais, outiller leur pipeline. Kohnfelder le résume dans la postface de *Designing Secure Software* : la sécurité est l'affaire de tous, et le rôle de l'expert est de rendre les autres capables.
 
 Son argument est pragmatique. Un expert extérieur ne comprend jamais complètement le logiciel dans son contexte (ses exigences, sa culture d'équipe, ses utilisateurs). La sécurité fonctionne mieux quand elle accompagne tout le cycle de vie, ce qu'aucun consultant ne peut faire durablement. Et les experts sont rares et chers. Conclusion : les équipes assurent un socle raisonnable, l'expert se concentre sur ce qui demande vraiment son savoir-faire. Le module 30 est entièrement consacré à ce volet humain.
 
 <Callout kind="debate">
-Ton expérience offensive reste un atout majeur : tu sais ce qui est réellement exploitable, tu sais prioriser, et tu sais trouver les variantes. Ce que tu dois apprendre, c'est à transformer ce savoir en contrôles, en règles et en conversations.
+L'expérience offensive reste un atout majeur : un pentester sait ce qui est réellement exploitable, sait prioriser et sait trouver les variantes. Ce qui reste à apprendre, c'est à transformer ce savoir en contrôles, en règles et en conversations.
 </Callout>
 
 Ce qui se transfère directement : la lecture de code sous l'angle « d'où vient cette donnée », l'intuition des variantes, la capacité à prouver un impact pour débloquer une décision. Ce qui est nouveau : écrire des règles avec peu de faux positifs, estimer un coût de correction, argumenter devant quelqu'un qui porte un budget, et accepter qu'un risque bien documenté reste ouvert.
 
 ## Parler ROI sans inventer de chiffres
 
-On te demandera ce que rapporte le programme. L'argument le plus solide est local : jours de correction d'urgence payés l'an dernier, ventes retardées par un questionnaire client, findings du pentest qui répètent une classe déjà connue. Un contrôle de classe se justifie par ce qu'il évite de refaire.
+La direction demandera ce que rapporte le programme. L'argument le plus solide est local : jours de correction d'urgence payés l'an dernier, ventes retardées par un questionnaire client, findings du pentest qui répètent une classe déjà connue. Un contrôle de classe se justifie par ce qu'il évite de refaire.
 
 <Callout kind="warn">
-Le fameux « un bug coûte cent fois plus cher en production », attribué à un « IBM Systems Sciences Institute », n'a pas de source vérifiable : Laurent Bossavit a montré qu'il provenait de supports de formation internes anciens, sans données publiées. L'idée générale (corriger tard coûte plus cher) reste plausible, mais cite tes propres données plutôt que ce chiffre.
+Le fameux « un bug coûte cent fois plus cher en production », attribué à un « IBM Systems Sciences Institute », n'a pas de source vérifiable : Laurent Bossavit a montré qu'il provenait de supports de formation internes anciens, sans données publiées. L'idée générale (corriger tard coûte plus cher) reste plausible, mais mieux vaut citer ses propres données que ce chiffre.
 </Callout>
 
 ## La carte des référentiels
 
-Les référentiels ne se concurrencent pas : chacun répond à une question différente. Savoir lequel sortir, et quand, t'évitera beaucoup de débats stériles.
+Les référentiels ne se concurrencent pas : chacun répond à une question différente. Savoir lequel sortir, et quand, évite beaucoup de débats stériles.
 
 | Référentiel | Question à laquelle il répond | Usage typique |
 | --- | --- | --- |
@@ -154,33 +154,33 @@ Les référentiels ne se concurrencent pas : chacun répond à une question diff
 | NIST SSDF | Quelles pratiques prouver à un client ou à un régulateur ? | Conformité, questionnaires |
 | EU CRA | Quelles obligations légales pour un produit numérique ? | Signalement, gestion des vulnérabilités |
 
-Deux erreurs fréquentes. La première : utiliser le Top 10 comme liste d'exigences. Il n'a pas été écrit pour ça : ses catégories sont larges et non vérifiables telles quelles, alors qu'ASVS 5.0 (mai 2025) propose des exigences numérotées, réparties en trois niveaux, qu'on peut citer dans un ticket ou un contrat. La seconde : confondre évaluation de maturité (SAMM, BSIMM) et conformité (SSDF, CRA). Un bon score SAMM ne prouve pas que tu respectes le CRA, et inversement.
+Deux erreurs fréquentes. La première : utiliser le Top 10 comme liste d'exigences. Il n'a pas été écrit pour ça : ses catégories sont larges et non vérifiables telles quelles, alors qu'ASVS 5.0 (mai 2025) propose des exigences numérotées, réparties en trois niveaux, qu'on peut citer dans un ticket ou un contrat. La seconde : confondre évaluation de maturité (SAMM, BSIMM) et conformité (SSDF, CRA). Un bon score SAMM ne prouve pas qu'on respecte le CRA, et inversement.
 
 <Callout kind="novafact">
-Premier usage concret chez Novafact : un client grand compte envoie un questionnaire qui cite le NIST SSDF, le produit manque d'exigences écrites, et la direction veut savoir « où on en est ». Tu réponds au client avec SSDF, tu écris les exigences de l'API à partir d'ASVS niveau 2, et tu présentes l'état du programme avec SAMM. Trois référentiels, trois publics, aucun doublon.
+Premier usage concret chez Novafact : un client grand compte envoie un questionnaire qui cite le NIST SSDF, le produit manque d'exigences écrites, et la direction veut savoir « où on en est ». On répond au client avec SSDF, on écrit les exigences de l'API à partir d'ASVS niveau 2, et on présente l'état du programme avec SAMM. Trois référentiels, trois publics, aucun doublon.
 </Callout>
 
-## Ce que tu vas construire
+## Ce que le parcours construit
 
-Au fil du parcours, tu vas monter le programme AppSec de Novafact : une analyse de risques, un référentiel d'exigences, des revues de conception, des règles d'analyse maison, un pipeline durci, un IAM au moindre privilège, des détections dans Elastic, et un plan pour faire adopter tout ça. Le capstone rassemble ces livrables en une revue de sécurité complète.
+Au fil du parcours, on monte le programme AppSec de Novafact : une analyse de risques, un référentiel d'exigences, des revues de conception, des règles d'analyse maison, un pipeline durci, un IAM au moindre privilège, des détections dans Elastic, et un plan pour faire adopter l'ensemble. Le capstone rassemble ces livrables en une revue de sécurité complète.
 
 ## La carte du parcours
 
-Le parcours suit le cycle de développement sécurisé, après deux blocs de socle. **Le métier** (A) pose le décor : la menace, le vocabulaire d'ATT&CK, ce qu'est l'AppSec, ses métiers et la maturité d'une organisation. **Le web** (B) reprend ce que tu sais du navigateur et des vulnérabilités, cette fois du côté de celui qui les fait disparaître. Viennent ensuite les phases du cycle, dans l'ordre où elles se posent : **concevoir** (C), là où les défauts coûtent le moins cher à supprimer, en partant de l'analyse de risques ; **construire et vérifier** (D) ; **déployer** (E) ; puis **opérer et répondre** (F). **La sécurité de l'IA** (G) est un bloc vivant, parce qu'elle bouge trop vite pour tenir dans un module figé. **Piloter** (H) vient en dernier : on ne bâtit un programme qu'une fois les pratiques connues.
+Le parcours suit le cycle de développement sécurisé, après deux blocs de socle. **Le métier** (A) pose le décor : la menace, le vocabulaire d'ATT&CK, ce qu'est l'AppSec, ses métiers et la maturité d'une organisation. **Le web** (B) reprend ce qu'un pentester sait du navigateur et des vulnérabilités, cette fois du côté de celui qui les fait disparaître. Viennent ensuite les phases du cycle, dans l'ordre où elles se posent : **concevoir** (C), là où les défauts coûtent le moins cher à supprimer, en partant de l'analyse de risques ; **construire et vérifier** (D) ; **déployer** (E) ; puis **opérer et répondre** (F). **La sécurité de l'IA** (G) est un bloc vivant, parce qu'elle bouge trop vite pour tenir dans un module figé. **Piloter** (H) vient en dernier : on ne bâtit un programme qu'une fois les pratiques connues.
 
-Une remarque sur la façon de lire cette carte : les blocs ne sont pas des étanchéités. Le threat modeling (M11) sert autant à préparer une revue de code (M16) qu'à cadrer une conception (M13) ; la chaîne d'approvisionnement (M18) se défend dans le pipeline autant que dans les dépendances qu'on choisit (M26). Les renvois croisés dans les leçons sont là pour ça — suis-les quand ils apparaissent, ils valent mieux qu'une lecture strictement linéaire.
+Une remarque sur la façon de lire cette carte : les blocs ne sont pas des étanchéités. Le threat modeling (M11) sert autant à préparer une revue de code (M16) qu'à cadrer une conception (M13) ; la chaîne d'approvisionnement (M18) se défend dans le pipeline autant que dans les dépendances qu'on choisit (M26). Les renvois croisés dans les leçons sont là pour cela : les suivre vaut mieux qu'une lecture strictement linéaire.
 
 <CarteDuParcours ici="m01" />
 
 Deux blocs méritent un mot de plus. **Le bloc D** est celui qu'on saute le plus souvent, parce que « faire de la revue de code » semble être quelque chose qu'on sait déjà faire : c'est pourtant là que se joue la différence entre trouver un bug et supprimer une classe de bugs. Et **le capstone** n'est pas un examen final : c'est la seule partie du parcours où l'on doit arbitrer entre des travaux qui se disputent le même temps, ce qui est l'essentiel du métier.
 
-## En pratique chez toi
+## En pratique
 
-Pour ta première semaine dans un poste AppSec, trois gestes valent mieux qu'un plan ambitieux :
+Pour la première semaine dans un poste AppSec, trois gestes valent mieux qu'un plan ambitieux :
 
-- reprends les trois derniers rapports de pentest et classe chaque finding par **classe** (CWE ou catégorie ASVS) : les classes qui reviennent sont tes premières cibles ;
-- pour la classe la plus fréquente, écris la cause racine en une phrase et cherche les variantes dans le code avec une recherche simple (`grep`, Semgrep) ;
-- propose un seul contrôle de classe à l'équipe la plus touchée, avec le correctif prêt dans une PR.
+- reprendre les trois derniers rapports de pentest et ranger chaque finding par **classe** (CWE ou catégorie ASVS) : les classes qui reviennent sont les premières cibles ;
+- pour la classe la plus fréquente, écrire la cause racine en une phrase et chercher les variantes dans le code avec une recherche simple (`grep`, Semgrep) ;
+- proposer un seul contrôle de classe à l'équipe la plus touchée, avec le correctif prêt dans une PR.
 
 <Recap items={[
   "Un pentest regarde une application à un instant T ; un programme AppSec regarde toutes les applications, en continu.",
@@ -192,7 +192,7 @@ Pour ta première semaine dans un poste AppSec, trois gestes valent mieux qu'un 
   "Le parcours suit l'ordre dans lequel les questions se posent dans un poste : le métier, la conception, la vérification, le cloud, puis le continu — et les blocs ne sont pas étanches.",
 ]} />
 
-<Lab id="nodegoat" note="Corrige une faille, puis cherche ses variantes dans tout le code avant de passer à la suivante." />
+<Lab id="nodegoat" note="Corrigez une faille, puis cherchez ses variantes dans tout le code avant de passer à la suivante." />
 
 <Sources items={[
   { title: "OWASP Top 10:2025", url: "https://owasp.org/Top10/2025/" },

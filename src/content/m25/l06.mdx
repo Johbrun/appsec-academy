@@ -1,0 +1,174 @@
+export const questions = [
+  {
+    q: "Pour empêcher un sous-domaine compromis d'imposer son cookie de session, l'équipe renomme sid en __Secure-sid. Pourquoi est-ce insuffisant ?",
+    options: [
+      "Parce que __Secure- tolère Domain : le sous-domaine peut encore poser ce cookie",
+      "Parce que le préfixe __Secure- n'est reconnu que par Chrome, pas par Firefox ni Safari",
+      "Parce que __Secure- ne s'applique qu'aux cookies écrits par document.cookie",
+      "Parce qu'un sous-domaine peut lire le cookie HttpOnly de l'API et le réutiliser",
+    ],
+    answer: 0,
+    explain: "__Secure- exige seulement l'attribut Secure et une page HTTPS ; un sous-domaine en HTTPS peut donc poser __Secure-sid avec Domain=novafact.example. __Host- interdit Domain et impose Path=/ : le cookie ne peut venir que de l'hôte exact. Les deux préfixes sont pris en charge par les trois moteurs depuis des années, ils valent aussi pour Set-Cookie, et HttpOnly empêche toute lecture par script, sous-domaine compris.",
+  },
+  {
+    q: "Le cookie de session est en SameSite=Lax. Laquelle de ces requêtes, initiée depuis evil.test, l'emporte avec elle ?",
+    options: [
+      "Un fetch GET lancé en arrière-plan vers l'API avec credentials: 'include'",
+      "Un clic sur un lien qui ouvre GET /invoices/42/cancel dans l'onglet",
+      "Une iframe invisible qui charge app.novafact.example/invoices/42",
+      "Un formulaire POST auto-soumis vers l'API, ouvert dans l'onglet",
+    ],
+    answer: 1,
+    explain: "Lax joint le cookie aux navigations de premier niveau en méthode sûre : un lien cliqué qui charge la page dans l'onglet. Un fetch n'est pas une navigation, une iframe n'est pas de premier niveau, et un POST n'est pas une méthode sûre ; la tolérance de deux minutes de Chrome ne vaut que pour les cookies sans attribut SameSite. D'où la règle : aucun GET ne modifie l'état.",
+  },
+  {
+    q: "Un cookie de session est posé sans attribut SameSite. Que font les navigateurs, au 1er octobre 2026 ?",
+    options: [
+      "Tous le traitent comme Lax, comportement normalisé depuis 2020",
+      "Tous le traitent comme Strict, puisqu'il s'agit d'un cookie de session",
+      "Chrome le traite comme Lax ; Firefox et Safari, par défaut, non",
+      "Chrome le traite comme None, puisqu'il garde les cookies tiers",
+    ],
+    answer: 2,
+    explain: "Chrome applique Lax par défaut depuis 2020 (avec une tolérance pour les POST de premier niveau sur un cookie de moins de deux minutes). Firefox ne le fait que derrière une préférence, Safari pas du tout. Le maintien des cookies tiers dans Chrome concerne les cookies posés explicitement en SameSite=None ; il ne change pas le défaut. Conclusion : toujours écrire l'attribut.",
+  },
+  {
+    q: "Une XSS s'exécute sur app.novafact.example. Qu'apporte un cookie de session HttpOnly par rapport à un jeton rangé dans localStorage ?",
+    options: [
+      "Rien, car document.cookie renvoie aussi les cookies HttpOnly aux scripts de la page",
+      "Il empêche le script d'émettre des requêtes authentifiées vers l'API",
+      "Il empêche la XSS de s'exécuter sur les pages qui lisent la session",
+      "Le script ne peut pas l'exfiltrer, mais peut encore s'en servir depuis la page",
+    ],
+    answer: 3,
+    explain: "HttpOnly retire le cookie de document.cookie : l'attaquant ne repart pas avec une session réutilisable ailleurs, ce qu'il ferait avec un jeton lu dans localStorage. Mais le navigateur joint toujours le cookie aux requêtes que le script émet vers l'origine : l'attaque se fait dans la page, pendant qu'elle est ouverte. HttpOnly ne fait rien contre l'exécution elle-même.",
+  },
+];
+
+<YouKnow>
+Un pentester a déjà volé des cookies sans HttpOnly, exploité des CSRF malgré SameSite et fixé des sessions. Ici on reprend le cookie comme un mécanisme avec ses règles exactes : ce qu'il isole et ce qu'il n'isole pas, ce que SameSite regarde, ce que chaque préfixe garantit, ce que devient un cookie tiers, et ce qui fuit dans le stockage du navigateur.
+</YouKnow>
+
+## Ce qu'un cookie isole, et ce qu'il n'isole pas
+
+Le cookie est plus ancien que la same-origin policy et ne suit pas ses règles. Le RFC 6265 le dit lui-même dans ses considérations de sécurité : confidentialité et intégrité « faibles ». Concrètement :
+
+- **Pas d'isolation par port**, et seulement partielle par schéma : un cookie posé par `novafact.example:8443` part aussi vers le port 443.
+- **`Domain` élargit, ne restreint pas.** Sans `Domain`, le cookie est réservé à l'hôte exact. Avec `Domain=novafact.example`, il part vers tous les sous-domaines, et **n'importe quel sous-domaine peut en poser un pour le domaine parent** : c'est le *cookie tossing*.
+- **`Path` n'est pas une frontière de sécurité** : une page du même hôte lit les cookies d'un autre chemin via une iframe. Mais il change l'**ordre** d'envoi : le chemin le plus long passe en premier, et la plupart des parseurs, dont celui d'express-session, retiennent la première valeur d'un nom en double.
+- **`Secure`** limite l'envoi à HTTPS, et les navigateurs actuels refusent qu'une page HTTP pose ou écrase un cookie `Secure`.
+- **`HttpOnly`** retire le cookie de `document.cookie`. Il n'empêche pas un script de **l'utiliser**, puisque le navigateur le joint aux requêtes.
+
+<Callout kind="case">
+**GitHub Pages, 5 avril 2013.** GitHub a déplacé les sites de ses utilisateurs de `*.github.com` vers `*.github.io`. Le billet d'annonce donne deux raisons : les « related domain cookies », qui permettaient à une page hébergée sur un sous-domaine d'écrire des cookies pour `github.com` (et donc de bloquer l'accès d'un utilisateur ou de fixer un jeton CSRF), et l'hameçonnage depuis des noms comme `account-security.github.com`. GitHub précisait n'avoir aucune preuve de compte compromis par ces voies. `github.io` figure aujourd'hui dans la Public Suffix List : chaque site d'utilisateur est un site distinct, et ne peut plus poser de cookie pour ses voisins (leçon 3).
+</Callout>
+
+## SameSite, précisément
+
+`SameSite` compare le **site** de la requête à celui du contexte qui l'initie (leçon 3) :
+
+| Valeur | Le cookie part sur une requête cross-site… |
+| --- | --- |
+| `Strict` | jamais, même en suivant un lien : l'utilisateur arrive déconnecté depuis un e-mail |
+| `Lax` | seulement pour une navigation de premier niveau en méthode sûre (`GET`) |
+| `None` | toujours ; exige `Secure` dans Chrome depuis la version 80 et dans Firefox depuis la 131 |
+
+Le comportement **par défaut** d'un cookie sans attribut n'est pas uniforme. Chrome applique `Lax` depuis 2020 : déploiement commencé avec Chrome 80 en février, suspendu en avril, repris en juillet et généralisé en août. Il garde une exception présentée comme temporaire, dite *Lax+POST* : un cookie sans attribut, posé depuis moins de deux minutes, accompagne encore un `POST` de premier niveau. Firefox n'applique ce défaut que derrière une préférence, et Safari pas du tout. Conséquence pratique, déjà vue en M8 (leçon 2) : écrire l'attribut, et ne jamais compter sur le défaut.
+
+Deux angles morts restent constants. `Lax` laisse passer un `GET` de navigation : toute route `GET` qui modifie l'état est exposée. Et `SameSite` raisonne en sites : `support.novafact.example` est « same-site » avec l'API, même s'il est hébergé par un prestataire. Chrome compte aussi le schéma (`http://` et `https://` du même domaine sont deux sites), ce que les autres moteurs ne font pas encore par défaut.
+
+## Les préfixes : des garanties lisibles dans le nom
+
+Le serveur qui reçoit un cookie ne voit que son nom et sa valeur, jamais ses attributs ni qui l'a posé. Les préfixes résolvent ce problème : le navigateur **refuse** de stocker un cookie dont le nom commence par le préfixe si les conditions ne sont pas remplies, donc le nom seul garantit les attributs.
+
+| Préfixe | Conditions imposées | Prise en charge |
+| --- | --- | --- |
+| `__Secure-` | `Secure`, posé depuis HTTPS | Chrome, Firefox, Safari |
+| `__Host-` | `Secure`, **sans `Domain`**, `Path=/` | Chrome, Firefox, Safari |
+| `__Http-` | `Secure` et `HttpOnly` : posé par `Set-Cookie`, jamais par script | Chrome 140, Firefox 143 ; pas encore Safari |
+| `__Host-Http-` | Les deux ensembles de conditions | Chrome 140, Firefox 143 ; pas encore Safari |
+
+## Dans le code : la fixation par un voisin
+
+Le scénario complet combine trois règles de cette leçon. Une XSS sur le centre d'aide `support.novafact.example` pose un cookie pour tout le domaine :
+
+```text
+document.cookie = "sid=s%3A<identifiant-obtenu-par-l-attaquant>.<signature>; Domain=novafact.example; Path=/auth; Secure"
+```
+
+Son `Path` plus long le fait passer en premier sur `/auth/login`, et l'application qui ne régénère pas la session authentifie celle que l'attaquant connaît déjà.
+
+<Diff file="apps/bff/src/session.ts" hlBefore="3,4,10" hlAfter="3,4,10-14">
+
+```ts
+app.use(session({
+  secret: process.env.SESSION_SECRET!,
+  name: 'sid',
+  cookie: { domain: '.novafact.example', secure: true, httpOnly: true },
+  saveUninitialized: true, resave: false, store,
+}));
+
+app.post('/auth/login', async (req, res) => {
+  const user = await verifyCredentials(req);
+  req.session.userId = user.id; // la session reçue, peut-être fournie par un tiers, devient authentifiée
+  res.json({ ok: true });
+});
+```
+
+```ts
+app.use(session({
+  secret: process.env.SESSION_SECRET!,
+  name: '__Host-sid', // sans Domain : un sous-domaine ne peut ni le poser ni l'écraser
+  cookie: { secure: true, httpOnly: true, sameSite: 'lax', path: '/' },
+  saveUninitialized: false, resave: false, store,
+}));
+
+app.post('/auth/login', async (req, res, next) => {
+  const user = await verifyCredentials(req);
+  req.session.regenerate((err) => { // nouvel identifiant à chaque changement de privilège
+    if (err) return next(err);
+    req.session.userId = user.id;
+    res.json({ ok: true });
+  });
+});
+```
+
+</Diff>
+
+Le mauvais correctif est celui de la première question : `__Secure-sid` laisse `Domain`, et le voisin pose `__Secure-sid` à l'identique. Les deux mesures sont nécessaires : `__Host-` empêche l'injection, la régénération rend inutile un identifiant connu à l'avance. La gestion complète des sessions est en M14 (leçon 1).
+
+## Cookies tiers et partitionnement
+
+Un cookie est **tiers** quand il est envoyé à un site différent de celui affiché dans la barre d'adresse : le widget de chat, l'iframe du prestataire de paiement. Leur sort diffère selon les moteurs. Safari les bloque par défaut depuis mars 2020. Firefox les cloisonne par site affiché depuis juin 2022 (*Total Cookie Protection*). Chrome, après des années d'annonces, a confirmé en octobre 2025 qu'il conservait son approche actuelle, laissant le choix à l'utilisateur, et a retiré la plupart des technologies Privacy Sandbox ; il garde CHIPS.
+
+**CHIPS** est l'attribut `Partitioned` : le cookie est stocké dans un pot propre au site de premier niveau. Le widget intégré chez deux clients a deux cookies distincts, ce qui suffit pour un état d'interface et empêche le suivi d'un site à l'autre. Il exige `Secure` et est pris en charge par Chrome (114), Firefox (141) et Safari (26.2). Pour Novafact, la conséquence est simple : aucune authentification ne doit dépendre d'un cookie tiers, puisqu'il est bloqué ou cloisonné dans une partie du parc.
+
+## Le stockage côté client, et ce qui y fuit
+
+`localStorage`, `sessionStorage`, IndexedDB et Cache Storage sont cloisonnés par **origine**, et Chrome les partitionne aussi par site de premier niveau dans les contextes tiers depuis la version 115. Mais dans l'origine, ils sont lisibles par **tout** script : celui de l'application, celui du tag manager, celui qu'une XSS injecte. Trois fuites reviennent en audit :
+
+- des jetons d'accès ou de rafraîchissement en `localStorage`, exfiltrables en une ligne ; le BFF les garde côté serveur (M14, leçon 4) ;
+- des données personnelles mises en cache par l'application ou un service worker, qui survivent à la déconnexion. `Clear-Site-Data` sur la réponse de déconnexion les efface ;
+- des secrets dans l'URL, qui finissent dans l'historique, les journaux et l'en-tête `Referer` (M7, leçon 6).
+
+<Lab id="ps-csrf" />
+
+<Recap items={[
+  "Un cookie n'isole ni par port ni vraiment par schéma ; Domain élargit, et un sous-domaine peut poser un cookie pour le parent.",
+  "SameSite compare des sites : Lax laisse passer la navigation GET, et le défaut sans attribut n'est Lax que dans Chrome.",
+  "__Host- garantit l'hôte exact ; __Secure- ne l'empêche pas. Régénérer la session à la connexion ferme la fixation.",
+  "Cookies tiers bloqués (Safari), cloisonnés (Firefox) ou au choix de l'utilisateur (Chrome) : aucune authentification n'en dépend.",
+  "Le stockage du navigateur est lisible par tout script de l'origine : pas de jeton, pas de donnée qui survive à la déconnexion.",
+]} />
+
+<Sources items={[
+  { title: "RFC 6265 : HTTP State Management Mechanism (section 8, considérations de sécurité)", url: "https://www.rfc-editor.org/rfc/rfc6265" },
+  { title: "MDN : Set-Cookie (SameSite, préfixes, Partitioned)", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie" },
+  { title: "MDN browser-compat-data : Set-Cookie (défaut Lax, préfixes __Http-, Partitioned)", url: "https://github.com/mdn/browser-compat-data/blob/main/http/headers/Set-Cookie.json" },
+  { title: "Chromium : SameSite Updates (calendrier 2020, Lax+POST)", url: "https://www.chromium.org/updates/same-site/" },
+  { title: "GitHub : New GitHub Pages domain, github.io (5 avril 2013)", url: "https://github.blog/news-insights/the-library/new-github-pages-domain-github-io/" },
+  { title: "WebKit : Full Third-Party Cookie Blocking and More (24 mars 2020)", url: "https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/" },
+  { title: "Mozilla : Total Cookie Protection activée par défaut (14 juin 2022)", url: "https://blog.mozilla.org/en/mozilla/firefox-rolls-out-total-cookie-protection-by-default-to-all-users-worldwide/" },
+  { title: "Privacy Sandbox : Update on plans for Privacy Sandbox technologies (17 octobre 2025)", url: "https://privacysandbox.google.com/blog/update-on-plans-for-privacy-sandbox-technologies" },
+  { title: "Privacy Sandbox : Storage partitioning (Chrome 115)", url: "https://privacysandbox.google.com/cookies/storage-partitioning" },
+]} />

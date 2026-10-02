@@ -1,0 +1,126 @@
+export const questions = [
+  {
+    q: "Storm-0558, 2023 : selon le CSRB, quelle combinaison a permis de lire des boîtes Exchange Online d'entreprises ?",
+    options: [
+      "Une clé grand public de 2016 volée, et une validation de jetons qui l'acceptait pour les comptes d'entreprise",
+      "Un mot de passe administrateur pulvérisé, puis une application OAuth à laquelle on attribue le rôle full_access_as_app",
+      "Une vulnérabilité d'Outlook Web Access exploitée à distance, puis des règles de transfert de courrier",
+      "Un cookie de session volé sur le poste d'un ingénieur, rejoué depuis l'étranger pendant six semaines",
+    ],
+    answer: 0,
+    explain: "L'attaquant forge des jetons avec une clé de signature MSA (grand public) créée en 2016, et une faille de validation, liée à un point de terminaison commun publiant les clés grand public et entreprise, fait accepter ces jetons par Exchange Online. Le pulvérisage et le rôle full_access_as_app, c'est Midnight Blizzard en 2024 ; le cookie volé sur un poste, c'est CircleCI. Aucune vulnérabilité d'OWA n'a été exploitée : les jetons étaient « valides ».",
+  },
+  {
+    q: "CircleCI, décembre 2022 : la session volée avait passé la 2FA. Quelle mesure CircleCI cite-t-elle parmi ses changements ?",
+    options: [
+      "Le remplacement de la 2FA par des codes envoyés par SMS, plus faciles à révoquer",
+      "Des étapes d'authentification renforcée et un accès à la production réduit à très peu d'employés",
+      "La suppression du SSO, chaque outil interne ayant désormais ses propres identifiants",
+      "Le chiffrement des variables d'environnement, qui n'étaient jusque-là pas chiffrées au repos",
+    ],
+    answer: 1,
+    explain: "CircleCI annonce des étapes d'authentification renforcée (step-up), une confiance réduite dans les sessions et un accès à la production limité à un très petit nombre d'employés. Les données étaient déjà chiffrées au repos : l'attaquant a extrait les clés de la mémoire d'un processus en cours, ce qui rend ce distracteur faux sur le fond. Remplacer le SSO ou passer au SMS affaiblirait la position au lieu de la renforcer.",
+  },
+  {
+    q: "Pour MGM Resorts (septembre 2023), que peut-on affirmer à partir des déclarations de l'entreprise elle-même ?",
+    options: [
+      "Que l'accès initial a été obtenu par un appel de dix minutes au support informatique",
+      "Que le groupe ALPHV a chiffré plus d'une centaine d'hyperviseurs ESXi",
+      "Un impact estimé à environ 100 M$ et le vol de données personnelles de clients",
+      "Que l'attaque a été menée par Scattered Spider, identifié par le FBI dans le formulaire 8-K",
+    ],
+    answer: 2,
+    explain: "Le formulaire 8-K du 5 octobre 2023 chiffre l'impact à environ 100 M$ sur l'Adjusted Property EBITDAR du trimestre et décrit les données volées (noms, coordonnées, numéros de permis, parfois de passeport ou de sécurité sociale). Le mode opératoire par le support et le chiffrement des ESXi viennent de la revendication d'ALPHV et de la presse, et le 8-K n'attribue l'attaque à aucun groupe. Les distinguer est le premier réflexe d'une analyse de cas.",
+  },
+  {
+    q: "Quel point commun relie Uber 2022, Snowflake 2024 et Midnight Blizzard 2024 ?",
+    options: [
+      "Un fournisseur SaaS compromis dans son propre environnement de production, puis utilisé contre ses clients",
+      "Un jeton OAuth volé chez un intégrateur tiers, puis réutilisé contre ses clients",
+      "Une vulnérabilité zero-day exploitée sur une application exposée sur Internet, avant tout correctif",
+      "Un mot de passe valide entre des mains hostiles, et un facteur supplémentaire absent ou contourné",
+    ],
+    answer: 3,
+    explain: "Uber : mot de passe d'un prestataire, MFA obtenue par fatigue. Snowflake : identifiants volés par des infostealers, sans MFA. Midnight Blizzard : mot de passe pulvérisé sur un compte de test sans MFA. Aucun de ces trois cas n'implique de zero-day ni de compromission de la plateforme du fournisseur (Mandiant et Microsoft l'écrivent explicitement), et le jeton volé chez un intégrateur est le schéma de Salesloft Drift, pas le leur.",
+  },
+];
+
+<YouKnow>
+Ces affaires ont circulé dans la presse, souvent avec des détails qui ne figurent dans aucune source officielle. Cette leçon les reprend à partir des déclarations des victimes, des enquêteurs et du CSRB, étape par étape, en techniques ATT&CK v19, pour en tirer ce qu'une équipe produit peut changer.
+</YouKnow>
+
+## Lire un cas sans se tromper de source
+
+Avant les cas, une règle de méthode : on distingue ce que la **victime** ou un **enquêteur mandaté** a écrit, ce que l'**attaquant** revendique, et ce que la **presse** reconstitue. Les revendications d'un groupe de rançongiciel servent sa négociation ; elles peuvent être vraies, mais elles ne valent pas un rapport d'enquête. Dans les chaînes ci-dessous, une étape qui ne repose que sur une revendication est signalée.
+
+## Uber, septembre 2022
+
+Selon Uber, le mot de passe d'un prestataire a probablement été acheté sur le dark web après l'infection de son appareil personnel par un malware. L'attaquant multiplie les tentatives de connexion ; chacune déclenche une demande d'approbation, et le prestataire finit par en accepter une. Il accède ensuite à d'autres comptes d'employés et obtient des droits élevés sur plusieurs outils, dont G-Suite et Slack. Uber rattache l'attaquant à Lapsus$ (G1004).
+
+**Chaîne** : identifiants volés (T1078) → fatigue MFA (T1621) → autres comptes d'employés et droits élevés (T1078) → accès aux outils SaaS internes. **Ce qui casse la chaîne** : une MFA qui ne s'approuve pas d'un geste (correspondance de nombre, FIDO2), et une alerte sur une rafale de demandes refusées.
+
+## MGM Resorts, septembre 2023
+
+Le formulaire 8-K de MGM (5 octobre 2023) établit l'impact : environ 100 M$ sur l'Adjusted Property EBITDAR, moins de 10 M$ de frais ponctuels, et des données personnelles de clients volées, sans mots de passe ni données bancaires selon l'entreprise. Le mode opératoire, lui, vient de la revendication d'ALPHV et de reprises de presse : un appel au support informatique en se faisant passer pour un employé. MGM ne l'a pas confirmé. Ce mode opératoire est en revanche documenté par la CISA pour Scattered Spider (G1015) : se faire passer pour un employé ou pour le support, obtenir la réinitialisation du mot de passe et le transfert de la MFA, puis enregistrer ses propres facteurs.
+
+**Chaîne (documentée pour le groupe, revendiquée pour MGM)** : appel au support (T1598.004, T1684.001) → réinitialisation et enregistrement d'un nouveau facteur (T1556.006) → comptes à privilèges → chiffrement (T1486, revendiqué). **Ce qui casse la chaîne** : une procédure de réinitialisation qui ne repose jamais sur ce que l'appelant sait dire de lui-même.
+
+## CircleCI, décembre 2022 – janvier 2023
+
+Le 16 décembre 2022, un malware non détecté par l'antivirus vole sur le portable d'un ingénieur une session SSO valide, **déjà validée par la 2FA**. L'attaquant l'utilise depuis un autre lieu, élève ses accès à une partie de la production, fait de la reconnaissance le 19 et exfiltre le 22 des variables d'environnement, jetons et clés de clients. Les données étaient chiffrées au repos, mais les clés ont été extraites de la mémoire d'un processus. Un client signale le 29 décembre une activité OAuth GitHub suspecte ; CircleCI publie son rapport le 4 janvier 2023.
+
+**Chaîne** : vol du cookie (T1539) → rejeu de la session (T1550.004) → élévation dans la production → collecte et exfiltration des secrets. **Ce qui casse la chaîne** : sessions courtes et liées à l'appareil, authentification renforcée pour la production, secrets clients à courte durée de vie.
+
+## Snowflake, avril – juin 2024
+
+Mandiant décrit UNC5537 : des identifiants de clients volés par des infostealers, certains depuis novembre 2020, réutilisés sur des comptes sans MFA ni liste d'adresses autorisées. L'outillage énumère les tables (`SHOW TABLES`), prépare les données (`CREATE TEMPORARY STAGE`, `COPY INTO`) et les rapatrie (`GET`), avant l'extorsion. Mandiant ne trouve aucune compromission de l'environnement de Snowflake.
+
+**Chaîne** : comptes cloud valides (T1078.004) → découverte des bases → collecte en base (T1213.006) et préparation (T1074) → extorsion (T1657). **Ce qui casse la chaîne** : MFA, rotation des identifiants, restriction réseau ; côté détection, des volumes de requêtes qu'aucun utilisateur humain ne produit.
+
+## Midnight Blizzard, novembre 2023 – janvier 2024
+
+À partir de fin novembre 2023, l'acteur pulvérise des mots de passe sur un compte d'un tenant de test hérité sans MFA, compromet une application OAuth de test qui avait des droits élevés dans l'environnement de Microsoft, crée d'autres applications et un compte pour leur donner son consentement, puis obtient le rôle `full_access_as_app` d'Exchange Online. Il lit par EWS des boîtes de dirigeants et d'équipes de sécurité et juridiques, en cherchant d'abord ce que Microsoft savait de lui. Détection le 12 janvier 2024 ; Microsoft précise qu'aucune vulnérabilité de ses produits n'est en cause.
+
+**Chaîne** : T1110.003 → T1078.004 → applications OAuth (T1671) et compte créé (T1136.003) → rôle étendu (T1098.003) → collecte de courrier (T1114.002). **Ce qui casse la chaîne** : MFA sur tous les tenants, et alerte sur toute attribution de rôle applicatif à privilèges.
+
+## Storm-0558, mai – juillet 2023
+
+Le rapport du Cyber Safety Review Board, daté du 20 mars 2024, établit les faits. Storm-0558 forge des jetons avec une clé de signature MSA grand public **créée en 2016**, qui aurait dû être retirée en 2021. Microsoft faisait tourner ces clés manuellement, rarement, et avait **arrêté la rotation en 2021** après une panne liée à ce processus, sans alerte sur l'âge des clés actives. Une faille de validation fait accepter ces jetons par Exchange Online d'entreprise. Bilan : 22 organisations et 503 comptes personnels, dont environ 60 000 courriels du seul Département d'État. Au moment du rapport, Microsoft ne savait toujours pas comment la clé avait été obtenue.
+
+**Chaîne** : clé de signature obtenue (moyen inconnu) → jetons forgés (T1606) → jetons utilisés comme matériel d'authentification (T1550.001) → lecture de courrier (T1114.002).
+
+<Callout kind="case">
+Ce n'est pas Microsoft qui a détecté l'intrusion, mais le Département d'État, à la mi-juin 2023, grâce à une règle maison baptisée « Big Yellow Taxi » appliquée au journal `MailItemsAccessed`. Ce journal n'était accessible qu'avec une licence haut de gamme, que peu de victimes avaient. Le CSRB en tire une recommandation : des journaux d'audit par défaut, sans surcoût, conservés au moins six mois (leçon 4). Une détection n'existe que si la source de journaux existe.
+</Callout>
+
+## Ce qui revient, et ce que Novafact en fait
+
+| Motif | Cas | Contrôle de conception chez Novafact |
+| --- | --- | --- |
+| Mot de passe valide, facteur absent ou contourné | Uber, Snowflake, Midnight Blizzard | Passkey imposée aux rôles sensibles, pas de repli SMS |
+| Le support comme porte d'entrée | MGM (revendiqué) | Réinitialisation de facteur par un second canal vérifié, jamais sur simple appel |
+| Session valide rejouée | CircleCI | Sessions d'administration courtes, révocation globale, step-up |
+| Identités applicatives oubliées | Midnight Blizzard | Inventaire des applications OAuth, alertes sur les rôles attribués |
+| Secrets cryptographiques sans cycle de vie | Storm-0558 | Rotation automatique des clés de signature, alerte sur l'âge (leçon 6) |
+| Détection dépendante d'un journal payant | Storm-0558 | Journaux d'accès aux données sans surcoût pour tous les clients |
+
+Aucun de ces cas ne commence par une injection SQL. Tous passent par l'identité, et la plupart par une décision de conception prise des années plus tôt : un tenant de test jamais fermé, une rotation suspendue, une MFA rendue optionnelle.
+
+<Recap items={[
+  "Séparer ce que disent la victime et les enquêteurs de ce que revendique l'attaquant : MGM documente l'impact, pas le mode opératoire.",
+  "Uber, Snowflake, Midnight Blizzard : un mot de passe valide et un facteur absent ou contourné, sans faille de plateforme.",
+  "CircleCI : une session validée par la 2FA vaut la 2FA ; les clés de chiffrement ont été lues en mémoire.",
+  "Storm-0558 : clé MSA de 2016, rotation arrêtée en 2021, validation trop large, détection par un client grâce à MailItemsAccessed.",
+  "Chaque motif se traduit en contrôle de conception : passkeys, réinitialisation hors bande, sessions courtes, inventaire OAuth, rotation des clés, journaux sans surcoût.",
+]} />
+
+<Sources items={[
+  { title: "Uber : Security update (formulaire 8-K, septembre 2022)", url: "https://www.sec.gov/Archives/edgar/data/1543151/000155278122000558/e22427_ex99-1.htm" },
+  { title: "MGM Resorts : formulaire 8-K du 5 octobre 2023", url: "https://www.sec.gov/Archives/edgar/data/789570/000119312523251667/d461062d8k.htm" },
+  { title: "CISA AA23-320A : Scattered Spider", url: "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-320a" },
+  { title: "CircleCI : rapport d'incident du 4 janvier 2023", url: "https://circleci.com/blog/jan-4-2023-incident-report/" },
+  { title: "Mandiant : UNC5537 et Snowflake (juin 2024)", url: "https://cloud.google.com/blog/topics/threat-intelligence/unc5537-snowflake-data-theft-extortion" },
+  { title: "Microsoft : Midnight Blizzard, guide pour les équipes de réponse (janvier 2024)", url: "https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/" },
+  { title: "Microsoft MSRC : actions après l'attaque de Midnight Blizzard", url: "https://www.microsoft.com/en-us/msrc/blog/2024/01/microsoft-actions-following-attack-by-nation-state-actor-midnight-blizzard" },
+  { title: "Cyber Safety Review Board : Review of the Summer 2023 Microsoft Exchange Online Intrusion (20 mars 2024)", url: "https://www.cisa.gov/sites/default/files/2024-04/CSRB_Review_of_the_Summer_2023_MEO_Intrusion_Final_508c.pdf" },
+]} />

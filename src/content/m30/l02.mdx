@@ -1,0 +1,175 @@
+export const questions = [
+  {
+    q: "Depuis la révision 2026-07-28, l'assistant de Novafact n'envoie plus de requête `initialize`. Où le serveur MCP trouve-t-il la version du protocole et les capacités du client ?",
+    options: [
+      "Dans le `_meta` de chaque requête, puisqu'aucun état n'est gardé entre deux appels",
+      "Dans l'en-tête `Mcp-Session-Id`, émis au premier appel et renvoyé ensuite",
+      "Dans la réponse à `server/discover`, que le client doit appeler en premier",
+      "Dans le jeton d'accès OAuth, qui porte les capacités sous forme de scopes",
+    ],
+    answer: 0,
+    explain: "Le protocole est devenu sans état : chaque requête porte `io.modelcontextprotocol/protocolVersion` et `io.modelcontextprotocol/clientCapabilities` dans son `_meta`, et le serveur ne doit rien déduire des requêtes précédentes. `server/discover` existe et le serveur doit l'implémenter, mais c'est le serveur qui y annonce ses versions et capacités ; le client peut l'appeler, sans obligation. `Mcp-Session-Id` a été supprimé par cette révision, et les scopes disent ce que le jeton autorise, pas ce que le client sait faire.",
+  },
+  {
+    q: "Le client MCP de Novafact approuve automatiquement tout outil marqué `readOnlyHint: true`, pour éviter des confirmations inutiles. Qu'en dit la spécification ?",
+    options: [
+      "C'est conforme : l'annotation engage le serveur, qui doit refuser toute écriture",
+      "C'est conforme si le client vérifie aussi `destructiveHint: false` sur l'outil",
+      "Les annotations sont non fiables, sauf si elles viennent d'un serveur de confiance",
+      "Les annotations ont été dépréciées en 2026 au profit du champ `outputSchema`",
+    ],
+    answer: 2,
+    explain: "La page Tools est explicite : le client doit considérer les annotations comme non fiables, sauf si elles proviennent d'un serveur de confiance. Une annotation est une déclaration du serveur sur lui-même ; un serveur malveillant ou compromis marque « lecture seule » un outil qui écrit. Croiser deux annotations ne change rien, puisqu'elles viennent de la même source. La décision d'approuver se fonde sur une liste tenue par le client (serveur, outil, version approuvée), pas sur ce que le serveur dit de ses outils.",
+  },
+  {
+    q: "Un développeur de Novafact veut exposer en Streamable HTTP un serveur MCP écrit pour stdio, « pour le partager avec l'équipe ». Qu'est-ce qui change dans son modèle de menaces ?",
+    options: [
+      "Rien de notable : le serveur exécute les mêmes outils avec les mêmes arguments",
+      "Les identifiants ne viennent plus de l'environnement : il faut ajouter le chiffrement des variables",
+      "Le transport HTTP impose OAuth, que le SDK active alors automatiquement",
+      "N'importe quel client réseau devient appelant : authentification, Origin et adresse d'écoute",
+    ],
+    answer: 3,
+    explain: "En stdio, le seul appelant est le processus hôte qui a lancé le serveur. En HTTP, tout ce qui joint le port devient un appelant possible : une page web par DNS rebinding, un collègue, un scanner. La spécification demande alors de valider `Origin`, d'écouter sur 127.0.0.1 en local et d'authentifier. L'autorisation OAuth est recommandée pour les transports HTTP mais rien ne l'active toute seule : c'est exactement ce qui manquait au serveur excel-mcp-server (CVE-2026-40576).",
+  },
+  {
+    q: "Pourquoi la révision 2026-07-28 impose-t-elle les en-têtes `Mcp-Method` et `Mcp-Name` en plus du corps JSON-RPC ?",
+    options: [
+      "Pour remplacer la signature du corps, que les proxys HTTP ne savent pas vérifier",
+      "Pour que les intermédiaires routent et filtrent sans lire le corps, qui doit leur correspondre",
+      "Pour permettre la reprise d'un flux SSE interrompu sur un autre nœud du cluster",
+      "Pour transporter l'identité du client, qui n'est plus authentifiée par la session",
+    ],
+    answer: 1,
+    explain: "Les en-têtes recopient des champs du corps pour que répartiteurs, passerelles et outils d'observabilité puissent router et inspecter sans parser le JSON. Le revers est connu des pentesters : deux composants qui lisent deux sources de vérité. D'où l'obligation pour le serveur de rejeter toute incohérence (400 et `HeaderMismatch`, code -32020). La reprise de flux par `Last-Event-ID` a justement été supprimée, et l'identité vient du jeton, pas d'un en-tête déclaratif.",
+  },
+];
+
+<YouKnow>
+Un pentester a déjà intercepté du JSON-RPC dans Burp et sait lire une API par ses messages. MCP, c'est du JSON-RPC 2.0 sur deux transports, avec un vocabulaire à lui. La vue d'ensemble (leçon 1) a posé les risques ; ici, on démonte la mécanique, parce que chaque attaque des leçons suivantes s'appuie sur un de ces rouages.
+</YouKnow>
+
+## Trois rôles, trois frontières de confiance
+
+La spécification distingue trois rôles, qu'on confond souvent :
+
+| Rôle | Ce que c'est | Chez Novafact |
+| --- | --- | --- |
+| **Hôte** | L'application LLM : elle tient la conversation, appelle le modèle, décide de ce qui entre dans le contexte | Le backend d'« Ask Novafact » |
+| **Client** | Le connecteur, dans l'hôte, qui parle à **un** serveur | Un client par serveur branché |
+| **Serveur** | Le programme qui expose des capacités | `mcp-novafact` (factures, avoirs), le serveur de l'éditeur comptable |
+
+La frontière qui compte passe entre l'hôte et chaque serveur. L'hôte est le code de l'équipe ; le serveur peut être celui d'un tiers, et tout ce qu'il renvoie (descriptions, résultats, erreurs) finit dans le contexte du modèle. Un hôte qui branche cinq serveurs a cinq sources de texte non fiable et cinq programmes qui reçoivent des arguments choisis par le modèle.
+
+## Les primitives : qui décide de l'appel
+
+Côté serveur, trois primitives. Ce qui les distingue n'est pas leur format mais **qui déclenche** leur usage, et c'est ce qui fixe le contrôle à poser.
+
+| Primitive | Déclenchée par | Exemple Novafact | Contrôle principal |
+| --- | --- | --- | --- |
+| **Tools** | Le modèle | `create_credit_note`, `send_invoice_email` | Confirmation humaine pour les actions sensibles, schémas stricts, droits vérifiés côté serveur |
+| **Resources** | L'application | `invoice://2026/F-1042` | Filtrer par droits **avant** de lire, comme pour un RAG |
+| **Prompts** | L'utilisateur | « Relancer les impayés du mois » | Relire le gabarit : c'est du texte injecté dans le contexte |
+
+Côté client, la primitive active est l'**Elicitation** : le serveur demande une information à l'utilisateur (un formulaire, ou une URL à ouvrir). **Sampling** (le serveur emprunte le modèle du client) et **Roots** (le client indique les dossiers autorisés) existent encore mais sont **dépréciés** depuis 2026-07-28, avec une fenêtre d'au moins douze mois avant retrait. La spécification suggère de passer les dossiers en paramètres ou en configuration plutôt que par Roots.
+
+Autre changement : le serveur n'envoie plus de requêtes au client. Quand il lui manque une information, il répond `resultType: "input_required"` avec ses demandes, et le client **rejoue** l'appel d'origine avec les réponses (*Multi Round-Trip Requests*). Le serveur peut joindre un `requestState` opaque que le client renvoie tel quel. La spécification le qualifie d'entrée contrôlée par l'attaquant : s'il influence une décision, il doit être protégé en intégrité (leçon 5).
+
+## Deux transports, deux surfaces
+
+**stdio** : l'hôte lance le serveur comme processus enfant et lui parle sur l'entrée et la sortie standard. Seul l'hôte peut l'appeler ; les identifiants viennent de l'environnement, et la spécification d'autorisation ne s'y applique pas. Le risque est ailleurs : installer un serveur stdio, c'est **exécuter une commande** sur le poste (leçons 4 et 6).
+
+**Streamable HTTP** : un point d'entrée unique qui accepte des POST ; chaque message JSON-RPC est une requête, et le serveur répond en JSON ou en flux SSE propre à cette requête. La section sécurité impose de valider `Origin` sur toute connexion (403 si l'en-tête est présent et invalide), recommande d'écouter sur 127.0.0.1 en local et d'authentifier. L'ancien transport **HTTP+SSE** est déprécié.
+
+<Callout kind="case">
+En avril 2026, l'avis GHSA-j98m-w3xp-9f56 (CVE-2026-40576) a décrit excel-mcp-server jusqu'à la version 0.1.7. Sa fonction de résolution de chemin laissait passer les chemins absolus et ne vérifiait pas le résultat d'une jointure avec `../`. En stdio, l'appelant était l'utilisateur lui-même. Lancé en SSE ou Streamable HTTP avec la configuration par défaut (écoute sur 0.0.0.0, aucune authentification), le même code laissait n'importe qui sur le réseau lire et écraser des fichiers de l'hôte. Corrigé en 0.1.8. Changer de transport, c'est changer d'appelants.
+</Callout>
+
+## 2026-07-28 : un protocole sans état
+
+Jusqu'en 2025-11-25, une connexion commençait par `initialize`, et en HTTP le serveur pouvait attribuer un `Mcp-Session-Id`. La révision **2026-07-28** supprime les deux. Chaque requête porte sa version et les capacités du client dans `_meta` ; le serveur ne doit rien déduire des requêtes précédentes, même sur la même connexion. Il doit implémenter `server/discover` pour annoncer versions et capacités. Les notifications de changement passent par une requête longue `subscriptions/listen`, et la reprise de flux par `Last-Event-ID` disparaît.
+
+Voici à quoi ressemble un appel d'outil sur le fil :
+
+<Code file="docs/mcp/tools-call.http" hl="3,4,5,12,14,15">
+
+```http
+POST /mcp HTTP/1.1
+Host: mcp.novafact.example
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: list_invoices
+Authorization: Bearer eyJhbGciOi…
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0", "id": 7, "method": "tools/call",
+  "params": {
+    "name": "list_invoices",
+    "arguments": { "status": "overdue" },
+    "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+               "io.modelcontextprotocol/clientCapabilities": {} }
+  }
+}
+```
+
+</Code>
+
+Trois conséquences pour la sécurité, détaillées en leçon 5 :
+
+- **Chaque requête s'authentifie seule.** Il n'y a plus de « session déjà authentifiée » à détourner ; le jeton est vérifié à chaque appel (le flux OAuth est l'objet de M29).
+- **Les en-têtes doublent le corps.** `Mcp-Method` et `Mcp-Name` permettent à un répartiteur de router sans lire le JSON. Le serveur doit vérifier que les deux disent la même chose, et répondre 400 avec `HeaderMismatch` (-32020) sinon.
+- **L'état passe par des *handles*.** Un panier, un brouillon d'avoir : le serveur émet un identifiant que le modèle repasse en argument. Un handle est un nom, pas une capacité : le posséder ne prouve rien.
+
+Enfin, `clientInfo` et `serverInfo` sont **auto-déclarés** : la spécification les réserve à l'affichage et aux journaux, pas aux décisions de sécurité.
+
+## Les annotations ne sont pas un contrôle
+
+Un outil peut porter des annotations : `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`. Elles sont utiles pour l'interface. La page Tools est nette : le client doit les considérer comme **non fiables, sauf si elles viennent d'un serveur de confiance**. Le serveur se décrit lui-même ; un serveur malveillant ou modifié dit ce qui l'arrange.
+
+<Diff file="apps/assistant/src/mcp/approval.ts" hlBefore="2" hlAfter="1,2,3,4,5,9,10">
+
+```ts
+export function needsConfirmation(tool: Tool): boolean {
+  return !tool.annotations?.readOnlyHint;   // le serveur décide de ce qu'on confirme
+}
+```
+
+```ts
+// Politique tenue par Novafact, versionnée et relue comme du code.
+const AUTO_APPROVED: Record<string, readonly string[]> = {
+  'mcp-novafact': ['list_invoices', 'get_invoice'],
+  'compta-editeur': ['get_ledger_balance'],
+};
+
+export function needsConfirmation(serverId: string, tool: Tool): boolean {
+  // Les annotations servent à l'affichage ; la décision vient de notre liste.
+  return !AUTO_APPROVED[serverId]?.includes(tool.name);
+}
+```
+
+</Diff>
+
+Le cas qui casse la première version : l'éditeur comptable publie une mise à jour où `sync_ledger`, qui écrit, porte `readOnlyHint: true`. L'outil passe sans confirmation. Avec la liste tenue par Novafact, un nouvel outil ou un outil renommé exige une confirmation tant que personne ne l'a ajouté. La clé inclut le serveur : la spécification rappelle que deux serveurs peuvent exposer un outil du même nom et recommande de préfixer les noms par un identifiant de serveur.
+
+<Callout kind="novafact">
+La fiche de conception d'Ask Novafact recense pour chaque serveur son transport, son mode d'authentification, ses primitives utilisées et la liste des outils approuvés. Elle sert de base à l'inventaire (leçon 7).
+</Callout>
+
+<Recap items={[
+  "Hôte, client, serveur : la frontière de confiance passe entre l'hôte et chaque serveur, dont tout le texte entre dans le contexte.",
+  "Tools déclenchés par le modèle, Resources par l'application, Prompts par l'utilisateur ; côté client, Elicitation, Sampling et Roots étant dépréciés.",
+  "stdio : un processus local qui exécute une commande ; Streamable HTTP : Origin validé (403), écoute locale, authentification.",
+  "2026-07-28 : plus d'initialize ni de Mcp-Session-Id, métadonnées dans _meta à chaque requête, en-têtes Mcp-Method et Mcp-Name à confronter au corps, état par handles.",
+  "Annotations d'outils non fiables par défaut : la confirmation se décide sur une liste tenue par le client.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : changelog", url: "https://modelcontextprotocol.io/specification/2026-07-28/changelog" },
+  { title: "MCP 2026-07-28 : Overview (statelessness, _meta)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/index" },
+  { title: "MCP 2026-07-28 : Streamable HTTP", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http" },
+  { title: "MCP 2026-07-28 : Tools (annotations, stateful tools)", url: "https://modelcontextprotocol.io/specification/2026-07-28/server/tools" },
+  { title: "MCP 2026-07-28 : Multi Round-Trip Requests", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr" },
+  { title: "Blog MCP : Tool annotations (16 mars 2026)", url: "https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/" },
+  { title: "GHSA-j98m-w3xp-9f56 : excel-mcp-server (CVE-2026-40576)", url: "https://github.com/advisories/GHSA-j98m-w3xp-9f56" },
+]} />

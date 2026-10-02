@@ -1,0 +1,180 @@
+export const questions = [
+  {
+    q: "La règle « changement d'IBAN après connexion depuis un appareil inconnu » n'a produit aucune alerte en six mois. Quelle est la bonne décision de cycle de vie ?",
+    options: [
+      "La retirer : une règle qui ne se déclenche jamais coûte du calcul sans rien apporter",
+      "Rejouer son test de validation : si elle se déclenche encore, elle reste en production",
+      "Abaisser son seuil jusqu'à obtenir quelques alertes par mois, pour prouver qu'elle vit",
+      "La laisser telle quelle : l'absence d'alerte prouve qu'aucune fraude n'a eu lieu",
+    ],
+    answer: 1,
+    explain: "Le silence a deux explications possibles : il ne s'est rien passé, ou la règle ne voit plus rien (champ renommé, événement plus journalisé). Seul le rejeu du test de validation de l'ADS tranche. Conclure à l'absence de fraude suppose la règle saine, ce qui est justement la question. Abaisser le seuil pour « faire vivre » la règle fabrique du bruit. La retirer jette une détection d'un scénario rare mais grave : la rareté n'est pas un critère de retrait, l'inutilité démontrée en est un.",
+  },
+  {
+    q: "En revue d'ADS, la section « Blind Spots and Assumptions » d'une nouvelle règle indique : « aucun ». Que faut-il en conclure ?",
+    options: [
+      "La règle est mûre : elle peut passer directement en production sans période d'observation",
+      "La section est facultative pour une règle de sévérité faible, la revue peut continuer",
+      "L'analyse n'a pas été faite : toute règle repose sur des données et des hypothèses",
+      "La règle est trop large : une règle sans angle mort produit forcément des faux positifs",
+    ],
+    answer: 2,
+    explain: "Une règle dépend au minimum de l'existence d'un événement, d'un champ et d'un chemin de journalisation : chacun est une hypothèse qui peut tomber. « Aucun » signifie que l'auteur ne les a pas cherchées, pas qu'elles n'existent pas. Ce n'est pas un signe de maturité, et aucune section d'ADS n'est facultative selon la sévérité. Le lien entre absence d'angle mort et faux positifs est un raisonnement séduisant mais sans fondement : une règle peut être à la fois bruyante et aveugle.",
+  },
+  {
+    q: "Une règle d'export massif sonne chaque nuit à cause du job de sauvegarde d'un client. Un analyste ajoute l'exception `user.name : svc-*`. Quel est le problème ?",
+    options: [
+      "L'exception crée un angle mort pour tout compte de service, y compris un compte volé",
+      "Les exceptions Elastic s'appliquent à toutes les règles de l'espace, pas à une seule",
+      "Une exception sur un joker est refusée par Kibana, qui exige une valeur exacte",
+      "Il fallait relever le seuil de la règle plutôt qu'ajouter une exception",
+    ],
+    answer: 0,
+    explain: "Le faux positif est réel, mais l'exception le règle en aveuglant la règle pour toute une famille de comptes, précisément ceux qu'un attaquant aime réutiliser parce qu'ils ont des droits larges. Une exception se borne au cas connu (ce compte, ce tenant, cette plage horaire), se documente et expire. Les listes d'exceptions peuvent être partagées entre règles, mais ce n'est pas le défaut ici, et les jokers sont acceptés. Relever le seuil déplacerait le problème à toute la population sans régler la cause.",
+  },
+  {
+    q: "Pourquoi faire tourner une nouvelle règle deux semaines en building block, ou avec une sévérité basse hors file de triage, avant de la passer en production ?",
+    options: [
+      "Parce qu'Elastic n'autorise l'association ATT&CK qu'après une période d'observation",
+      "Pour mesurer son volume et sa précision sur les vraies données sans charger le triage",
+      "Pour laisser le moteur de règles construire l'historique dont toute règle a besoin",
+      "Parce que la revue par un pair de l'ADS n'est possible qu'une fois des alertes produites",
+    ],
+    answer: 1,
+    explain: "Les tests disent qu'une règle se déclenche sur le comportement visé ; ils ne disent pas combien de fois elle se déclenche sur l'activité normale de la production. La période d'observation mesure ce volume sans réveiller personne, et le réglage se fait avant que l'équipe ne prenne l'habitude d'ignorer la règle. Seules les règles new terms ont une fenêtre d'historique, et elle est calculée à chaque exécution. L'association ATT&CK et la revue de l'ADS se font avant, sur le document.",
+  },
+];
+
+<YouKnow>
+Un pentester sait qu'un scanner de vulnérabilités vieillit : signatures périmées, faux positifs que tout le monde ignore. Une règle de détection vieillit de la même façon, en silence. Le detection engineering la traite comme un logiciel : elle naît d'un besoin, se spécifie, se teste, se met en production, se règle, et finit par être retirée.
+</YouKnow>
+
+## Une règle est un logiciel qui pourrit
+
+Une règle de détection dépend de trois choses qui changent sans elle : la **menace** (les attaquants changent de procédure), l'**application** (une route renommée, un parcours réécrit) et la **collecte** (un champ ECS renommé par une mise à jour d'intégration, un événement qui n'est plus journalisé). Une règle qui ne se déclenche plus ne produit aucune erreur : elle est simplement silencieuse, et le silence ressemble au calme.
+
+C'est pourquoi on parle de **cycle de vie** et pas d'écriture de règles. La leçon 3 détaille la boucle technique (type de règle, TOML, CI) ; celle-ci pose le cadre : par quelles étapes passe une détection, ce qui doit être écrit à chacune, et qui décide de la faire avancer ou de la retirer.
+
+## Les étapes et leurs critères de passage
+
+| Étape | Ce qui en sort | On passe à la suite quand… |
+| --- | --- | --- |
+| **Besoin** | Une hypothèse en une phrase, sa source (threat model, incident, pentest, renseignement) | Elle est priorisée dans le backlog de détection |
+| **Conception** | Un ADS rédigé, avant toute requête | Un pair l'a relu, les données nécessaires existent vraiment |
+| **Développement** | La règle versionnée, `maturity = "development"` | Elle passe la validation de syntaxe et de schéma |
+| **Validation** | Un test positif et des cas négatifs rejoués (leçon 4) | L'alerte arrive sur le test, pas sur les cas négatifs |
+| **Observation** | Deux semaines en production sans file de triage | Le volume et la précision sont acceptables |
+| **Production** | Sévérité réelle, guide d'investigation, propriétaire nommé | — |
+| **Réglage** | Exceptions bornées et datées, seuils ajustés | À chaque faux positif récurrent, et à chaque revue |
+| **Retrait** | Règle dépréciée avec sa raison | La source a disparu, une autre règle la remplace, ou elle est devenue impossible à tester |
+
+Le dépôt `elastic/detection-rules` porte une partie de ces états dans le champ `maturity` de chaque règle : `development`, `experimental`, `beta`, `production`, `deprecated`. Seules les règles en `production` partent dans le paquet publié ; une règle en `development` reste dans le dépôt, versionnée et relue, sans rien déclencher.
+
+Deux colonnes comptent plus que les autres. Le **propriétaire** : une règle sans propriétaire nommé n'est jamais revue, et elle finit soit ignorée, soit désactivée par l'analyste de garde excédé. Et le **critère de retrait**, décidé dès la conception : on sait d'avance qu'une règle sur un endpoint applicatif doit disparaître avec l'endpoint.
+
+## L'ADS, écrit avant la requête
+
+Le framework ADS de Palantir (*Alerting and Detection Strategy*) impose neuf sections. Son intérêt est l'ordre : l'objectif, le contexte et les angles morts s'écrivent **avant** la requête. Une requête écrite d'abord produit un ADS qui la justifie ; un ADS écrit d'abord produit une requête qui répond à un besoin. Voici celui d'une détection applicative de Novafact, la monétisation d'une prise de contrôle de compte (M15) :
+
+<Code file="detections/ads/impact_iban_change_after_new_device.md">
+
+```markdown
+# ADS : changement d'IBAN après connexion depuis un appareil inconnu
+
+## Goal
+Détecter le détournement des paiements d'un tenant après la prise de contrôle
+d'un compte administrateur.
+
+## Categorization
+ATT&CK T1657 Financial Theft (Impact) ; précédée de T1078 Valid Accounts.
+
+## Strategy Abstract
+EQL : séquence par user.id, maxspan 1 h : authn_login_success avec un
+novafact.device_id jamais vu pour cet utilisateur, puis iban_change_requested.
+
+## Technical Context
+Le changement d'IBAN exige une réauthentification et prend effet après 72 h
+(SPEC-PAY-03, M13). L'identifiant d'appareil vient d'un cookie de longue durée.
+
+## Blind Spots and Assumptions
+- Suppose que le cookie d'appareil n'est pas volé avec la session : un vol de
+  cookies complet (infostealer) rend l'appareil « connu ».
+- Ne voit pas un changement fait par le support via l'outil d'administration
+  (événement admin_iban_override, couvert par une autre règle).
+- Suppose que l'API publique journalise iban_change_requested comme le front.
+
+## False Positives
+Administrateur qui change de poste et met à jour l'IBAN le même jour ;
+cabinet comptable qui gère plusieurs tenants depuis un nouvel ordinateur.
+
+## Validation
+Test de recette : connexion d'un compte de test sans cookie d'appareil,
+changement d'IBAN, alerte attendue en moins de 15 min (leçon 4).
+
+## Priority
+Haute : l'argent part en 72 h, la fenêtre de réaction est courte.
+
+## Response
+Suspendre le changement en attente (bouton du back-office), appeler
+l'administrateur du tenant au numéro du contrat, jamais à celui du profil.
+Si le changement est contesté : révoquer les sessions, ouvrir un incident.
+```
+
+</Code>
+
+Trois sections portent l'essentiel de la valeur :
+
+- **Blind Spots and Assumptions** dit ce que la règle ne voit pas. Chaque ligne est soit un test à écrire, soit une autre règle à créer, soit un risque accepté. Une section qui dit « aucun » signifie que l'analyse n'a pas été faite.
+- **Validation** rend la règle vérifiable par quelqu'un d'autre que son auteur, aujourd'hui et dans un an.
+- **Response** dit à l'analyste de garde quoi faire. Une alerte sans réponse définie est une alerte qu'on regarde, puis qu'on referme.
+
+<Callout kind="case">
+**Target (2013).** Le rapport de la commission du Commerce du Sénat américain (mars 2014), qui analyse le vol des données de paiement de dizaines de millions de clients, relève que Target n'a pas réagi à plusieurs alertes automatiques de ses outils anti-intrusion, qui signalaient l'installation du logiciel malveillant et la préparation de l'exfiltration. La détection a fonctionné ; ce qui manquait, c'était une réponse attendue, écrite et suivie. C'est exactement le rôle de la section Response, et de la priorité qui l'accompagne.
+</Callout>
+
+## Mettre en production sans réveiller tout le monde
+
+Les tests prouvent qu'une règle se déclenche sur le comportement visé. Ils ne disent pas combien de fois elle se déclenche sur l'activité normale. D'où l'étape d'**observation** : la règle tourne sur la production pendant une période fixée, hors de la file de triage. Dans Elastic, une règle marquée **building block** écrit ses alertes sans les afficher dans la vue principale ; on peut aussi la publier avec une sévérité basse filtrée par le tableau de bord de l'équipe.
+
+À la fin de la période, on regarde trois chiffres : le nombre d'alertes par semaine, la part de vrais positifs sur un échantillon relu, et le temps moyen pour qualifier une alerte. Une règle qui produit vingt alertes par jour, toutes légitimes, n'entre pas en production : elle entre en réglage, ou elle devient un **signal** que d'autres règles combinent (une alerte de risque cumulée par utilisateur, par exemple).
+
+## Régler sans s'aveugler
+
+Le réglage est l'étape où les règles perdent le plus de valeur, parce qu'il se fait sous pression. Une exception écrite à trois heures du matin pour faire taire une alerte (`user.name : svc-*`) crée un angle mort permanent pour toute une famille de comptes. Les règles de Novafact :
+
+- une exception vise **le cas connu** (ce compte, ce tenant), jamais un motif large ;
+- elle porte une **raison** et une **date d'expiration** ; la revue mensuelle supprime celles qui ont expiré ;
+- toute exception ajoutée dans Kibana est rapatriée dans le dépôt (leçon 3) ;
+- si les exceptions s'accumulent, la règle est mal conçue : on revient à l'ADS, pas à la liste.
+
+## Retirer une détection
+
+Retirer n'est pas supprimer. Dans `elastic/detection-rules`, une règle déjà publiée passe en `maturity = "deprecated"`, rejoint le dossier `rules/_deprecated` et reçoit une `deprecation_date` et une raison (`deprecated_reason`). La commande `python -m detection_rules dev deprecate-rule` fait ces étapes d'un coup. L'historique reste, et la raison explique dans deux ans pourquoi une technique n'est plus couverte par cette règle.
+
+Les bonnes raisons de retirer : la source de données a disparu, une règle plus robuste couvre le même comportement (leçon 2), la fonctionnalité visée n'existe plus, ou la règle ne peut plus être testée. Une mauvaise raison : « elle ne s'est jamais déclenchée ». Une règle sur un scénario rare et grave peut rester silencieuse des années ; c'est son test qui dit si elle est vivante, pas son volume d'alertes.
+
+## Situer l'équipe
+
+Kyle Bailey a publié en 2021 une **Detection Engineering Maturity Matrix** (mise à jour en 2022) qui décrit trois niveaux, *Defined*, *Managed* et *Optimized*, sur les personnes, les processus et la technologie. Elle sert à poser des questions concrètes : les règles ont-elles un propriétaire ? un ADS ? un test ? une revue périodique ? un critère de retrait ? Le DEBMM d'Elastic, présenté en leçon 6, mesure la même progression du côté des comportements de l'équipe.
+
+<Callout kind="novafact">
+Inventaire (fictif) de septembre : 64 règles maison. 41 ont un ADS, 23 un test automatisé, 12 un propriétaire nommé. Décision : plus aucune règle n'entre en production sans les trois ; les 52 règles orphelines sont réparties entre l'AppSec et le SOC, avec six semaines pour les documenter ou les déprécier.
+</Callout>
+
+<Recap items={[
+  "Une règle dépend de la menace, de l'application et de la collecte : elle pourrit en silence si personne ne la teste.",
+  "Huit étapes, chacune avec un livrable et un critère de passage, de l'hypothèse au retrait.",
+  "L'ADS s'écrit avant la requête ; Blind Spots, Validation et Response portent l'essentiel de sa valeur.",
+  "Une période d'observation hors triage mesure volume et précision avant la mise en production.",
+  "Une exception vise un cas connu, porte une raison et expire.",
+  "Retirer, c'est déprécier avec une raison ; le silence d'une règle n'est pas une raison.",
+]} />
+
+<Sources items={[
+  { title: "Palantir : Alerting and Detection Strategies Framework", url: "https://github.com/palantir/alerting-detection-strategy-framework" },
+  { title: "elastic/detection-rules : déprécier une règle", url: "https://github.com/elastic/detection-rules/blob/main/docs-dev/deprecating.md" },
+  { title: "Elastic Security : building block rules", url: "https://www.elastic.co/docs/solutions/security/detect-and-alert/about-building-block-rules" },
+  { title: "Kyle Bailey : Detection Engineering Maturity Matrix", url: "https://detectionengineering.io/" },
+  { title: "Sénat américain : rapport sur la compromission de Target (mars 2014)", url: "https://www.commerce.senate.gov/2014/3/rockefeller-staff-report-details-target-s-missed-opportunities-to-stop-massive-data-breach" },
+  { title: "MITRE ATT&CK : T1657 Financial Theft", url: "https://attack.mitre.org/techniques/T1657/" },
+]} />

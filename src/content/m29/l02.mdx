@@ -1,0 +1,150 @@
+export const questions = [
+  {
+    q: "Le playbook AWS « identifiants IAM compromis » demande de désactiver la clé d’accès compromise plutôt que de la supprimer tout de suite. Pourquoi ?",
+    options: [
+      "Parce qu’une clé supprimée continue de fonctionner jusqu’à son expiration naturelle",
+      "Parce qu’AWS facture la suppression d’une clé encore référencée par une application",
+      "Parce que seule une clé désactivée peut être signalée au support d’AWS",
+      "Parce que la désactivation est réversible si une application casse, et garde la trace",
+    ],
+    answer: 3,
+    explain: "Le playbook décrit l’ordre : créer une seconde clé, basculer l’application, désactiver l’ancienne sans la supprimer, la réactiver temporairement si quelque chose casse, puis seulement la supprimer, en gardant la liste des clés supprimées pour continuer à les chercher dans CloudTrail. C’est le principe d’un geste de confinement réversible. Une clé d’accès supprimée cesse de fonctionner : ce sont les identifiants temporaires STS, pas les clés, qui survivent jusqu’à leur expiration. Rien n’est facturé, et le support d’AWS n’impose pas cet état.",
+  },
+  {
+    q: "Quelle est la différence utile entre un playbook et un runbook ?",
+    options: [
+      "Le playbook dit quoi décider, qui et quand ; le runbook décrit les gestes techniques",
+      "Le playbook est rédigé par le fournisseur cloud, le runbook par l’équipe interne",
+      "Le playbook s’applique à la détection, le runbook à la reprise après l’incident",
+      "Le playbook est automatisé dans un SOAR, le runbook est exécuté à la main",
+    ],
+    answer: 0,
+    explain: "Les usages varient, mais la distinction la plus utile sépare la conduite (déclencheurs, points de décision, qui prévenir, quand escalader) des gestes (commandes, écrans, vérifications). Un playbook appelle plusieurs runbooks ; un même runbook, comme la révocation des sessions d’un utilisateur, sert à plusieurs playbooks. L’auteur ne définit pas le type : les playbooks d’AWS sont des modèles à adapter. Les deux couvrent toutes les phases, et l’un comme l’autre peut être partiellement automatisé.",
+  },
+  {
+    q: "Après l’incident de CircleCI (janvier 2023), ses clients devaient faire tourner tous les secrets confiés à la plateforme. Qu’est-ce qui a le plus déterminé leur capacité à le faire vite ?",
+    options: [
+      "La possession d’un contrat de support premium avec l’éditeur de la CI",
+      "Un inventaire préalable des secrets confiés à la CI et de leurs propriétaires",
+      "L’usage exclusif de secrets chiffrés au repos sur la plateforme de CI",
+      "Une politique de mots de passe imposant leur changement tous les 90 jours",
+    ],
+    answer: 1,
+    explain: "On ne fait tourner que ce qu’on sait avoir confié : jetons d’API, clés AWS, clés SSH, variables d’environnement de chaque projet. Sans inventaire, le runbook « secret exposé chez un fournisseur » commence par une semaine d’archéologie. Le chiffrement au repos n’a pas protégé : CircleCI indique que l’attaquant a aussi extrait des clés de chiffrement d’un processus en cours d’exécution. Un support premium n’accélère pas une rotation qui se fait chez le client, et une rotation périodique ne dit pas quoi faire tourner maintenant.",
+  },
+];
+
+<YouKnow>
+Tout pentester a déjà rédigé des recommandations de correction que personne n’a appliquées parce qu’elles supposaient un contexte que le lecteur n’avait pas. Un runbook d’incident a le même défaut en pire : il est lu à trois heures du matin, par quelqu’un de fatigué, qui n’a pas écrit le code et qui a peur de casser la production.
+</YouKnow>
+
+## Playbook, runbook : deux niveaux
+
+Les mots varient d’une équipe à l’autre ; la distinction utile, elle, est stable :
+
+| | Playbook | Runbook |
+| --- | --- | --- |
+| Répond à | Que décider, qui prévenir, quand escalader ? | Comment faire ce geste, concrètement ? |
+| Contenu | Déclencheurs, gravité, points de décision, rôles, critères de sortie | Commandes, écrans, vérifications, retour arrière |
+| Exemple | « Compte client détourné » | « Révoquer toutes les sessions d’un utilisateur » |
+| Rédigé par | AppSec et responsable de la réponse | Équipe applicative ou plateforme, relu par l’AppSec |
+
+Un playbook appelle plusieurs runbooks, et un runbook sert plusieurs playbooks. La révision 3 de SP 800-61 (leçon 1) note d’ailleurs que beaucoup d’organisations formalisent leurs procédures en playbooks, parce que des étapes actionnables se suivent mieux sous pression.
+
+## Partir des playbooks d’AWS
+
+AWS publie un cadre de playbooks client en Markdown (dépôt `aws-customer-playbook-framework`), traduits en plusieurs langues dont le français. Ceux qui concernent Novafact :
+
+| Playbook AWS | Pourquoi il concerne Novafact |
+| --- | --- |
+| Identifiants IAM compromis | Clés de CI, rôles de tâche, accès des développeurs |
+| Événements SES | Novafact envoie les factures de ses clients via SES depuis son domaine |
+| Rançongiciel sur S3 et sur RDS | Factures dans S3, comptes dans PostgreSQL |
+| Exposition de code | Dépôt ou artefact contenant des secrets |
+| Accès public S3 ou RDS | Erreur d’IaC (M20) |
+
+Ils ont trois qualités à reprendre. Ils commencent par un en-tête **auteur, approbateur, date de dernière approbation** : un playbook sans date est un playbook dont personne ne sait s’il est encore vrai. Ils listent les **événements CloudTrail** à chercher, ce qui fait gagner les premières minutes. Et leurs gestes de confinement sont **réversibles** : le playbook « identifiants IAM compromis » demande de créer une seconde clé, de basculer l’application, de désactiver la clé compromise sans la supprimer, de la réactiver si quelque chose casse, et de garder la liste des clés supprimées pour continuer à les chercher dans les journaux.
+
+Ils ont aussi des limites, normales pour des modèles. Ils suivent encore le cycle de la révision 2 de SP 800-61. Ils ignorent tout de l’application : rien sur les sessions des utilisateurs, ni sur les tenants, ni sur les clients à prévenir. Et leurs listes d’événements datent : celle du playbook S3 cite la suppression d’une règle de cycle de vie, pas l’**ajout** d’une règle qui expire tout, que la campagne de chiffrement SSE-C de 2025 utilisait (leçon 3). Pour combler ce dernier écart, l’AWS CIRT publie depuis juin 2025 le ***Threat Technique Catalog for AWS***, fondé sur ATT&CK : chaque technique observée dans ses enquêtes y est décrite avec ses événements CloudTrail, sa détection et ses mitigations. La technique `T1486.A001`, chiffrement S3 par SSE-C, y figure par exemple. Relier chaque playbook aux techniques du catalogue permet de vérifier que sa liste d’événements est à jour.
+
+## Écrire pour trois heures du matin
+
+Six règles, tirées de ce qui casse en vrai :
+
+<Steps items={[
+  { title: "Un déclencheur sans ambiguïté", text: "« Alerte X ou signalement d’un client qui dit Y » : le lecteur sait en dix secondes s’il est dans le bon document." },
+  { title: "Le premier geste est sûr", text: "Réversible, sans perte de preuve, sans décision métier : désactiver plutôt que supprimer, révoquer plutôt que détruire." },
+  { title: "Les décisions sont nommées", text: "« Bloquer le tenant : décision du commandant d’incident, avec l’accord de la direction si c’est un client entreprise. » Pas de « si nécessaire »." },
+  { title: "Les commandes se copient", text: "Variables en tête (identifiant, tenant, heure), commandes complètes, résultat attendu, et comment revenir en arrière." },
+  { title: "La preuve d’abord", text: "Avant chaque geste destructif, ce qu’il faut capturer : export des journaux, instantané, liste des sessions." },
+  { title: "Une condition de sortie", text: "Ce qui doit être vrai pour clore : plus d’activité suspecte depuis N heures, secrets tournés, clients prévenus." },
+]} />
+
+## Trois runbooks pour Novafact
+
+Les playbooks d’AWS couvrent l’infrastructure. Ceux qui manquent sont applicatifs. Voici le plus complet des trois, tel qu’il est versionné dans le dépôt de l’API :
+
+<Code file="runbooks/fuite-jeton-oauth.md" hl="9,10,15">
+
+```text
+# Fuite d'un jeton OAuth d'intégration
+Propriétaire : équipe-facturation · Approuvé : AppSec · Dernière revue : 2026-09-15 · Gravité par défaut : SEV2
+Déclencheur  : jeton `nfo_rt_…` signalé (secret scanning, client, chercheur) OU alerte « jeton utilisé depuis un nouvel ASN »
+
+VARIABLES  CLIENT_ID=…  TENANT=…  T0=<heure de la découverte, UTC>
+
+1. Preuve (2 min)   Exporter les 30 derniers jours d'événements du client OAuth :
+                    event.action:(token_refresh or api_call) and novafact.oauth.client_id:$CLIENT_ID
+2. Confinement      Révoquer TOUS les jetons de rafraîchissement du client (pas seulement celui qui a fuité) :
+                    npm run admin -- oauth:revoke --client $CLIENT_ID --all --reason "incident"
+                    Les jetons d'accès expirent en 15 min : pas d'action, noter l'heure d'expiration.
+3. Vérifier         Aucun appel avec ce client après T0 + 15 min (requête de l'étape 1, filtrée sur @timestamp).
+4. Étendue          Lister ce que le jeton a lu ou modifié depuis sa date d'émission : factures, exports, webhooks.
+                    Si exports ou lecture de données de clients finaux : SEV1, prévenir le DPO (leçon 5).
+5. Décision         Webhooks créés ou modifiés par ce client ? Le commandant d'incident décide de les suspendre.
+6. Prévenir         Liaison client : le tenant, avec la liste des actions observées. Modèle : comms/client-jeton.md
+7. Sortie           Plus aucun appel depuis 24 h, nouveau secret client émis, cause de la fuite connue ou recherchée.
+```
+
+</Code>
+
+L’étape 2 révoque tous les jetons du client et pas seulement celui qui a fuité : rien ne prouve qu’il n’y en ait qu’un, et le coût d’une reconnexion de l’intégration est faible. Les deux autres runbooks suivent le même gabarit :
+
+| Runbook | Premier geste sûr | Étendue à établir | Décision nommée |
+| --- | --- | --- | --- |
+| **Compte client détourné** (ATO, M15) | Révoquer les sessions de l’utilisateur, geler ses exports | Changements d’IBAN, de MFA ou d’e-mail ; factures envoyées depuis la prise de contrôle | Prévenir les clients finaux qui ont reçu une facture modifiée |
+| **Dépendance vérolée** (M18) | Geler les déploiements, épingler la dernière version saine | Versions installées en CI et en production, secrets accessibles au moment de l’installation | Faire tourner les secrets exposés au pipeline |
+
+Le troisième mérite une précision : une dépendance compromise qui s’exécute à l’installation a eu accès aux secrets du **pipeline**, pas seulement à ceux de l’application. Le runbook commence donc par l’inventaire des secrets présents dans l’environnement de CI au moment de l’installation.
+
+<Callout kind="case">
+**CircleCI (janvier 2023).** Le 16 décembre 2022, un logiciel malveillant non détecté par l’antivirus a volé, sur le poste d’un ingénieur de CircleCI, un cookie de session protégé par la double authentification ; l’attaquant a ensuite accédé à des systèmes de production et exfiltré des variables d’environnement, jetons et clés de clients, ainsi que des clés de chiffrement extraites d’un processus en cours. L’alerte est venue le 29 décembre d’une activité OAuth suspecte signalée par un client ; l’annonce publique, le 4 janvier 2023, demandait à tous les clients de faire tourner leurs secrets. Pour chaque client, l’incident s’est réduit à une question de runbook : **savait-il quels secrets il avait confiés à sa CI, et à qui ils appartenaient ?** Le déroulé de l’attaque est détaillé en M2 (leçon 5).
+</Callout>
+
+## Faire vivre les runbooks
+
+Un runbook non testé est une hypothèse, comme une détection non testée (M24, leçon 4). Trois habitudes suffisent :
+
+- **versionner** les runbooks dans le dépôt de l’application qu’ils concernent, et les relire en revue de code quand un geste change ;
+- **tester** chaque geste outillé en préproduction, idéalement en CI : la commande `oauth:revoke` a son test d’intégration, qui vérifie aussi que l’ancien jeton est refusé ;
+- **exercer** les playbooks en exercice sur table (leçon 6), et dater la dernière revue dans l’en-tête : au-delà d’un an, le playbook est suspect.
+
+<Callout kind="novafact">
+L’inventaire des secrets de Novafact (fictif) est devenu un fichier généré : un script liste chaque nuit les secrets de GitHub Actions, de Secrets Manager et des variables ECS, avec leur propriétaire et leur procédure de rotation. Le runbook « secret exposé chez un fournisseur » commence par une seule commande qui filtre cet inventaire par fournisseur.
+</Callout>
+
+<Recap items={[
+  "Le playbook dit quoi décider, qui et quand ; le runbook décrit les gestes. L’un appelle l’autre.",
+  "Les playbooks d’AWS sont de bons modèles : en-tête daté, événements CloudTrail, gestes réversibles ; ils ignorent l’application.",
+  "Le Threat Technique Catalog for AWS relie chaque technique observée à ses événements et à sa détection : il tient les playbooks à jour.",
+  "Pour trois heures du matin : déclencheur net, premier geste sûr, décisions nommées, commandes copiables, preuve d’abord, condition de sortie.",
+  "On ne fait tourner que ce qu’on a inventorié ; un runbook se versionne, se teste et s’exerce.",
+]} />
+
+<Sources items={[
+  { title: "AWS : Customer Playbook Framework", url: "https://github.com/aws-samples/aws-customer-playbook-framework" },
+  { title: "AWS CIRT : Threat Technique Catalog for AWS", url: "https://aws-samples.github.io/threat-technique-catalog-for-aws/" },
+  { title: "AWS : annonce du Threat Technique Catalog (juin 2025)", url: "https://aws.amazon.com/blogs/security/aws-cirt-announces-the-launch-of-the-threat-technique-catalog-for-aws" },
+  { title: "CircleCI : rapport d’incident du 4 janvier 2023", url: "https://circleci.com/blog/jan-4-2023-incident-report/" },
+  { title: "NIST SP 800-61 Rev. 3", url: "https://csrc.nist.gov/pubs/sp/800/61/r3/final" },
+]} />

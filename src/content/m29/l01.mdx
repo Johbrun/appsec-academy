@@ -1,0 +1,126 @@
+export const questions = [
+  {
+    q: "Qu’est-ce que la révision 3 de NIST SP 800-61 (avril 2025) change par rapport à la révision 2 de 2012 ?",
+    options: [
+      "Elle ajoute une sixième phase, la notification, au cycle en quatre temps",
+      "Elle range la réponse dans les six fonctions du CSF 2.0 et retire les procédures détaillées",
+      "Elle remplace le cycle par une liste de contrôles obligatoires pour les agences fédérales",
+      "Elle impose un délai maximal de confinement selon la gravité de l’incident",
+    ],
+    answer: 1,
+    explain: "La Rev. 3 est un profil du CSF 2.0 : la préparation relève de Govern, Identify et Protect, la réponse de Detect, Respond et Recover, et l’amélioration continue de la catégorie Improvement d’Identify. Le NIST explique avoir retiré les procédures détaillées parce qu’elles changent trop vite pour un document statique. Elle n’ajoute pas de phase de notification, n’est pas une liste de contrôles obligatoires et ne fixe aucun délai de confinement : ces délais viennent de la réglementation et des contrats (leçon 5).",
+  },
+  {
+    q: "Pourquoi un incident sur une application SaaS multi-tenant oblige-t-il à se poser des questions qu’un incident d’infrastructure ne pose pas ?",
+    options: [
+      "Parce que les journaux applicatifs ne sont pas admissibles comme preuve",
+      "Parce que l’hébergeur cloud prend en charge toute la réponse côté infrastructure",
+      "Parce qu’il faut savoir quels tenants et quelles sessions sont touchés, et qui prévenir",
+      "Parce qu’un incident applicatif ne relève jamais de la réglementation sur les données",
+    ],
+    answer: 2,
+    explain: "Une application porte des données métier de plusieurs clients, des jetons et des sessions qui survivent à un redémarrage, et des clients finaux dont l’éditeur est souvent le sous-traitant. Il faut donc établir l’étendue par tenant, révoquer ce qui doit l’être et prévenir les bons responsables. Les journaux applicatifs sont au contraire une preuve centrale. L’hébergeur ne répond que pour sa part du modèle de responsabilité partagée. Et c’est justement l’incident applicatif qui touche le plus souvent des données personnelles.",
+  },
+  {
+    q: "Dans l’incident du support d’Okta (2023), qu’est-ce qui a retardé la découverte de l’accès aux fichiers des clients ?",
+    options: [
+      "L’absence totale de journaux sur le système de support à l’époque des faits",
+      "Le chiffrement des fichiers HAR, qui empêchait d’en voir le contenu",
+      "Un client qui avait signalé l’attaque à la presse avant de prévenir Okta",
+      "Un téléchargement journalisé sous un autre type d’événement que l’accès habituel",
+    ],
+    answer: 3,
+    explain: "Selon l’analyse d’Okta, l’attaquant consultait les fichiers par un onglet qui produisait un événement différent, avec un autre identifiant, de celui d’un accès normal à un dossier : les recherches initiales regardaient au mauvais endroit. Il y avait donc des journaux, mais pas un événement unique par action. Les fichiers HAR n’étaient pas chiffrés, et c’est précisément pour cela qu’ils exposaient des jetons de session. BeyondTrust a, lui, prévenu Okta directement, dès le 2 octobre.",
+  },
+];
+
+<YouKnow>
+Un pentester a vu des incidents de l’extérieur : le rapport qui arrive trop tard, le correctif posé avant de comprendre, l’équipe qui découvre ses propres journaux pendant la crise. M24 (leçon 6) a posé les premiers gestes, enquêter dans CloudTrail et contenir un rôle IAM. Ce module reprend la réponse dans son ensemble, du premier signal au post-mortem, avec ce que l’application y change.
+</YouKnow>
+
+## D’un cycle à un profil
+
+Pendant plus de dix ans, la référence a été la révision 2 de **NIST SP 800-61** (2012) et son cycle en quatre temps : préparation, détection et analyse, confinement-éradication-reprise, activités post-incident. C’est celui que suit encore la leçon 6 de M24, et beaucoup de playbooks publiés, dont ceux d’AWS (leçon 2).
+
+La **révision 3**, publiée en avril 2025, change de nature. Le NIST constate que les incidents sont devenus fréquents, larges et longs, qu’ils se traitent en semaines plutôt qu’en jours, et qu’il n’est plus réaliste de les confier à une équipe séparée qui interviendrait par intermittence. Le document devient un **profil du CSF 2.0** : la réponse se range dans ses six fonctions.
+
+| Phase de la Rev. 2 | Fonctions du CSF 2.0 dans la Rev. 3 |
+| --- | --- |
+| Préparation | Govern, Identify, Protect |
+| Détection et analyse | Detect, et la catégorie Improvement d’Identify |
+| Confinement, éradication, reprise | Respond, Recover, et Improvement |
+| Activités post-incident | Improvement (ID.IM) |
+
+Deux conséquences pratiques. D’abord, la **préparation n’est plus une phase de la réponse** : c’est de la gestion du risque ordinaire (inventaire, journalisation, moindre privilège) qui la rend possible. Ensuite, les leçons s’apprennent **à tout moment** et remontent tout de suite, pas seulement au post-mortem. Le NIST a aussi retiré les procédures détaillées, qui changent trop vite pour un document statique : les playbooks restent à écrire par chaque organisation (leçon 2). La norme **ISO/IEC 27035-1:2023** (payante) couvre le même terrain dans le monde ISO, pour une organisation certifiée 27001.
+
+## Déclarer un incident
+
+Le CSF 2.0 le dit sobrement (DE.AE-08) : un incident est **déclaré** quand des événements indésirables remplissent des critères définis. Sans critères écrits, la déclaration dépend de l’humeur de la personne d’astreinte, et les délais réglementaires (leçon 5) commencent à courir sans que personne ne le sache. La grille de Novafact (fictive) tient sur un écran :
+
+| Gravité | Critère | Qui est mobilisé |
+| --- | --- | --- |
+| **SEV1** | Données d’un tenant accessibles à un autre, ou exfiltration avérée ; service de facturation indisponible pour tous | Commandant d’incident, direction, DPO, juridique ; cellule de crise envisagée (leçon 4) |
+| **SEV2** | Compte client ou identité de service compromis, sans preuve d’exfiltration ; vulnérabilité critique exploitée sur un composant exposé | Commandant d’incident, AppSec, équipe applicative, DPO informé |
+| **SEV3** | Tentative bloquée mais ciblée, faille sans exploitation constatée | Équipe applicative et AppSec, en heures ouvrées |
+
+Une règle accompagne la grille : **dans le doute, on surclasse**, et on déclasse ensuite par écrit. Le contraire, sous-qualifier puis découvrir l’ampleur, est la cause la plus fréquente d’une notification tardive.
+
+## Les rôles
+
+Une réponse sans rôles est une réunion. Les rôles minimaux, inspirés de la gestion d’incident en production, sont les mêmes quelle que soit la taille de l’équipe ; dans une petite structure, une personne en cumule deux, jamais celui de commandant et de technicien :
+
+| Rôle | Responsabilité |
+| --- | --- |
+| **Commandant d’incident** | Décide, priorise, tient le rythme ; ne tape pas de commandes |
+| **Responsable technique** | Coordonne l’investigation et le confinement |
+| **Scribe** | Tient la **main courante** : faits, décisions, heures, auteurs |
+| **Communication** | Messages internes, clients, et en lien avec le juridique pour l’extérieur |
+| **DPO et juridique** | Qualifient les obligations de notification dès la première heure |
+| **Liaison client** | Un seul interlocuteur par client touché |
+
+La Rev. 3 rappelle que la réponse mobilise au-delà de l’équipe technique : direction, juridique, communication, ressources humaines, fournisseurs. La main courante, elle, sert trois fois : pour coordonner, pour notifier (les autorités demandent une chronologie), et pour le post-mortem (leçon 6).
+
+## Ce qui change pour une application
+
+Un incident d’infrastructure se raisonne en machines et en comptes. Un incident applicatif ajoute quatre questions que la plupart des cadres génériques n’abordent pas :
+
+- **Le périmètre des données** : quels tenants, quels types de données (factures, IBAN, coordonnées), sur quelle période ? La réponse dépend de journaux d’accès aux données (M22, leçon 2), pas seulement des échecs.
+- **Les jetons et les sessions** : un mot de passe changé n’invalide ni une session déjà ouverte, ni un jeton de rafraîchissement OAuth, ni une clé d’API d’intégration. Il faut un moyen de révoquer par utilisateur, par tenant et globalement (M14).
+- **Les clients finaux** : pour les données de ses clients, Novafact est en général **sous-traitant** au sens du RGPD ; c’est le client qui notifie la CNIL, et c’est à Novafact de le prévenir vite (leçon 5).
+- **L’application comme source de preuve** : ses journaux disent ce qui a été lu et modifié. Ils doivent être cohérents, un événement par action quel que soit le chemin.
+
+<Callout kind="case">
+**Le support d’Okta (2023).** Du 28 septembre au 17 octobre 2023, un attaquant a accédé au système de gestion des dossiers de support d’Okta, avec les identifiants d’un compte de service qu’un employé avait enregistrés dans son profil Google personnel. Il y a téléchargé des fichiers HAR envoyés par 134 clients pour diagnostiquer des problèmes ; certains contenaient des **jetons de session** valides, utilisés ensuite pour détourner les sessions de cinq clients. BeyondTrust a détecté l’usage de son jeton et prévenu Okta dès le 2 octobre ; Okta n’a confirmé l’intrusion que le 19 octobre. Son analyse explique pourquoi : la consultation des fichiers passait par un onglet qui produisait un événement de journal d’un **autre type**, avec un autre identifiant, que l’accès habituel à un dossier. Parmi les mesures annoncées : la liaison des sessions d’administration au contexte réseau. Jetons rejouables, preuve dispersée entre deux types d’événements, client qui détecte avant l’éditeur : les trois questions applicatives réunies.
+</Callout>
+
+## Préparer, avant
+
+Puisque la préparation relève de la gestion du risque ordinaire, elle se vérifie comme une liste d’exigences. Pour une application comme celle de Novafact :
+
+<Steps items={[
+  { title: "Savoir", text: "Fiche de l’application à jour (M22, leçon 2), classification des données, liste des tenants et de leurs contacts sécurité." },
+  { title: "Voir", text: "Journaux applicatifs d’accès aux données et de sécurité, CloudTrail avec événements de données sur les buckets sensibles, rétention suffisante pour remonter avant le début probable d’une intrusion." },
+  { title: "Agir", text: "Révocation des sessions et des jetons par utilisateur, par tenant et globale ; gel des exports ; rotation des secrets outillée. Chaque geste testé en préproduction." },
+  { title: "Joindre", text: "Astreinte, DPO, juridique, prestataire de réponse sous contrat, contacts des autorités : une page, hors des systèmes qui pourraient tomber." },
+  { title: "S’entraîner", text: "Un exercice sur table par semestre (leçon 6) qui vérifie tout ce qui précède." },
+]} />
+
+<Callout kind="novafact">
+À la revue de préparation de septembre (fictive), deux trous sont apparus. Le gel des exports d’un tenant existait comme requête SQL dans un wiki, pas comme commande d’administration : il est devenu une route du back-office, protégée et journalisée. Et la liste des contacts sécurité des clients n’était pas tenue à jour : elle est désormais demandée à l’onboarding de chaque client entreprise et revue tous les ans, parce que la leçon 5 montre qu’on en a besoin dans les premières heures.
+</Callout>
+
+<Recap items={[
+  "SP 800-61r3 (avril 2025) range la réponse dans les six fonctions du CSF 2.0 ; la préparation relève de la gestion du risque ordinaire, et l’amélioration est continue.",
+  "Un incident se déclare selon des critères écrits ; dans le doute, on surclasse.",
+  "Des rôles distincts, dont un scribe : la main courante sert à coordonner, à notifier et à apprendre.",
+  "L’application ajoute le périmètre par tenant, les jetons et sessions à révoquer, les clients finaux à prévenir, et ses journaux comme preuve.",
+  "La préparation se vérifie : savoir, voir, agir, joindre, s’entraîner.",
+]} />
+
+<Sources items={[
+  { title: "NIST SP 800-61 Rev. 3 (avril 2025)", url: "https://csrc.nist.gov/pubs/sp/800/61/r3/final" },
+  { title: "NIST CSF 2.0 (CSWP 29)", url: "https://doi.org/10.6028/NIST.CSWP.29" },
+  { title: "Okta : analyse de l’accès non autorisé au système de support (novembre 2023)", url: "https://sec.okta.com/articles/2023/11/unauthorized-access-oktas-support-case-management-system-root-cause/" },
+  { title: "The Hacker News : la brèche du support d’Okta et la détection par BeyondTrust (octobre 2023)", url: "https://thehackernews.com/2023/10/oktas-support-system-breach-exposes.html" },
+  { title: "ISO/IEC 27035-1:2023", url: "https://www.iso.org/standard/78973.html" },
+]} />

@@ -1,0 +1,214 @@
+export const questions = [
+  {
+    q: "Le vérificateur passé à requireBearerAuth renvoie un AuthInfo sans expiresAt. Que se passe-t-il ?",
+    options: [
+      "Le jeton est accepté sans limite de durée, puisque le middleware n'a rien à comparer",
+      "Le middleware lit lui-même la claim exp du JWT pour compléter l'AuthInfo",
+      "La requête reçoit 500 server_error, l'AuthInfo étant jugé malformé par le SDK",
+      "La requête reçoit 401 invalid_token, même si le jeton est parfaitement valide",
+    ],
+    answer: 3,
+    explain: "La documentation du SDK le signale : un expiresAt absent donne un 401 invalid_token. Le middleware ne décode pas le jeton, il ne connaît que ce que le vérificateur renvoie, d'où l'obligation de reporter exp (ou le exp de l'introspection). Le 500 est réservé aux exceptions qui ne sont pas des OAuthError, et l'acceptation sans limite est justement ce que ce choix évite.",
+  },
+  {
+    q: "Le vérificateur laisse remonter l'exception de jose quand l'audience est fausse. Quelle réponse reçoit le client ?",
+    options: [
+      "401 invalid_token, car le SDK traduit toute erreur de vérification en challenge",
+      "500 server_error, car seule une OAuthError InvalidToken devient un 401",
+      "403 insufficient_scope, car l'audience fait partie des droits portés par le jeton",
+      "200, car l'exception est journalisée et la requête poursuit sans authInfo",
+    ],
+    answer: 1,
+    explain: "Le SDK ne transforme en 401 que les OAuthError de code InvalidToken ; toute autre exception devient 500 server_error. Le refus reste effectif, mais le client ne reçoit pas de challenge exploitable et les tableaux de bord confondent attaque et panne. Le 403 est réservé aux scopes insuffisants. Le middleware ne laisse jamais passer une requête après une exception du vérificateur.",
+  },
+  {
+    q: "Le serveur MCP de Novafact écoute sur 0.0.0.0 derrière un répartiteur. Que faut-il passer à createMcpExpressApp ?",
+    options: [
+      "Rien : la protection contre le DNS rebinding s'applique quelle que soit l'adresse d'écoute",
+      "allowedOrigins avec https://*, pour accepter tous les clients web du marché",
+      "allowedHosts avec le nom public du serveur, la protection par défaut ne valant qu'en boucle locale",
+      "host: '127.0.0.1', puisque le répartiteur relaie de toute façon vers la boucle locale",
+    ],
+    answer: 2,
+    explain: "La validation de Host et d'Origin par défaut ne s'applique qu'à une écoute sur 127.0.0.1 ou localhost ; en écoutant sur toutes les interfaces, il faut nommer les hôtes servis avec allowedHosts. Le SDK n'honore pas les jokers http://* et https://*. Écouter sur 127.0.0.1 dans un conteneur rendrait le serveur injoignable par le répartiteur, qui n'est pas dans la même boucle locale.",
+  },
+  {
+    q: "Quel jeu de tests prouve qu'un serveur MCP protégé fait ce qu'il doit ?",
+    options: [
+      "Un jeton valide obtient 200, et la couverture de code du middleware dépasse 90 %",
+      "Sans jeton 401, mauvaise audience 401, scope manquant 403, et un jeton légitime accepté",
+      "Un jeton expiré obtient 401, et la PRM est servie avec un statut 200 en JSON",
+      "Un scan DAST sur l'endpoint /mcp ne remonte aucune vulnérabilité de sévérité haute",
+    ],
+    answer: 1,
+    explain: "Un contrôle d'accès se prouve par ses refus, chacun avec le bon statut et le bon challenge, plus un cas légitime qui passe : sans ce dernier, un serveur qui refuse tout réussirait les tests. Le jeton expiré et la PRM sont utiles mais ne couvrent ni l'audience ni les scopes. La couverture et un scan DAST ne disent pas si un jeton émis pour une autre API est refusé.",
+  },
+];
+
+<YouKnow>
+La vérification d'un JWT dans Express (M14, leçon 5) est connue, tout comme ce que doit faire un serveur MCP (leçons 2 à 7). Cette leçon assemble le tout avec le SDK TypeScript officiel, puis écrit les tests qui prouvent les refus. Les noms d'API ci-dessous sont ceux de la documentation de la v2 du SDK au 1er octobre 2026.
+</YouKnow>
+
+## Ce que fait le SDK, et ce qu'il ne fait pas
+
+La v2 du SDK TypeScript découpe les paquets : `@modelcontextprotocol/server` (le serveur MCP), `@modelcontextprotocol/node` (adaptateur Node) et `@modelcontextprotocol/express` (middlewares Express). Pour l'autorisation, il fournit la moitié **resource server**, et seulement elle :
+
+| Brique | Rôle |
+| --- | --- |
+| `requireBearerAuth` | Extrait le jeton, appelle le vérificateur fourni, contrôle `requiredScopes` et `expiresAt` ; répond 401 `invalid_token` ou 403 `insufficient_scope` avec un `WWW-Authenticate` qui porte `resource_metadata` |
+| `OAuthTokenVerifier` | L'interface que **le développeur** implémente : `verifyAccessToken(token)` renvoie un `AuthInfo` |
+| `mcpAuthMetadataRouter` | Publie la PRM (RFC 9728) à l'emplacement lié au chemin, plus un miroir des métadonnées de l'AS |
+| `requireScopes` / `scopeChallenge` | Step-up par outil, ressource ou prompt (leçon 7) |
+| `createMcpExpressApp` | `express()` avec `express.json()` et la validation de `Host` et `Origin` contre le DNS rebinding |
+
+Les helpers de **serveur d'autorisation** de la v1 (`mcpAuthRouter`, `ProxyOAuthServerProvider`) sont gelés dans `@modelcontextprotocol/server-legacy/auth`. La documentation recommande un IdP dédié pour émettre les jetons : c'est la séparation des rôles de la leçon 1, inscrite dans le code.
+
+Point capital : `requireBearerAuth` ne décode pas le jeton. Signature, émetteur et **audience** sont entièrement dans le vérificateur. Un vérificateur laxiste donne un serveur qui a l'air conforme.
+
+## Le vérificateur
+
+<Diff file="services/mcp-novafact/src/auth/verifier.ts" hlBefore="3,4,5" hlAfter="7,8,9,10,11,14,15,16,17">
+
+```ts
+export const verifier: OAuthTokenVerifier = {
+  async verifyAccessToken(token) {
+    const { payload } = await jwtVerify(token, JWKS, { issuer: ISSUER }); // pas d'audience
+    // « tout renvoyait 401 » : on a fixé expiresAt à une heure plus tard
+    return { token, clientId: String(payload.sub), scopes: String(payload.scope).split(' '), expiresAt: Date.now() / 1000 + 3600 };
+  },
+};
+```
+
+```ts
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
+import { OAuthError, OAuthErrorCode, type AuthInfo } from '@modelcontextprotocol/server';
+import type { OAuthTokenVerifier } from '@modelcontextprotocol/express';
+
+export const makeVerifier = (keys: JWTVerifyGetKey): OAuthTokenVerifier => ({
+  async verifyAccessToken(token): Promise<AuthInfo> {
+    const { payload } = await jwtVerify(token, keys, {
+      issuer: ISSUER, audience: MCP_RESOURCE, algorithms: ['RS256'], typ: 'at+jwt', // RFC 9068, si l'AS le produit
+      requiredClaims: ['exp', 'client_id', 'sub'],
+    }).catch(() => {
+      // seule une OAuthError InvalidToken devient un 401 ; toute autre exception donnerait un 500
+      throw new OAuthError(OAuthErrorCode.InvalidToken, 'invalid token');
+    });
+    return {
+      token, clientId: String(payload.client_id), scopes: String(payload.scope ?? '').split(' ').filter(Boolean),
+      expiresAt: payload.exp, // la vraie expiration, jamais une valeur inventée
+      resource: new URL(MCP_RESOURCE), extra: { sub: payload.sub, tenantId: payload.tenant_id },
+    };
+  },
+});
+
+export const verifier = makeVerifier(createRemoteJWKSet(new URL(`${ISSUER}/.well-known/jwks.json`)));
+```
+
+</Diff>
+
+Le piège documenté par le SDK : un `AuthInfo` **sans `expiresAt`** reçoit 401. L'équipe qui le découvre en production « corrige » souvent en inventant une expiration, comme dans la version vulnérable. Avec un JWT vérifié par `jose`, l'`exp` réel a déjà été contrôlé et le dégât est limité ; avec un jeton opaque introspecté, c'est un jeton révoqué ou expiré qui reste accepté une heure de plus. Il faut toujours reporter l'`exp` du jeton ou de la réponse d'introspection.
+
+`clientId` est le client OAuth (claim `client_id` de RFC 9068), pas l'utilisateur : l'exemple minimal de la documentation y met `sub`, à adapter. L'identité de l'utilisateur et du tenant voyage dans `extra`.
+
+## L'assemblage
+
+<Code file="services/mcp-novafact/src/server.ts" hl="9,10,11,12,13,15,16">
+
+```ts
+import {
+  createMcpExpressApp, getOAuthProtectedResourceMetadataUrl, mcpAuthMetadataRouter, requireBearerAuth,
+} from '@modelcontextprotocol/express';
+import { toNodeHandler } from '@modelcontextprotocol/node';
+import { createMcpHandler, McpServer, requireScopes, type McpServerFactory } from '@modelcontextprotocol/server';
+
+const resourceUrl = new URL(MCP_RESOURCE); // https://mcp.novafact.example/mcp, depuis la configuration
+
+const app = createMcpExpressApp({ host: '0.0.0.0', allowedHosts: ['mcp.novafact.example'] });
+app.use(mcpAuthMetadataRouter({ oauthMetadata: AS_METADATA, resourceServerUrl: resourceUrl }));
+const auth = requireBearerAuth({
+  verifier, requiredScopes: ['invoices:read'], resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(resourceUrl),
+});
+
+const buildServer: McpServerFactory = (ctx) => { // ctx.authInfo : l'AuthInfo vérifié de CETTE requête
+  const server = new McpServer({ name: 'novafact', version: '2.0.0' });
+  server.registerTool('create_credit_note', { description: 'Crée un avoir', inputSchema: CreditNoteInput, scopeChallenge: requireScopes('credit_notes:write') },
+    async (args) => createCreditNote(ctx.authInfo, args)); // tenant et rôle revérifiés dans le métier
+  return server;
+};
+
+const node = toNodeHandler(createMcpHandler(buildServer));
+app.all('/mcp', auth, (req, res) => void node(req, res, req.body));
+```
+
+</Code>
+
+Quatre détails. `allowedHosts` est indispensable dès qu'on écoute sur `0.0.0.0` : la validation par défaut de `Host` et `Origin` ne vaut que pour une écoute en boucle locale, et le SDK n'honore pas les jokers `http://*` ou `https://*`. `resourceUrl` et `AS_METADATA` viennent de la configuration, jamais de la requête (leçon 2). `requiredScopes` fixe le socle (ici la lecture) et `requireScopes` le step-up par outil, avec la même URL de métadonnées dans les challenges. Enfin, quand un `scopeChallenge` dépend des arguments, il s'exécute **avant** la validation du schéma : la documentation demande de valider ou normaliser soi-même les valeurs utilisées pour décider.
+
+## Les tests qui prouvent le refus
+
+Un contrôle d'accès se prouve par ce qu'il refuse, chaque refus avec le bon statut, **et** par un cas légitime qui passe, sinon un serveur qui refuse tout réussit les tests. On génère une paire de clés locale, un JWKS local, et on signe des jetons volontairement défectueux. La route de test lit `req.auth`, que `requireBearerAuth` renseigne :
+
+<Code file="services/mcp-novafact/test/auth.test.ts">
+
+```ts
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from 'jose';
+
+const { publicKey, privateKey } = await generateKeyPair('RS256');
+const jwks = createLocalJWKSet({ keys: [{ ...(await exportJWK(publicKey)), alg: 'RS256' }] });
+const app = buildApp(makeVerifier(jwks)); // même assemblage, avec une route GET /probe derrière auth
+
+const sign = (claims: Record<string, unknown>) => new SignJWT({ client_id: 'agent', scope: 'invoices:read', ...claims })
+  .setProtectedHeader({ alg: 'RS256', typ: 'at+jwt' }).setIssuer(ISSUER).setAudience(MCP_RESOURCE)
+  .setSubject('u_42').setIssuedAt().setExpirationTime('5m').sign(privateKey);
+
+test('sans jeton : 401 et challenge vers la PRM', async () => {
+  const res = await call(app, '/probe');
+  assert.equal(res.status, 401);
+  assert.match(res.headers.get('www-authenticate') ?? '', /resource_metadata="https:\/\/mcp\.novafact\.example\/\.well-known\/oauth-protected-resource\/mcp"/);
+});
+
+test('jeton émis pour l\'API des factures : 401', async () => {
+  const token = await new SignJWT({ client_id: 'agent', scope: 'invoices:read' }).setProtectedHeader({ alg: 'RS256', typ: 'at+jwt' })
+    .setIssuer(ISSUER).setAudience('https://api.novafact.example').setSubject('u_42').setExpirationTime('5m').sign(privateKey);
+  assert.equal((await call(app, '/probe', token)).status, 401);
+});
+
+test('scope de base absent : 403 insufficient_scope', async () => {
+  const res = await call(app, '/probe', await sign({ scope: 'reports:read' }));
+  assert.equal(res.status, 403);
+  assert.match(res.headers.get('www-authenticate') ?? '', /insufficient_scope/);
+});
+
+test('jeton légitime : accepté, avec le bon client', async () => {
+  const res = await call(app, '/probe', await sign({}));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).clientId, 'agent');
+});
+```
+
+</Code>
+
+`call` démarre l'application sur un port éphémère et envoie la requête avec `fetch`. On ajoute les cas d'un jeton expiré et d'un jeton signé par une autre clé ; pour le step-up d'un outil, le même principe s'applique avec le client du SDK, en vérifiant qu'un appel à `create_credit_note` sans `credit_notes:write` reçoit 403 avant toute exécution.
+
+<Callout kind="novafact">
+Chez Novafact, ces tests vivent à côté du serveur MCP et tournent dans la CI de chaque PR. Une règle Semgrep refuse un `verifyAccessToken` dont l'appel à `jwtVerify` n'a pas d'option `audience`, et le gabarit de service (`create-novafact-service`) livre le vérificateur, l'assemblage et ces quatre tests : la route sûre est celle qu'on obtient sans rien faire.
+</Callout>
+
+<Recap items={[
+  "Le SDK v2 fournit la moitié resource server ; les helpers de serveur d'autorisation de la v1 sont gelés, un IdP dédié émet les jetons.",
+  "requireBearerAuth ne vérifie ni signature ni audience : le vérificateur le fait, et lève OAuthError InvalidToken pour obtenir un 401.",
+  "expiresAt absent donne 401 : on reporte l'exp réel, sans jamais en inventer.",
+  "createMcpExpressApp protège du DNS rebinding en boucle locale ; sur 0.0.0.0, allowedHosts est obligatoire.",
+  "Tests : sans jeton, mauvaise audience, scope manquant, et un cas légitime qui passe.",
+]} />
+
+<Sources items={[
+  { title: "MCP TypeScript SDK : Require authorization", url: "https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/serving/authorization.md" },
+  { title: "MCP TypeScript SDK : Express (DNS rebinding, allowedHosts)", url: "https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/serving/express.md" },
+  { title: "MCP TypeScript SDK : exemple bearer-auth", url: "https://github.com/modelcontextprotocol/typescript-sdk/blob/main/examples/bearer-auth/server.ts" },
+  { title: "MCP 2026-07-28 : Authorization", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" },
+  { title: "RFC 9068 : JWT Profile for OAuth 2.0 Access Tokens", url: "https://www.rfc-editor.org/rfc/rfc9068" },
+  { title: "jose : jwtVerify", url: "https://github.com/panva/jose/blob/main/docs/jwt/verify/functions/jwtVerify.md" },
+]} />

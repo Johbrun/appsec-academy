@@ -1,0 +1,185 @@
+export const questions = [
+  {
+    q: "Le client MCP récupère https://attacker.example/.well-known/oauth-authorization-server, dont le champ issuer vaut https://auth.novafact.example. Que doit-il faire ?",
+    options: [
+      "L'utiliser, puisque l'issuer annoncé est celui de Novafact et que le document est servi en HTTPS",
+      "Le rejeter : l'issuer du document doit être identique à celui qui a servi à construire l'URL",
+      "L'utiliser seulement après avoir vérifié que le JWKS du document est bien signé par Novafact",
+      "Réessayer l'URL OpenID Connect du même hôte, puis utiliser le premier document cohérent",
+    ],
+    answer: 1,
+    explain: "La révision 2026-07-28 reprend RFC 8414 §3.3 : si l'issuer du document diffère de l'émetteur utilisé pour construire l'URL, le client ne doit pas utiliser ces métadonnées. Le HTTPS prouve seulement qu'on parle bien à attacker.example. Chercher une autre URL sur le même hôte ne change rien au problème : c'est toujours l'attaquant qui répond.",
+  },
+  {
+    q: "Le serveur d'autorisation annonce par OpenID Connect Discovery des métadonnées sans code_challenge_methods_supported. Que prévoit la spec MCP ?",
+    options: [
+      "Le client suppose S256, que tout serveur OAuth 2.1 est tenu d'implémenter",
+      "Le client poursuit sans PKCE, puisque le champ n'est pas défini par OpenID Connect",
+      "Le client refuse de continuer, faute de pouvoir vérifier la prise en charge de PKCE",
+      "Le client bascule sur la méthode plain, acceptée par tous les serveurs historiques",
+    ],
+    answer: 2,
+    explain: "OAuth ne fournit aucun moyen de découvrir PKCE en dehors des métadonnées : la spec impose donc au client de refuser de poursuivre si le champ est absent, y compris en OpenID Connect où il n'est pas normatif. Supposer S256 revient à envoyer un code_challenge qu'un serveur peut ignorer en silence, ce qui annule la protection. La méthode plain n'apporte rien contre un attaquant qui lit la requête d'autorisation.",
+  },
+  {
+    q: "Un serveur MCP en https://mcp.novafact.example/mcp répond 401 sans paramètre resource_metadata. Quelle URL le client essaie-t-il en premier ?",
+    options: [
+      "https://mcp.novafact.example/mcp/.well-known/oauth-protected-resource",
+      "https://mcp.novafact.example/.well-known/oauth-authorization-server/mcp",
+      "https://mcp.novafact.example/.well-known/oauth-protected-resource",
+      "https://mcp.novafact.example/.well-known/oauth-protected-resource/mcp",
+    ],
+    answer: 3,
+    explain: "RFC 9728 insère le suffixe .well-known entre l'hôte et le chemin : le client tente d'abord l'emplacement lié au chemin de l'endpoint MCP, puis la racine. Ajouter .well-known après le chemin est l'usage d'OpenID Connect pour les émetteurs, pas celui de la PRM. Et oauth-authorization-server désigne les métadonnées du serveur d'autorisation, qu'on ne cherche qu'après avoir lu la PRM.",
+  },
+  {
+    q: "Pourquoi la PRM d'un serveur MCP ne doit-elle jamais être générée à partir de l'en-tête Host de la requête ?",
+    options: [
+      "Parce qu'un Host forgé ferait annoncer une ressource ou des serveurs d'autorisation choisis par l'attaquant",
+      "Parce que l'en-tête Host est supprimé par les répartiteurs de charge et arrive vide au serveur",
+      "Parce que RFC 9728 interdit les documents dynamiques et impose un fichier statique",
+      "Parce que le client compare la PRM à une copie signée qu'il a reçue lors de l'installation",
+    ],
+    answer: 0,
+    explain: "Si le champ resource ou authorization_servers dépend du Host, un attaquant capable d'empoisonner un cache ou d'atteindre le serveur sous un autre nom fait pointer les clients vers son propre serveur d'autorisation. RFC 9728 n'impose pas un fichier statique, et le client n'a aucune copie signée : c'est justement pourquoi les valeurs doivent venir de la configuration. Les répartiteurs transmettent le Host, ce qui rend l'erreur facile à commettre.",
+  },
+];
+
+<YouKnow>
+Côté offensif, `.well-known` est l'un des premiers réflexes de reconnaissance : `openid-configuration` donne les endpoints, les algorithmes et les scopes d'un fournisseur. Dans MCP, ces documents ne sont plus de la reconnaissance : le client les lit **pour décider à qui il va envoyer l'utilisateur**. C'est donc une entrée non fiable de plus.
+</YouKnow>
+
+## Le point de départ : un 401 qui parle
+
+Le client MCP ne connaît qu'une URL, celle du serveur. Il envoie sa première requête sans jeton, et le serveur répond :
+
+<Code file="réponse du serveur MCP">
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer resource_metadata="https://mcp.novafact.example/.well-known/oauth-protected-resource/mcp",
+                         scope="invoices:read"
+```
+
+</Code>
+
+Deux paramètres comptent. `resource_metadata` (RFC 9728 §5.1) donne l'URL du document de **métadonnées de ressource protégée** (PRM). `scope` indique les scopes nécessaires pour cette requête ; le client doit le considérer comme faisant autorité pour l'opération en cours (leçon 7).
+
+Depuis la révision 2025-11-25, ce challenge n'est plus le seul moyen de découverte : le serveur **doit** fournir soit `resource_metadata` dans le `WWW-Authenticate`, soit le document à un emplacement connu. Le client, lui, **doit** savoir faire les deux : il suit `resource_metadata` s'il est présent, sinon il essaie dans l'ordre :
+
+1. `https://mcp.novafact.example/.well-known/oauth-protected-resource/mcp` (emplacement lié au chemin de l'endpoint) ;
+2. `https://mcp.novafact.example/.well-known/oauth-protected-resource` (racine).
+
+Si aucun ne répond, il abandonne ou utilise une configuration préalable. Il ne devine pas.
+
+## Le document RFC 9728
+
+<Code file="GET /.well-known/oauth-protected-resource/mcp">
+
+```json
+{
+  "resource": "https://mcp.novafact.example/mcp",
+  "authorization_servers": ["https://auth.novafact.example"],
+  "scopes_supported": ["invoices:read", "credit_notes:write", "invoices:send"],
+  "bearer_methods_supported": ["header"],
+  "resource_name": "Novafact MCP"
+}
+```
+
+</Code>
+
+La spec MCP impose `authorization_servers` avec au moins une entrée. Le champ `resource` est l'identifiant de la ressource : RFC 9728 §3.3 exige que le client vérifie qu'il correspond à l'URL à partir de laquelle il a construit la requête de métadonnées. Sans ce contrôle, un serveur pourrait publier la PRM d'un autre et rediriger les clients. `scopes_supported` est censé être l'ensemble **minimal** de scopes pour un fonctionnement de base : le client le demande en entier quand le 401 ne précise pas `scope`, donc un catalogue exhaustif ici se traduit par des jetons trop larges (leçon 7).
+
+Si la PRM liste plusieurs serveurs d'autorisation, chacun est **indépendant** : le client tient un état d'enregistrement et de jetons séparé pour chacun, et ne présume jamais qu'un identifiant valable chez l'un l'est chez l'autre.
+
+## Trouver le serveur d'autorisation : RFC 8414 et OpenID Connect
+
+Le client connaît maintenant l'émetteur, `https://auth.novafact.example`. Il doit récupérer ses métadonnées, et la spec exige qu'il sache lire **les deux** formats : RFC 8414 (`oauth-authorization-server`) et OpenID Connect Discovery (`openid-configuration`). Quand l'émetteur a un chemin (un IdP multi-tenant, par exemple `https://auth.example.com/tenant1`), l'ordre est fixé :
+
+| Rang | URL essayée | Norme |
+| --- | --- | --- |
+| 1 | `https://auth.example.com/.well-known/oauth-authorization-server/tenant1` | RFC 8414, insertion du chemin |
+| 2 | `https://auth.example.com/.well-known/openid-configuration/tenant1` | OIDC, insertion du chemin |
+| 3 | `https://auth.example.com/tenant1/.well-known/openid-configuration` | OIDC, ajout en fin de chemin |
+
+Sans chemin, il essaie `oauth-authorization-server` puis `openid-configuration` à la racine. L'ordre n'est pas cosmétique : deux clients qui l'appliquent différemment peuvent lire deux documents différents sur un hébergement mutualisé.
+
+## Les deux refus que le client doit savoir faire
+
+**L'émetteur doit correspondre.** La révision 2026-07-28 rend explicite une règle de RFC 8414 §3.3 que beaucoup de clients ignoraient : l'`issuer` du document **doit être identique** à l'émetteur qui a servi à construire l'URL, sinon le client **ne doit pas** utiliser les métadonnées. L'exemple de la spec est parlant : un document servi par `attacker.example` qui annonce `"issuer": "https://honest.example"` est rejeté. Comparaison de chaînes stricte, sans normalisation. C'est cet émetteur validé que le client enregistrera avant la redirection pour contrôler `iss` au retour (leçon 4) : si l'émetteur vient d'une source non validée, toute la protection contre le *mix-up* (M14, leçon 6) s'effondre.
+
+**PKCE doit être annoncé.** OAuth ne fournit aucun moyen de découvrir PKCE ailleurs que dans les métadonnées. Si `code_challenge_methods_supported` est absent, le client **doit refuser de continuer**, y compris pour un fournisseur OpenID Connect, où ce champ n'est pas normatif. Un client qui « suppose » S256 envoie un `code_challenge` qu'un serveur peut ignorer en silence.
+
+## Dans le code : la découverte vue comme une entrée non fiable
+
+<Diff file="packages/mcp-client/src/discovery.ts" hlBefore="3,4,6" hlAfter="5,6,11,12,13,16,17">
+
+```ts
+export async function discover(mcpUrl: URL, challenge: Challenge) {
+  // le serveur dit où lire la PRM, on le suit sans réfléchir
+  const prm = await (await fetch(challenge.resourceMetadata!)).json();
+  const as = await (await fetch(`${prm.authorization_servers[0]}/.well-known/openid-configuration`)).json();
+  return { issuer: as.issuer, authorize: as.authorization_endpoint, token: as.token_endpoint };
+}
+```
+
+```ts
+export async function discover(mcpUrl: URL, challenge: Challenge) {
+  const prmUrl = challenge.resourceMetadata ?? wellKnownPrm(mcpUrl)[0];
+  const prm = await fetchMetadata(prmUrl); // HTTPS, plages privées refusées, pas de redirection (leçon 3)
+  // RFC 9728 §3.3 : la PRM doit décrire la ressource à laquelle on parle
+  if (prm.resource !== canonical(mcpUrl)) throw new DiscoveryError('PRM pour une autre ressource');
+  const issuer = pickIssuer(prm.authorization_servers); // politique du client, pas « le premier venu »
+  for (const url of asMetadataUrls(issuer)) { // ordre RFC 8414 puis OIDC
+    const as = await fetchMetadata(url).catch(() => undefined);
+    if (!as) continue;
+    // RFC 8414 §3.3 : comparaison stricte, sans normalisation
+    if (as.issuer !== issuer) throw new DiscoveryError('issuer incohérent');
+    if (!as.code_challenge_methods_supported?.includes('S256')) throw new DiscoveryError('PKCE non annoncé');
+    return { issuer, as }; // l'issuer validé sera stocké avec le code_verifier
+  }
+  throw new DiscoveryError('aucune métadonnée de serveur d\'autorisation');
+}
+```
+
+</Diff>
+
+La version vulnérable cumule trois défauts : elle suit n'importe quelle URL, elle ne lit qu'un format de métadonnées, et elle prend l'`issuer` du document pour argent comptant. Le mauvais correctif classique consiste à comparer l'émetteur **après normalisation** (minuscules, slash final retiré) : `https://auth.novafact.example/` et `https://auth.novafact.example` passent alors pour identiques, alors que la spec interdit toute normalisation. Cela paraît anodin jusqu'au jour où un hébergeur mutualisé sert deux émetteurs qui ne diffèrent que par un chemin ou un slash.
+
+Le contrôle de PKCE doit vérifier la présence de `S256`, pas seulement celle du champ : un serveur qui n'annonce que `plain` ne protège pas contre un attaquant qui lit la requête d'autorisation.
+
+<Callout kind="case">
+**Les métadonnées sont une entrée d'attaquant.** Dans CVE-2025-6514 (mcp-remote, juillet 2025, CVSS 9.6), la charge utile arrivait précisément par là : un serveur MCP malveillant annonçait un `authorization_endpoint` piégé dans ses métadonnées OAuth, et le client le transmettait tel quel à sa fonction d'ouverture du navigateur. JFrog a démontré l'exécution de commandes sur le poste de l'utilisateur ; corrigé en 0.1.16. La leçon 4 détaille la chaîne. Ici, l'essentiel est que chaque champ d'un document `.well-known` est contrôlé par celui qui l'héberge.
+</Callout>
+
+## Côté serveur MCP : publier sans se trahir
+
+Le serveur MCP de Novafact publie sa PRM depuis la **configuration**, jamais depuis la requête. Les valeurs `resource` et `authorization_servers` sont des constantes de déploiement ; un document construit à partir de l'en-tête `Host` permettrait à un attaquant, par empoisonnement de cache ou en joignant le service sous un autre nom, de faire annoncer son propre serveur d'autorisation. Le SDK TypeScript publie la PRM aux deux emplacements attendus à partir d'une URL de ressource fixée au démarrage (leçon 9).
+
+Trois tests suffisent à couvrir ce que les clients attendent :
+
+- une requête sans jeton reçoit `401` avec un `WWW-Authenticate` qui contient `resource_metadata` ;
+- l'URL annoncée renvoie un document dont `resource` est exactement l'URI canonique du serveur ;
+- un `Host` inconnu ne change rien au document servi, ou la requête est refusée.
+
+<Callout kind="tip">
+En test d'intrusion d'un client MCP, on monte un serveur qui répond `401` avec un `resource_metadata` vers une adresse interne, puis une PRM dont `authorization_servers` pointe vers un document à l'`issuer` incohérent et sans `code_challenge_methods_supported`. Un client conforme s'arrête à chaque étape ; beaucoup vont jusqu'au bout.
+</Callout>
+
+<Recap items={[
+  "Le 401 porte resource_metadata et scope ; sans resource_metadata, le client essaie la PRM liée au chemin, puis la racine.",
+  "La PRM (RFC 9728) doit contenir authorization_servers ; son champ resource doit correspondre à la ressource contactée.",
+  "Le client lit RFC 8414 et OIDC Discovery, dans l'ordre fixé quand l'émetteur a un chemin.",
+  "issuer du document identique à l'émetteur attendu, sans normalisation ; sinon les métadonnées sont rejetées.",
+  "Sans code_challenge_methods_supported (et S256), le client refuse de continuer.",
+  "Le serveur publie sa PRM depuis la configuration, jamais depuis l'en-tête Host.",
+]} />
+
+<Sources items={[
+  { title: "MCP 2026-07-28 : Authorization Server Discovery", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/authorization-server-discovery" },
+  { title: "MCP 2026-07-28 : Authorization Security Considerations (PKCE)", url: "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations" },
+  { title: "RFC 9728 : OAuth 2.0 Protected Resource Metadata", url: "https://www.rfc-editor.org/rfc/rfc9728" },
+  { title: "RFC 8414 : OAuth 2.0 Authorization Server Metadata", url: "https://www.rfc-editor.org/rfc/rfc8414" },
+  { title: "OpenID Connect Discovery 1.0", url: "https://openid.net/specs/openid-connect-discovery-1_0.html" },
+  { title: "JFrog : CVE-2025-6514 dans mcp-remote", url: "https://research.jfrog.com/vulnerabilities/mcp-remote-command-injection-rce-jfsa-2025-001290844" },
+]} />

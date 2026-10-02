@@ -1,0 +1,165 @@
+export const questions = [
+  {
+    q: "Une chasse dans CloudTrail sur l’hypothèse « le rôle de tâche de l’API est utilisé hors de notre infrastructure » ne trouve rien. Qu’en conclure ?",
+    options: [
+      "Que l’hypothèse est réfutée sur la période, si les données nécessaires étaient bien présentes",
+      "Que la chasse a échoué et qu’il faut la relancer avec une hypothèse différente",
+      "Qu’il faut transformer la requête en règle, puisqu’elle ne produit aucun faux positif",
+      "Que le rôle n’a jamais été compromis, ce qui permet de lever sa surveillance",
+    ],
+    answer: 0,
+    explain: "TaHiTI distingue l’hypothèse prouvée, réfutée, non concluante, et la chasse qui échoue faute de données. Ne rien trouver avec des données complètes est un résultat : l’hypothèse est réfutée sur la période, ce qui se documente. Ce n’est pas un échec, et ce n’est pas non plus une preuve d’innocence pour l’avenir : on garde la surveillance. La requête peut devenir une règle, mais pour sa valeur de détection et après réglage, pas parce qu’elle était silencieuse sur une période donnée.",
+  },
+  {
+    q: "Dans PEAK, quelle différence y a-t-il entre une chasse par hypothèse et une chasse par baseline ?",
+    options: [
+      "La chasse par hypothèse exige un modèle d’apprentissage, la baseline non",
+      "La baseline part du normal pour isoler l’écart, l’hypothèse part d’un comportement",
+      "La chasse par hypothèse porte sur le réseau, la baseline sur les journaux",
+      "La baseline est automatisée dans le SIEM, l’hypothèse reste toujours manuelle",
+    ],
+    answer: 1,
+    explain: "Une chasse par hypothèse part d’un comportement supposé (« un attaquant utiliserait le rôle de tâche depuis l’extérieur ») et cherche ses traces. Une chasse par baseline commence par décrire le normal, par exemple le volume d’exports par utilisateur, puis examine ce qui s’en écarte, sans savoir à l’avance ce qu’on trouvera. Les modèles d’apprentissage sont le troisième type de PEAK, la chasse assistée par modèle. Aucun type n’est lié à une source de données, et les deux peuvent s’outiller.",
+  },
+  {
+    q: "Une chasse trouve trois connexions réussies d’un administrateur de tenant juste après une désactivation de MFA, depuis un ASN inhabituel. Qu’attend-on en fin de chasse, au-delà de l’incident ouvert ?",
+    options: [
+      "Un rapport transmis à la direction, qui décidera s’il faut aller plus loin",
+      "Un indicateur partagé en TLP:CLEAR avec l’ASN, pour que d’autres le bloquent",
+      "Un blocage permanent de l’ASN au WAF, pour empêcher toute récidive",
+      "Une détection documentée et testée, et les manques de journalisation relevés",
+    ],
+    answer: 3,
+    explain: "Une chasse qui trouve quelque chose finit en détection : sinon, on retrouvera la même chose à la main la prochaine fois. PEAK appelle cette phase « agir avec la connaissance », TaHiTI la remise aux autres processus : surveillance, réponse, renseignement. Un ASN est un indicateur fragile, partagé ou bloqué il protège quelques jours et risque de bloquer des clients légitimes. Le rapport à la direction a sa place, mais il ne remplace pas la règle ni les correctifs de journalisation.",
+  },
+];
+
+<YouKnow>
+Chasser, c’est ce que fait un pentester quand le scanner n’a rien trouvé : former une hypothèse sur ce que le développeur a pu oublier, la tester, pivoter. La chasse défensive est le même geste, dans les journaux plutôt que dans l’application : supposer que l’attaquant est déjà passé, et aller chercher sa trace là où aucune règle ne regarde.
+</YouKnow>
+
+## Pourquoi chasser
+
+Une détection ne voit que ce qu’on a imaginé en l’écrivant. La chasse (*threat hunting*) part de l’hypothèse inverse : l’attaquant est peut-être déjà là, sous les seuils, avec une technique qu’aucune règle ne couvre. Pour l’AppSec, l’intérêt est double. La chasse vérifie que les menaces du threat model (M11) laissent bien une trace exploitable. Et elle produit les détections applicatives que personne n’aurait écrites sans elle.
+
+David Bianco a proposé en 2015 un *Hunting Maturity Model* qui situe une équipe sur cinq niveaux :
+
+| Niveau | Nom | Ce que fait l’équipe |
+| --- | --- | --- |
+| HMM0 | Initial | S’en remet aux alertes automatiques, ne chasse pas |
+| HMM1 | Minimal | Cherche des indicateurs tirés du renseignement |
+| HMM2 | Procédural | Suit des procédures de chasse écrites par d’autres |
+| HMM3 | Innovant | Crée ses propres procédures |
+| HMM4 | Leader | Automatise les chasses réussies en détections |
+
+Le passage de HMM3 à HMM4 est exactement le pont entre ce module et M24 : une chasse qui marche devient une règle.
+
+## Deux méthodes : PEAK et TaHiTI
+
+**PEAK** (Splunk SURGe, David Bianco, avril 2023) organise toute chasse en trois phases : **préparer** (sujet, données, hypothèse), **exécuter** (requêtes, analyse, pivots), **agir avec la connaissance** (documenter, automatiser, communiquer). Il distingue trois types de chasse :
+
+- **par hypothèse** : on suppose un comportement et on cherche ses traces ;
+- **par baseline** : on décrit le normal pour isoler les écarts, sans savoir d’avance ce qu’on trouvera ;
+- **assistée par modèle** (M-ATH) : un modèle d’apprentissage repère ce qui ressemble au malveillant ou s’écarte du normal.
+
+**TaHiTI** (*Targeted Hunting integrating Threat Intelligence*, publié en 2018 par l’association des banques néerlandaises) insiste sur le lien avec le renseignement de la leçon 3. Ses trois phases sont précises :
+
+<Steps items={[
+  { title: "Initier", text: "Un déclencheur (un avis, une technique ATT&CK, un incident, une menace du threat model) devient un résumé de chasse, rangé dans un backlog priorisé." },
+  { title: "Chasser", text: "Définir et affiner (données, période, requêtes), exécuter, puis valider : hypothèse prouvée, réfutée, non concluante, ou chasse échouée faute de données." },
+  { title: "Finaliser", text: "Documenter les résultats et les recommandations, puis transmettre : à la réponse à incident, à la surveillance (nouvelles règles), au renseignement, à la gestion des vulnérabilités." },
+]} />
+
+Une chasse « échouée faute de données » n’est pas perdue : elle produit une recommandation de journalisation, souvent la plus utile de toutes.
+
+## Une chasse par hypothèse dans CloudTrail
+
+<Callout kind="case">
+**Capital One (2019).** Selon la plainte pénale déposée en juillet 2019, l’attaquante a obtenu, via un pare-feu applicatif mal configuré, les identifiants temporaires d’un rôle (`*****-WAF-Role`), puis les a utilisés pour lister les buckets S3 et en copier le contenu avec une commande de synchronisation. Capital One n’a pas détecté l’intrusion elle-même : un tiers l’a alertée le 17 juillet 2019, après avoir repéré une publication sur GitHub qui y renvoyait. Chaque appel avait pourtant laissé une trace dans CloudTrail. La SSRF et IMDSv2 sont traités en M19 (leçon 3) ; ici, on retient la question de chasse : un rôle de machine utilisé depuis une adresse qui n’est pas celle de la machine.
+</Callout>
+
+Transposée à Novafact, l’hypothèse s’écrit en une phrase testable : **« Les identifiants du rôle de tâche de l’API sont utilisés depuis une adresse extérieure à notre infrastructure. »** Les sorties de Novafact sont connues : la passerelle NAT du VPC de production et les points de terminaison VPC. La fiche de l’application (leçon 2) le dit déjà.
+
+<Code file="chasses/2026-10-role-tache-hors-infra.esql" hl="3,4">
+
+```sql
+FROM logs-aws.cloudtrail-*
+| WHERE @timestamp > NOW() - 90 days
+  AND aws.cloudtrail.user_identity.arn LIKE "*assumed-role/novafact-api-task/*"
+  AND NOT CIDR_MATCH(source.ip, "10.20.0.0/16", "198.51.100.10/32")  // VPC, NAT de prod
+| STATS appels = COUNT(*), actions = VALUES(event.action),
+        premier = MIN(@timestamp), dernier = MAX(@timestamp)
+  BY source.ip, source.as.organization.name, user_agent.original
+| SORT appels DESC
+```
+
+</Code>
+
+Trois pièges avant de conclure. D’abord, certains appels faits par un service AWS pour le compte du client n’ont pas d’adresse IP dans `sourceIPAddress`, mais le nom du service : ils n’ont pas leur place dans `source.ip` et sortent de la requête, il faut les regarder à part. Ensuite, les événements de **données** S3 (`GetObject`, `PutObject`) ne sont pas journalisés par défaut : sans eux, on voit le `ListBuckets` d’une Capital One, pas la copie (M23, leçon 2). Enfin, GuardDuty a un finding dédié à ce scénario (`InstanceCredentialExfiltration`), pour les identifiants d’instance EC2 : la chasse couvre aussi les rôles de tâche ECS, ce qu’il ne fait pas forcément. Il faut vérifier sa couverture plutôt que de la supposer.
+
+Si la requête ne renvoie rien sur 90 jours avec des données complètes, l’hypothèse est réfutée sur la période : on le note, et la requête, réglée, peut devenir une règle à faible bruit.
+
+## Une chasse par baseline dans les journaux applicatifs
+
+Les journaux de l’application se prêtent mieux à la baseline, parce que le normal y est métier. Exemple : un compte légitime dont la session est volée exporte souvent beaucoup plus que d’habitude. La chasse décrit le volume quotidien d’exports par utilisateur, puis isole les journées hors norme :
+
+<Code file="chasses/2026-10-exports-hors-norme.esql">
+
+```sql
+FROM logs-novafact.api-*
+| WHERE @timestamp > NOW() - 60 days AND event.action == "invoice_export"
+| EVAL jour = DATE_TRUNC(1 day, @timestamp)
+| STATS exports = COUNT(*) BY user.id, organization.id, jour
+| STATS moyenne = AVG(exports), pic = MAX(exports), jours_actifs = COUNT(*)
+  BY user.id, organization.id
+| WHERE jours_actifs >= 10 AND pic > 5 * moyenne   // au moins dix jours d'historique
+| SORT pic DESC
+```
+
+</Code>
+
+Le résultat n’est pas une liste d’attaques : c’est une liste d’écarts à expliquer. La fin de mois comptable en expliquera la plupart, et ce sera une ligne de plus dans `flux_normaux`. Les écarts qui restent se croisent avec d’autres événements de la même session : `authn_mfa_disabled`, changement d’adresse e-mail, nouvelle empreinte d’appareil. C’est le genre de séquence que l’EQL de M23 (leçon 4) exprime bien.
+
+## De la chasse à la détection
+
+Une chasse se documente, sinon elle se refait. Le **Threat Hunter Playbook** de l’OTRF publie ses chasses sous forme de notebooks, surtout pour Windows, mais sa structure se transpose. Celle de Novafact tient en une page :
+
+<Code file="chasses/2026-10-role-tache-hors-infra.md">
+
+```text
+Déclencheur   : threat model de l'API (menace « vol des identifiants du rôle de tâche »)
+Hypothèse     : le rôle novafact-api-task est utilisé hors de nos adresses de sortie
+Données       : CloudTrail (gestion + données S3 sur novafact-invoices-prod), 90 jours
+Résultat      : réfutée ; 0 appel hors infrastructure. 14 appels de service AWS à part, tous légitimes
+Manques       : événements de données S3 absents sur le bucket des exports avant juillet
+Transmis à    : ingénierie de détection (règle + ADS, M24), plateforme (données S3 sur tous les buckets)
+Durée         : 3 h
+```
+
+</Code>
+
+La remise à l’ingénierie de détection suit le cycle de M24 : la requête devient une règle documentée au format ADS (leçon 1), testée par une technique rejouée avec Stratus Red Team (leçon 4), et sa première exclusion vient du résultat de la chasse.
+
+<Callout kind="novafact">
+Le backlog de chasse de Novafact (fictif) est alimenté par trois sources : les menaces du threat model sans détection associée, les avis retenus par la grille de la leçon 3, et les incidents des pairs. Une chasse par mois, trois heures maximum, toujours conclue par une fiche. En un an, sept chasses ont produit cinq règles, trois demandes de journalisation et un incident réel : un jeton d’intégration client utilisé depuis un hébergeur inattendu.
+</Callout>
+
+<Recap items={[
+  "La chasse suppose l’attaquant déjà présent et cherche ce qu’aucune règle ne voit ; le Hunting Maturity Model situe l’équipe, de HMM0 à HMM4.",
+  "PEAK : préparer, exécuter, agir avec la connaissance, en trois types de chasse (hypothèse, baseline, modèle).",
+  "TaHiTI : initier depuis un déclencheur, chasser, valider (prouvée, réfutée, non concluante, échouée), puis transmettre.",
+  "Dans CloudTrail, une hypothèse testable et ses pièges : appels de service AWS, événements de données S3 non journalisés par défaut.",
+  "Dans l’application, la baseline métier fait apparaître les écarts ; une chasse qui trouve finit en détection testée.",
+]} />
+
+<Lab id="stratus" note="Rejouez une technique d’exfiltration d’identifiants cloud dans un compte de test, puis retrouvez-la par une chasse dans CloudTrail avant d’écrire la règle." />
+
+<Sources items={[
+  { title: "Splunk SURGe : PEAK Threat Hunting Framework (avril 2023)", url: "https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html" },
+  { title: "TaHiTI : Targeted Hunting integrating Threat Intelligence", url: "https://www.betaalvereniging.nl/en/safety/tahiti/" },
+  { title: "David J. Bianco : A Simple Hunting Maturity Model (2015)", url: "https://detect-respond.blogspot.com/2015/10/a-simple-hunting-maturity-model.html" },
+  { title: "OTRF : Threat Hunter Playbook", url: "https://threathunterplaybook.com/" },
+  { title: "Département de la Justice américain : United States v. Paige Thompson", url: "https://www.justice.gov/usao-wdwa/united-states-v-paige-thompson" },
+  { title: "AWS : journaliser les événements de données CloudTrail", url: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/logging-data-events-with-cloudtrail.html" },
+  { title: "Elastic : référence ES|QL", url: "https://www.elastic.co/docs/reference/query-languages/esql" },
+]} />

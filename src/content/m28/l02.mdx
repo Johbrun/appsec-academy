@@ -1,0 +1,151 @@
+export const questions = [
+  {
+    q: "Une règle maison de 2025, qui alerte sur `StopLogging`, est associée à TA0005 Defense Evasion et T1562.008. Que faut-il faire depuis ATT&CK v19 ?",
+    options: [
+      "Rien : TA0005 existe toujours, l'identifiant de la tactique n'a pas changé",
+      "La réassocier à T1685.002 et à Defense Impairment (TA0112), T1562.008 étant révoquée",
+      "La retirer : la v19 a déplacé l'effacement des journaux hors du périmètre d'ATT&CK",
+      "La réassocier à T1070 Indicator Removal, qui regroupe désormais les journaux cloud",
+    ],
+    answer: 1,
+    explain: "TA0005 a gardé son identifiant, mais elle s'appelle désormais Stealth : une règle qui y range la désactivation de journaux est mal classée, sans qu'aucun outil ne le signale. T1562 a été révoquée au profit de T1685 Disable or Modify Tools, et T1562.008 est devenue T1685.002, dans la nouvelle tactique Defense Impairment. T1070 reste dans Stealth et a même perdu ses sous-techniques d'effacement de journaux, passées sous T1685. Rien n'est sorti d'ATT&CK : c'est un reclassement.",
+  },
+  {
+    q: "Le tableau de bord annonce « 78 % des techniques ATT&CK cloud couvertes ». Que mesure en général ce chiffre ?",
+    options: [
+      "La part des techniques pour lesquelles une règle a été testée sur des données réelles",
+      "La part des techniques observées chez Novafact qui ont déclenché au moins une alerte",
+      "La part des techniques qui ont au moins une règle associée, qu'elle fonctionne ou non",
+      "La part des Analytics ATT&CK v18 qui ont été traduites en règles dans le SIEM",
+    ],
+    answer: 2,
+    explain: "Les vues de couverture comptent des associations : une règle installée et étiquetée colore la case, même si la donnée n'arrive pas ou si la règle ne voit qu'une procédure sur quatre. Mesurer les techniques testées est précisément ce qu'il faudrait faire, et ce que ce chiffre ne fait pas. Les techniques « observées » supposeraient de connaître les attaques non détectées, et le rapprochement avec les Analytics ATT&CK est un travail utile mais rarement automatisé.",
+  },
+  {
+    q: "Une règle de détection se déclenche quand Stratus Red Team détonne `aws.defense-evasion.cloudtrail-stop`. Qu'est-ce que ce test prouve sur la couverture de la désactivation des journaux cloud ?",
+    options: [
+      "Qu'elle est couverte : le test reproduit exactement la technique ATT&CK visée",
+      "Qu'une procédure est vue ; supprimer le trail ou filtrer ses événements reste à tester",
+      "Rien : un test outillé ne vaut pas une attaque réelle, seul un exercice red team compte",
+      "Qu'elle est couverte pour AWS, à condition que la règle ne filtre pas le user-agent",
+    ],
+    answer: 1,
+    explain: "Stratus propose plusieurs techniques pour le même effet : arrêter le trail, le supprimer, changer ses sélecteurs d'événements, poser une règle de cycle de vie sur son bucket. Ce sont des procédures différentes d'une même opération, et une règle sur `StopLogging` ne voit que la première. Un test unique donne un résultat binaire qui ne dit pas si la règle vise le comportement ou une seule de ses formes. Filtrer le user-agent serait une règle encore plus fragile, mais ne pas le faire ne suffit pas. Et le test outillé a de la valeur : il est rejouable, contrairement à un exercice.",
+  },
+  {
+    q: "Une alerte sur l'adresse IP d'un VPS signalé par le renseignement, et une alerte sur une séquence d'appels d'API inhabituelle pour le rôle. Laquelle coûte le plus cher à contourner à l'attaquant, selon la Pyramid of Pain ?",
+    options: [
+      "L'adresse IP, parce qu'un indicateur précis ne produit presque aucun faux positif",
+      "Les deux se valent : l'attaquant change d'infrastructure aussi vite que de méthode",
+      "L'adresse IP, parce que l'infrastructure d'attaque coûte cher à louer et à préparer",
+      "La séquence d'appels, parce qu'elle décrit le comportement et non un artefact jetable",
+    ],
+    answer: 3,
+    explain: "Bianco classe les adresses IP près de la base : en changer coûte quelques minutes. Les TTP sont au sommet, parce qu'en changer oblige l'attaquant à réapprendre sa façon d'opérer. La précision d'un indicateur est réelle, mais elle porte sur les faux positifs, pas sur le coût du contournement. Une infrastructure de VPS se loue en quelques minutes, et les méthodes changent bien plus lentement que les adresses.",
+  },
+];
+
+<YouKnow>
+Un pentester connaît ATT&CK par son côté offensif : il range ses actions de pentest ou de red team dans la matrice pour les raconter. Côté défense, la même matrice sert à une question plus difficile : qu'est-ce que nous verrions, et comment le savons-nous ?
+</YouKnow>
+
+## Ce que la v18 a changé pour les défenseurs
+
+Jusqu'en 2025, chaque technique d'ATT&CK listait des **sources de données** et un paragraphe de détection assez vague. La **v18** (28 octobre 2025) a remplacé ce paragraphe par deux objets :
+
+- une **Detection Strategy** (identifiant `DET…`) décrit *quoi* chercher pour une technique, indépendamment de la plateforme ;
+- des **Analytics** (identifiant `AN…`) décrivent la logique pour une plateforme donnée, avec les **Log Sources** et **Data Components** nécessaires et des **Mutable Elements**, les paramètres à ajuster à son environnement.
+
+Les anciennes Data Sources ont été dépréciées. Pour Enterprise, la v18 compte 691 Detection Strategies et 1 739 Analytics.
+
+Un exemple concret, pour T1078.004 *Cloud Accounts* : la Detection Strategy **DET0546** regroupe plusieurs Analytics. L'une d'elles, AN1504, cherche l'usage d'un compte cloud pour des appels qui dépassent son périmètre habituel (changements IAM, services jamais utilisés), en s'appuyant sur CloudTrail (`ConsoleLogin`, `AssumeRole`, `ListAccessKeys`, `CreateUser`). Ses Mutable Elements, `ServiceInteractionBaseline` et `RoleSwitchRateThreshold`, sont exactement ce qu'il faut régler pour Novafact : la ligne de base des services utilisés par chaque rôle, et le seuil de changements de rôle.
+
+L'intérêt pour le défenseur : une Analytic donne un point de départ vérifié pour une règle, et surtout la **liste des données** sans lesquelles elle est impossible.
+
+## La v19 et la fin de Defense Evasion
+
+La **v19** (28 avril 2026) a scindé *Defense Evasion* en deux tactiques :
+
+| Tactique | Identifiant | Ce qu'elle regroupe | Exemples |
+| --- | --- | --- | --- |
+| **Stealth** | TA0005 (identifiant conservé) | Se cacher : passer pour légitime, effacer ses traces | T1036 Masquerading, T1070 Indicator Removal |
+| **Defense Impairment** | TA0112 (nouvelle) | Neutraliser les défenses | T1685 Disable or Modify Tools, dont T1685.002 *Disable or Modify Cloud Log* |
+
+T1562 *Impair Defenses* est révoquée au profit de T1685, et T1562.008 (désactiver ou modifier les journaux cloud) devient **T1685.002**. Les sous-techniques d'effacement des journaux Windows et Linux ont quitté T1070 pour T1685.005 et T1685.006.
+
+Le piège est discret : TA0005 existe toujours, mais elle ne veut plus dire la même chose. Une règle maison qui y range la désactivation de CloudTrail est mal classée, sans erreur visible. Les outils suivent à des rythmes différents : Atomic Red Team a déjà déplacé ses tests sous `T1685.002`, `elastic/detection-rules` sait convertir les associations vers la v19 au moment de l'export, alors que les identifiants de Stratus Red Team gardent la forme `aws.defense-evasion.*`. Il faut tenir une table de correspondance et faire relire les associations à chaque version majeure.
+
+## Mesurer une couverture sans compter les règles
+
+Une vue de couverture colore une case quand une règle est **associée** à la technique. Elle ne dit ni si les données arrivent, ni si la règle se déclenche, ni combien de variantes elle voit. « 78 % de couverture » mesure souvent le travail d'étiquetage.
+
+Novafact suit plutôt, pour chaque technique retenue par son threat model (M11), cinq colonnes :
+
+| Technique | Données présentes ? | Règle ? | Testée ? | Procédures vues |
+| --- | --- | --- | --- | --- |
+| T1078.004 Cloud Accounts | CloudTrail, oui | Oui (2) | Oui | Console, clés d'accès ; pas les jetons fédérés |
+| T1685.002 Disable or Modify Cloud Log | CloudTrail + fraîcheur des flux | Oui | Oui (4 variantes) | Arrêt, suppression, sélecteurs, cycle de vie |
+| T1530 Data from Cloud Storage | Événements de données S3 sur 2 buckets | Oui | Non | Factures et exports seulement |
+| T1657 Financial Theft | Journal applicatif | Oui | Oui | Changement d'IBAN ; pas l'avoir frauduleux |
+
+La colonne **données** passe en premier : sans elle, aucune règle n'existe vraiment. La colonne **procédures** est celle qui manque presque partout. Le score ATT&CK Navigator de chaque technique se calcule à partir de ces colonnes, pas du nombre de règles.
+
+<Callout kind="case">
+**Storm-0558 (2023).** Le rapport du Cyber Safety Review Board (mars 2024) raconte comment le Département d'État américain a été la première victime à détecter l'intrusion chinoise dans Exchange Online, le 16 juin 2023 : une règle maison, « Big Yellow Taxi », analysait le journal MailItemsAccessed, qui n'était disponible qu'avec une licence incluant la journalisation « premium ». Peu de victimes, voire aucune, en disposaient. La règle avait déjà produit des faux positifs, et l'équipe a quand même enquêté. La couverture tenait d'abord à la donnée : sans ce journal, aucune règle n'aurait été possible.
+</Callout>
+
+## La Pyramid of Pain
+
+David Bianco a publié en 2013 un classement des indicateurs selon la **douleur** qu'ils infligent à l'attaquant quand on les détecte. De la base au sommet : empreintes de fichiers, adresses IP, noms de domaine, artefacts réseau, artefacts hôte, et enfin **TTP**. Une règle sur l'adresse IP d'un VPS se contourne en quelques minutes ; une règle sur un comportement oblige l'attaquant à changer sa manière d'opérer.
+
+Dans un environnement cloud, la pyramide se transpose bien : une adresse IP ou un user-agent d'outil offensif sont en bas, l'appel d'API précis au milieu, et le **comportement** (un rôle qui énumère IAM puis crée une clé pour un autre utilisateur) au sommet. Les indicateurs du bas ne sont pas inutiles : ils sont précis et bon marché, mais ils expirent vite. Une couverture solide ne repose jamais sur eux seuls.
+
+## Robustesse : raisonner en procédures
+
+Jared Atkinson (SpecterOps) a formalisé dans sa série *On Detection* une idée familière côté offensif : il existe plusieurs façons d'obtenir le même effet. Il décompose une technique en **fonctions** (les appels concrets), regroupées en **opérations** (l'effet obtenu), et appelle **procédure** une suite d'opérations qui réalise la technique. Une détection est robuste quand elle vise l'opération plutôt qu'un outil ou une fonction particulière. Il montre aussi qu'un test unique ne suffit pas : il ne dit pas si la règle a vu le comportement ou seulement cette forme-là.
+
+Pour couper la journalisation CloudTrail de Novafact, Stratus Red Team propose à lui seul quatre procédures : arrêter le trail, le supprimer, modifier ses sélecteurs d'événements pour ne plus rien capturer, ou poser une règle de cycle de vie qui efface les fichiers dans le bucket.
+
+<Diff file="detections/rules/defense_impairment_cloudtrail.kql" hlAfter="2,3,4,5,6">
+
+```text
+event.provider: "cloudtrail.amazonaws.com"
+  and event.action: "StopLogging"
+```
+
+```text
+(event.provider: "cloudtrail.amazonaws.com"
+  and event.action: ("StopLogging" or "DeleteTrail" or "UpdateTrail"
+                     or "PutEventSelectors" or "PutAdvancedEventSelectors"))
+or (event.provider: "s3.amazonaws.com"
+  and event.action: ("PutBucketLifecycle" or "PutBucketPolicy" or "DeleteBucketPolicy")
+  and aws.cloudtrail.flattened.request_parameters.bucketName: "novafact-org-trail")
+```
+
+</Diff>
+
+La version de droite vise l'opération « la journalisation cesse ou se dégrade », par plusieurs chemins. Elle reste incomplète, et c'est assumé : une modification faite par un chemin que CloudTrail ne voit pas (M23, leçon 2) lui échappe. C'est le rôle de la règle de **fraîcheur des flux** (M23, leçon 3), qui vise l'effet final quelle que soit la méthode : plus de données. Les deux ensemble couvrent mieux que dix règles sur des appels isolés.
+
+<Callout kind="tip">
+La colonne « procédures vues » s'écrit avant la règle. Pour chaque technique prioritaire, on liste les façons connues de l'obtenir (Stratus, Atomic Red Team, rapports d'incident, expérience de pentest), puis on coche celles que la règle voit. La liste devient la matrice de tests de la leçon 4.
+</Callout>
+
+<Recap items={[
+  "La v18 remplace les sources de données par des Detection Strategies et des Analytics, avec les données nécessaires et les paramètres à ajuster.",
+  "La v19 scinde Defense Evasion en Stealth (TA0005) et Defense Impairment (TA0112) ; T1562.008 devient T1685.002.",
+  "Une couverture se mesure en techniques avec données, règle, test et procédures vues, pas en nombre de règles associées.",
+  "La Pyramid of Pain place les TTP au sommet : viser le comportement coûte plus cher à contourner que viser un indicateur.",
+  "Une règle robuste vise l'opération ; un test unique ne prouve qu'une procédure.",
+]} />
+
+<Sources items={[
+  { title: "MITRE ATT&CK : mise à jour d'octobre 2025 (v18)", url: "https://attack.mitre.org/resources/updates/updates-october-2025/" },
+  { title: "MITRE ATT&CK : mise à jour d'avril 2026 (v19)", url: "https://attack.mitre.org/resources/updates/updates-april-2026/" },
+  { title: "MITRE ATT&CK : DET0546, comptes cloud abusés ou compromis", url: "https://attack.mitre.org/detectionstrategies/DET0546/" },
+  { title: "MITRE ATT&CK : TA0112 Defense Impairment", url: "https://attack.mitre.org/tactics/TA0112/" },
+  { title: "David Bianco : The Pyramid of Pain (2013)", url: "https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html" },
+  { title: "SpecterOps : On Detection, part 6, What is a Procedure?", url: "https://specterops.io/blog/2022/09/08/part-6-what-is-a-procedure/" },
+  { title: "SpecterOps : On Detection, part 13, Why a Single Test Case is Insufficient", url: "https://specterops.io/blog/2024/05/31/part-13-why-a-single-test-case-is-insufficient/" },
+  { title: "Stratus Red Team : aws.defense-evasion.cloudtrail-stop", url: "https://stratus-red-team.cloud/attack-techniques/AWS/aws.defense-evasion.cloudtrail-stop/" },
+  { title: "CSRB : Review of the Summer 2023 Microsoft Exchange Online Intrusion", url: "https://www.cisa.gov/resources-tools/resources/cyber-safety-review-board-releases-report-microsoft-online-exchange-incident-summer-2023" },
+]} />

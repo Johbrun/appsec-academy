@@ -1,0 +1,156 @@
+export const questions = [
+  {
+    q: "L'équipe plateforme de Novafact veut savoir par où durcir son pipeline GitHub Actions dans les six prochains mois. Quel modèle répond le plus directement à cette question ?",
+    options: [
+      "OWASP SAMM, dont la fonction Implementation couvre Secure Build et Secure Deployment",
+      "OWASP DSOMM, dont les activités de pipeline sont classées par niveau et liées à des preuves",
+      "Un profil NIST CSF 2.0 construit sur la sous-catégorie PR.PS-06 du développement sécurisé",
+      "BSIMM16, pour savoir quelles activités de build les autres organisations pratiquent",
+    ],
+    answer: 1,
+    explain: "SAMM situe la pratique (Secure Build à 1) mais reste à un niveau d'abstraction qui ne dit pas quelle action mener dans GitHub Actions. PR.PS-06 tient en une phrase pour tout le développement sécurisé. BSIMM dit ce que font les autres, pas ce qui manque au pipeline. DSOMM décrit des activités concrètes (épinglage des artefacts, SBOM, signature), avec leur niveau, leurs dépendances et la preuve attendue, et renvoie à SAMM pour garder le lien avec l'évaluation d'ensemble.",
+  },
+  {
+    q: "Dans le NIST CSF 2.0, que désignent les Tiers (Partial, Risk Informed, Repeatable, Adaptive) ?",
+    options: [
+      "Des niveaux de certification que l'organisation obtient auprès d'un auditeur agréé",
+      "Le niveau de maturité de chacune des six fonctions, à atteindre dans l'ordre",
+      "La rigueur des pratiques de gouvernance et de gestion du risque cyber de l'organisation",
+      "Le niveau de risque résiduel une fois les résultats du profil cible atteints",
+    ],
+    answer: 2,
+    explain: "Les Tiers caractérisent la rigueur avec laquelle l'organisation gouverne et gère le risque, et servent à éclairer les profils actuel et cible. Le NIST n'en fait ni une certification (le CSF n'en prévoit aucune), ni un barème par fonction, ni une mesure du risque résiduel. Il précise même que monter de Tier se justifie quand le risque, les obligations ou un rapport coût-bénéfice le demandent : ce n'est pas un objectif en soi.",
+  },
+  {
+    q: "Novafact évalue son SOC externalisé avec SOC-CMM et son programme AppSec avec SAMM. La direction demande un score global en faisant la moyenne des deux. Quelle est la meilleure réponse ?",
+    options: [
+      "Accepter, en ramenant les deux échelles sur une base de 100 pour les rendre comparables",
+      "Présenter les deux résultats séparément, chacun avec ses écarts prioritaires et sa tendance",
+      "Remplacer les deux par un profil CSF unique, seul cadre reconnu par une direction générale",
+      "Ne garder que SAMM, puisque le SOC relève du prestataire et non de Novafact",
+    ],
+    answer: 1,
+    explain: "Les deux modèles ne mesurent pas le même objet et n'ont pas la même construction : convertir les échelles produit un chiffre sans signification, que personne ne saura améliorer. Un profil CSF peut servir de cadre de synthèse pour la direction, mais il ne remplace pas les diagnostics détaillés qui disent quoi faire. Externaliser le SOC ne transfère pas la responsabilité : la qualité de la détection reste un risque de Novafact.",
+  },
+  {
+    q: "Le CSRB décrit Storm-0558 comme le fruit d'une culture qui a relégué la sécurité au second plan, dans une entreprise réputée pour son cycle de développement sécurisé. Qu'en retenir pour le choix d'un modèle ?",
+    options: [
+      "Que les modèles de maturité logicielle sont inutiles face à un acteur étatique",
+      "Qu'il faut évaluer chaque organisation avec tous les modèles existants à la fois",
+      "Qu'un score élevé sur SAMM aurait suffi à repérer à temps le problème de rotation des clés",
+      "Qu'un modèle ne voit que ce qu'il interroge : les clés en exploitation sortaient de son champ",
+    ],
+    answer: 3,
+    explain: "La clé de signature de 2016 et l'arrêt de la rotation manuelle en 2021 relèvent de l'exploitation de l'infrastructure d'identité, pas de la façon dont le code est écrit. Un modèle centré sur le développement peut être excellent et ne jamais poser la question. Il ne s'agit pas de tout empiler (ce qui dilue l'effort), ni de jeter les modèles, mais de choisir celui qui interroge la zone de risque concernée.",
+  },
+];
+
+<YouKnow>
+SAMM (leçon 2) et BSIMM (leçon 3) répondent à une question large : où en est le programme de sécurité logicielle. Un pentester sait qu'une bonne méthodologie dépend de la cible : on ne teste pas une API comme un réseau interne. Les modèles de maturité fonctionnent de la même façon.
+</YouKnow>
+
+## Un modèle répond à une question
+
+Il existe des dizaines de modèles de maturité en sécurité. Les collectionner coûte cher, car chacun demande ses entretiens, sa grille, ses preuves, et n'apprend presque rien de plus que le précédent. La seule façon de choisir est de partir de la question posée.
+
+| Question | Modèle | Objet évalué |
+| --- | --- | --- |
+| Où en est le programme de sécurité logicielle, et quelle est l'étape suivante ? | OWASP SAMM | Pratiques du cycle de développement |
+| Que font les organisations comparables ? | BSIMM | Activités observées chez les participants |
+| Par où durcir le pipeline et l'outillage DevSecOps ? | OWASP DSOMM | Activités concrètes de build, déploiement, test |
+| Comment parler du risque cyber à une direction, à un client, à un régulateur ? | NIST CSF 2.0 (profils et tiers) | Résultats de sécurité de toute l'organisation |
+| Que vaut le centre opérationnel de sécurité ? | SOC-CMM | Le SOC interne ou externalisé |
+| Que vaut l'ingénierie de détection ? | Elastic DEBMM | Le cycle de vie des règles de détection |
+
+Les deux dernières lignes relèvent du bloc F ; elles figurent ici parce qu'un état des lieux (leçon 6) touche souvent à la détection.
+
+## OWASP DSOMM : le pipeline
+
+Le **DevSecOps Maturity Model** est un projet OWASP mené par Timo Pagel. Il est né d'un constat : dans les organisations DevOps, le pipeline et ses composants (registre d'images, exécuteurs, secrets) sont rarement protégés avec la même rigueur que la production. Là où SAMM reste général, DSOMM descend au niveau de l'action.
+
+Le modèle est publié sous forme de données (YAML) et d'une application web. Il s'organise en **dimensions** (Build and Deployment, Culture and Organization, Implementation, Information Gathering, Test and Verification), elles-mêmes découpées en sous-dimensions (Build, Deployment, Patch Management…). La version 5.0.0 des données, publiée le 18 août 2026, a ajouté une dimension **Agentic AI** : protection des données confiées aux outils d'IA, isolation et permissions des agents, revue du code généré. Chaque activité porte un niveau, de 1 à 5, et une fiche structurée :
+
+<Code file="DSOMM, model.yaml (v5, extrait abrégé)" hl="2,3,6,7,9,10,11">
+
+```yaml
+Pinning of artifacts:
+  level: 2
+  risk: Unauthorized manipulation of artifacts might be difficult to spot.
+  measure: Pinning of artifacts ensure that changes are performed only when intended.
+  comment: The usage of pinning requires a good processes for patching.
+  dependsOn:
+  - f6f7737f-25a9-4317-8de2-09bf59f29b5b # Defined build process
+  references:
+    samm2: [I-SB-B-1]
+    iso27001-2022: ['8.31']
+  difficultyOfImplementation: { knowledge: 2, time: 2, resources: 2 }
+```
+
+</Code>
+
+Trois champs font la valeur de ce format pour un diagnostic. Le **risque** dit ce que l'activité retire à l'attaquant, ce qui évite de la cocher pour la forme. Les **dépendances** imposent un ordre : épingler les artefacts sans processus de build défini, ou sans gestion des correctifs (le commentaire le rappelle), crée de la dette plutôt que de la sécurité. Les **références** relient l'activité à un stream SAMM (ici Secure Build, stream B, niveau 1) et à ISO 27001 : le diagnostic détaillé du pipeline reste rattaché à l'évaluation d'ensemble. Beaucoup d'activités portent aussi un champ `assessment` qui liste les preuves à montrer.
+
+Chez Novafact, DSOMM sert donc d'instrument de zoom : l'évaluation SAMM place Secure Build à 1, et DSOMM dit lesquelles des activités de niveau 1 et 2 manquent dans GitHub Actions. Son usage comme feuille de route et comme source d'indicateurs est traité en M31 (leçon 4).
+
+## NIST CSF 2.0 : profils et tiers
+
+Le **Cybersecurity Framework 2.0** (CSWP 29, 26 février 2024) n'est pas un modèle de sécurité logicielle : il couvre toute l'organisation, en six fonctions (Govern, Identify, Protect, Detect, Respond, Recover) déclinées en catégories et sous-catégories de **résultats**. Il ne prescrit pas comment les atteindre. Sa force est d'être un langage que comprennent une direction, un client américain ou un assureur.
+
+Deux outils du CSF servent au diagnostic :
+
+- **Le profil organisationnel** décrit la posture actuelle (*Current Profile*) et visée (*Target Profile*) en termes de résultats du CSF. Le NIST propose cinq étapes : délimiter le profil, rassembler l'information, le rédiger, analyser l'écart et bâtir un plan d'action, puis mettre en œuvre et mettre à jour. Un **profil communautaire** sert de base commune à un secteur ou à un usage : la SP 800-61 Rev. 3 sur la réponse à incident (avril 2025) en est un.
+- **Les tiers** (Partial, Risk Informed, Repeatable, Adaptive) caractérisent la rigueur de la gouvernance et de la gestion du risque. Le NIST les présente comme un complément de la méthode de gestion du risque, et précise que monter de tier se justifie quand le risque ou les obligations l'exigent, ou quand le rapport coût-bénéfice est favorable.
+
+Pour l'AppSec, quelques sous-catégories suffisent à situer le programme dans ce langage :
+
+| Sous-catégorie | Résultat attendu | Où le parcours le traite |
+| --- | --- | --- |
+| ID.AM-02 | Les inventaires de logiciels, services et systèmes sont tenus | Leçon 5 |
+| ID.RA-01 | Les vulnérabilités des actifs sont identifiées, validées et enregistrées | M26 |
+| PR.PS-06 | Les pratiques de développement sécurisé sont intégrées et leur performance suivie | SAMM, DSOMM |
+| GV.SC-04 | Les fournisseurs sont connus et classés par criticité | M18 |
+
+Le profil CSF ne remplace pas SAMM : il traduit ses constats dans une grille commune à toute la sécurité de l'entreprise.
+
+## SOC-CMM et DEBMM : la détection
+
+**SOC-CMM** (*SOC Capability & Maturity Model*), créé en 2016 par Rob van Os, est un outil d'auto-évaluation gratuit sous forme de classeur. Il couvre cinq domaines : Business, People, Process, Technology, Services. Son nom porte une distinction utile : la **maturité** d'un domaine (ses processus sont-ils définis et pilotés ?) et la **capacité** d'une technologie ou d'un service (fait-il ce qu'on attend de lui ?). Il est présenté en M22 (leçon 1).
+
+Le **DEBMM** d'Elastic (*Detection Engineering Behavior Maturity Model*, 6 septembre 2024) évalue l'ingénierie de détection en tiers de 0 à 4 : comment les règles sont créées, testées, maintenues et retirées. Il est détaillé en M24 (leçon 6). Pour un état des lieux AppSec, ces deux modèles servent surtout à poser les bonnes questions au SOC : quels événements applicatifs il exploite, et qui maintient les règles qui les lisent.
+
+<Callout kind="case">
+Storm-0558, 2023. Le rapport du Cyber Safety Review Board (daté du 20 mars 2024) établit que l'attaquant a forgé des jetons avec une clé de signature MSA créée en 2016, et que Microsoft avait complètement arrêté la rotation manuelle de ces clés en 2021, après une panne majeure du cloud, sans alerte sur leur âge. Le Board parle d'une culture d'entreprise qui a relégué au second plan les investissements de sécurité et une gestion rigoureuse du risque. L'entreprise en cause est pourtant celle qui a formalisé le Security Development Lifecycle (SDL). La leçon pour le choix d'un modèle : une évaluation centrée sur la façon dont le code est produit ne pose jamais la question de la rotation des clés en exploitation. Le modèle voit ce qu'il interroge, et rien d'autre.
+</Callout>
+
+## Choisir sans collectionner
+
+<Steps items={[
+  { title: "Écrire la question", text: "Une phrase, posée par quelqu'un qui décidera : « par où durcir le pipeline ? », « que répondre au questionnaire du client bancaire ? ». Sans question, aucun modèle n'est le bon." },
+  { title: "Choisir un modèle principal", text: "Celui dont l'objet évalué correspond à la question. SAMM reste le choix par défaut pour un programme AppSec." },
+  { title: "Zoomer avec un modèle spécialisé", text: "Seulement là où le modèle principal reste trop abstrait : DSOMM pour le pipeline, SOC-CMM pour la détection." },
+  { title: "Traduire, ne pas réévaluer", text: "Pour la direction ou un client, projeter les constats sur un profil CSF plutôt que mener une nouvelle évaluation." },
+]} />
+
+<Callout kind="warn">
+Les échelles ne se convertissent pas. Un 2 dans SAMM, un niveau 2 dans DSOMM, un tier 2 du CSF et un niveau 2 de SOC-CMM ne désignent pas la même chose, et une moyenne de scores issus de modèles différents ne mesure rien. Les correspondances publiées (DSOMM vers SAMM et ISO 27001, les références informatives du CSF) relient des activités entre elles, pas des notes.
+</Callout>
+
+<Recap items={[
+  "Un modèle se choisit selon la question posée ; les collectionner multiplie les entretiens sans gain d'information.",
+  "DSOMM détaille le pipeline en activités concrètes, avec niveau, dépendances, preuves et correspondance SAMM ; la v5 (août 2026) ajoute une dimension Agentic AI.",
+  "Le NIST CSF 2.0 décrit des résultats sur toute l'organisation : profils actuel et cible, profils communautaires, et tiers qui qualifient la rigueur de la gestion du risque.",
+  "SOC-CMM (cinq domaines, maturité et capacité) et DEBMM (tiers 0 à 4) évaluent la détection, traitée dans le bloc F.",
+  "Un modèle ne voit que ce qu'il interroge : Storm-0558 relevait de l'exploitation des clés, pas du cycle de développement.",
+  "Les échelles des modèles ne se convertissent pas entre elles.",
+]} />
+
+<Sources items={[
+  { title: "OWASP DevSecOps Maturity Model (DSOMM)", url: "https://dsomm.owasp.org/" },
+  { title: "DSOMM, données du modèle et notes de version (v5.0.0, 18 août 2026)", url: "https://github.com/devsecopsmaturitymodel/DevSecOps-MaturityModel-data/releases" },
+  { title: "NIST CSWP 29, The NIST Cybersecurity Framework (CSF) 2.0", url: "https://doi.org/10.6028/NIST.CSWP.29", note: "Sections 3.1 (profils) et 3.2 (tiers), annexe A" },
+  { title: "NIST SP 800-61 Rev. 3, un profil communautaire du CSF 2.0 (avril 2025)", url: "https://csrc.nist.gov/pubs/sp/800/61/r3/final" },
+  { title: "SOC-CMM, SOC Capability & Maturity Model", url: "https://www.soc-cmm.com/" },
+  { title: "Elastic, Detection Engineering Behavior Maturity Model (6 septembre 2024)", url: "https://www.elastic.co/security-labs/elastic-releases-debmm" },
+  { title: "Microsoft Security Development Lifecycle", url: "https://www.microsoft.com/en-us/securityengineering/sdl" },
+  { title: "CSRB, Review of the Summer 2023 Microsoft Exchange Online Intrusion (20 mars 2024)", url: "https://www.cisa.gov/sites/default/files/2025-03/CSRBReviewOfTheSummer2023MEOIntrusion508.pdf" },
+]} />

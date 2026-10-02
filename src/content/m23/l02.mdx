@@ -1,0 +1,149 @@
+export const questions = [
+  {
+    q: "Un intégrateur signale une faille dans le SDK npm que Novafact distribue à ses clients. Quelle fonction doit piloter la suite ?",
+    options: [
+      "Le SOC, parce qu'il traite déjà tous les événements de sécurité entrants",
+      "Le PSIRT, parce qu'il gère les vulnérabilités des produits livrés aux clients",
+      "Le CSIRT, parce qu'une faille signalée de l'extérieur est un incident",
+      "L'équipe AppSec, parce que la faille se trouve dans du code de Novafact",
+    ],
+    answer: 1,
+    explain: "La faille touche un produit installé chez des tiers : il faut la qualifier, coordonner le correctif, publier un avis et informer les intégrateurs. C'est le métier du PSIRT, quel que soit le nom de l'équipe qui le porte. Le SOC et le CSIRT surveillent et défendent le système d'information de Novafact ; ici, rien n'indique qu'il soit attaqué. L'AppSec aidera à corriger, mais corriger n'est qu'une étape : le PSIRT porte aussi la relation avec le chercheur et les clients.",
+  },
+  {
+    q: "Pour rédiger une fiche de poste « ingénieur AppSec » à partir de l'ECSF de l'ENISA, quelle démarche tient le mieux ?",
+    options: [
+      "Reprendre le profil Penetration Tester, qui recouvre la vérification de sécurité",
+      "Attendre la révision de l'ECSF, qui ajoutera un profil dédié au logiciel",
+      "Partir du profil Cybersecurity Implementer et le compléter par les tâches manquantes",
+      "Reprendre le profil Cybersecurity Architect, le seul qui parle de conception",
+    ],
+    answer: 2,
+    explain: "L'ECSF n'a aucun profil « AppSec engineer » ; le plus proche, Cybersecurity Implementer, cite « DevSecOps Engineer » parmi ses intitulés, et on le complète avec les tâches du rôle Secure Software Development du NICE. Le profil Penetration Tester décrit la vérification offensive, une seule facette du poste. L'architecte couvre la conception mais pas l'outillage ni l'accompagnement des équipes. Quant à la révision, sa consultation n'est annoncée que pour fin 2026 et rien ne garantit un profil dédié.",
+  },
+  {
+    q: "Pourquoi un pentester qui rejoint une équipe AppSec doit-il se méfier des intitulés de poste ?",
+    options: [
+      "Parce qu'un même intitulé recouvre des missions très différentes selon l'entreprise",
+      "Parce que les intitulés anglais n'ont aucune valeur juridique dans un contrat français",
+      "Parce que les référentiels officiels interdisent certains intitulés comme « DevSecOps »",
+      "Parce que l'intitulé fixe la grille salariale, quel que soit le contenu réel du poste",
+    ],
+    answer: 0,
+    explain: "« Product security », « DevSecOps » ou « AppSec » désignent ici une équipe de revue, là une équipe plateforme qui administre la CI, ailleurs un PSIRT. Seules les tâches et le moment du cycle où l'on intervient disent ce qu'est le poste. Les référentiels ne régulent pas les intitulés : ils proposent un vocabulaire. Et ni la langue de l'intitulé ni son lien avec la grille salariale ne changent le fond, qui est l'écart entre le titre et le travail.",
+  },
+  {
+    q: "Dans la phase de conception d'une nouvelle fonctionnalité de Novafact, quels rôles doivent être présents ?",
+    options: [
+      "Le pentester et le SOC, pour préparer les tests et les détections dès maintenant",
+      "L'ingénieur DevSecOps, qui intègre les contrôles dans le pipeline avant le code",
+      "Le PSIRT, pour anticiper les vulnérabilités qui seront signalées après livraison",
+      "L'architecte ou l'ingénieur AppSec, avec le champion de l'équipe produit",
+    ],
+    answer: 3,
+    explain: "La conception est le terrain de l'architecte sécurité et de l'AppSec, relayés par le champion de l'équipe. Le SOC a intérêt à être consulté sur les journaux à prévoir, mais il n'y porte pas la décision ; le pentester, lui, vérifie ce qui a été construit. Le pipeline et le PSIRT interviennent plus tard dans le cycle : intégrer des contrôles avant qu'existe le moindre code, ou anticiper des signalements, n'a pas de prise sur les choix de conception.",
+  },
+];
+
+<YouKnow>
+Un pentester croise en mission des RSSI, des architectes, des équipes « DevSecOps » et des analystes SOC, souvent sans savoir qui décide quoi. Il sait aussi qu'une même faille passe par plusieurs mains entre sa découverte et sa correction.
+</YouKnow>
+
+## Un même problème, dix intitulés
+
+Dans la recherche d'un poste AppSec, les offres parlent d'« Application Security Engineer », de « Product Security », de « DevSecOps », de « Security Engineer » tout court. Les intitulés ne sont pas normalisés : une équipe *product security* peut être ici une équipe de revue de code, là une équipe qui gère aussi la sécurité du matériel et les avis de sécurité publiés aux clients. Et une offre « DevSecOps » décrit parfois un administrateur de CI à qui l'on a ajouté un scanner.
+
+La façon fiable de lire un rôle n'est pas son titre, mais deux questions : **à quel moment du cycle intervient-il**, et **quel est son livrable** ? Un rôle qui intervient en conception et livre des exigences n'a rien à voir avec un rôle qui intervient en production et livre des alertes, même si les deux s'appellent « ingénieur sécurité ».
+
+## Les rôles, un par un
+
+| Rôle | Question qu'il pose | Moment du cycle | Livrable typique |
+| --- | --- | --- | --- |
+| **Ingénieur AppSec** | Pourquoi cette classe de bugs apparaît-elle, et comment l'empêcher partout ? | Exigences, conception, code, vérification | Règles, revues ciblées, paved road, priorisation |
+| **Product security** | Le produit livré au client est-il sûr, et le reste-t-il ? | Tout le cycle, avec un accent sur la livraison | Selon l'entreprise : le périmètre AppSec, plus le PSIRT et parfois le matériel |
+| **Architecte sécurité** | Cette architecture tient-elle face aux menaces retenues ? | Conception, choix techniques | Revues de conception, patterns de référence, décisions documentées |
+| **Ingénieur DevSecOps** | Les contrôles tournent-ils dans le pipeline, vite et sans bruit ? | Build, release, déploiement | Pipeline outillé, signatures, politiques d'admission |
+| **PSIRT** | Que faire d'une faille signalée dans un produit déjà livré ? | Après la livraison | Avis de sécurité, coordination, correctifs publiés |
+| **Pentester, red team** | Qu'est-ce qu'un attaquant obtient réellement ? | Vérification, puis en continu | Rapport, chaînes d'attaque, scénarios rejoués |
+| **Analyste SOC, detection engineer** | Voit-on l'attaque quand elle a lieu ? | Exploitation | Détections, alertes qualifiées, escalades |
+| **RSSI** | Le risque est-il connu, arbitré et porté par la bonne personne ? | Gouvernance, sur toute la durée | Politique, arbitrages, compte rendu à la direction |
+
+Le **Security Champion** n'est pas dans le tableau parce que ce n'est pas un métier mais un rôle tenu par un développeur (leçon 4). Le RSSI y figure parce que c'est souvent à lui que l'équipe AppSec rend compte (leçon 3).
+
+Deux distinctions évitent beaucoup de malentendus. **AppSec et DevSecOps** : l'AppSec décide *quoi* contrôler (quelle classe, quelle règle, quel seuil) ; le DevSecOps fait tourner le contrôle dans la chaîne de livraison. Dans une petite équipe, la même personne fait les deux, mais ce sont deux compétences. **PSIRT et CSIRT** : le CSIRT (ou le SOC, en amont) défend le système d'information de l'entreprise ; le PSIRT gère les vulnérabilités des produits qu'elle livre à d'autres. Une faille dans le SDK de Novafact installé chez un client n'est pas un incident sur le SI de Novafact, mais c'est une urgence pour son PSIRT.
+
+## Qui intervient où dans le cycle
+
+Le tableau ci-dessous est l'artefact à poser dès la première semaine pour clarifier les attentes. R signifie « porte l'activité », C « est consulté ».
+
+<Code file="docs/securite/roles-par-phase.md">
+
+```text
+Phase                  AppSec  Archi  DevSecOps  Champion  PSIRT  Pentest  SOC
+Exigences              R       C      -          C         -      -        C
+Conception             C       R      -          R         -      -        C
+Code et revue          R       -      -          R         -      -        -
+Build et pipeline      C       -      R          -         -      -        -
+Vérification           R       C      C          C         -      R        -
+Déploiement            C       C      R          -         -      -        C
+Exploitation           C       -      C          -         -      -        R
+Vulnérabilité signalée C       -      -          C         R      C        C
+```
+
+</Code>
+
+Deux lignes méritent un commentaire. Le SOC est **consulté dès les exigences** : si personne ne lui demande quels événements il doit voir, l'application ne journalise rien d'utile (M22, leçon 2). Et la ligne « vulnérabilité signalée » n'a rien à voir avec un pentest : elle arrive de l'extérieur, à n'importe quel moment, avec des délais imposés (M26 et M31, leçon 5).
+
+## Le PSIRT, le rôle qu'on oublie
+
+Le FIRST décrit ce métier dans son *PSIRT Services Framework* : recevoir les signalements, les analyser, coordonner la correction avec les équipes internes et les fournisseurs, publier et informer. Ce n'est pas une équipe de plus à créer dans une entreprise de la taille de Novafact, c'est une **fonction** à attribuer, avec une astreinte et un processus écrits.
+
+Le CRA rend cette fonction difficile à éviter : depuis le 11 septembre 2026, un fabricant doit signaler à l'autorité les vulnérabilités activement exploitées de ses produits dans des délais très courts (M31, leçon 5). Sans PSIRT désigné, la question « qui notifie ? » se pose au pire moment.
+
+<Callout kind="case">
+Log4Shell montre tous ces rôles à l'œuvre sur un même bug. Le 24 novembre 2021, un chercheur de l'équipe sécurité d'Alibaba Cloud signale la faille de Log4j à l'Apache Software Foundation : des mainteneurs bénévoles se retrouvent à jouer le rôle de PSIRT pour une bibliothèque présente presque partout. Après la publication début décembre, les PSIRT des éditeurs doivent dire à leurs clients quels produits embarquent la bibliothèque, les équipes AppSec cherchent où elle se cache dans leurs dépendances, les SOC chassent les tentatives d'exploitation. Le Cyber Safety Review Board américain, dans son rapport de juillet 2022, qualifie Log4j de vulnérabilité « endémique » et souligne combien les organisations ont peiné à savoir où elles utilisaient le composant.
+</Callout>
+
+## Trois référentiels pour les nommer
+
+Pour rédiger une fiche de poste, argumenter un recrutement ou construire un plan de carrière, trois référentiels donnent un vocabulaire partagé.
+
+**Le NICE Framework du NIST** (SP 800-181 Rev. 1, novembre 2020) décrit des rôles par leurs tâches, connaissances et compétences. Ses composants sont versionnés à part ; la version 2.2.0, d'avril 2026, est la plus récente. Le rôle qui colle à l'AppSec est **Secure Software Development (DD-WRL-003)**, dans la catégorie *Design and Development*, aux côtés de *Cybersecurity Architecture*, *Secure Systems Development*, *Software Security Assessment* et *Systems Testing and Evaluation*. Son intérêt : la granularité. Chaque tâche est rédigée de façon à pouvoir être reprise telle quelle dans une fiche de poste.
+
+**L'ECSF de l'ENISA** (European Cybersecurity Skills Framework, septembre 2022) compte douze profils. Aucun ne s'appelle « AppSec engineer ». Le plus proche est **Cybersecurity Implementer**, dont les intitulés alternatifs incluent « Cybersecurity Developer » et « DevSecOps Engineer ». Le **Penetration Tester** couvre le métier d'origine du pentester, le **Cybersecurity Architect** la conception, et le **Cybersecurity Educator** une partie de l'animation des champions. Une révision est en cours, censée couvrir le cycle de vie des produits numériques ; l'ENISA annonce une consultation publique pour fin 2026.
+
+**Le Panorama des métiers de la cybersécurité de l'ANSSI** (édition 2020, la dernière parue) est le repère français. Sa fiche **« Spécialiste en développement sécurisé »** est la plus proche du poste ; les fiches « Architecte sécurité », « Auditeur de sécurité technique » et « Évaluateur de la sécurité des technologies de l'information » couvrent les rôles voisins. Depuis, l'ANSSI publie plutôt un **Observatoire des métiers**, dont la quatrième édition date de 2025 (leçon 7).
+
+| Besoin | Référentiel le plus utile |
+| --- | --- |
+| Écrire les tâches précises d'une fiche de poste | NICE, rôle DD-WRL-003 |
+| Parler le vocabulaire d'un employeur ou d'un financeur européen | ECSF |
+| Se situer sur le marché français, préparer un entretien | Panorama et Observatoire de l'ANSSI |
+
+Ces référentiels nomment et comparent ; ils ne disent pas qui fait quoi dans une entreprise donnée. C'est le rôle de la matrice par phase.
+
+<Callout kind="novafact">
+Novafact recrute un deuxième ingénieur AppSec. La première version de l'offre, intitulée « DevSecOps », attire surtout des profils d'administration de CI. La seconde part des tâches de DD-WRL-003 (exigences, revue de code, analyse des vulnérabilités, conseil aux développeurs) et dit à quel moment du cycle le poste intervient. Les candidatures changent : des développeurs passés par la sécurité, et deux pentesters web.
+</Callout>
+
+## Ce que le passé de pentester ouvre
+
+Le métier de pentester se transpose à plusieurs endroits du tableau : l'AppSec, mais aussi le PSIRT (un pentester sait qualifier vite un signalement et juger s'il est exploitable), la red team interne et le *detection engineering*, où savoir comment une attaque se déroule aide à écrire la règle qui la voit. Ce qui change dans chacun de ces rôles, c'est le livrable : moins de rapports, plus de décisions, de règles et de correctifs. La leçon 7 détaille ce qui se transfère et ce qui s'apprend.
+
+<Recap items={[
+  "Un rôle se lit à deux questions : à quel moment du cycle il intervient et quel est son livrable, pas à son intitulé.",
+  "L'AppSec décide quoi contrôler, le DevSecOps fait tourner les contrôles ; le PSIRT gère les failles des produits livrés, le CSIRT les incidents du SI.",
+  "Une matrice par phase, même simple, clarifie qui porte et qui est consulté ; le SOC est consulté dès les exigences.",
+  "Le PSIRT est une fonction à attribuer avant le premier signalement ; le CRA la rend difficile à éviter.",
+  "NICE (DD-WRL-003) pour les tâches, ECSF (Cybersecurity Implementer) pour le vocabulaire européen, ANSSI pour le marché français.",
+]} />
+
+<Sources items={[
+  { title: "NIST SP 800-181 Rev. 1, NICE Framework (2020)", url: "https://csrc.nist.gov/pubs/sp/800/181/r1/final" },
+  { title: "NIST, NICE Framework : dernières mises à jour des composants (v2.2.0)", url: "https://www.nist.gov/itl/applied-cybersecurity/nice/nice-framework-resource-center/nice-framework-latest-updates" },
+  { title: "NICCS, rôle Secure Software Development (DD-WRL-003)", url: "https://niccs.cisa.gov/tools/nice-framework/work-role/secure-software-development" },
+  { title: "ENISA, European Cybersecurity Skills Framework (ECSF)", url: "https://www.enisa.europa.eu/topics/skills-and-competences/skills-development/european-cybersecurity-skills-framework-ecsf" },
+  { title: "ANSSI, Panorama des métiers de la cybersécurité (2020)", url: "https://cyber.gouv.fr/sites/default/files/2021/10/anssi-panorama_metiers_cybersecurite-2020.pdf" },
+  { title: "FIRST, PSIRT Services Framework v1.1", url: "https://www.first.org/standards/frameworks/psirts/psirt_services_framework_v1.1" },
+  { title: "CSRB, Review of the December 2021 Log4j Event (juillet 2022)", url: "https://www.cisa.gov/sites/default/files/publications/CSRB-Report-on-Log4-July-11-2022_508.pdf" },
+]} />

@@ -1,0 +1,144 @@
+export const questions = [
+  {
+    q: "Un directeur cite BSIMM16 : « 5,6 membres de l'équipe sécurité logicielle pour 100 développeurs, c'est la norme ». Que lui répondre ?",
+    options: [
+      "C'est une moyenne tirée par des extrêmes ; la médiane est de 1,8, et de 1,13 au-delà de 650 développeurs",
+      "C'est exact, mais seulement pour les organisations de plus de 650 développeurs",
+      "C'est une médiane, donc la moitié des organisations fait mieux et l'autre moitié moins bien",
+      "C'est un plancher réglementaire repris par le CRA pour les éditeurs de logiciels",
+    ],
+    answer: 0,
+    explain: "Le 5,63 est une moyenne : quelques organisations très dotées la tirent vers le haut, et le rapport donne lui-même la médiane, 1,8 pour 100, et 1,13 pour 100 dans les organisations de 650 développeurs ou plus. Les grandes structures ont au contraire les ratios les plus faibles, puisque leur moyenne tombe à 1,79. Et aucun texte, CRA compris, ne fixe de ratio : BSIMM décrit ce que font des organisations, il ne prescrit rien.",
+  },
+  {
+    q: "Quel est le principal risque d'une équipe AppSec rattachée à la direction technique plutôt qu'au RSSI ?",
+    options: [
+      "Elle n'a plus accès aux dépôts ni aux pipelines des équipes produit",
+      "Elle peine à faire remonter un risque quand les livraisons passent avant tout",
+      "Elle perd la capacité de recruter des Security Champions dans les équipes",
+      "Elle ne peut plus utiliser les modèles de maturité comme SAMM ou BSIMM",
+    ],
+    answer: 1,
+    explain: "Le rattachement à l'ingénierie apporte la proximité et souvent le budget d'outillage, mais il expose au conflit d'intérêts que Google décrit dans Building Secure and Reliable Systems : une équipe sécurité doit garder assez d'indépendance pour soulever un problème sérieux même quand le lancement est prioritaire. L'accès aux dépôts est au contraire plus simple côté ingénierie, et ni le recrutement de champions ni l'usage d'un modèle de maturité ne dépendent du rattachement.",
+  },
+  {
+    q: "Pourquoi Netflix a-t-elle ajouté une fonction « Appsec Reviews and Assessments » à ses volets Partnerships et Engineering ?",
+    options: [
+      "Parce que le paved road ne couvrait plus les nouvelles applications",
+      "Parce que les partenaires AppSec n'avaient plus le temps d'animer les champions",
+      "Parce que les revues menées au cas par cas par les partenaires manquaient de cohérence",
+      "Parce que la réglementation imposait un audit indépendant avant chaque lancement",
+    ],
+    answer: 2,
+    explain: "Netflix explique en 2022 que, faites par chaque partenaire selon sa méthode, les revues de sécurité donnaient des résultats inégaux d'une équipe à l'autre : une fonction dédiée les rend homogènes. Le paved road reste, dans le même billet, le levier d'échelle de l'équipe Engineering. L'animation de relais et une obligation d'audit sont des raisons plausibles ailleurs, mais ce n'est pas ce que Netflix donne comme motif.",
+  },
+  {
+    q: "Novafact a une quarantaine de développeurs et un seul ingénieur AppSec. Quelle organisation est la plus réaliste ?",
+    options: [
+      "Une équipe centrale de trois personnes pour atteindre le ratio moyen de BSIMM",
+      "Un ingénieur AppSec par équipe produit, rattaché au manager de l'équipe",
+      "Une structure de politique et de vérification qui valide chaque mise en production",
+      "Un ingénieur central qui outille et forme, relayé par un champion par équipe",
+    ],
+    answer: 3,
+    explain: "Avec 40 développeurs, la médiane des organisations de moins de 650 développeurs (3,33 pour 100) donne un peu plus d'une personne : un ingénieur central est dans la norme, à condition qu'il passe à l'échelle par l'outillage et les champions. Viser le ratio moyen, tiré par des extrêmes, reviendrait à recruter sur une statistique trompeuse. Un ingénieur par équipe coûte six recrutements, et une validation de chaque mise en production ferait de lui une porte.",
+  },
+];
+
+<YouKnow>
+En mission, l'organigramme du client importe peu : il y a un commanditaire et un périmètre. Une fois en poste, la personne à qui l'équipe AppSec rend compte décide de ce que l'équipe pourra dire, du budget qu'elle obtiendra et des arbitrages qu'elle perdra.
+</YouKnow>
+
+## Le rattachement : à qui rend-on compte ?
+
+BSIMM16 (janvier 2026, 111 organisations) regarde qui est le dirigeant le plus proche de l'équipe de sécurité logicielle, la SSG (*software security group*). C'est un **CISO dans 49 % des cas** (54 organisations sur 111), une part en léger recul : elle oscillait entre 50 et 58 % de BSIMM7 à BSIMM15. Les CISO eux-mêmes rendent compte au CIO dans environ un tiers des cas et au CEO dans environ un cinquième. Autrement dit, dans une organisation sur deux, l'AppSec dépend d'autre chose que de la sécurité : le plus souvent de l'ingénierie.
+
+Aucun rattachement n'est neutre. Google, dans *Building Secure and Reliable Systems* (ch. 20), pose la tension en deux exigences : une équipe sécurité doit être assez **indépendante** pour soulever un problème sérieux même quand le lancement est prioritaire, et assez **accessible** pour qu'on vienne la voir. Sans indépendance, elle ne dit plus rien ; sans accessibilité, elle devient une porte qu'on contourne.
+
+| Rattachement | Ce qu'il apporte | Ce qu'il coûte |
+| --- | --- | --- |
+| RSSI / sécurité | Indépendance, lien direct avec le registre des risques et la conformité | Distance avec les équipes, budget d'outillage disputé avec la sécurité du SI |
+| Direction technique | Proximité, outillage financé comme le reste de la plateforme | Risque d'arbitrage systématique en faveur de la livraison |
+| Direction produit | Lien avec la feuille de route et les clients | Rarement outillée pour juger d'un risque technique |
+
+La réponse courante est un **double lien** : rattachement hiérarchique à l'ingénierie, rattachement fonctionnel au RSSI pour l'acceptation des risques et les politiques. Il ne marche que si la règle d'escalade est écrite : qui tranche quand le CTO veut livrer et que le RSSI refuse le risque (M31, leçon 2).
+
+## Cinq structures qui se recouvrent
+
+BSIMM16 décrit cinq façons d'organiser une SSG, que la plupart des organisations combinent :
+
+- **services** : l'équipe fournit des prestations à la demande (revues, tests, conseils) ;
+- **politique et vérification** : elle écrit les règles et contrôle leur application ;
+- **miroir des business units** : un sous-groupe par branche métier, au plus près de ses enjeux ;
+- **hybride** : un noyau central et des relais dans les unités ;
+- **équipe matricielle d'experts** : des spécialistes (crypto, identité, cloud) mobilisés transversalement.
+
+Le rapport précise aussi qu'une SSG peut être **centralisée** dans un groupe de gouvernance ou d'ingénierie, ou **fédérée** entre les deux. La centralisation garde une méthode et une barre communes ; la fédération colle aux équipes mais dérive vite d'une unité à l'autre. Les grandes organisations finissent presque toutes en hybride, et la question devient : qu'est-ce qui reste central (outillage, standards, PSIRT) et qu'est-ce qui descend dans les unités (revues, accompagnement) ?
+
+## Les ratios réels
+
+Le chiffre le plus cité de BSIMM16 est aussi le plus mal lu. Le tableau 5 du rapport donne **5,63 membres de SSG pour 100 développeurs** (3 722 membres pour 226 247 développeurs), en hausse continue depuis BSIMM10 (1,37). Mais le tableau 6 montre que cette moyenne est tirée par des valeurs extrêmes :
+
+| Population | Moyenne pour 100 développeurs | Médiane pour 100 développeurs |
+| --- | --- | --- |
+| Toutes organisations | 5,63 | **1,8** |
+| 650 développeurs ou plus (56 organisations) | 1,79 | **1,13** |
+| Moins de 650 développeurs | 9,54 | **3,33** |
+
+Sans la valeur la plus extrême, la moyenne générale tombe déjà à 4,8. La taille d'une SSG suit le même profil : moyenne de 33,5 personnes, médiane de 10. Côté champions, la moyenne est de 5,9 pour 100 développeurs, la médiane de 1,2.
+
+La valeur typique à retenir : **entre 1 et 2 personnes pour 100 développeurs** dans les organisations moyennes et grandes, davantage dans les petites, parce qu'une équipe ne descend pas en dessous d'une personne. Présenter 5,6 % comme la norme revient à réclamer un budget que la direction trouvera, à juste titre, sans rapport avec ce que font les autres.
+
+<Code file="docs/securite/dimensionnement-2026.md">
+
+```text
+Novafact : 40 développeurs, 6 équipes produit
+Référence BSIMM16, organisations < 650 développeurs : médiane 3,33 pour 100
+  → 40 × 3,33 / 100 ≈ 1,3 personne
+Référence toutes organisations : médiane 1,8 pour 100
+  → 40 × 1,8 / 100 ≈ 0,7 personne
+Décision : 1 ingénieur AppSec à temps plein, 1 recrutement à 18 mois si l'effectif
+de développement dépasse 60 ; 1 champion par équipe (6), 2 pour Paiement.
+Ce qu'on ne fera pas avec cet effectif : revue manuelle de chaque PR sensible.
+```
+
+</Code>
+
+Le calcul ne décide de rien à lui seul : il borne la discussion. La dernière ligne compte autant que les autres, parce qu'elle dit à la direction ce qu'un effectif ne permet pas.
+
+## Le modèle de Netflix
+
+<Callout kind="case">
+En juin 2022, l'équipe AppSec de Netflix décrit son organisation en deux volets. **Appsec Partnerships** : des ingénieurs attitrés à des domaines de l'entreprise, qui connaissent leurs équipes, leurs risques et leurs priorités. **Appsec Engineering** : une équipe qui construit le paved road, les bibliothèques et outils sûrs par défaut qui passent à l'échelle. Elle ajoute ensuite une fonction **Appsec Reviews and Assessments**, parce que les revues menées au cas par cas par les partenaires donnaient des résultats inégaux. En 2020 déjà, un talk de Netflix résumé par tl;dr sec avançait que, sur les vulnérabilités critiques analysées, 20 % auraient été évitées par le paved road, 12 % par un scan automatisé, et 32 % demandaient un partenariat humain : chaque volet couvre ce que l'autre ne voit pas.
+</Callout>
+
+La leçon transposable n'est pas la taille, mais la séparation de deux métiers que la même personne mélange souvent : **accompagner** des équipes (relation, contexte, arbitrage) et **construire** des outils qui rendent l'accompagnement moins nécessaire. Dans une petite équipe, ce sont deux moitiés de semaine plutôt que deux équipes, mais il faut les nommer, sinon l'urgence du premier dévore le second.
+
+## Une équipe qui rend capable
+
+La leçon 1 a posé le modèle de l'*enabling team* de Team Topologies (Skelton et Pais, dont la deuxième édition est parue en septembre 2025). L'organisation en tire une conséquence concrète : la charte de l'équipe AppSec doit dire **ce qu'elle fournit en libre-service**, **ce qu'elle accompagne pour une durée limitée**, et **ce qu'elle ne fait pas**.
+
+<Callout kind="novafact">
+Charte de l'équipe AppSec de Novafact, version d'une page. Rattachement hiérarchique au CTO, fonctionnel au RSSI pour les politiques et l'acceptation des risques. En libre-service : workflow CI de sécurité, template de service, règles Semgrep, guide des exigences. En accompagnement, un trimestre par équipe : threat modeling, puis revue de conception. Sur déclenchement : revue des changements d'authentification, de paiement et d'isolation des tenants. Hors périmètre cette année : revue des outils internes, bug bounty public.
+</Callout>
+
+<Callout kind="debate">
+Centraliser ou fédérer ? Les partisans de la centralisation défendent une barre commune et une équipe où les spécialistes apprennent les uns des autres. Ceux de la fédération répondent qu'un ingénieur sécurité installé dans une unité comprend ses risques mieux que n'importe quelle équipe centrale. Les données de BSIMM16 ne tranchent pas : elles montrent surtout que les deux coexistent. Le critère utile est la taille : tant qu'une équipe tient dans une salle, la fédérer la disperse.
+</Callout>
+
+<Recap items={[
+  "Dans BSIMM16, le dirigeant le plus proche de la SSG est un CISO dans 49 % des cas : l'autre moitié dépend surtout de l'ingénierie.",
+  "Indépendance et accessibilité se disputent : un double lien hiérarchique et fonctionnel ne marche qu'avec une règle d'escalade écrite.",
+  "Cinq structures se recouvrent (services, politique et vérification, miroir des unités, hybride, experts) ; centralisée ou fédérée.",
+  "5,63 pour 100 est une moyenne trompeuse : la médiane est 1,8, et 1,13 au-delà de 650 développeurs.",
+  "Netflix sépare accompagnement (Partnerships) et construction (Engineering), puis homogénéise les revues.",
+  "La charte de l'équipe dit ce qu'elle fournit, ce qu'elle accompagne et ce qu'elle ne fait pas.",
+]} />
+
+<Sources items={[
+  { title: "Black Duck, BSIMM16 (janvier 2026)", url: "https://www.blackduck.com/resources/analyst-reports/bsimm.html", note: "tableaux 5 et 6, p. 23, 40 et 41" },
+  { title: "Netflix, Scaling Appsec at Netflix (Part 2), 2022", url: "https://netflixtechblog.com/scaling-appsec-at-netflix-part-2-c9e0f1488bc5" },
+  { title: "tl;dr sec, A Pragmatic Approach for Internal Security Partnerships (2020)", url: "https://tldrsec.com/p/appsec-a-pragmatic-approach-for-internal-security-partnerships" },
+  { title: "Google, Building Secure and Reliable Systems, ch. 20", url: "https://google.github.io/building-secure-and-reliable-systems/raw/ch20.html" },
+  { title: "Skelton & Pais, Team Topologies, 2e édition (IT Revolution, 2025)", url: "https://itrevolution.com/book/team-topologies/" },
+]} />

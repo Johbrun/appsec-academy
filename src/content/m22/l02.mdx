@@ -1,0 +1,146 @@
+export const questions = [
+  {
+    q: "Un analyste traduit le rapport de Google sur UNC6040 en techniques ATT&CK. Quelle pratique rend son travail réutilisable par d'autres ?",
+    options: [
+      "Rattacher chaque comportement à la technique parente, pour éviter les débats sur les sous-techniques",
+      "Citer pour chaque technique la phrase du rapport qui la justifie, avec la version d'ATT&CK utilisée",
+      "Ne retenir que les techniques déjà associées à la campagne C0059 sur le site d'ATT&CK",
+      "Classer les techniques dans l'ordre des colonnes de la matrice, de Reconnaissance à Impact",
+    ],
+    answer: 1,
+    explain: "Le passage d'un texte à une technique est un jugement : deux analystes peuvent classer le même appel au faux support sous T1598.004 ou sous T1566.004. Garder la phrase source et la version permet à un autre de vérifier et de corriger. Se limiter aux correspondances publiées par MITRE revient à abandonner l'analyse, et ces fiches ne peuvent que suivre les rapports, avec un décalage. Remonter au parent perd l'information qui sert à détecter.",
+  },
+  {
+    q: "Le calque Navigator de l'équipe sécurité montre T1621 en vert : une règle existe. Que faut-il encore vérifier avant de considérer la technique couverte ?",
+    options: [
+      "Que la technique a au moins une mitigation listée sur sa fiche ATT&CK et déployée chez nous",
+      "Que la couleur verte correspond au score maximal défini dans le gradient du calque",
+      "Que la règle se déclenche sur un test qui rejoue la procédure, avec la source de journaux attendue",
+      "Que la règle est rattachée à toutes les tactiques où la technique apparaît dans la matrice",
+    ],
+    answer: 2,
+    explain: "Un calque mesure des associations déclarées, pas une capacité. Tant que la règle n'a pas vu passer la procédure rejouée (une rafale de demandes MFA refusées puis une acceptée) dans la vraie source de journaux, la case verte est une hypothèse. Le score du gradient n'est qu'une convention d'affichage, et l'existence d'une mitigation sur la fiche ne dit rien de ce qui est réellement déployé.",
+  },
+  {
+    q: "Que mesurent les ATT&CK Evaluations de MITRE ?",
+    options: [
+      "Le comportement de produits de sécurité face à un adversaire émulé, sans classement des éditeurs",
+      "Le niveau de maturité d'une organisation sur chaque tactique, sous forme de score de 0 à 5",
+      "La conformité d'un produit à ATT&CK, qui donne droit à une certification renouvelée chaque année",
+      "La couverture des règles d'un SIEM, calculée à partir de ses correspondances déclarées",
+    ],
+    answer: 0,
+    explain: "Les Evaluations rejouent des scénarios inspirés d'acteurs réels (en 2025, Scattered Spider avec un premier scénario cloud, et Mustang Panda) contre des produits volontaires, et publient ce que chacun a vu ou bloqué. MITRE insiste : pas de classement, à chacun de lire les résultats selon ses besoins. Il n'existe ni certification « ATT&CK compliant » ni score de maturité délivré par MITRE ; la couverture déclarée d'un SIEM est justement ce que ces tests ne se contentent pas de lire.",
+  },
+  {
+    q: "Novafact ajoute des webhooks configurables par les clients. Qu'est-ce que l'AppSec transmet utilement au SOC ?",
+    options: [
+      "La liste des CWE corrigées pendant le développement de la fonctionnalité",
+      "Le rapport du pentest de la fonctionnalité, avec ses captures et ses payloads",
+      "Le diagramme d'architecture complet, pour que le SOC en déduise lui-même les risques",
+      "La technique visée, l'événement applicatif qui la trahit et la réaction attendue",
+    ],
+    answer: 3,
+    explain: "Le SOC raisonne en comportements et en événements : « un webhook créé vers un domaine jamais vu, juste après une connexion depuis un nouvel appareil », rattaché à une technique d'exfiltration, avec le nom du champ de journal et le runbook. Les CWE corrigées intéressent les développeurs, pas l'analyste de nuit ; et un diagramme brut laisse au SOC un travail de modélisation qui n'est pas le sien.",
+  },
+];
+
+<YouKnow>
+En pentest, on cite ATT&CK pour donner du poids à un rapport. Les équipes qui l'utilisent tous les jours s'en servent autrement : pour lire un rapport de menace, mesurer des détections, rejouer un attaquant ou comparer des produits. Comprendre ces quatre usages, c'est savoir ce que chaque interlocuteur attend quand on lui parle en identifiants T.
+</YouKnow>
+
+## Un vocabulaire, quatre métiers
+
+| Usage | Question posée | Artefact typique | Qui |
+| --- | --- | --- | --- |
+| **Renseignement** | Que font les acteurs qui ciblent des gens comme nous ? | Rapport traduit en techniques, profil d'acteur | Analyste CTI |
+| **Détection** | Verrions-nous ces techniques chez nous ? | Calque Navigator, règles associées à des techniques | Detection engineer, SOC |
+| **Émulation** | Si on rejoue cet acteur, que se passe-t-il vraiment ? | Plan d'émulation, résultats d'exercice purple team | Red team, purple team |
+| **Évaluation** | Que vaut ce produit, ou notre dispositif, face à cet acteur ? | Résultats d'Evaluations, analyse d'écart | RSSI, architecte |
+
+Les quatre partagent les mêmes identifiants, ce qui permet de passer de l'un à l'autre : une technique trouvée dans un rapport (renseignement) devient une ligne de calque (détection), un scénario d'exercice (émulation) et un critère d'achat (évaluation).
+
+## Renseignement : traduire un rapport
+
+Un rapport de menace est un récit. Le traduire en techniques le rend comparable à d'autres rapports et exploitable par d'autres équipes. La méthode tient en quatre gestes :
+
+<Steps items={[
+  { title: "Isoler les comportements", text: "Chaque verbe d'action de l'attaquant est un candidat : « appelle en se faisant passer pour le support », « fait autoriser une application », « exporte les objets du CRM »." },
+  { title: "Trouver l'intention", text: "Pourquoi fait-il cela à ce moment-là ? La réponse donne la tactique, et la tactique restreint le choix des techniques." },
+  { title: "Choisir la technique la plus précise", text: "Sous-technique quand le rapport le permet ; sinon, la technique parente, sans inventer de précision." },
+  { title: "Garder la preuve", text: "La phrase du rapport, la version d'ATT&CK, et un niveau de confiance. Sans cela, personne ne pourra relire ni corriger la traduction." },
+]} />
+
+<Callout kind="case">
+En juin 2025, le Google Threat Intelligence Group décrit UNC6040 : des appels où l'attaquant se fait passer pour le support informatique et guide la victime vers la page de configuration des applications connectées de Salesforce, pour qu'elle autorise une version modifiée de Data Loader. Google précise qu'aucune vulnérabilité de Salesforce n'a été exploitée. ATT&CK en a fait la campagne **C0059**. On y lit T1684.001 *Impersonation*, T1671 *Cloud Application Integration*, T1213.004 *Customer Relationship Management Software*, T1567 pour l'exfiltration par l'API… et l'appel lui-même rangé sous **T1598.004**, *Spearphishing Voice* en Reconnaissance, plutôt que sous T1566.004, son homonyme en Initial Access. Les deux lectures se défendent : l'appel sert à obtenir une action et des identifiants, pas à livrer une charge. C'est exactement le genre de choix qu'il faut documenter.
+</Callout>
+
+Pour l'AppSec, le renseignement utile n'est pas la liste des adresses IP d'UNC6040, qui sera périmée le mois prochain. C'est le comportement : **une application OAuth autorisée par téléphone, puis un export massif par API**. Ce comportement survit au changement d'infrastructure, et il pose une question de conception à Novafact, qui expose elle aussi une API à des intégrations tierces (leçon 3).
+
+## Détection : mesurer ce qu'on verrait
+
+L'**ATT&CK Navigator** colore une matrice à partir d'un fichier JSON, le calque (*layer*). Novafact en maintient un par périmètre. Celui des comptes clients ressemble à ceci :
+
+<Code file="detection/layers/novafact-comptes-clients.json" hl="12,13,14,15,16">
+
+```json
+{
+  "name": "Novafact · comptes clients",
+  "versions": { "attack": "19", "navigator": "5.3.2", "layer": "4.5" },
+  "domain": "enterprise-attack",
+  "gradient": { "colors": ["#e5534b", "#f0b429", "#3fb950"], "minValue": 0, "maxValue": 2 },
+  "techniques": [
+    { "techniqueID": "T1621", "score": 2,
+      "comment": "règle mfa-push-burst, testée en recette le 2026-09-12 (événement auth.mfa.challenge)" },
+    { "techniqueID": "T1539", "score": 1,
+      "comment": "règle session-asn-change écrite, jamais testée sur un vrai rejeu" },
+    { "techniqueID": "T1671", "score": 0,
+      "comment": "aucun événement applicatif à la création d'une intégration OAuth : à journaliser" },
+    { "techniqueID": "T1564.008", "score": 0, "tactic": "stealth",
+      "comment": "équivalent Novafact : règle de transfert automatique des factures (leçon 3)" }
+  ]
+}
+```
+
+</Code>
+
+Trois choses font la valeur de ce fichier : le score distingue *testé* de *écrit*, chaque commentaire nomme l'événement source, et la version d'ATT&CK est fixée. Un calque sans ces trois éléments produit une matrice très verte et très fausse. La v18 aide à le remplir honnêtement : pour chaque technique, la Detection Strategy dit quelle source de journaux il faudrait avoir. Le module 24 approfondit la couverture et ses limites ; l'essentiel ici est qu'une case colorée est une **déclaration**, pas une preuve.
+
+## Émulation : rejouer la procédure
+
+L'émulation d'adversaire rejoue un acteur précis, procédure par procédure, pour vérifier ce que le dispositif voit et bloque. Le **Center for Threat-Informed Defense** publie une bibliothèque de plans d'émulation, et MITRE maintient **Caldera**, une plateforme qui automatise des chaînes de techniques. Pour le cloud et le SaaS, des outils comme Stratus Red Team rejouent des techniques sur des comptes de test (M24, leçon 4).
+
+Le point important pour l'AppSec : on émule des **procédures**, pas des techniques. « Tester T1621 » ne veut rien dire ; « envoyer douze demandes MFA en quatre minutes à un compte de test, la treizième acceptée, depuis un ASN d'hébergeur » est un test qui peut réussir ou échouer. C'est la même discipline qu'un bon cas de test de recette, et l'AppSec est bien placée pour l'écrire, parce qu'elle sait quels événements l'application émet.
+
+## Évaluation : comparer sans classer
+
+Les **ATT&CK Evaluations** de MITRE rejouent des scénarios inspirés d'acteurs réels contre des produits de sécurité volontaires et publient ce que chacun a détecté ou bloqué. L'édition Enterprise publiée en décembre 2025 s'inspirait de Scattered Spider et de Mustang Panda, avec pour la première fois un scénario cloud. MITRE répète que ces évaluations **ne classent pas** les éditeurs : les résultats sont des données à lire selon son propre contexte. Un éditeur qui annonce « 100 % de détection » a choisi sa façon de compter.
+
+La même logique s'applique en interne : évaluer son dispositif face à un acteur, c'est confronter les techniques du profil de cet acteur (renseignement) à son calque (détection), puis vérifier les cases douteuses par un exercice (émulation).
+
+<Callout kind="debate">
+**La couverture ATT&CK comme indicateur de pilotage ?** Elle a le mérite d'être visuelle et compréhensible par une direction. Elle pousse aussi à multiplier les règles faibles pour colorer des cases, et elle ignore la **pertinence** : une technique Windows bien couverte ne protège pas un SaaS sans poste de travail. Le compromis tenable : mesurer la couverture testée des techniques retenues dans les threat models et dans le renseignement sur le secteur, pas de la matrice entière.
+</Callout>
+
+## Parler au SOC
+
+Le module 22 détaille ce que le SOC attend d'une application. ATT&CK en est la langue d'échange. Quand Novafact livre une fonctionnalité sensible, l'AppSec joint une fiche courte : la technique visée, l'événement applicatif qui la trahit (nom et champs), l'analytic proposée et la réaction attendue. Pour les webhooks configurables, cela donne : exfiltration par service web (T1567), événement `webhook.created` avec domaine cible et âge de la session, alerte si le domaine n'a jamais été vu pour ce tenant et que la session a moins d'une heure. Le SOC n'a pas à deviner, et l'équipe produit sait pourquoi cet événement doit exister avant la mise en production.
+
+<Recap items={[
+  "Renseignement, détection, émulation, évaluation : quatre métiers, un même vocabulaire qui permet de passer de l'un à l'autre.",
+  "Traduire un rapport est un jugement : on garde la phrase source, la version d'ATT&CK et un niveau de confiance (C0059 range l'appel sous T1598.004, pas T1566.004).",
+  "Un calque Navigator honnête distingue testé et écrit, nomme l'événement source et fixe la version d'ATT&CK.",
+  "On émule des procédures précises, pas des techniques ; les ATT&CK Evaluations ne classent pas les éditeurs.",
+  "Pour le SOC, chaque fonctionnalité sensible vient avec sa technique, son événement et la réaction attendue.",
+]} />
+
+<Sources items={[
+  { title: "Google Threat Intelligence : UNC6040, vishing et Salesforce (juin 2025)", url: "https://cloud.google.com/blog/topics/threat-intelligence/voice-phishing-data-extortion" },
+  { title: "ATT&CK C0059 Salesforce Data Exfiltration", url: "https://attack.mitre.org/campaigns/C0059/" },
+  { title: "ATT&CK Navigator", url: "https://mitre-attack.github.io/attack-navigator/" },
+  { title: "Format des calques Navigator (v4.5)", url: "https://github.com/mitre-attack/attack-navigator/blob/master/layers/spec/v4.5/layerformat.md" },
+  { title: "Center for Threat-Informed Defense : Adversary Emulation Library", url: "https://github.com/center-for-threat-informed-defense/adversary_emulation_library" },
+  { title: "MITRE Caldera", url: "https://caldera.mitre.org/" },
+  { title: "MITRE ATT&CK Evaluations", url: "https://evals.mitre.org/" },
+  { title: "SecurityWeek : résultats des Evaluations Enterprise 2025", url: "https://www.securityweek.com/mitre-posts-results-of-2025-attck-enterprise-evaluations/" },
+]} />

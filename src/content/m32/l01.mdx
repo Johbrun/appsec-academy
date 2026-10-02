@@ -1,0 +1,156 @@
+export const questions = [
+  {
+    q: "Novafact a un SOC et des règles de détection, mais l'API ne journalise ni les refus d'autorisation ni les exports. Quel bloc manque, et quel effet en attendre ?",
+    options: [
+      "Le bloc Déployer : sans IaC, les journaux ne sont pas collectés de façon reproductible",
+      "Le bloc Concevoir : sans threat model, on ne sait pas quelles menaces détecter",
+      "La journalisation applicative : des détections sans matière, qui ne verront pas les abus métier",
+      "La gestion des vulnérabilités : les alertes ne sont pas reliées aux findings ouverts",
+    ],
+    answer: 2,
+    explain: "Une détection ne voit que ce que l'application écrit : sans événements de sécurité, les règles du SOC tournent à vide sur les abus métier, quelle que soit leur qualité. Le threat model aide à choisir quoi détecter, mais il ne produit pas les journaux. L'IaC rend la collecte reproductible, pas l'émission. Et relier les alertes aux findings est utile, mais suppose des alertes, donc des journaux.",
+  },
+  {
+    q: "Dans quelle fonction SAMM et quel groupe SSDF ranger le bloc C (Concevoir) du parcours ?",
+    options: [
+      "Governance, et le groupe PO du SSDF",
+      "Verification, et le groupe RV du SSDF",
+      "Implementation, et le groupe PS du SSDF",
+      "Design, et les tâches PO.1, PW.1 et PW.2 du SSDF",
+    ],
+    answer: 3,
+    explain: "Risques, threat modeling, exigences et architecture forment la fonction Design de SAMM (Threat Assessment, Security Requirements, Secure Architecture) ; côté SSDF, ce sont la définition des exigences (PO.1), la conception (PW.1) et sa revue (PW.2). Governance couvre la stratégie et les politiques, le bloc H. Verification vérifie ce qui a été conçu, et RV traite les vulnérabilités après coup. PS protège le code et les livraisons contre l'altération.",
+  },
+  {
+    q: "Le diagnostic de Novafact donne Security Requirements à 0 et Security Testing à 1,5. Par quoi commencer ?",
+    options: [
+      "Par les exigences, parce que des tests sans exigences ne disent pas ce qu'ils vérifient",
+      "Par les tests, parce qu'il vaut mieux consolider ce qui fonctionne déjà",
+      "Par les deux à égalité, pour faire progresser la moyenne SAMM le plus vite possible",
+      "Ni l'un ni l'autre : un score sous 2 partout signale d'abord un problème de gouvernance",
+    ],
+    answer: 0,
+    explain: "Les pratiques dépendent les unes des autres : sans exigence écrite, un test ne vérifie que ce que le testeur a pensé à regarder, et un finding ne peut pas être rattaché à une règle manquée. Consolider l'existant flatte le score sans traiter la cause. Viser la moyenne fait de la note un objectif, au lieu d'en faire un instrument de pilotage. Et un score bas ne désigne pas mécaniquement la gouvernance : il faut lire quelles pratiques manquent et ce qu'elles empêchent.",
+  },
+  {
+    q: "Pourquoi le bloc G (sécurité de l'IA) ne se range-t-il pas dans une seule fonction SAMM ?",
+    options: [
+      "Parce que SAMM ne traite pas les composants d'IA et qu'il faut un autre modèle",
+      "Parce qu'il reprend toutes les fonctions pour un type de composant aux menaces propres",
+      "Parce qu'il relève entièrement de la gouvernance, à travers les politiques d'usage",
+      "Parce qu'il ne concerne que la vérification, à travers le red teaming des modèles",
+    ],
+    answer: 1,
+    explain: "Un assistant LLM ou un serveur MCP se conçoit (threat model, exigences), se construit, se vérifie et s'exploite : chaque fonction SAMM a sa déclinaison pour lui. Le NIST l'a fait côté SSDF avec un profil dédié, SP 800-218A, qui ajoute des pratiques au cadre existant sans le remplacer. Réduire le bloc à la gouvernance ou au red teaming laisse de côté la conception, où se joue l'essentiel contre l'injection de prompt.",
+  },
+];
+
+<YouKnow>
+Le parcours a été suivi bloc par bloc : risques, conception, code, pipeline, cloud, détection, IA. Chacun a apporté des contrôles. Un programme, c'est la question suivante : lesquels mettre en place, dans quel ordre, avec qui, et comment savoir qu'ils tiennent.
+</YouKnow>
+
+## Le point de départ : l'état des lieux
+
+Un programme ne part pas d'une liste de bonnes pratiques, mais d'un diagnostic. M5 (leçon 6) a construit l'état des lieux en deux semaines : entretiens, échantillon de dépôts, preuves plutôt que déclarations, et une évaluation SAMM. Ce module part de là. Ses quatre leçons suivantes répondent aux questions qu'un diagnostic laisse ouvertes : qui décide (leçon 2), où l'on bloque (leçon 3), comment on mesure (leçon 4), et dans quel ordre on avance sur douze mois (leçon 5).
+
+Celle-ci fait le lien entre le parcours et le programme. Chaque bloc a apporté une pratique ; il faut maintenant la ranger dans un cadre que la direction, un client ou un auditeur reconnaissent. Les deux cadres les plus utiles ici sont **SAMM**, pour piloter la maturité, et le **NIST SSDF**, pour attester ce qui est fait (M3, leçon 4).
+
+## Chaque bloc devient une pratique
+
+| Bloc | Ce qu'il devient dans le programme | SAMM | SSDF |
+| --- | --- | --- | --- |
+| **A · Le métier** | Une stratégie, des rôles, une équipe dimensionnée | Strategy & Metrics, Education & Guidance | PO.2 (rôles et responsabilités) |
+| **B · Le web** | Des standards de code et une formation fondée sur les vrais bugs | Education & Guidance, Secure Architecture | PW.5 (pratiques de code sûr) |
+| **C · Concevoir** | Analyse de risques, threat models, exigences, revues de conception (SDR) | Threat Assessment, Security Requirements, Secure Architecture, Architecture Assessment | PO.1, PW.1, PW.2 |
+| **D · Construire & vérifier** | Revue de code, SAST et SCA, tests, pipeline durci, supply chain | Secure Build, Requirements-driven Testing, Security Testing | PO.3, PO.4, PO.5, PS, PW.4 à PW.8 |
+| **E · Déployer** | IAM au moindre privilège, IaC contrôlée, configuration de production | Secure Deployment, Environment Management | PW.9 |
+| **F · Security Operations** | Journalisation, détection, réponse, gestion des vulnérabilités | Incident Management, Operational Management, Defect Management | RV |
+| **G · Sécurité de l'IA** | Les mêmes pratiques, déclinées pour les LLM, les agents et MCP | Toutes les fonctions | SP 800-218A (profil IA du SSDF) |
+| **H · Piloter** | Adoption, gouvernance, jalons, mesure, feuille de route | Strategy & Metrics, Policy & Compliance | PO |
+
+Trois remarques sur ce tableau. D'abord, la colonne SAMM couvre les quinze pratiques du modèle : aucune n'est orpheline, ce qui confirme que le parcours ne laisse pas de trou volontaire. Ensuite, la gouvernance apparaît deux fois, en A et en H : on la pose au début (qui fait quoi), on la formalise à la fin (politiques, comités, indicateurs). Enfin, le bloc G n'a pas de case propre : il reprend chaque fonction pour un type de composant. Le NIST a fait le même choix avec **SP 800-218A** (juillet 2024), un profil qui ajoute au SSDF des pratiques propres aux modèles d'IA sans le remplacer.
+
+## Ce qui manque quand un bloc manque
+
+Le tableau précédent sert à cocher ; celui-ci sert à convaincre. Chaque bloc absent produit un symptôme reconnaissable, et c'est le symptôme que la direction a déjà vu.
+
+| Bloc absent | Symptôme | Ce qu'on entend en réunion |
+| --- | --- | --- |
+| Analyse de risques (M10) | Des priorités au doigt mouillé, revues à chaque incident | « Pourquoi on traite ça avant le reste ? » |
+| Threat modeling (M11) | Des contrôles posés au hasard, la même faille de conception à chaque pentest | « On avait pourtant un WAF » |
+| Exigences (M12) | Des tests qui ne disent pas ce qu'ils vérifient, des findings contestés | « Ce n'était pas demandé » |
+| Revue et tests (M16, M17) | Les défauts découverts en production, par d'autres | « C'est le bug bounty qui l'a trouvé » |
+| Pipeline et supply chain (M18) | Une dépendance compromise livrée sans que personne ne le voie | « On ne savait pas qu'on l'utilisait » |
+| Déploiement (bloc E) | Une configuration cloud qui dérive du code | « En théorie, ce bucket est privé » |
+| SOC et détection (M22 à M24) | Des détections que personne ne lit, ou qui n'ont rien à lire | « Les logs existent, quelque part » |
+| Réponse (M25) | Une crise improvisée, des notifications hors délai | « Qui doit prévenir la CNIL ? » |
+| Gestion des vulnérabilités (M26) | Un backlog qui grossit sans fin, des SLA qui ne veulent rien dire | « On a 900 vulnérabilités ouvertes » |
+| Adoption (M30) | Des contrôles contournés en silence | « Les devs ont désactivé la règle » |
+
+Les blocs se tiennent entre eux, et un trou en amont rend inutile un effort en aval. Une détection sans journalisation applicative ne voit rien. Un SLA de correction sans inventaire des versions déployées est invérifiable. Un threat model sans exigences écrites reste un document de réunion. Avant de financer une pratique, il faut se demander de quelle autre elle dépend.
+
+<Callout kind="case">
+Le régulateur bancaire américain (OCC) a sanctionné Capital One de 80 millions de dollars le 6 août 2020, après l'intrusion de 2019. Le motif de son communiqué n'est pas une faille technique : c'est l'absence de processus efficaces d'appréciation des risques **avant** de migrer une part importante de l'informatique vers le cloud public (M10, leçon 1). Les contrôles techniques existaient ; c'est le bloc qui devait dire lesquels comptaient qui manquait. Un programme qui finance l'outillage sans l'analyse de risques reproduit exactement ce schéma.
+</Callout>
+
+## De la carte au plan
+
+Chez Novafact, l'évaluation SAMM de M5 (leçon 2) a donné, entre autres : Security Requirements à 0, Threat Assessment à 0,5, Secure Build à 1, Incident Management à 1, Security Testing à 1,5. Lue avec le tableau des symptômes, elle raconte une histoire cohérente : on teste correctement des choses que personne n'a exigées, et le pentest retrouve chaque année des failles d'autorisation que la conception aurait dû empêcher.
+
+Le programme se décrit alors en une carte, un fichier versionné que l'équipe AppSec tient à jour et qui servira de base à la feuille de route (leçon 5) :
+
+<Code file="docs/programme/carte.yml" hl="3,4,11,12">
+
+```yaml
+- pratique: security-requirements        # SAMM Design ; SSDF PO.1
+  bloc: C
+  score: { actuel: 0, cible_12_mois: 1 }
+  depend_de: []                          # rien ne bloque : c'est par là qu'on commence
+  proprietaire: appsec
+  preuve: exigences ASVS L2 de l'API, liées aux tickets
+- pratique: threat-assessment            # SAMM Design ; SSDF PW.1
+  bloc: C
+  score: { actuel: 0.5, cible_12_mois: 1 }
+  depend_de: [security-requirements]
+  proprietaire: champions
+  preuve: un threat model par fonctionnalité sensible du trimestre
+- pratique: incident-management          # SAMM Operations ; SSDF RV
+  bloc: F
+  score: { actuel: 1, cible_12_mois: 1.5 }
+  depend_de: [journalisation-applicative]
+  proprietaire: sre + appsec
+  preuve: scénario applicatif joué, circuit CRA testé
+```
+
+</Code>
+
+Deux champs comptent plus que les scores. `depend_de` impose l'ordre : on ne vise pas une cible en réponse à incident tant que l'application ne journalise rien. `preuve` dit ce qu'un auditeur, ou l'équipe elle-même dans six mois, pourra vérifier : une pratique sans preuve observable n'est qu'une intention.
+
+<Callout kind="debate">
+Faut-il viser la moyenne SAMM ou des pratiques précises ? Une cible moyenne (« passer de 1 à 1,5 ») est lisible pour une direction, mais pousse à monter les pratiques faciles et à laisser les autres. L'approche inverse fixe quelques cibles par pratique, choisies pour les symptômes qu'elles traitent, et présente la moyenne comme une conséquence plutôt qu'un objectif. Son risque : une direction qui ne voit plus la progression d'ensemble, et un plan qu'on accuse de choisir ses combats.
+</Callout>
+
+## Un programme, pas une collection
+
+Ce qui distingue un programme d'une collection de contrôles tient en quatre propriétés, et c'est le plan des leçons suivantes :
+
+- il est **gouverné** : quelqu'un décide, et les décisions se retrouvent (leçon 2) ;
+- il est **jalonné** : on sait ce qui bloque, qui peut déroger, et cela se voit (leçon 3) ;
+- il est **mesuré** par des résultats, pas par l'activité (leçon 4) ;
+- il est **planifié** sur une durée qui permet de voir l'effet, et il rend compte des obligations (leçon 5).
+
+<Recap items={[
+  "Un programme part de l'état des lieux (M5, leçon 6), pas d'une liste de bonnes pratiques.",
+  "Chaque bloc du parcours se range dans des pratiques SAMM et des tâches SSDF ; les quinze pratiques SAMM sont couvertes.",
+  "La gouvernance apparaît au début (A) et à la fin (H) ; l'IA (G) décline toutes les fonctions, comme le profil SSDF SP 800-218A.",
+  "Chaque bloc absent produit un symptôme reconnaissable : c'est lui qui convainc la direction.",
+  "Les pratiques dépendent les unes des autres : un trou en amont rend inutile l'effort en aval.",
+  "La carte du programme fixe pour chaque pratique un score cible, ses dépendances, un propriétaire et une preuve.",
+]} />
+
+<Sources items={[
+  { title: "OWASP SAMM v2, le modèle", url: "https://owaspsamm.org/model/" },
+  { title: "NIST SP 800-218, SSDF version 1.1", url: "https://csrc.nist.gov/pubs/sp/800/218/final" },
+  { title: "NIST SP 800-218A, profil SSDF pour l'IA générative (juillet 2024)", url: "https://csrc.nist.gov/pubs/sp/800/218/a/final" },
+  { title: "OCC, sanction de Capital One (NR 2020-101, 6 août 2020)", url: "https://www.occ.gov/news-issuances/news-releases/2020/nr-occ-2020-101.html" },
+]} />

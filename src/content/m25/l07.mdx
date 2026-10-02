@@ -1,0 +1,144 @@
+export const questions = [
+  {
+    q: "La page de paiement de Novafact contient une balise meta qui pose la CSP « frame-ancestors 'none' », sans en-tête équivalent. Un site tiers l'intègre dans une iframe. Que se passe-t-il ?",
+    options: [
+      "Le navigateur refuse l'affichage, la balise meta ayant la même force que l'en-tête",
+      "La page s'affiche : frame-ancestors n'est pas prise en compte dans une balise meta",
+      "La page s'affiche dans Safari seulement, qui ignore les CSP posées par balise meta",
+      "La page s'affiche vide, car la CSP bloque ses scripts dès qu'elle est dans un contexte intégré",
+    ],
+    answer: 1,
+    explain: "La spécification CSP exclut frame-ancestors, sandbox et report-uri des politiques livrées par balise meta : la décision d'intégrer précède la lecture du document, seul l'en-tête compte. Les navigateurs appliquent le reste d'une CSP en meta, Safari compris, et une CSP ne bloque pas les scripts d'une page parce qu'elle est dans une iframe. La page s'affiche donc normalement, prête pour le clickjacking.",
+  },
+  {
+    q: "Novafact pose Strict-Transport-Security avec un max-age d'un an et includeSubDomains, sans préchargement. Quelle situation reste exposée à une rétrogradation en HTTP de type sslstrip ?",
+    options: [
+      "Toute visite qui suit l'expiration de la session de l'utilisateur",
+      "Les appels fetch de la SPA vers l'API, que HSTS ne couvre pas",
+      "Le premier accès d'un navigateur qui n'a jamais reçu l'en-tête",
+      "Les visites depuis un réseau qui inspecte TLS avec une autorité installée",
+    ],
+    answer: 2,
+    explain: "HSTS ne protège qu'un navigateur qui a déjà reçu l'en-tête en HTTPS : la toute première requête, en HTTP, peut être interceptée. C'est ce que règle la liste de préchargement. HSTS n'a aucun lien avec la session applicative, s'applique à toutes les requêtes vers l'hôte, fetch compris, et une inspection TLS par une autorité installée n'est pas une rétrogradation : le navigateur lui fait confiance, ce qui pose un autre problème.",
+  },
+  {
+    q: "Une page de evil.test inclut https://api.novafact.example/me par une balise script pour tenter d'en tirer des données. Quel en-tête de la réponse empêche le navigateur de la livrer à cette page ?",
+    options: [
+      "Access-Control-Allow-Origin limité aux origines de Novafact",
+      "Referrer-Policy: no-referrer, qui masque l'origine de la page",
+      "Permissions-Policy, qui restreint les capacités des scripts tiers",
+      "Cross-Origin-Resource-Policy: same-origin sur les réponses de l'API",
+    ],
+    answer: 3,
+    explain: "Une inclusion par balise script se fait en mode no-cors : CORS n'intervient pas, et l'en-tête Access-Control-Allow-Origin ne bloque rien. CORP indique au navigateur de ne livrer la ressource qu'aux pages de la même origine, ce qui ferme l'inclusion. Referrer-Policy contrôle ce qui part dans Referer, et Permissions-Policy les fonctionnalités du navigateur (caméra, géolocalisation…), pas la lecture des ressources.",
+  },
+  {
+    q: "helmet est configuré sur l'API, mais les pages 403 renvoyées par AWS WAF n'ont aucun en-tête de sécurité. Pourquoi ?",
+    options: [
+      "Parce que le WAF répond lui-même : la réponse ne passe jamais par Express",
+      "Parce que helmet ne s'applique pas aux réponses de statut 4xx ou 5xx",
+      "Parce que les navigateurs ignorent les en-têtes de sécurité sur une erreur",
+      "Parce que helmet doit être déclaré après les routes pour couvrir les erreurs",
+    ],
+    answer: 0,
+    explain: "Un middleware ne voit que les réponses produites par son application : une page de blocage du WAF, une erreur de l'ALB ou de S3 n'y passent pas. Ces réponses relèvent de la bordure, une response headers policy CloudFront (M21, leçon 5). helmet pose ses en-têtes quel que soit le statut, à condition d'être déclaré avant les routes, et les navigateurs appliquent les en-têtes d'une page d'erreur comme ceux de toute page.",
+  },
+];
+
+<YouKnow>
+Un rapport « en-têtes manquants » se produit en deux minutes avec n'importe quel scanner. La question utile est autre : quelle attaque chaque en-tête ferme, à quelle étape du chemin de la leçon 1, et ce qu'il ne ferme pas. C'est la carte de cette leçon ; la conception de la politique est en M8, son déploiement en production en M21.
+</YouKnow>
+
+## La carte
+
+Chaque en-tête de réponse est une instruction au navigateur, qui ne vaut que pour la réponse qui la porte. On les range ici selon l'étape qu'ils protègent :
+
+| En-tête | Étape (leçon 1) | Ce qu'il ferme | Ce qu'il ne ferme pas | Approfondi en |
+| --- | --- | --- | --- | --- |
+| `Strict-Transport-Security` | 1, saisie | La rétrogradation en HTTP, le clic sur une erreur de certificat | Le premier accès sans préchargement | Cette leçon, M21 (leçon 5) |
+| `Cache-Control: no-store` | 5 et 6, chaîne | La mise en cache d'une réponse privée | Une clé de cache mal définie ailleurs | M9 (leçon 6) |
+| `X-Content-Type-Options: nosniff` | 7, sous-ressources | L'exécution d'une réponse comme script ou feuille de style malgré son type | Une réponse servie avec un type exécutable | M7 (leçon 7) |
+| `Content-Disposition: attachment` | 7 | L'affichage d'un fichier déposé dans l'origine | Un fichier servi depuis l'origine principale | M7 (leçon 7) |
+| `Content-Security-Policy` | 7 et 8, chargement et exécution | Scripts injectés, destinations d'exfiltration, `base-uri`, `form-action` | Une XSS dans du code déjà autorisé, les gadgets | M8 (leçon 5), M9 (leçon 12) |
+| `frame-ancestors` (CSP) | 9, rendu | L'intégration dans une iframe : clickjacking | Les fenêtres ouvertes par `window.open` | M8 (leçon 7) |
+| `Cross-Origin-Opener-Policy` | 9 | La référence entre la fenêtre de l'application et celle d'un autre site | L'intégration en iframe | M8 (leçon 7) |
+| `Cross-Origin-Resource-Policy` | 7 | L'inclusion des ressources de l'origine par un autre site en `no-cors` | La lecture via CORS déjà autorisée | M8 (leçon 7) |
+| `Cross-Origin-Embedder-Policy` | 7 | Le chargement de ressources qui n'ont pas consenti (prérequis de l'isolation complète) | Rien par lui-même | M8 (leçon 7) |
+| `Referrer-Policy` | 4, requêtes suivantes | La fuite de chemins et de paramètres dans `Referer` | Les secrets placés dans l'URL d'une autre manière | M7 (leçon 6) |
+| `Permissions-Policy` | 8 | L'usage de caméra, micro, géolocalisation, paiement par la page ou ses iframes | Les scripts tiers eux-mêmes | M8 (leçon 4) |
+| `Clear-Site-Data` | Après coup | Les cookies, le stockage et les service workers restés dans le navigateur | Ce qui a déjà été exfiltré | M8 (leçon 7) |
+
+Deux observations guident la lecture. La plupart de ces en-têtes ne corrigent **aucune** vulnérabilité de l'application : ils retirent au navigateur une capacité dont l'attaquant a besoin. Et chacun a un angle mort précis, qu'un rapport « en-tête présent » ne voit pas.
+
+Les navigateurs ont aussi durci leurs défauts : sans `Referrer-Policy`, Chrome (85), Firefox (87) et Safari (15) appliquent `strict-origin-when-cross-origin`, qui n'envoie que l'origine vers un autre site. Poser l'en-tête reste utile pour aller plus loin (`no-referrer`, que helmet pose par défaut) et pour ne pas dépendre de la version du navigateur.
+
+## HSTS : ce que l'en-tête garantit, et quand
+
+`Strict-Transport-Security` n'est pris en compte que s'il arrive en HTTPS : reçu en HTTP, il est ignoré, sans quoi un attaquant pourrait l'imposer ou le retirer. Une fois reçu, le navigateur réécrit en HTTPS toute requête vers l'hôte pendant `max-age` secondes, sans même interroger le réseau, et supprime l'option de passer outre une erreur de certificat. `includeSubDomains` étend la règle aux sous-domaines, ce qui ferme la porte qu'un `http://support.novafact.example` laissait ouverte aux cookies du domaine.
+
+<Callout kind="case">
+**sslstrip (Black Hat DC, 2009).** Moxie Marlinspike a présenté un outil qui, placé en position d'interception, réécrit à la volée les liens et redirections `https://` en `http://` : la victime ne voit jamais d'erreur de certificat, puisqu'elle ne parle jamais TLS, et l'attaquant relaie vers le vrai site en HTTPS. Le constat était simple : les utilisateurs tapent rarement `https://`, ils y arrivent par une redirection ou un lien. HSTS, normalisé dans le RFC 6797 en novembre 2012, répond exactement à cela : le navigateur décide seul d'utiliser HTTPS, avant la première requête en clair.
+</Callout>
+
+Il reste le premier accès. La **liste de préchargement** de Chromium, reprise par les autres navigateurs, l'élimine. Ses conditions : certificat valide, redirection de HTTP vers HTTPS sur le même hôte, tous les sous-domaines en HTTPS, et un en-tête avec `max-age` d'au moins un an, `includeSubDomains` et `preload`. Le site prévient lui-même que le retrait prend des mois. Pour Novafact, la séquence est donc : inventaire des sous-domaines (un outil interne en HTTP casse le jour où `includeSubDomains` arrive), `max-age` court puis long, et préchargement en dernier.
+
+## Des en-têtes qui ont l'air de protéger
+
+Un scanner qui cherche la présence d'un en-tête valide aussi des configurations qui ne ferment rien. Celle-ci, relevée sur une page de paiement, en cumule trois :
+
+<Diff file="apps/pay/src/server.ts" hlBefore="2-4,7" hlAfter="2-6">
+
+```ts
+app.use((req, res, next) => {
+  res.set('X-Frame-Options', 'ALLOW-FROM https://app.novafact.example'); // ignoré par les navigateurs actuels
+  res.set('X-XSS-Protection', '1; mode=block');                          // filtre retiré des navigateurs
+  res.set('Referrer-Policy', 'unsafe-url');                              // URL complète, paramètres compris
+  next();
+});
+// et dans le gabarit HTML : <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self'">
+```
+
+```ts
+app.use((req, res, next) => {
+  // frame-ancestors en en-tête : la seule forme prise en compte, et elle prime sur X-Frame-Options
+  res.set('Content-Security-Policy', "frame-ancestors https://app.novafact.example");
+  res.set('X-Frame-Options', 'DENY');      // repli pour les très vieux navigateurs, sans ALLOW-FROM
+  res.set('X-XSS-Protection', '0');        // désactive explicitement un filtre qui créait ses propres failles
+  res.set('Referrer-Policy', 'no-referrer');
+  next();
+});
+```
+
+</Diff>
+
+Le payload qui casse la version vulnérable tient dans une page de `evil.test` : une iframe transparente qui charge la page de paiement sous un bouton « Gagner un bon d'achat ». `ALLOW-FROM` n'est plus reconnu, et la MDN précise que les navigateurs qui le rencontrent ignorent alors l'en-tête entier ; la directive `frame-ancestors` n'est pas lue dans une balise `meta`. Le mauvais correctif passe `X-Frame-Options` à `SAMEORIGIN` : il bloque aussi l'intégration légitime depuis `app.novafact.example`, qui est une autre origine, et l'équipe finit par retirer l'en-tête. La version corrigée nomme l'origine autorisée dans `frame-ancestors` ; quand les deux en-têtes sont présents, les navigateurs actuels appliquent `frame-ancestors` et ignorent `X-Frame-Options`.
+
+<Lab id="ps-clickjacking" />
+
+## Un propriétaire par en-tête et par réponse
+
+Un en-tête protège la réponse qui le porte, et seulement elle. Trois conséquences pratiques, développées en M21 (leçons 1 et 5) :
+
+- **La CSP du JSON ne protège pas la page.** Pour une API qui ne sert que du JSON, une CSP `default-src 'none'; frame-ancestors 'none'` suffit ; la vraie CSP est celle des documents HTML, qui ont souvent un autre producteur (S3 et CloudFront pour la SPA).
+- **Les réponses que le code de l'application ne produit pas** (blocage du WAF, erreurs de l'ALB, objets S3) n'ont que les en-têtes posés en bordure.
+- **Deux CSP s'additionnent** : si helmet et Next.js en posent chacun une, une ressource doit satisfaire les deux, et le nonce de l'une est refusé par l'autre.
+
+<Recap items={[
+  "Chaque en-tête retire au navigateur une capacité à une étape précise du chemin, et chacun a un angle mort.",
+  "HSTS n'agit qu'après une première réponse HTTPS ; le préchargement couvre le premier accès, mais se retire lentement.",
+  "frame-ancestors en en-tête, jamais en meta ; X-Frame-Options ALLOW-FROM et X-XSS-Protection: 1 ne protègent plus rien.",
+  "CORP ferme l'inclusion en no-cors, que CORS ne gouverne pas ; nosniff empêche l'exécution d'un type inattendu.",
+  "Un en-tête protège la réponse qui le porte : un propriétaire par type de réponse, bordure comprise.",
+]} />
+
+<Sources items={[
+  { title: "RFC 6797 : HTTP Strict Transport Security", url: "https://www.rfc-editor.org/rfc/rfc6797" },
+  { title: "hstspreload.org : conditions et retrait de la liste de préchargement", url: "https://hstspreload.org/" },
+  { title: "Moxie Marlinspike : New Tricks for Defeating SSL in Practice, Black Hat DC 2009", url: "https://www.blackhat.com/presentations/bh-dc-09/Marlinspike/BlackHat-DC-09-Marlinspike-Defeating-SSL.pdf" },
+  { title: "W3C : Content Security Policy Level 3 (directives non prises en charge en meta)", url: "https://www.w3.org/TR/CSP3/" },
+  { title: "MDN : X-Frame-Options (ALLOW-FROM)", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options" },
+  { title: "WHATWG HTML : l’en-tête X-Frame-Options (ignoré si la CSP contient frame-ancestors)", url: "https://html.spec.whatwg.org/multipage/document-lifecycle.html#the-x-frame-options-header" },
+  { title: "MDN : Referrer-Policy (valeur par défaut des navigateurs)", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy" },
+  { title: "MDN : Cross-Origin-Resource-Policy", url: "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cross-Origin-Resource-Policy" },
+  { title: "helmet : en-têtes et valeurs par défaut", url: "https://helmetjs.github.io/" },
+]} />

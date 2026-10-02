@@ -228,6 +228,7 @@ export function Layout() {
             </NavMenu>
             <NavLink to="/labs" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Labs</NavLink>
             <NavLink to="/examens" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Examens</NavLink>
+            <NavLink to="/slides" className={({ isActive }) => `nav-link opt ${isActive ? 'active' : ''}`}>Slides</NavLink>
             <NavLink to="/bibliotheque" className={({ isActive }) => `nav-link opt ${isActive ? 'active' : ''}`}>Bibliothèque</NavLink>
             {user?.role === 'teacher' && <NavLink to="/enseignant" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>Enseignant</NavLink>}
           </nav>
@@ -288,6 +289,7 @@ export function Layout() {
               <Link to="/jeux">Jeux</Link>
               <Link to="/labs">Labs</Link>
               <Link to="/examens">Examens & certificat</Link>
+              <Link to="/slides">Supports de formation</Link>
               <Link to="/bibliotheque">Bibliothèque</Link>
               <Link to="/profil">Progression & badges</Link>
             </div>
@@ -328,6 +330,7 @@ export function Layout() {
             <Link to="/labs" className={`sheet-link ${pathname === '/labs' ? 'active' : ''}`}><Orb palette="moss" xs />Labs</Link>
             <Link to="/examens" className={`sheet-link ${pathname.startsWith('/examens') ? 'active' : ''}`}><Orb palette="crimson" xs />Examens</Link>
             <Link to="/certificat" className={`sheet-link ${pathname === '/certificat' ? 'active' : ''}`}><Orb palette="gold" xs />Certificat</Link>
+            <Link to="/slides" className={`sheet-link ${pathname === '/slides' ? 'active' : ''}`}><Orb palette="cobalt" xs />Slides</Link>
             <Link to="/bibliotheque" className={`sheet-link ${pathname === '/bibliotheque' ? 'active' : ''}`}><Orb palette="pearl" xs />Bibliothèque</Link>
           </div>
           <div className="sheet-group">

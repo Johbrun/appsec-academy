@@ -1,0 +1,215 @@
+export const questions = [
+  {
+    q: "Une nouvelle version de `debug` vient d'être publiée. Le dépôt GitHub ne montre aucun commit depuis trois mois, rien de suspect. Que peut-on en conclure sur la version publiée ?",
+    options: [
+      "Qu'elle est saine : un paquet npm est construit à partir de la branche principale du dépôt",
+      "Rien : l'archive publiée sur npm peut contenir du code qui n'a jamais existé dans le dépôt",
+      "Qu'elle est saine si son numéro de version correspond à un tag signé du dépôt",
+      "Qu'elle est suspecte : une version publiée sans commit récent est toujours malveillante",
+    ],
+    answer: 1,
+    explain: "Rien n'oblige une archive npm à correspondre au dépôt : le registre reçoit un tarball, pas un commit. C'est exactement le cas de debug en septembre 2025, publiée depuis le compte hameçonné de son mainteneur alors que, selon lui, les dépôts n'avaient pas été touchés. Un tag signé prouve ce qui est dans le dépôt, pas ce qui a été envoyé au registre. À l'inverse, publier un correctif préparé depuis longtemps sans nouveau commit arrive aussi : l'absence de commit est un signal à vérifier, pas une preuve.",
+  },
+  {
+    q: "L'empreinte sha512 recalculée sur l'archive obtenue par `npm pack` est identique à l'`integrity` du lockfile. Que prouve cette égalité ?",
+    options: [
+      "Que l'archive a été construite à partir du commit annoncé dans le dépôt du projet",
+      "Que l'archive ne contient aucun code malveillant connu des bases d'avis",
+      "Que l'archive est celle qui a été verrouillée, ni modifiée ni remplacée depuis",
+      "Que le mainteneur a publié cette version avec une authentification à deux facteurs",
+    ],
+    answer: 2,
+    explain: "L'empreinte relie un fichier précis à une ligne du lockfile : on analyse bien ce que `npm ci` installera, et pas une archive substituée en cours de route. Elle ne dit rien de l'origine (c'est le rôle de la provenance et du diff contre le commit), ni du contenu (une archive malveillante a, elle aussi, une empreinte stable), ni de la façon dont le mainteneur s'est authentifié. C'est la première marche, pas le verdict.",
+  },
+  {
+    q: "Les versions 3.1.0 à 3.4.0 d'une dépendance portent une attestation de provenance GitHub Actions. La 3.4.1, publiée hier, n'en a pas. Quelle est la lecture la plus juste ?",
+    options: [
+      "Un signal fort : une publication hors du pipeline habituel, comme avec un jeton volé",
+      "Rien d'anormal : la provenance est facultative et beaucoup de paquets n'en ont pas",
+      "Une panne probable du registre, qui n'a pas encore indexé l'attestation de la version",
+      "Une preuve de compromission qui justifie de signaler le paquet comme malveillant",
+    ],
+    answer: 0,
+    explain: "La provenance est facultative en général, mais ici c'est la rupture qui compte : un projet qui publiait depuis sa CI et publie soudain sans attestation a probablement publié depuis ailleurs, ce qui est le schéma d'un jeton ou d'un compte volé. C'est le signal que `trustPolicy: no-downgrade` de pnpm transforme en échec. Ce n'est pas encore une preuve : un mainteneur peut publier à la main par commodité. On bloque la version, on diffe l'archive et on demande avant de signaler.",
+  },
+  {
+    q: "Que fait exactement `npm pack paquet@1.2.3` lancé dans un dossier vide ?",
+    options: [
+      "Il clone le dépôt déclaré et construit l'archive, en lançant le script prepack du paquet",
+      "Il télécharge l'archive et l'installe dans node_modules sans lancer ses scripts",
+      "Il télécharge l'archive publiée sans vérifier son empreinte, d'où l'étape suivante",
+      "Il télécharge l'archive du registre, contrôle son empreinte et n'exécute aucun script",
+    ],
+    answer: 3,
+    explain: "Pour une spécification qui désigne le registre, npm récupère le tarball publié en contrôlant son empreinte, l'écrit dans le dossier courant et ne lance ni prepack ni aucun autre script : ceux-ci ne s'exécutent que pour un dossier local. Rien n'est installé ni cloné. Recalculer l'empreinte ensuite ne sert pas à rattraper un contrôle absent : cela sert à la comparer avec celle du lockfile, c'est-à-dire avec ce que le projet installera vraiment.",
+  },
+];
+
+<YouKnow>
+En pentest, on lit le code de la cible sur GitHub avant de l'attaquer. Pour juger une dépendance, ce réflexe trompe : ce qui s'exécute sur la machine n'est pas le dépôt, c'est l'archive publiée sur le registre. Cette leçon décrit comment récupérer cette archive, la relier au lockfile et à son commit d'origine, puis la lire jusqu'à un verdict.
+</YouKnow>
+
+## L'archive est ce qui s'installe
+
+Un paquet npm est un **tarball** envoyé au registre par qui détient le droit de publier. Le registre ne reçoit pas de commit et ne vérifie aucune correspondance avec un dépôt. Quatre conséquences :
+
+- **Rien n'oblige l'archive à ressembler au dépôt.** Le champ `repository` du `package.json` est une déclaration, pas une preuve.
+- **Le build ajoute du code.** Un fichier minifié, un `dist/` ou un script généré n'existent pas dans les sources : ce sont eux que personne ne relit.
+- **Un jeton ou un compte volé publie sans toucher au dépôt.** L'attaquant n'a besoin que des droits de publication.
+- **Tout ce qui est publié voyage**, y compris une fixture de test ou un binaire que personne ne relit.
+
+<Callout kind="case">
+**Quatre fois le même écart.** En 2018, `flatmap-stream@0.1.1`, dépendance ajoutée à `event-stream`, portait son chargeur dans `index.min.js`, absent du source non minifié du même paquet, et sa charge chiffrée dans un fichier présenté comme une fixture de test (`test/data.js`) ; elle visait le portefeuille Copay. En mars 2024, la porte dérobée de **xz utils** (CVE-2024-3094) s'activait par un `build-to-host.m4` modifié qui ne se trouvait que dans les archives de release, pas dans le dépôt git. Le 8 septembre 2025, `debug` et `chalk` sont publiés depuis le compte hameçonné de leur mainteneur (domaine `npmjs.help`) ; un utilisateur note sur GitHub que la version n'existe pas dans le dépôt, et le mainteneur confirme que les dépôts n'ont pas été touchés. Une semaine plus tard, **Shai-Hulud** automatise le procédé : il télécharge l'archive d'un paquet de la victime, y injecte `bundle.js` et un `postinstall`, et la republie avec le jeton npm trouvé sur la machine.
+</Callout>
+
+Le verdict porte donc sur l'archive, et sur son écart avec le dépôt.
+
+## Étape 1 : savoir quelle archive on juge
+
+On juge **une version résolue**, celle que le lockfile installera. Le registre publie son empreinte (`dist.integrity`), l'URL de l'archive, le commit déclaré (`gitHead`, s'il existe) et ses attestations.
+
+<Code file="terminal">
+
+```bash
+PKG=pdf-lib@1.17.1           # la version exacte du lockfile, jamais « latest »
+
+# Ce que le lockfile installera vraiment
+jq -r '.packages["node_modules/pdf-lib"] | .version, .resolved, .integrity' package-lock.json
+
+# Ce que le registre annonce pour cette version
+npm view "$PKG" dist.integrity dist.tarball gitHead dist.attestations --json
+```
+
+</Code>
+
+Un `resolved` qui pointe ailleurs que vers `registry.npmjs.org` (un autre registre, une URL de tarball, un dépôt git) est déjà un constat à expliquer.
+
+## Étape 2 : récupérer l'archive et la relier au lockfile
+
+`npm pack` sur une spécification du registre télécharge l'archive publiée en contrôlant son empreinte, l'écrit dans le dossier courant et **n'exécute aucun script** : `prepack` ne tourne que pour un dossier local. On recalcule ensuite l'empreinte au format SRI pour la comparer à celle du lockfile.
+
+<Code file="terminal">
+
+```bash
+mkdir -p /tmp/audit && cd /tmp/audit     # dossier vide, hors de tout projet
+npm pack "$PKG" --json | jq -r '.[0] | .filename, .integrity'
+
+echo "sha512-$(openssl dgst -sha512 -binary pdf-lib-1.17.1.tgz | base64 -w0)"   # base64 sans -w0 sur macOS
+tar -xzf pdf-lib-1.17.1.tgz              # le contenu arrive dans ./package
+```
+
+</Code>
+
+Si les empreintes concordent, l'archive qu'on va lire est celle que `npm ci` installera. Cela ne dit rien de son contenu : une archive malveillante a, elle aussi, une empreinte stable.
+
+## Étape 3 : signatures et provenance
+
+`npm audit signatures`, lancé dans un projet installé, vérifie la **signature du registre** de chaque paquet et les **attestations de provenance** quand elles existent (leçon 10). La provenance, elle, dit d'où vient l'archive : quel dépôt, quel workflow, quel commit. On la lit directement :
+
+<Code file="terminal">
+
+```bash
+curl -s "https://registry.npmjs.org/-/npm/v1/attestations/$PKG" \
+  | jq '.attestations[] | select(.predicateType == "https://slsa.dev/provenance/v1")
+        | .bundle.dsseEnvelope.payload | @base64d | fromjson | .predicate.buildDefinition
+        | { workflow: .externalParameters.workflow, commit: .resolvedDependencies[0].digest.gitCommit }'
+```
+
+</Code>
+
+Une attestation cohérente avec les versions précédentes (même dépôt, même workflow, ref de tag) donne un commit à comparer. Son absence, sur un projet qui n'en a jamais eu, ne dit rien. Une **attestation qui disparaît** ou change de dépôt ou de workflow est le signal le plus fort de cette étape : la forme d'une publication faite hors du pipeline habituel. La provenance prouve où l'archive a été construite, pas que le workflow était sain (TanStack, leçon 8).
+
+## Étape 4 : comparer l'archive au commit
+
+Avec le commit (provenance ou `gitHead`), on récupère les sources exactes et on compare.
+
+<Code file="terminal">
+
+```bash
+git clone --filter=blob:none https://github.com/Hopding/pdf-lib src && git -C src checkout "$COMMIT"
+diff -rq package src | grep -v '^Only in src'     # ce qui est dans l'archive et pas dans le dépôt
+```
+
+</Code>
+
+On s'attend à des écarts : les fichiers construits (`dist/`, `cjs/`, `es/`) n'existent pas dans le dépôt. La question est de savoir **s'ils correspondent au build**. Deux méthodes : reconstruire dans un bac à sable et comparer fichier par fichier, ou, à défaut, lire en priorité les fichiers que le build ne devrait pas produire. Entre deux versions publiées, `npm diff --diff=pdf-lib@1.17.0 --diff=pdf-lib@1.17.1 --diff-name-only` montre ce qui a changé : un correctif annoncé d'une ligne qui modifie un fichier minifié de 400 Ko mérite qu'on s'y arrête.
+
+## Étape 5 : lire ce qui s'exécute
+
+L'ordre de lecture suit l'ordre d'exécution. D'abord ce qui tourne **à l'installation**, puis ce qui tourne **au chargement**.
+
+<Code file="terminal">
+
+```bash
+jq '{scripts, bin, gypfile, dependencies, optionalDependencies}' package/package.json
+find package -name '*.node' -o -name 'binding.gyp' -o -name '*.sh' -o -name '*.bat'
+
+# Lignes de plus de 500 caractères : code minifié ou obfusqué, à lire en priorité
+grep -rlE '.{500,}' package --include='*.js'
+
+# Les primitives d'une charge : exécution, réseau, secrets, décodage
+grep -rnoE "eval\(|new Function|child_process|require\(['\"](https?|net|dns|tls)['\"]|process\.env|\.npmrc|\.ssh|Buffer\.from\([^)]*(hex|base64)" package | head -50
+```
+
+</Code>
+
+Les signaux sont ceux de M17 (leçon 9) : script `preinstall` ou `postinstall` qui n'a rien à compiler, `bin` qui écrase une commande courante, binaire natif sans `binding.gyp` ni source, chaîne hexadécimale passée à `require`, lecture de `process.env` en bloc ou de `~/.npmrc`, appel réseau dans un utilitaire qui n'en a pas besoin. Aucun n'est une preuve seul ; leur **combinaison** l'est presque.
+
+## Étape 6 : le contexte
+
+Le contexte dit si ce que fait l'archive est normal :
+
+- **Qui publie, et depuis quand** : `npm view pdf-lib time maintainers --json`. Un nouveau mainteneur, une version publiée il y a deux heures après un an de silence, une majeure sautée.
+- **Ce qui entre dans l'arbre** : une nouvelle dépendance dans une version corrective, surtout un paquet récent à un seul mainteneur, c'est le schéma d'`event-stream`.
+- **Ce que savent les autres** : la base OSV recense aussi les paquets malveillants (identifiants `MAL-…`, alimentés par OpenSSF), interrogeable par `curl -d '{"package":{"name":"pdf-lib","ecosystem":"npm"},"version":"1.17.1"}' https://api.osv.dev/v1/query` ; **GuardDog** (`guarddog npm scan pdf-lib --version 1.17.1`) et **Socket** analysent le comportement de l'archive.
+
+## Étape 7 : observer, en bac à sable
+
+Pour les cas qui restent douteux, on installe sans exécuter, puis on exécute en observant, dans un conteneur jetable **sans aucun secret** ni montage du poste :
+
+<Code file="terminal">
+
+```bash
+docker run --rm -it -v /tmp/audit:/audit -w /audit node:22-slim \
+  sh -c 'npm init -y >/dev/null && npm install --ignore-scripts ./pdf-lib-1.17.1.tgz && npm audit signatures'
+```
+
+</Code>
+
+`--ignore-scripts` donne l'arbre complet sans rien lancer, et `npm audit signatures` y vérifie toutes les dépendances transitives. Un script à comprendre se lance ensuite dans le même conteneur, sortie réseau journalisée par un proxy : une connexion vers un domaine inconnu vaut toutes les lectures.
+
+## Le verdict, et ce qui suit
+
+<Steps items={[
+  { title: "Accepter", text: "La version entre dans le lockfile, épinglée exactement (save-exact), avec une note courte dans la PR : empreinte vérifiée, provenance, écarts expliqués." },
+  { title: "Attendre", text: "Rien de bloquant, mais la version a moins de quelques jours : elle reste en quarantaine (min-release-age de npm, minimumReleaseAge de pnpm ou de Renovate, leçon 5)." },
+  { title: "Refuser", text: "On épingle la version précédente, on bloque la nouvelle en CI, et on signale au registre et au mainteneur par un canal connu." },
+]} />
+
+La quarantaine s'applique aussi aux mises à jour proposées par un bot : avec Renovate, `minimumReleaseAge: "3 days"` dans une `packageRules`, et `internalChecksFilter: "strict"` pour qu'aucune PR ne soit ouverte tant qu'aucune version n'est sortie du délai.
+
+<Callout kind="novafact">
+Audit (fictif) d'une mise à jour de la bibliothèque PDF : empreinte identique au lockfile, signature valide, pas de provenance (comme toujours pour ce projet). Seul `dist/` diffère du tag, reconstruit à l'identique en conteneur. Ni script d'installation, ni nouvelle dépendance, ni primitive réseau. Acceptée et épinglée après quatre jours de quarantaine ; vingt minutes, consignées dans la PR.
+</Callout>
+
+<Recap items={[
+  "Ce qui s'installe est l'archive publiée : rien ne l'oblige à correspondre au dépôt, et un jeton volé publie sans y toucher.",
+  "On juge une version résolue : celle du lockfile, avec son dist.integrity.",
+  "npm pack récupère l'archive sans exécuter de script ; l'empreinte sha512 la relie au lockfile.",
+  "npm audit signatures et la provenance relient l'archive à un commit et un workflow ; une provenance qui disparaît est un signal fort.",
+  "Diff contre le commit, lecture de ce qui s'exécute, contexte, bac à sable sans secret, puis verdict : accepter, attendre ou refuser.",
+]} />
+
+<Sources items={[
+  { title: "npm : détails de l'incident event-stream (novembre 2018)", url: "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident" },
+  { title: "event-stream, issue #116 (analyse de flatmap-stream)", url: "https://github.com/dominictarr/event-stream/issues/116" },
+  { title: "Andres Freund : porte dérobée dans xz/liblzma (oss-security, 29 mars 2024)", url: "https://www.openwall.com/lists/oss-security/2024/03/29/4" },
+  { title: "GitHub Advisory : ua-parser-js compromis (GHSA-pjwm-rvh2-c87w)", url: "https://github.com/advisories/GHSA-pjwm-rvh2-c87w" },
+  { title: "debug, issue #1005 : version absente du dépôt (septembre 2025)", url: "https://github.com/debug-js/debug/issues/1005" },
+  { title: "Socket : @ctrl/tinycolor et le début de Shai-Hulud", url: "https://socket.dev/blog/tinycolor-supply-chain-attack-affects-40-packages" },
+  { title: "npm Docs : npm audit (signatures)", url: "https://docs.npmjs.com/cli/v11/commands/npm-audit" },
+  { title: "npm Docs : consulter la provenance d'un paquet", url: "https://docs.npmjs.com/viewing-package-provenance" },
+  { title: "OSV : API de requête", url: "https://google.github.io/osv.dev/post-v1-query/" },
+  { title: "Datadog GuardDog", url: "https://github.com/DataDog/guarddog" },
+  { title: "Renovate : minimumReleaseAge et internalChecksFilter", url: "https://docs.renovatebot.com/configuration-options/" },
+]} />

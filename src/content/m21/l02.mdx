@@ -1,0 +1,157 @@
+export const questions = [
+  {
+    q: "Dans un modèle de rançongiciel en service (RaaS), qui mène en général l'intrusion chez la victime ?",
+    options: [
+      "Les développeurs du rançongiciel, qui gardent la main sur les cibles rentables",
+      "Des affiliés, qui louent la plateforme et partagent la rançon avec l'opérateur",
+      "Le courtier d'accès initial, qui chiffre lui-même avant de revendre l'accès",
+      "Un négociateur, qui choisit la victime selon sa capacité à payer",
+    ],
+    answer: 1,
+    explain: "Le RaaS sépare les rôles : l'opérateur fournit le logiciel, l'infrastructure et le site de fuite, des affiliés mènent les intrusions et partagent la rançon. C'est ce que décrit la NCA à propos de LockBit. Le courtier d'accès vend l'entrée, il ne chiffre pas : son modèle repose justement sur la revente. Les développeurs restent en retrait, et la négociation vient après l'intrusion, pas avant.",
+  },
+  {
+    q: "Selon l'avis CISA AA24-038A, quel était l'objectif principal de Volt Typhoon dans les réseaux d'infrastructures critiques américains ?",
+    options: [
+      "Exfiltrer des données clients pour les revendre sur des forums criminels",
+      "Chiffrer les systèmes industriels pour obtenir une rançon de l'État",
+      "Se prépositionner pour pouvoir perturber ces systèmes en cas de conflit",
+      "Saturer les sites publics des opérateurs pour protester contre une politique",
+    ],
+    answer: 2,
+    explain: "L'avis décrit un prépositionnement : rester discret, parfois au moins cinq ans, pour pouvoir passer de l'IT vers l'OT et perturber en cas de crise géopolitique. La revente de données et la rançon sont des logiques criminelles, pas celle d'un acteur étatique qui veut durer sans se faire voir. La saturation de sites est le mode d'action typique des hacktivistes, bruyant par construction.",
+  },
+  {
+    q: "Dans l'incident déclaré par Coinbase en mai 2025, quel contrôle applicatif aurait le plus directement réduit ce que chaque agent soudoyé pouvait copier ?",
+    options: [
+      "Une MFA résistante au phishing sur les comptes des agents de support",
+      "Un chiffrement au repos des données clients dans la base de production",
+      "Un WAF devant l'outil de support pour bloquer les requêtes anormales",
+      "Un accès aux fiches lié à un ticket ouvert, avec champs masqués par défaut",
+    ],
+    answer: 3,
+    explain: "Les agents étaient légitimes : ils s'authentifiaient normalement, la MFA ne change donc rien à ce qu'ils peuvent voir. Le chiffrement au repos protège contre le vol du disque, pas contre une application qui déchiffre pour un utilisateur autorisé. Un WAF ne voit que des requêtes normales. Ce qui borne un initié, c'est le périmètre que l'outil lui ouvre : une fiche par ticket, des champs masqués, un journal relu.",
+  },
+  {
+    q: "D'après l'ENISA Threat Landscape 2025, les hacktivistes représentent près de 80 % des incidents recensés. Quelle conclusion en tirer pour prioriser le travail de l'AppSec ?",
+    options: [
+      "Aucune directement : ces incidents sont surtout des DDoS à faible impact",
+      "Que l'AppSec doit d'abord durcir les pages publiques contre la défiguration",
+      "Que le risque principal pour un SaaS européen vient désormais du hacktivisme",
+      "Qu'un WAF suffit, puisque le DDoS est le mode d'action dominant",
+    ],
+    answer: 0,
+    explain: "L'ENISA précise que ces incidents sont surtout des DDoS à faible impact, et que 2 % seulement ont perturbé un service. Compter des incidents n'est pas mesurer un risque : un rançongiciel pèse infiniment plus qu'une heure d'indisponibilité d'un site vitrine. Le DDoS se traite surtout au CDN et chez l'hébergeur, pas dans le code ; et un WAF filtre des requêtes applicatives, il n'absorbe pas un volume.",
+  },
+];
+
+<YouKnow>
+En pentest, l'attaquant est un rôle qu'on joue, avec un périmètre et une date de fin. Les vrais attaquants n'ont ni l'un ni l'autre, et ils ne veulent pas tous la même chose. Savoir qui vise une application dit ce qu'il faut protéger en premier.
+</YouKnow>
+
+## Une grille simple : motivation, moyens, patience
+
+Le renseignement sur la menace (M22) classe les acteurs avec des modèles élaborés. Pour décider d'une priorité dans une application, trois questions suffisent : **que veut-il** (argent, information, visibilité, vengeance), **avec quels moyens** (outils achetés, exploits maison, complicités internes) et **combien de temps peut-il attendre** (des heures ou des années). La réponse change ce qu'on protège.
+
+| Acteur | Motivation | Patience | Ce qu'il cherche dans un SaaS comme Novafact |
+| --- | --- | --- | --- |
+| **Affilié de rançongiciel** | Argent | Jours, voire heures | Comptes admin, exports en masse, sauvegardes à détruire |
+| **Courtier d'accès initial** | Argent, par revente | Minutes | Un accès qui marche : session, VPN, clé d'API |
+| **Acteur étatique** | Renseignement, prépositionnement | Années | Données d'un client sensible, accès durable et discret |
+| **Hacktiviste** | Visibilité, cause politique | Heures | Indisponibilité, défiguration, fuite spectaculaire |
+| **Initié** (malveillant, soudoyé, négligent) | Argent, rancune, erreur | Variable | Ce que ses outils internes lui montrent déjà |
+| **Opportuniste automatisé** | Argent, à grande échelle | Aucune | Identifiants réutilisés, failles connues non corrigées |
+
+## La criminalité organisée en service
+
+Le rançongiciel n'est plus l'affaire d'un groupe qui fait tout. Le modèle dominant est le **RaaS** (*ransomware as a service*) : un opérateur développe le logiciel, tient l'infrastructure et le site de fuite ; des **affiliés** louent la plateforme, mènent les intrusions et reversent une part de la rançon. En amont, des **courtiers d'accès initial** (IAB) vendent des accès déjà obtenus : identifiants volés, sessions VPN, serveurs exposés.
+
+Cette division du travail s'accélère. M-Trends 2026 mesure le délai entre l'accès initial et sa transmission à un second groupe : plus de huit heures en 2022, **22 secondes** en 2025. Le même rapport classe la **compromission antérieure** comme premier vecteur des opérations de rançongiciel (30 %) : la victime avait déjà été compromise par quelqu'un d'autre, qui a revendu ou transmis l'accès.
+
+<Callout kind="case">
+Le 20 février 2024, la NCA britannique annonce l'opération **Cronos** contre LockBit, menée avec le FBI et des partenaires de neuf autres pays. Elle prend le contrôle de l'environnement d'administration utilisé par les affiliés pour construire leurs attaques, et du site de fuite. Deux membres présumés sont arrêtés, plus de 200 comptes de cryptomonnaie gelés, plus de mille clés de déchiffrement récupérées. Un constat a marqué les esprits : une partie des données trouvées sur les serveurs appartenait à des victimes **qui avaient payé**. Payer ne garantit pas l'effacement.
+</Callout>
+
+Ce que cela change pour l'application : l'affilié n'a pas besoin d'une faille élaborée, il exploite ce qu'on lui vend ou ce qui est exposé. Une session admin rejouable, une clé d'API qui n'expire jamais, un export sans limite valent de l'argent sur un marché.
+
+## Les acteurs étatiques
+
+Un acteur étatique a du temps et des moyens, et ses objectifs ne sont pas financiers : espionnage, ou **prépositionnement** pour pouvoir perturber plus tard. Le Panorama 2025 de l'ANSSI (mars 2026) note que les modes opératoires qui ont visé les intérêts français sont liés à la Russie et à la Chine, principalement à des fins d'espionnage ou de prépositionnement, et observe un **brouillage** croissant entre acteurs étatiques et criminels, qui partagent davantage leurs capacités.
+
+<Callout kind="case">
+L'avis conjoint CISA AA24-038A (7 février 2024) décrit **Volt Typhoon**, un acteur parrainé par l'État chinois, présent dans des réseaux américains de l'énergie, de l'eau, des transports et des communications. Accès initial : l'exploitation de failles connues ou inconnues dans des **équipements exposés** (VPN, pare-feu, routeurs). Ensuite, presque aucun malware : des outils natifs du système (*living off the land*). Dans certains réseaux, la présence remontait à **au moins cinq ans**. L'objectif décrit n'est pas le vol mais la capacité de perturber en cas de conflit.
+</Callout>
+
+Pour l'AppSec, la leçon est double. D'abord, la porte d'entrée est souvent une **application exposée** : l'interface web d'un équipement est une application comme une autre. Ensuite, un attaquant patient n'a pas besoin de bruit : ce qui le trahit, ce sont des usages anormaux de fonctions légitimes, que seule l'application peut journaliser.
+
+## Les hacktivistes
+
+L'ENISA Threat Landscape 2025 (juillet 2024 à juin 2025, 4 875 incidents) place le hacktivisme en tête, avec près de **80 % des incidents** recensés, surtout des DDoS à faible impact : 2 % seulement ont perturbé un service. En juillet 2025, l'opération Eastwood, coordonnée par Europol, a visé NoName057(16), un groupe prorusse qui recrutait des volontaires pour lancer ses attaques avec son outil DDoSia.
+
+Le volume impressionne, l'impact moins. Pour une application, la réponse est d'abord architecturale (CDN, limitation de débit, pages statiques en cache) ; le code compte surtout pour les **endpoints coûteux** qu'un petit volume suffit à épuiser : recherche plein texte, génération de PDF, export.
+
+## Les initiés
+
+L'initié est le seul acteur qui n'a pas besoin de franchir l'authentification. Il peut être malveillant, soudoyé, ou simplement négligent. Ce qui le limite, ce n'est pas le périmètre réseau, c'est **ce que ses outils internes lui montrent**.
+
+<Callout kind="case">
+Dans un formulaire 8-K déposé auprès de la SEC en mai 2025, Coinbase indique qu'un attaquant a payé plusieurs prestataires ou employés du support, hors des États-Unis, pour collecter des données dans ses systèmes internes : noms, adresses, images de pièces d'identité, soldes et historiques de transactions. L'attaquant a ensuite tenté d'extorquer l'entreprise, qui a refusé. Coinbase estimait alors le coût entre 180 et 400 millions de dollars. Aucun mot de passe ni clé privée n'a fuité : les agents ont pris ce que leur outil de support affichait.
+</Callout>
+
+## Dans le code : l'outil de support de Novafact
+
+Le back-office de support est l'endroit où l'initié et l'attaquant qui a volé une session d'agent se rejoignent. La version naïve fait confiance au rôle :
+
+<Diff file="apps/api/src/routes/support.ts" hlBefore="2-6" hlAfter="3-13">
+
+```ts
+// Tout agent authentifié peut ouvrir n'importe quelle fiche client.
+router.get('/support/customers/:id', requireRole('support'), async (req, res) => {
+  const customer = await prisma.customer.findUnique({
+    where: { id: req.params.id },
+    include: { bankAccounts: true, identityDocuments: true },
+  });
+  res.json(customer);
+});
+```
+
+```ts
+// L'accès est borné par un ticket ouvert et assigné : un agent ne parcourt plus la base.
+router.get('/support/tickets/:ticketId/customer', requireRole('support'), async (req, res) => {
+  const ticket = await prisma.ticket.findFirst({
+    where: { id: req.params.ticketId, assigneeId: req.user.id, status: 'open' },
+    select: { customerId: true },
+  });
+  if (!ticket) return res.status(404).end();
+  // Champs masqués par défaut : l'IBAN complet passe par un « révéler » journalisé.
+  const customer = await prisma.customer.findUnique({
+    where: { id: ticket.customerId },
+    select: { name: true, email: true, plan: true, ibanLast4: true },
+  });
+  audit.info({ event: 'support_customer_view', agent: req.user.id, ticket: req.params.ticketId });
+  res.json(customer);
+});
+```
+
+</Diff>
+
+Le mauvais correctif classique consiste à garder la première route et à ajouter un **plafond quotidien** de consultations par agent. Il casse vite : un agent soudoyé qui consulte quarante fiches par jour pendant un mois reste sous le seuil et sort plus d'un millier de dossiers. Le plafond borne un débit ; seul le lien au ticket borne le **périmètre**. La détection (un agent qui ouvre des fiches sans rapport avec ses tickets) vient en complément, au module 24.
+
+<Recap items={[
+  "Trois questions suffisent pour prioriser : que veut l'attaquant, avec quels moyens, et combien de temps peut-il attendre.",
+  "Le rançongiciel fonctionne en service : opérateurs, affiliés, courtiers d'accès ; la transmission d'un accès se compte désormais en secondes.",
+  "Opération Cronos : payer la rançon ne garantit pas l'effacement des données volées.",
+  "Les acteurs étatiques entrent souvent par des équipements exposés et restent des années ; seuls des usages anormaux de fonctions légitimes les trahissent.",
+  "Les hacktivistes dominent en nombre d'incidents (DDoS) mais rarement en impact.",
+  "L'initié est borné par ce que ses outils lui montrent : lier l'accès à un ticket, masquer, journaliser.",
+]} />
+
+<Sources items={[
+  { title: "NCA, International investigation disrupts the world's most harmful cyber crime group (20 février 2024)", url: "https://www.nationalcrimeagency.gov.uk/news/nca-leads-international-investigation-targeting-worlds-most-harmful-ransomware-group" },
+  { title: "CISA, AA24-038A, PRC State-Sponsored Actors Compromise and Maintain Persistent Access to U.S. Critical Infrastructure (7 février 2024)", url: "https://www.cisa.gov/news-events/cybersecurity-advisories/aa24-038a" },
+  { title: "Mandiant, M-Trends 2026 (23 mars 2026)", url: "https://cloud.google.com/blog/topics/threat-intelligence/m-trends-2026" },
+  { title: "ENISA Threat Landscape 2025, communiqué (1er octobre 2025)", url: "https://www.enisa.europa.eu/news/etl-2025-eu-consistently-targeted-by-diverse-yet-convergent-threat-groups" },
+  { title: "ANSSI, Panorama de la cybermenace 2025 (11 mars 2026)", url: "https://cyber.gouv.fr/actualites/panorama-de-la-cybermenace-2025/" },
+  { title: "Coinbase Global, formulaire 8-K (mai 2025)", url: "https://www.sec.gov/Archives/edgar/data/1679788/000167978825000094/coin-20250514.htm" },
+  { title: "BleepingComputer, Europol disrupts pro-Russian NoName057(16) DDoS hacktivist group (juillet 2025)", url: "https://www.bleepingcomputer.com/news/security/europol-disrupts-pro-russian-noname05716-ddos-hacktivist-group/" },
+]} />

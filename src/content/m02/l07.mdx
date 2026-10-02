@@ -1,0 +1,193 @@
+export const questions = [
+  {
+    q: "La route d'upload de Novafact utilise multer avec `dest` mais sans option `limits`. Quel risque cela ouvre-t-il ?",
+    options: [
+      "Aucun dans la plupart des cas : multer limite par défaut chaque fichier à 1 Mo",
+      "Un fichier de taille arbitraire peut remplir le disque : fileSize est illimité par défaut",
+      "Le nom d'origine du fichier est réutilisé tel quel comme nom sur le disque",
+      "Les fichiers sont écrits dans le dossier public, donc servis par express.static",
+    ],
+    answer: 1,
+    explain: "Par défaut, `fileSize`, `files` et `parts` valent Infinity dans multer : sans limites explicites, une seule requête peut épuiser le disque ou la mémoire. La limite de 1 Mo existe, mais elle porte sur `fieldSize`, la taille des champs texte, pas des fichiers. Avec `dest`, multer génère un nom aléatoire sans extension : il ne réutilise pas `originalname`. Et `dest` ne rend rien public par lui-même ; c'est le choix du dossier, pas l'option, qui le ferait.",
+  },
+  {
+    q: "Un client téléverse un fichier `logo.svg`. `fileTypeFromBuffer` renvoie `undefined`. Que faut-il en conclure ?",
+    options: [
+      "Que le fichier est corrompu, puisque tout format valide a une signature reconnue",
+      "Que le fichier est inoffensif : sans signature binaire, il ne contient pas d'exécutable",
+      "Rien sur son contenu : file-type ne reconnaît pas les formats texte comme le SVG",
+      "Qu'il faut alors se fier à l'extension, qui reste la seule information disponible",
+    ],
+    answer: 2,
+    explain: "file-type lit des nombres magiques et se limite aux formats binaires : sa documentation exclut explicitement les formats texte comme le SVG ou le CSV. Un SVG valide, avec un script dedans, renvoie donc undefined. Ce n'est ni un signe de corruption ni un gage d'innocuité, et l'extension est fournie par le client. La conduite sûre est un refus par défaut de ce qui n'est pas identifié, et un traitement dédié si le SVG est vraiment nécessaire (conversion en PNG côté serveur, par exemple).",
+  },
+  {
+    q: "Novafact sert les pièces jointes depuis son propre domaine, avec `Content-Disposition: attachment`. Un relecteur exige quand même un domaine séparé. Quel est le meilleur argument ?",
+    options: [
+      "Les navigateurs ignorent Content-Disposition pour les SVG et les affichent toujours",
+      "S3 ne permet pas de définir Content-Disposition sur un objet servi par URL présignée",
+      "Un domaine séparé est nécessaire pour que les règles CORS autorisent le téléchargement",
+      "Une seule erreur d'en-tête ferait exécuter le fichier dans l'origine de l'application",
+    ],
+    answer: 3,
+    explain: "L'en-tête protège tant qu'il est présent sur chaque réponse ; une route d'aperçu ajoutée plus tard, un proxy qui le retire, et un HTML ou un SVG s'exécute avec les cookies et l'origine de l'application. Le domaine séparé borne l'impact de cette erreur : c'est de la défense en profondeur. Les navigateurs respectent attachment, SVG compris, et une URL présignée peut justement imposer Content-Disposition. CORS ne concerne pas un téléchargement par navigation.",
+  },
+  {
+    q: "tar-fs a corrigé trois failles d'extraction successives entre mars et septembre 2025, chacune contournant en partie la précédente. Quelle conclusion de conception en tirer ?",
+    options: [
+      "Extraire une archive non fiable, c'est parser une entrée hostile : on filtre et on isole",
+      "Il suffit de vérifier qu'aucun nom d'entrée ne contient « ../ » avant d'extraire",
+      "Il faut préférer le format zip, dont les bibliothèques n'ont pas ce type de faille",
+      "Il suffit de garder tar-fs à jour, puisque chaque faille a été corrigée rapidement",
+    ],
+    answer: 0,
+    explain: "Les failles passaient par des liens symboliques et physiques, des chemins absolus ou des normalisations différentes : filtrer « ../ » dans les noms ne les arrête pas. Le zip a eu exactement la même classe de failles, sous le nom de Zip Slip. Se tenir à jour est nécessaire, mais une série de contournements montre que le prochain viendra : la conception doit tenir même quand la bibliothèque a un bug. D'où un filtre qui n'accepte que fichiers et dossiers, une vérification de chemin, des limites, et une extraction dans un processus isolé.",
+  },
+];
+
+<YouKnow>
+Un pentester a déjà téléversé un SVG avec un `<script>`, un `.php` déguisé en image, ou une archive dont une entrée s'appelait `../../app/config.js`. Cette leçon suit le fichier côté serveur, de la réception au téléchargement, et place à chaque étape le contrôle qui supprime la classe de bug.
+</YouKnow>
+
+## Trois moments, trois familles de bugs
+
+Un fichier téléversé traverse trois étapes, et chacune a ses failles :
+
+| Moment | Ce qui casse | Contrôle structurel |
+| --- | --- | --- |
+| **Réception** | Déni de service par taille ou par parsing, route d'upload inattendue | Middleware par route, limites explicites, parseur à jour |
+| **Stockage** | Type mal identifié, nom choisi par le client, fichier rangé à côté du code | Type lu dans les octets, nom généré par le serveur, stockage hors de l'application |
+| **Restitution** | Contenu actif exécuté dans l'origine de l'application, traversée de chemin, BOLA | Identifiant opaque vérifié, en-têtes de téléchargement, origine séparée |
+
+Le pipeline complet, avec quarantaine, analyse isolée et envoi direct vers S3 par POST présigné, est conçu en M13 (leçon 5). Ici, on regarde le code Express qui le sert, et les pièges de chaque étape.
+
+## Recevoir : multer, limites et DoS
+
+multer est le middleware multipart d'Express. Trois points de son README sont des règles de sécurité : ne **jamais** l'installer comme middleware global (n'importe quelle route accepterait des fichiers), considérer `originalname` comme fourni par le client, et fixer des `limits`, car `fileSize`, `files` et `parts` sont **illimités par défaut**.
+
+Le parsing multipart est lui-même une surface. En 2025, multer a corrigé quatre failles de déni de service : flux internes jamais fermés après une erreur (CVE-2025-47935), requête malformée qui fait tomber le processus (CVE-2025-47944), champ fichier au nom vide (CVE-2025-48997), autre requête malformée (CVE-2025-7338). Toutes les versions 1.x sont dépréciées sur npm avec un message qui renvoie vers la 2.x. Un upload, c'est un parseur exposé à des octets hostiles : il se met à jour comme un parseur XML (leçon 5).
+
+<Diff file="apps/api/src/attachments/upload.ts" hlBefore="2,5,6" hlAfter="5,6,13,14,15,16">
+
+```ts
+const upload = multer({ dest: 'public/uploads' });       // servi par express.static
+app.use(upload.any());                                    // toutes les routes acceptent des fichiers
+
+app.post('/api/invoices/:id/attachments', (req, res) => {
+  const f = (req.files as Express.Multer.File[])[0];
+  fs.renameSync(f.path, `public/uploads/${f.originalname}`); // nom et extension choisis par le client
+  res.json({ url: `/uploads/${f.originalname}` });
+});
+```
+
+```ts
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 5, parts: 6 }, // illimités par défaut
+});
+const ALLOWED = new Set(['application/pdf', 'image/png', 'image/jpeg']);
+
+router.post('/invoices/:id/attachments', requireInvoice('edit'), upload.single('file'), async (req, res) => {
+  if (!req.file) throw new HttpError(400, 'Fichier manquant');
+  const type = await fileTypeFromBuffer(req.file.buffer);      // les octets, pas la déclaration
+  if (!type || !ALLOWED.has(type.mime)) throw new HttpError(415, 'Type de fichier non accepté');
+  const key = `quarantine/${req.tenantId}/${randomUUID()}`;    // nom choisi par le serveur
+  await s3.send(new PutObjectCommand({ Bucket: QUARANTINE_BUCKET, Key: key, Body: req.file.buffer, ContentType: type.mime }));
+  const a = await attachments.create({ key, invoiceId: req.params.id, tenantId: req.tenantId,
+    originalName: req.file.originalname.slice(0, 200), mime: type.mime });
+  res.status(201).json({ id: a.id });
+});
+```
+
+</Diff>
+
+Le stockage en mémoire n'est acceptable qu'avec une limite basse ; au-delà de quelques mégaoctets, le fichier part directement dans S3 par POST présigné, sans traverser l'API (M13).
+
+## Le type réel, pas le type déclaré
+
+L'extension et le `Content-Type` de la partie multipart (`file.mimetype`) sont écrits par le client. Le correctif tentant, `if (file.mimetype !== 'application/pdf') refuser`, tombe devant un SVG piégé envoyé avec `Content-Type: application/pdf` : le contrôle passe, et si le fichier est ensuite servi avec le type déclaré, ou deviné par le navigateur, le script s'exécute.
+
+La bibliothèque `file-type` lit les **nombres magiques** des premiers octets (`fileTypeFromBuffer`, en ESM uniquement). Sa documentation pose deux limites qu'il faut connaître : elle ne vise que les formats **binaires** (ni texte, ni CSV, ni SVG : un SVG renvoie `undefined`), et son résultat est un indice au mieux, pas la preuve qu'un fichier est valide. D'où une liste d'autorisation courte, un refus de tout ce qui n'est pas identifié, et, pour les images et les PDF, une **conversion** en quarantaine (réencodage, aplatissement) qui ne laisse passer que ce que le convertisseur a compris.
+
+<Callout kind="case">
+**Le fichier comme vecteur d'exécution.** En mai 2016, ImageTragick (CVE-2016-3714) montrait qu'une image piégée pouvait faire exécuter des commandes à ImageMagick, via ses délégués externes ; parmi les mesures préconisées, vérifier les nombres magiques avant tout traitement. En 2021, GitLab (CVE-2021-22205, CVSS 10, inscrite au catalogue KEV de la CISA) transmettait les images téléversées à ExifTool sans les valider, et une faille d'ExifTool dans le traitement du format DjVu (CVE-2021-22204) donnait une exécution de code à distance sans authentification. Dans les deux cas, ce n'est pas le stockage qui a cédé, mais l'outil qui lisait le fichier : le traitement des fichiers non fiables appartient à un processus isolé, sans droits ni réseau.
+</Callout>
+
+## Nommer et ranger
+
+Le nom d'origine ne sert qu'à l'affichage. Le nom de stockage est un **identifiant généré** par le serveur, et le fichier vit **hors de l'application** : dans un bucket S3 privé (Block Public Access activé au niveau du compte), jamais dans un dossier servi par `express.static`. L'une des CVE de 2022 sur `express-fileupload` (CVE-2022-27140, téléversement d'un fichier PHP exécutable) a d'ailleurs été contestée par le mainteneur pour une raison instructive  : le middleware transmet le fichier et son nom, c'est à l'application de décider s'il faut le renommer et comment.
+
+Pour l'envoi direct, il faut garder en tête ce qu'impose chaque forme d'URL présignée : un **PUT** présigné vérifie le `Content-Type` qui a été signé (sinon `SignatureDoesNotMatch`), mais ne borne pas la taille et écrase un objet existant de même clé ; un **POST** présigné accepte une politique avec `content-length-range`, vérifiée par S3.
+
+## Télécharger : un identifiant, pas un chemin
+
+La traversée de chemin au téléchargement a été traitée en leçon 3 (`path.resolve`, vérification avec `path.sep`, `realpath`). Elle a un prolongement que les correctifs en chaîne de Node illustrent bien : sous Windows, `path.join` traitait mal les lettres de lecteur (CVE-2025-23084, janvier 2025), et le correctif a été contourné par les noms de périphériques comme `CON` ou `PRN` (CVE-2025-27210, juillet 2025). Chaque vérification de chemin est une interprétation de l'entrée, et chaque interprétation peut diverger. La solution structurelle est de ne plus accepter de chemin du tout :
+
+<Diff file="apps/api/src/attachments/download.ts" hlBefore="2" hlAfter="2,3,4,6,7,8">
+
+```ts
+router.get('/download', (req, res) => {
+  res.download(path.join(UPLOADS, String(req.query.file)));   // ?file=../../.env
+});
+```
+
+```ts
+router.get('/attachments/:id', async (req, res) => {
+  const a = await attachments.findFirst({ id: req.params.id, tenantId: req.tenantId });
+  if (!a) throw new HttpError(404, 'Introuvable');              // autre tenant = inexistant
+  const url = await getSignedUrl(s3, new GetObjectCommand({
+    Bucket: CLEAN_BUCKET, Key: a.key,
+    ResponseContentDisposition: contentDisposition(a.originalName), // attachment, nom encodé RFC 6266
+    ResponseContentType: a.mime,                                     // le type vérifié, pas le déclaré
+  }), { expiresIn: 60 });
+  res.redirect(303, url);
+});
+```
+
+</Diff>
+
+La recherche par identifiant **et** par tenant ferme aussi la BOLA (leçon 1) : un identifiant opaque n'est pas une autorisation. Le paquet `content-disposition`, qu'Express utilise dans `res.download`, produit `attachment` par défaut et encode les noms non ASCII (`filename*=UTF-8''…`), ce qui évite l'injection d'en-tête par un nom de fichier.
+
+## Servir sans exécuter
+
+Un SVG ou un HTML servi depuis l'origine de l'application est une XSS stockée : MDN rappelle qu'un SVG chargé par `<img>` n'exécute pas de script, mais qu'ouvert directement, ou intégré par `<iframe>` ou `<object>`, il en exécute. Les protections s'empilent :
+
+- `Content-Disposition: attachment`, pour que la navigation télécharge au lieu d'afficher ;
+- `X-Content-Type-Options: nosniff`, pour que le navigateur ne devine pas un autre type ;
+- `Content-Security-Policy: sandbox`, pour que même un rendu n'ait ni script ni origine ;
+- une **origine séparée** : Google sert depuis longtemps le contenu des utilisateurs sur des domaines dédiés (`googleusercontent.com`), et a détaillé en 2023 ces en-têtes et leurs limites. Chez Novafact, les fichiers passent par `novafact-usercontent.example`, une distribution CloudFront qui ajoute ces en-têtes.
+
+## Les archives : Zip Slip
+
+Extraire une archive, c'est laisser l'attaquant choisir des chemins. Snyk a baptisé la classe **Zip Slip** en juin 2018 (adm-zip et unzipper en faisaient partie). L'histoire de node-tar et de tar-fs montre pourquoi filtrer les `../` ne suffit pas : node-tar a corrigé en 2021 les chemins absolus à racines multiples (CVE-2021-32804), un cache de dossiers contournable par lien symbolique (CVE-2021-32803), puis ses variantes par barres obliques inverses, normalisation Unicode et lettres de lecteur ; tar-fs a enchaîné CVE-2024-12905, CVE-2025-48387 et CVE-2025-59343, chacune contournant en partie la précédente.
+
+La règle de Novafact : on n'extrait une archive que si le métier l'exige, dans un worker isolé, avec un filtre qui n'accepte que les fichiers et dossiers ordinaires (aucun lien), une vérification de chemin après résolution, et des limites de nombre d'entrées et de taille décompressée contre les bombes de décompression.
+
+<Callout kind="tip">
+Chaque refus se journalise (`upload_rejected` avec le type annoncé et le type détecté, M23). Un même compte qui envoie des SVG déclarés en PDF ne fait pas une erreur de manipulation.
+</Callout>
+
+<Lab id="ps-file-upload" note="Pour chaque lab, notez l'étape du pipeline qui aurait dû arrêter le fichier : réception, identification du type, nommage, ou restitution." />
+
+<Recap items={[
+  "Réception : multer par route, limites explicites (illimitées par défaut), version 2.x à jour.",
+  "Type réel lu dans les octets avec une liste d'autorisation ; file-type ne voit pas les formats texte comme le SVG ; conversion en quarantaine.",
+  "Nom généré par le serveur, stockage S3 privé hors de l'application ; le nom d'origine ne sert qu'à l'affichage.",
+  "Téléchargement par identifiant vérifié avec le tenant, URL présignée courte et en-têtes imposés, jamais par chemin.",
+  "Contenu servi en attachment, nosniff, CSP sandbox, depuis une origine séparée.",
+  "Une archive non fiable s'extrait isolée, filtrée et bornée, ou pas du tout.",
+]} />
+
+<Sources items={[
+  { title: "multer : README (limits, sécurité)", url: "https://github.com/expressjs/multer/blob/main/README.md" },
+  { title: "multer : avis de sécurité", url: "https://github.com/expressjs/multer/security/advisories" },
+  { title: "file-type", url: "https://github.com/sindresorhus/file-type" },
+  { title: "ImageTragick (CVE-2016-3714)", url: "https://imagetragick.com/" },
+  { title: "NVD : CVE-2021-22205 (GitLab)", url: "https://nvd.nist.gov/vuln/detail/CVE-2021-22205" },
+  { title: "Node.js : correctifs de sécurité de juillet 2025 (CVE-2025-27210)", url: "https://nodejs.org/en/blog/vulnerability/july-2025-security-releases" },
+  { title: "Snyk : Zip Slip (2018)", url: "https://security.snyk.io/research/zip-slip-vulnerability" },
+  { title: "tar-fs : GHSA-8cj5-5rvv-wf4v (CVE-2025-48387)", url: "https://github.com/mafintosh/tar-fs/security/advisories/GHSA-8cj5-5rvv-wf4v" },
+  { title: "MDN : SVG as an image", url: "https://developer.mozilla.org/en-US/docs/Web/SVG/Guides/SVG_as_an_image" },
+  { title: "Google Security Blog : Securely Hosting User Data in Modern Web Applications (2023)", url: "https://security.googleblog.com/2023/04/securely-hosting-user-data-in-modern.html" },
+  { title: "OWASP Cheat Sheet : File Upload", url: "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html" },
+]} />

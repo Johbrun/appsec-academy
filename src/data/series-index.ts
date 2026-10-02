@@ -43,4 +43,9 @@ export const seriesLoaders: Record<string, Loader> = {
   'agent-blast-radius': () => import('./game-agent').then((m) => m.agentSeries),
   'crise-j0': () => import('./game-crisis').then((m) => m.crisisSeries),
   'red-blue': () => import('./game-redblue').then((m) => m.redBlueSeries),
+  'tarball-inspector': () => import('./game-tarball').then((m) => m.tarballSeries),
+  'attack-tactics': () => import('./game-attack-tactics').then((m) => m.tacticSeries),
+  'attack-mitigations': () => import('./game-attack-mitigations').then((m) => m.rampartSeries),
+  'attack-killchain': () => import('./game-attack-killchain').then((m) => m.chainSeries),
+  'cti-mapper': () => import('./game-cti').then((m) => m.ctiSeries),
 };

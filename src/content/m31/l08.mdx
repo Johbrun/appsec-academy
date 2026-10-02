@@ -1,0 +1,160 @@
+export const questions = [
+  {
+    q: "Dans l'Enterprise-Managed Authorization, à qui le client MCP présente-t-il l'ID-JAG ?",
+    options: [
+      "Au serveur MCP, dans l'en-tête Authorization, à la place d'un access token",
+      "À l'IdP de l'entreprise, pour qu'il le signe après évaluation de sa politique",
+      "Au serveur d'autorisation du serveur MCP, comme assertion RFC 7523 contre un access token",
+      "Au serveur d'autorisation du serveur MCP, comme subject_token d'un échange RFC 8693",
+    ],
+    answer: 2,
+    explain: "L'IdP émet l'ID-JAG à l'issue d'un échange RFC 8693 ; le client le présente ensuite au serveur d'autorisation du serveur MCP avec grant_type jwt-bearer, et reçoit un access token restreint à ce serveur. L'ID-JAG n'est jamais présenté au serveur MCP lui-même : son audience est l'AS. L'échange RFC 8693 a lieu chez l'IdP, pas chez l'AS de la ressource.",
+  },
+  {
+    q: "Le serveur d'autorisation de Novafact reçoit un ID-JAG valide signé par l'IdP d'un client. Comment retrouve-t-il le compte de l'utilisateur ?",
+    options: [
+      "Par la claim email de l'ID-JAG, signée par l'IdP et donc digne de confiance",
+      "Par le couple iss et sub, rattaché au tenant qui a déclaré cet IdP",
+      "Par le client_id de l'ID-JAG, qui identifie l'utilisateur auprès de l'AS",
+      "Par la claim resource, qui désigne le compte Novafact visé par l'agent",
+    ],
+    answer: 1,
+    explain: "Un IdP d'entreprise peut émettre des assertions pour n'importe quelle adresse, y compris celle d'un autre client de Novafact : se fier à l'e-mail rejoue nOAuth à l'échelle des agents. Le couple (iss, sub), limité au tenant qui a déclaré cet émetteur, empêche un IdP de parler pour les comptes d'un autre. Le client_id désigne l'application cliente et resource le serveur MCP, pas l'utilisateur.",
+  },
+  {
+    q: "Qu'est-ce que l'IdP de l'entreprise voit, et ne voit pas, avec l'Enterprise-Managed Authorization ?",
+    options: [
+      "Il voit chaque appel d'outil, puisque l'access token MCP est vérifié auprès de lui à chaque requête",
+      "Il voit l'émission des jetons, mais pas le trafic MCP entre le client et le serveur",
+      "Il ne voit rien : l'ID-JAG est émis par le client MCP et seulement vérifié par l'IdP",
+      "Il voit le trafic MCP, mais pas les scopes, qui restent décidés par le serveur MCP",
+    ],
+    answer: 1,
+    explain: "L'extension le dit explicitement : la visibilité de l'IdP se limite à l'émission de l'accès ; il décide quels utilisateurs peuvent relier tel client à tel serveur, avec quels scopes, mais ne voit pas les appels. C'est l'IdP qui émet et signe l'ID-JAG, pas le client. La journalisation des appels d'outils reste à faire au niveau du serveur ou d'une passerelle.",
+  },
+  {
+    q: "Pourquoi la feuille de route MCP d'août 2026 vise-t-elle DPoP et la fédération d'identité de workload ?",
+    options: [
+      "Parce que l'autorisation MCP suppose une personne qui approuve dans un navigateur, alors que les appelants sont de plus en plus des workloads",
+      "Parce que l'Enterprise-Managed Authorization a été retirée au profit d'un mécanisme fondé sur des certificats clients",
+      "Parce que les jetons bearer sont interdits par OAuth 2.1, qui impose une preuve de possession",
+      "Parce que les serveurs MCP ne peuvent pas valider des JWT sans une clé liée au workload",
+    ],
+    answer: 0,
+    explain: "Le billet de feuille de route part de ce constat : l'autorisation de MCP est construite autour d'une personne qui approuve un accès dans un navigateur, alors que de plus en plus d'appelants sont des agents qui tournent comme workloads cloud. L'EMA reste une extension stable. OAuth 2.1 n'interdit pas les jetons bearer, et un serveur valide un JWT sans aucun lien avec le workload.",
+  },
+];
+
+<YouKnow>
+Un pentester qui a audité des SSO SAML et OIDC sait qu'en entreprise le seul endroit où l'on coupe un accès en une minute, c'est l'IdP. Le flux MCP vu jusqu'ici l'ignore : chaque utilisateur connecte chaque client à chaque serveur, avec un consentement par paire, et l'équipe sécurité n'en sait rien.
+</YouKnow>
+
+## Le problème de l'entreprise
+
+Le flux standard (leçons 2 à 4) est pensé pour une personne qui approuve un accès dans un navigateur. Dans une entreprise de 2 000 personnes qui utilise dix serveurs MCP depuis trois clients, cela donne des milliers de consentements individuels, des clients enregistrés dynamiquement que personne n'a validés, et aucune réponse simple à la question « qui a branché quel agent sur quoi ? ». Posta et Ryan le résumaient en août 2025 : un enregistrement anonyme et un consentement par utilisateur sont inacceptables quand l'entreprise a déjà un IdP qui décide qui accède à quoi.
+
+La réponse est l'extension officielle **Enterprise-Managed Authorization** (EMA, `io.modelcontextprotocol/enterprise-managed-authorization`), stable, présentée par Paul Carleton le 18 juin 2026. Elle applique un brouillon IETF du groupe OAuth, l'*Identity Assertion JWT Authorization Grant* (ID-JAG), dont la version courante est la -04 de mai 2026. Selon le billet d'annonce, Okta est le premier IdP pris en charge, Anthropic et Visual Studio Code l'ont implémentée côté client, et des serveurs comme Asana, Atlassian, Canva, Figma, Linear ou Supabase côté serveur.
+
+## Le flux en trois temps
+
+<Steps items={[
+  { title: "SSO", text: "L'utilisateur se connecte au client MCP via l'IdP de l'entreprise (OIDC ou SAML). Le client conserve l'ID token." },
+  { title: "Échange auprès de l'IdP", text: "Le client échange l'ID token (RFC 8693) contre un ID-JAG visant le serveur d'autorisation du serveur MCP. L'IdP applique la politique de l'entreprise." },
+  { title: "Jeton auprès de l'AS", text: "Le client présente l'ID-JAG comme assertion (RFC 7523) au serveur d'autorisation du serveur MCP, qui émet un access token restreint à ce serveur." },
+]} />
+
+<Code file="échange auprès de l'IdP (RFC 8693)">
+
+```http
+POST /oauth2/token HTTP/1.1
+Host: acme.idp.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&requested_token_type=urn:ietf:params:oauth:token-type:id-jag
+&audience=https://auth.novafact.example
+&resource=https://mcp.novafact.example/mcp
+&scope=invoices:read
+&subject_token=<ID token de l'utilisateur>
+&subject_token_type=urn:ietf:params:oauth:token-type:id_token
+```
+
+</Code>
+
+Dans ce profil, `audience` est **l'issuer du serveur d'autorisation** de la ressource, et `resource`, optionnel, est l'identifiant du serveur MCP. L'IdP évalue ses politiques (ce groupe peut-il utiliser ce client avec ce serveur, avec ces scopes ?) et renvoie un ID-JAG de courte durée, un JWT de type `oauth-id-jag+jwt` qui porte notamment `iss`, `sub`, `aud`, `resource`, `client_id`, `scope`, `jti` et `exp`. Le client le présente ensuite avec `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`. L'extension exige que l'access token émis soit **restreint en audience** au serveur MCP désigné par la claim `resource`.
+
+Un AS annonce sa prise en charge par `urn:ietf:params:oauth:grant-profile:id-jag` dans le champ `authorization_grant_profiles_supported` de ses métadonnées.
+
+## Ce que l'IdP voit, et ce qu'il ne voit pas
+
+L'extension est honnête sur sa portée : l'IdP participe à **l'émission** du jeton, pas au trafic MCP. Il peut dire « le groupe ingénierie a accès en lecture au serveur de gestion de code depuis l'éditeur, le marketing en lecture et écriture à la documentation » ; il ne voit pas quels outils sont appelés ensuite. L'inventaire et la journalisation des appels d'outils restent le travail du serveur ou d'une passerelle (M28, leçon 7). Et la révocation devient centrale : un utilisateur désactivé dans l'IdP ne peut plus obtenir d'ID-JAG, mais les access tokens déjà émis vivent jusqu'à leur expiration. D'où des durées courtes.
+
+## Côté serveur d'autorisation : valider l'ID-JAG
+
+Novafact vend à des entreprises qui ont leur propre IdP. Son serveur d'autorisation accepte donc des ID-JAG émis par **des IdP qu'il ne contrôle pas**. Le code ci-dessous est une illustration générique avec `jose`, pas l'API d'un SDK :
+
+<Diff file="services/auth/src/grants/id-jag.ts" hlBefore="2,3,4" hlAfter="2,3,5,6,7,9,10,11,12,13">
+
+```ts
+export async function idJagGrant(assertion: string, client: Client) {
+  const { payload } = await jwtVerify(assertion, jwksFor(decodeJwt(assertion).iss!)); // émetteur choisi par le jeton
+  const user = await users.findByEmail(String(payload.email)); // identité par e-mail
+  return issueAccessToken({ user, scope: String(payload.scope) });
+}
+```
+
+```ts
+export async function idJagGrant(assertion: string, client: Client) {
+  const iss = decodeJwt(assertion).iss;
+  const tenant = await tenants.byTrustedIdp(String(iss)); // liste fixe, déclarée par chaque client entreprise
+  if (!tenant) throw new InvalidGrant('IdP inconnu');
+  const { payload } = await jwtVerify(assertion, tenant.idpJwks, {
+    issuer: tenant.idpIssuer, audience: AS_ISSUER, typ: 'oauth-id-jag+jwt', algorithms: ['RS256', 'ES256'], maxTokenAge: '5m',
+  });
+  if (payload.client_id !== client.id) throw new InvalidGrant('ID-JAG émis pour un autre client');
+  if (payload.resource !== MCP_RESOURCE) throw new InvalidGrant('autre ressource');
+  if (!(await replay.addIfAbsent(String(payload.jti), 300))) throw new InvalidGrant('ID-JAG rejoué');
+  // l'utilisateur est (iss, sub) DANS ce tenant : un IdP ne parle que pour ses propres comptes
+  const user = await users.byFederatedId(tenant.id, String(iss), String(payload.sub));
+  return issueAccessToken({ user, aud: MCP_RESOURCE, scope: intersect(payload.scope, tenant.allowedScopes) });
+}
+```
+
+</Diff>
+
+La version vulnérable cumule deux fautes déjà vues en M14 (leçons 5 et 6). D'abord, elle choisit la clé de vérification d'après l'`iss` du jeton : n'importe quel IdP qui publie un JWKS devient émetteur accepté. Ensuite, elle identifie l'utilisateur par l'e-mail : un client entreprise malveillant (ou dont l'IdP est compromis) émet un ID-JAG avec l'adresse d'un comptable d'un **autre** client et entre dans son tenant. C'est nOAuth, rejoué à l'échelle des agents. Le mauvais correctif fréquent consiste à vérifier que le domaine de l'e-mail correspond au tenant ; il tombe dès qu'un IdP laisse ses administrateurs poser une adresse non vérifiée.
+
+<Callout kind="case">
+**Asana MCP, juin 2025.** Asana a notifié ses clients qu'une faille logique de son serveur MCP avait rendu, entre le 1er mai et le 4 juin 2025, des données d'une organisation visibles par des utilisateurs d'autres organisations ; BleepingComputer, qui a relayé la notification, évoque environ 1 000 clients concernés. Asana n'a pas publié le mécanisme exact, et rien n'indique qu'il touchait l'autorisation OAuth. Le cas rappelle seulement où se joue la sécurité d'un serveur MCP multi-tenant : dans la correspondance entre une identité et un tenant, que l'EMA ne fait pas à la place du serveur. Asana figure aujourd'hui parmi les serveurs qui gèrent l'EMA.
+</Callout>
+
+## L'identité des agents : un chantier ouvert
+
+L'EMA règle le cas « un humain, connecté par SSO, délègue à son agent ». Elle ne règle pas celui d'un agent qui tourne seul, dans un workload cloud, sans personne devant un navigateur. Plusieurs travaux s'en emparent :
+
+- la **feuille de route MCP** publiée le 22 août 2026 fait de « Agent Identity & Enterprise Security » un axe prioritaire, avec DPoP (M14, leçon 7) et la fédération d'identité de workload, en partant du constat que l'autorisation de MCP suppose une personne qui approuve dans un navigateur, alors que les appelants sont de plus en plus des agents ;
+- une extension **Client Credentials** pour MCP existe, encore en brouillon ;
+- l'**OpenID Foundation** a publié le 7 octobre 2025 un livre blanc, *Identity Management for Agentic AI*, qui recense les problèmes ouverts (délégation, traçabilité de qui agit pour qui, révocation) ;
+- à l'IETF, le groupe WIMSE a adopté le 15 septembre 2026 `draft-ietf-wimse-aims-00` (*AI Identity Management System*), qui prend la suite d'un brouillon individuel sur l'authentification des agents.
+
+Aucun de ces textes n'est une norme publiée. Pour Novafact, la décision est pragmatique : EMA pour les clients entreprise qui l'utilisent, identité de workload AWS (rôles IAM, M19) pour ses propres agents de traitement, et aucun secret statique partagé entre un agent et le serveur MCP.
+
+<Recap items={[
+  "EMA : SSO auprès de l'IdP, échange RFC 8693 contre un ID-JAG, puis assertion RFC 7523 auprès de l'AS du serveur MCP.",
+  "L'access token émis est restreint au serveur MCP désigné par la claim resource de l'ID-JAG.",
+  "L'IdP décide qui peut relier quel client à quel serveur, mais ne voit pas les appels d'outils.",
+  "L'AS valide l'ID-JAG contre une liste fixe d'IdP par tenant, vérifie aud, client_id, resource, jti, et identifie par (iss, sub), jamais par e-mail.",
+  "L'identité des agents autonomes reste un chantier : feuille de route MCP (DPoP, workload identity), OpenID Foundation, WIMSE.",
+]} />
+
+<Sources items={[
+  { title: "MCP : extension Enterprise-Managed Authorization", url: "https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization" },
+  { title: "ext-auth : spécification stable de l'EMA", url: "https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/stable/enterprise-managed-authorization.mdx" },
+  { title: "Blog MCP : Enterprise-Managed Authorization (18 juin 2026)", url: "https://blog.modelcontextprotocol.io/posts/enterprise-managed-auth/" },
+  { title: "IETF : Identity Assertion JWT Authorization Grant (brouillon)", url: "https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/" },
+  { title: "Blog MCP : feuille de route (22 août 2026)", url: "https://blog.modelcontextprotocol.io/posts/mcp-roadmap/" },
+  { title: "OpenID Foundation : Identity Management for Agentic AI (octobre 2025)", url: "https://openid.net/new-whitepaper-tackles-ai-agent-identity-challenges/" },
+  { title: "IETF : draft-ietf-wimse-aims", url: "https://datatracker.ietf.org/doc/draft-ietf-wimse-aims/" },
+  { title: "BleepingComputer : Asana warns MCP AI feature exposed customer data to other orgs", url: "https://www.bleepingcomputer.com/news/security/asana-warns-mcp-ai-feature-exposed-customer-data-to-other-orgs/" },
+  { title: "Solo.io, MCP Authorization is a Non-Starter for Enterprise (14 août 2025)", url: "https://solo.io/blog/mcp-authorization-is-a-non-starter-for-enterprise" },
+]} />

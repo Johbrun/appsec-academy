@@ -1,0 +1,147 @@
+export const questions = [
+  {
+    q: "Pour remonter les journaux vers le serveur de collecte, l'équipe hésite entre l'envoi par les sources (push) et la récupération par le collecteur (pull). Que recommande le guide de l'ANSSI sur l'architecture de journalisation ?",
+    options: [
+      "Le push, toujours : le collecteur ne doit jamais disposer d'un accès aux sources",
+      "Le pull, toujours : une source compromise ne doit pas pouvoir écrire chez le collecteur",
+      "Aucun choix générique : chaque mode a ses risques, à trancher par analyse de risque",
+      "Un flux unidirectionnel matériel (diode) entre chaque source et la zone de collecte",
+    ],
+    answer: 2,
+    explain: "Le guide dit explicitement qu'il n'existe pas de recommandation générique : le push authentifié expose aux relais d'authentification, le pull exige un compte de service privilégié sur de nombreuses machines. Les deux réponses tranchées reprennent chacune un vrai argument, mais en oubliant le risque symétrique. La diode n'est pas une exigence de ce guide ; ce qu'il impose, c'est la protection cryptographique des flux, l'authentification du collecteur et le cloisonnement des serveurs de collecte.",
+  },
+  {
+    q: "Un attaquant télécharge pendant une semaine des factures depuis le bucket S3 de Novafact, avec une clé volée. Le trail d'organisation est configuré par défaut. Que trouvera l'enquête dans CloudTrail ?",
+    options: [
+      "Les lectures `GetObject`, puisqu'un trail journalise par défaut lectures et écritures",
+      "Les appels de gestion éventuels, mais aucune trace des téléchargements d'objets",
+      "Les téléchargements dans l'historique d'événements, gratuit et conservé 90 jours",
+      "Les téléchargements, mais seulement s'ils ont échoué avec un refus d'accès",
+    ],
+    answer: 1,
+    explain: "Un trail journalise par défaut les événements de gestion, en lecture comme en écriture, ce qui explique la confusion. Mais `GetObject` est un événement de données, désactivé par défaut et payant. L'historique d'événements ne contient que des événements de gestion. Les refus d'accès ne sont pas un cas particulier qui ferait apparaître des événements de données non configurés. D'où la décision de Novafact d'activer les événements de données sur ses buckets de factures et d'exports.",
+  },
+  {
+    q: "Pour réduire la facture du SIEM, un responsable propose de ne garder que 30 jours de journaux, tous sur le palier hot. Quel est le principal problème ?",
+    options: [
+      "Une compromission se découvre souvent bien après 30 jours, et l'enquête n'aura rien",
+      "Le palier hot est le moins cher par gigaoctet, il faudrait donc y garder davantage",
+      "Elastic impose une rétention minimale de 90 jours pour les index de sécurité",
+      "Les règles de détection ne peuvent pas interroger des données de plus de 30 jours",
+    ],
+    answer: 0,
+    explain: "Le guide de l'ACSC, de la CISA et de leurs partenaires rappelle qu'il faut parfois jusqu'à 18 mois pour découvrir un incident, et le CSRB a montré avec Storm-0558 ce que coûte une rétention courte. Le hot est au contraire le palier le plus cher, et Elastic n'impose aucune durée. Les règles regardent en général une fenêtre courte : ce sont l'enquête et la chasse qui ont besoin d'historique. La bonne économie passe par les paliers cold et frozen et par le tri des sources, pas par la suppression.",
+  },
+  {
+    q: "Datadog Security Labs a montré que certains endpoints AWS non production produisaient des événements CloudTrail différents de l'endpoint standard. Qu'en retenir pour l'architecture de détection ?",
+    options: [
+      "Que ces failles ont toutes été corrigées et ne concernent plus les défenseurs",
+      "Qu'il faut bloquer par SCP tous les endpoints AWS dont le nom contient « gamma »",
+      "Que CloudTrail n'est pas fiable et qu'il faut le remplacer par GuardDuty seul",
+      "Que CloudTrail ne voit que ce qu'un endpoint journalise : d'autres sources sont nécessaires",
+    ],
+    answer: 3,
+    explain: "Les contournements publiés (iamadmin, Service Catalog) ont bien été corrigés, mais AWS a indiqué qu'il ne corrigerait pas les endpoints qui journalisent un événement différent de l'endpoint standard : le problème est donc durable. Remplacer CloudTrail par GuardDuty n'a pas de sens, puisque GuardDuty analyse en grande partie ces mêmes journaux. Bloquer quelques noms d'hôtes ne règle rien : la liste de ces endpoints n'est ni publique ni stable. La réponse est architecturale : croiser CloudTrail avec les journaux de l'application, des points de terminaison VPC et du réseau.",
+  },
+];
+
+<YouKnow>
+En pentest, il arrive de profiter d'un service qui ne journalisait rien, ou d'un journal effacé en partant. Cette leçon prend le problème à l'envers : concevoir une journalisation qu'un attaquant ne peut ni éviter ni effacer, qui tient dans un budget, et qui sera encore là le jour où l'enquête commence, souvent des mois plus tard.
+</YouKnow>
+
+## Quatre décisions d'architecture
+
+La leçon 1 a défini ce que l'application journalise ; reste à décider où vont les journaux, comment ils sont protégés et combien de temps ils restent. Le guide *Best Practices for Event Logging and Threat Detection*, publié en août 2024 par l'ACSC australien avec la CISA, le FBI, la NSA et une dizaine d'agences partenaires, organise ces décisions en quatre axes :
+
+| Axe du guide | La question | La réponse de Novafact |
+| --- | --- | --- |
+| **Politique de journalisation** | Quels événements, quels outils, quelle rétention, quand réévaluer ? | Une politique écrite par source, revue chaque année et à chaque nouvelle source |
+| **Centralisation et corrélation** | Où se retrouvent les journaux, et comment les relier ? | Une archive brute dans un compte AWS dédié, et une sélection dans Elastic |
+| **Stockage sécurisé et intégrité** | Qui peut modifier ou effacer, et comment s'en apercevoir ? | Écriture seule pour les sources, personne ne supprime, intégrité vérifiable |
+| **Stratégie de détection** | Que cherche-t-on dans ces journaux ? | Les règles du module suivant (M24), alimentées par le threat model |
+
+Pour le cloud, le guide place en tête des sources prioritaires les comptes qui administrent le tenant, les changements de configuration, les identités et leurs permissions, et les authentifications auprès de services tiers. Il insiste aussi sur l'horodatage : une source de temps fiable, en **UTC**, au format ISO 8601, à la milliseconde. Sans horloge commune, aucune corrélation ne tient.
+
+## Les autres références
+
+- **L'ANSSI**, *Recommandations de sécurité pour l'architecture d'un système de journalisation* (guide PA-012, version 2.0 de janvier 2022) : 31 recommandations. Plusieurs se transposent au cloud : transfert en temps réel ou au plus quelques heures après production, flux protégés avec authentification mutuelle, serveurs de collecte cloisonnés, droits de lecture et de suppression au strict besoin. Entre envoi par la source et récupération par le collecteur, il refuse de trancher en général : chaque mode a son risque.
+- **Le NIST**, SP 800-92 : la seule version finale date de 2006. La révision 1, *Cybersecurity Log Management Planning Guide*, n'est qu'un **brouillon** publié en octobre 2023, centré sur la planification plutôt que la technique. Elle se cite comme telle.
+
+## Centraliser sans tout mettre dans le SIEM
+
+Le guide de l'ACSC décrit un **lac de données sécurisé** qui reçoit tout, et qui transmet une **sélection** au SIEM. C'est l'architecture de Novafact :
+
+<Steps items={[
+  { title: "Sources", text: "CloudTrail (trail d'organisation), WAF, ALB, VPC Flow Logs, GuardDuty, et les journaux pino de l'application. Chaque source écrit, aucune ne lit ni ne supprime." },
+  { title: "Archive brute", text: "Un bucket S3 dans le compte log-archive, séparé des comptes de production : format natif conservé (recommandation de l'ANSSI), S3 Object Lock, chiffrement KMS." },
+  { title: "Sélection vers Elastic", text: "Les sources utiles à la détection et à l'enquête, normalisées en ECS (leçon 3). Le reste reste dans l'archive, interrogeable à la demande." },
+  { title: "Détection et enquête", text: "Les règles tournent sur Elastic ; une enquête qui remonte loin peut réingérer une période de l'archive." },
+]} />
+
+L'archive brute survit à une erreur de pipeline (un champ mal parsé se retraite, un événement jeté ne revient jamais) et au SIEM lui-même, que le guide rappelle être une cible et un point de défaillance unique.
+
+## Protéger l'intégrité
+
+Un attaquant qui obtient des droits d'administration sur un compte AWS cherche à effacer ses traces. L'architecture doit rendre cela impossible depuis le compte compromis :
+
+- le **trail d'organisation** s'applique à tous les comptes membres, qui le voient mais ne peuvent ni le modifier ni le supprimer ;
+- le bucket d'archive vit dans un **compte séparé**, avec Object Lock en mode *compliance* : même l'utilisateur root ne raccourcit pas la rétention ;
+- la **validation d'intégrité** de CloudTrail produit chaque heure un fichier de condensat signé, chaîné au précédent ; elle détecte une modification ou une suppression, mais ne l'empêche pas, d'où Object Lock ;
+- la désactivation de la journalisation est elle-même un événement détecté (M24, leçon 2), et l'absence de données aussi (leçon 3).
+
+## Retenir et payer
+
+La rétention arbitre entre l'enquête, qui veut tout garder, la vie privée (M12), qui veut garder peu, et le budget. Le guide de l'ACSC rappelle qu'il faut parfois **jusqu'à 18 mois** pour découvrir un incident et que les durées par défaut des produits sont souvent insuffisantes ; la CNIL, citée par l'ANSSI, recommande pour les journaux une conservation de six mois à un an, davantage seulement dans des cas particuliers justifiés.
+
+Elastic répond au coût par des **paliers** : *hot* pour l'écriture et les requêtes fréquentes, *warm* pour les dernières semaines, *cold* puis *frozen*, qui s'appuient sur des instantanés interrogeables (fonction de la licence Enterprise) et stockent beaucoup plus pour bien moins cher, au prix de requêtes plus lentes. Une politique de cycle de vie (ILM) fait passer les données d'un palier à l'autre puis les supprime.
+
+| Source | Volume | Elastic | Archive S3 |
+| --- | --- | --- | --- |
+| Événements de sécurité applicatifs | Faible | Hot 30 j, puis frozen, 13 mois | 13 mois |
+| CloudTrail (gestion + données sur 2 buckets) | Moyen | Hot 14 j, puis frozen, 13 mois | 13 mois |
+| WAF, ALB | Élevé | Hot 7 j, cold jusqu'à 90 j | 13 mois |
+| Logs techniques de l'application | Élevé | Hot 7 j, échantillonnés | Non |
+
+On échantillonne les journaux techniques, **jamais** les événements de sécurité. Les 13 mois couvrent un cycle annuel complet ; c'est une décision justifiée et écrite dans la politique de journalisation.
+
+<Callout kind="case">
+**Storm-0558 (2023).** Le rapport du Cyber Safety Review Board (mars 2024) relève que la plupart des victimes de l'intrusion dans Exchange Online n'avaient pas accès au journal qui permettait de la voir, réservé à une offre « premium », et que Microsoft, après avoir activé la journalisation avancée, n'a pas pu leur fournir l'historique. Il note aussi que le début de la compromission a pu précéder la date annoncée, fixée selon une pratique de rétention de 30 jours. Le Board recommande une journalisation d'audit par défaut, sans surcoût, conservée au moins six mois. En juillet 2023, Microsoft avait annoncé l'élargissement de sa journalisation standard et le passage de la rétention par défaut de 90 à 180 jours.
+</Callout>
+
+## Les angles morts de CloudTrail
+
+« Tout est dans CloudTrail » est faux, de plusieurs façons documentées :
+
+- **Par configuration** : un trail journalise par défaut les événements de gestion. Les **événements de données** (lecture d'un objet S3, invocation d'une Lambda) et les **événements d'activité réseau** des points de terminaison VPC (disponibles depuis février 2025) sont désactivés par défaut et payants.
+- **Par durée** : l'historique d'événements de la console couvre 90 jours d'événements de gestion seulement. Sans trail, rien d'autre n'est conservé.
+- **Par délai** : CloudTrail livre ses fichiers en environ cinq minutes en moyenne, sans garantie. Une règle doit raisonner sur la date d'ingestion (M24, leçon 3).
+- **Par périmètre** : les services sans API publique ou encore en préversion ne sont pas couverts.
+- **Par contournement** : Nick Frichette (Datadog Security Labs) a publié plusieurs façons d'appeler AWS sans laisser de trace : un service non documenté de la console (`iamadmin`) qui permettait de lire IAM sans journalisation (corrigé en octobre 2022), un endpoint non production de Service Catalog qui permettait même de modifier des ressources (corrigé en février 2023), puis d'autres endpoints non production. AWS a précisé qu'il ne corrigerait pas les endpoints qui produisent des événements **différents** de l'endpoint standard : une règle trop stricte sur la source d'événement peut les manquer.
+
+CloudTrail est donc une source majeure, pas la seule : journaux de l'application (qui a lu quelle facture), des points de terminaison VPC, du réseau et GuardDuty se recoupent. Enfin, AWS a fermé CloudTrail Lake aux nouveaux clients le 31 mai 2026 : un nouveau projet part sur un trail vers S3.
+
+<Callout kind="novafact">
+Décision d'architecture (fictive) : archive en Object Lock compliance (13 mois), événements de données sur les buckets de factures et d'exports, activité réseau des points de terminaison VPC de S3 et Secrets Manager. Risque accepté : les logs techniques échantillonnés à 10 % ne permettront pas toujours de rejouer une requête.
+</Callout>
+
+<Recap items={[
+  "Quatre décisions : politique, centralisation et corrélation, stockage et intégrité, stratégie de détection (ACSC, CISA et partenaires, 2024).",
+  "Une archive brute dans un compte séparé reçoit tout ; le SIEM reçoit une sélection normalisée.",
+  "Personne ne supprime : trail d'organisation, Object Lock, validation d'intégrité, détection de la coupure.",
+  "La rétention arbitre enquête, vie privée et budget ; les paliers cold et frozen font baisser le coût, l'échantillonnage ne touche jamais la sécurité.",
+  "CloudTrail a des angles morts de configuration, de durée, de délai, de périmètre et de contournement : il se recoupe avec d'autres sources.",
+]} />
+
+<Sources items={[
+  { title: "ACSC, CISA et partenaires : Best Practices for Event Logging and Threat Detection (août 2024)", url: "https://www.cisa.gov/resources-tools/resources/best-practices-event-logging-and-threat-detection" },
+  { title: "ANSSI : recommandations pour l'architecture d'un système de journalisation (2022)", url: "https://messervices.cyber.gouv.fr/guides/recommandations-de-securite-pour-larchitecture-dun-systeme-de-journalisation" },
+  { title: "NIST SP 800-92 Rev. 1 (brouillon, 2023)", url: "https://csrc.nist.gov/pubs/sp/800/92/r1/ipd" },
+  { title: "Elastic : paliers de données", url: "https://www.elastic.co/docs/manage-data/lifecycle/data-tiers" },
+  { title: "AWS : bonnes pratiques de sécurité CloudTrail", url: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/best-practices-security.html" },
+  { title: "AWS : disponibilité de CloudTrail Lake", url: "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-lake-service-availability-change.html" },
+  { title: "Datadog Security Labs : iamadmin, API non documentée hors CloudTrail", url: "https://securitylabs.datadoghq.com/articles/iamadmin-cloudtrail-bypass/" },
+  { title: "Datadog Security Labs : contournement de CloudTrail via Service Catalog", url: "https://securitylabs.datadoghq.com/articles/bypass-cloudtrail-aws-service-catalog-and-other/" },
+  { title: "Datadog Security Labs : endpoints non production comme surface d'attaque", url: "https://securitylabs.datadoghq.com/articles/non-production-endpoints-as-an-attack-surface-in-aws/" },
+  { title: "CSRB : Review of the Summer 2023 Microsoft Exchange Online Intrusion", url: "https://www.cisa.gov/resources-tools/resources/cyber-safety-review-board-releases-report-microsoft-online-exchange-incident-summer-2023" },
+  { title: "Microsoft : Expanding cloud logging (juillet 2023)", url: "https://www.microsoft.com/en-us/security/blog/2023/07/19/expanding-cloud-logging-to-give-customers-deeper-security-visibility/" },
+]} />

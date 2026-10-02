@@ -79,6 +79,10 @@ const GAMES = [
     sets: (m) => Object.values(m.sprints).map((sp) => ({ opts: sp.plans, right: (o) => o.right, text: (o) => o.text })) },
   { file: 'game-supply.ts', name: 'supply', rounds: 4,
     sets: (m) => m.incidents.map((i) => ({ opts: i.controls, right: (_o, k) => k === 0, text: (o) => o })) },
+  { file: 'game-tarball.ts', name: 'tarball', rounds: 10,
+    sets: (m) => m.tarballCases.map((c) => ({ opts: c.options, right: (_o, i) => i === 0, text: (o) => o })) },
+  { file: 'game-attack-mitigations.ts', name: 'mitigations', rounds: 8,
+    sets: (m) => m.rampartItems.map((it) => ({ opts: it.options, right: (_o, i) => i === 0, text: (o) => o.text })) },
 ];
 
 // `rounds` est la taille de la plus grande série du jeu : depuis les séries, une
@@ -102,6 +106,8 @@ const POOLS = {
   supply: (m) => m.incidents.length,
   datamap: (m) => m.dataItems.length,
   triage: (m) => Object.keys(m.sprints).length,
+  tarball: (m) => m.tarballCases.length,
+  mitigations: (m) => m.rampartItems.length,
 };
 
 const problems = [];

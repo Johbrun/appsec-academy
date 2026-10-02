@@ -1,0 +1,133 @@
+export const questions = [
+  {
+    q: "Dans l'étude sur la fraude aux distributeurs citée par Ross Anderson (2001), pourquoi les banques américaines protégeaient-elles mieux leurs systèmes que les banques britanniques ?",
+    options: [
+      "Parce qu'elles dépensaient nettement plus en sécurité que leurs homologues",
+      "Parce que la réglementation américaine imposait une certification des distributeurs",
+      "Parce qu'en cas de litige, c'était à elles de prouver que le client se trompait",
+      "Parce que leurs clients utilisaient davantage les cartes à puce",
+    ],
+    answer: 2,
+    explain: "Anderson montre que la fraude suivait la responsabilité : aux États-Unis, la charge de la preuve pesait sur la banque, qui avait donc intérêt à protéger ; au Royaume-Uni, elle pesait sur le client, et les banques sont devenues négligentes. Il précise même que les banques américaines dépensaient moins que les européennes, mais mieux. Aucune certification ni technologie de carte n'est l'explication avancée : c'est l'incitation.",
+  },
+  {
+    q: "Selon Anderson, pourquoi la philosophie « on livre mardi, on corrigera en version 3 » est-elle rationnelle pour un éditeur ?",
+    options: [
+      "Parce que les clients ne peuvent pas évaluer la sécurité avant d'acheter",
+      "Parce que les correctifs coûtent moins cher après la mise sur le marché",
+      "Parce que les vulnérabilités de la version 1 sont rarement exploitées",
+      "Parce que les effets de réseau donnent un énorme avantage au premier arrivé",
+    ],
+    answer: 3,
+    explain: "Anderson relie explicitement cette philosophie aux effets de réseau : sur un marché où le premier à s'imposer emporte tout, retarder la sortie pour la sécurité peut coûter le marché entier. L'asymétrie d'information (le marché des « lemons ») est un autre argument du même article, qui explique pourquoi le client ne récompense pas la sécurité, mais pas pourquoi il faut livrer vite. Corriger tard coûte au contraire plus cher.",
+  },
+  {
+    q: "Parmi les trois principes de Secure by Design de la CISA, lequel répond le plus directement à l'asymétrie d'information entre éditeur et client ?",
+    options: [
+      "Assumer une transparence radicale et rendre des comptes",
+      "Prendre en charge les résultats de sécurité des clients",
+      "Diriger depuis le sommet de l'organisation",
+      "Fournir des produits sûrs par défaut",
+    ],
+    answer: 0,
+    explain: "Si le client ne peut pas juger la sécurité d'un produit, la réponse est de lui donner de quoi juger : CVE publiées à temps, CWE renseignées, politique de divulgation, données sur les progrès. C'est le principe de transparence radicale. Prendre en charge les résultats des clients répond au transfert de coûts, pas au manque d'information. Diriger depuis le sommet traite la gouvernance. Le « sûr par défaut » est une pratique qui découle du premier principe, pas un des trois.",
+  },
+  {
+    q: "L'équipe dispose d'une heure par semaine pour la veille. Quelle organisation tient le mieux dans la durée pour l'AppSec de Novafact ?",
+    options: [
+      "Lire chaque semaine tous les avis publiés pour Node.js, React et AWS",
+      "Alertes ciblées sur nos dépendances, une lettre de synthèse, une note d'impact",
+      "Suivre en temps réel les comptes de chercheurs sur les réseaux sociaux",
+      "Lire en entier les grands rapports annuels dès leur publication",
+    ],
+    answer: 1,
+    explain: "Une veille tient si elle est filtrée par ce qu'on fait tourner et si elle produit quelque chose : des alertes automatiques sur nos dépendances (KEV, avis GitHub), une synthèse hebdomadaire choisie, et une courte note « ce que ça change pour nous ». Tout lire ne tient pas une semaine. Le fil social en temps réel donne de la vitesse sans tri. Les rapports annuels méritent une fiche de lecture (leçon 3), pas une heure hebdomadaire.",
+  },
+];
+
+<YouKnow>
+Un pentester retrouve les mêmes classes de bugs d'un pentest à l'autre, année après année. Ce n'est pas que les développeurs ignorent l'injection SQL : c'est que l'organisation qui les emploie n'a pas d'intérêt suffisant à l'éliminer. Cette leçon regarde le problème avec les outils de l'économie.
+</YouKnow>
+
+## Le constat d'Anderson
+
+En 2001, à la conférence ACSAC, Ross Anderson (Cambridge) publie *Why Information Security is Hard – An Economic Perspective*. Sa thèse renverse le point de vue dominant : l'insécurité ne vient pas seulement de techniques imparfaites, elle vient au moins autant d'**incitations perverses**. Il emprunte le vocabulaire de la microéconomie : externalités, asymétrie d'information, aléa moral, sélection adverse, transfert de responsabilité.
+
+Son exemple d'ouverture reste le plus parlant. Une étude sur la fraude aux distributeurs montre qu'elle dépend de **qui en supporte la responsabilité**. Aux États-Unis, en cas de contestation, c'était à la banque de prouver que le client se trompait : les banques avaient intérêt à protéger leurs systèmes, et elles l'ont fait, en dépensant d'ailleurs moins que leurs homologues européennes, mais mieux. Au Royaume-Uni, en Norvège et aux Pays-Bas, la charge de la preuve pesait sur le client : les banques sont devenues négligentes, jusqu'à des vagues de fraude. Anderson en tire une règle générale : quand celui qui peut protéger un système n'est pas celui qui subit les conséquences de son échec, il faut s'attendre à des problèmes.
+
+## Trois mécanismes, appliqués au logiciel
+
+**Les effets de réseau.** Sur un marché où le premier à s'imposer emporte tout, retarder la sortie pour la sécurité peut coûter le marché. Anderson y voit l'origine de la formule « on livre mardi, on corrigera en version 3 », et précise que ce n'est pas un défaut moral : c'est un comportement rationnel. Il ajoute qu'une plateforme gagne en séduisant les développeurs, donc en leur évitant les contraintes ; la sécurité obligatoire retirerait de la valeur.
+
+**L'asymétrie d'information.** Anderson reprend le marché des « lemons » d'Akerlof : quand l'acheteur ne peut pas distinguer un bon produit d'un mauvais, le prix tire vers le bas et les mauvais chassent les bons. Un client de Novafact ne peut pas auditer son code ; il voit un logo, un questionnaire rempli, un rapport de pentest résumé. La sécurité, invisible à l'achat, n'est pas récompensée par le marché.
+
+**Les externalités.** Le coût d'une faille ne retombe pas sur celui qui l'a écrite. Une fuite de factures chez Novafact expose les clients finaux de ses clients, qui n'ont rien choisi. Anderson cite les attaques par déni de service de 2000 : un particulier paierait pour se protéger, pas pour empêcher sa machine d'attaquer un tiers.
+
+La **dette de sécurité** est le produit de ces trois mécanismes. Chaque arbitrage « on livre maintenant, on durcira plus tard » est rationnel pris isolément ; leur accumulation donne un produit qu'aucune équipe n'a voulu vulnérable.
+
+## Ce que l'AppSec en fait : changer les incitations internes
+
+L'AppSec ne changera pas le marché. Elle peut changer les incitations **dans son organisation**, en rendant le coût de l'insécurité visible pour ceux qui décident.
+
+| Mécanisme | Ce qu'il produit chez Novafact | Ce que l'AppSec peut changer |
+| --- | --- | --- |
+| Effets de réseau, pression à livrer | La sécurité arrive « au prochain sprint » | Rendre le chemin sûr plus rapide que le chemin risqué (paved road, M3) |
+| Asymétrie d'information | Le client ne voit rien, la direction non plus | Indicateurs publiés en interne, classes éliminées, délai de correction (M31) |
+| Externalités | Le coût d'une fuite tombe sur les clients | Chiffrer l'impact en euros et en obligations de notification (M10) |
+| Responsabilité mal placée | Le dev livre, l'AppSec « valide » | Le propriétaire du risque signe l'acceptation, au bon niveau (M10, leçon 6) |
+
+La première ligne est la plus puissante. Si la bibliothèque de requêtes sûre est la seule qui existe dans le gabarit de service, choisir la sécurité ne coûte plus rien au développeur pressé : l'incitation a changé sans qu'aucun discours n'ait été nécessaire.
+
+## Secure by Design : rééquilibrer côté éditeur
+
+La CISA a fait de ce diagnostic une politique publique. Son livre blanc *Shifting the Balance of Cybersecurity Risk* (avril 2023, mis à jour en octobre 2023 avec dix-sept partenaires américains et internationaux) pose trois principes pour les éditeurs :
+
+- **prendre en charge les résultats de sécurité de leurs clients**, au lieu de leur en transférer la charge par des guides de durcissement ;
+- **assumer une transparence radicale et rendre des comptes** : publier les CVE, les causes racines, les progrès ;
+- **diriger depuis le sommet** : la sécurité du produit est une décision de direction, pas une affaire technique.
+
+Les principes répondent terme à terme à Anderson. Le premier vise le transfert de coûts vers le client ; le deuxième, l'asymétrie d'information ; le troisième, la décision qui ne se prend pas au bon niveau. Le pledge de mai 2024 et ses sept engagements sont détaillés au module 10 (M10, leçon 6).
+
+<Callout kind="case">
+En octobre 2024, la CISA et le FBI publient *Product Security Bad Practices*, mis à jour le 17 janvier 2025. Le document liste des pratiques jugées inacceptables pour un éditeur qui sert des infrastructures critiques, parmi lesquelles : insérer une saisie utilisateur directement dans une requête SQL ou une commande système, livrer avec des mots de passe par défaut ou des secrets codés en dur, embarquer un composant inscrit au catalogue KEV, ne pas proposer de MFA dans la version de base, ne pas fournir aux clients les journaux nécessaires pour enquêter sur une intrusion. Pour un pentester, c'est une liste familière ; ce qui change, c'est qu'une agence la présente comme un défaut de l'éditeur, plus comme un risque du client.
+</Callout>
+
+En Europe, le levier est réglementaire. Le **Cyber Resilience Act**, entré en vigueur le 10 décembre 2024, impose aux fabricants de produits comportant des éléments numériques de signaler les vulnérabilités activement exploitées depuis le 11 septembre 2026 ; ses obligations principales s'appliqueront à partir du 11 décembre 2027. Pour Novafact, le SDK npm publié pourrait entrer dans son champ, alors que le SaaS relève surtout de NIS2 : la qualification se fait avec le juridique (M12).
+
+<Callout kind="debate">
+Faut-il rendre les éditeurs responsables des failles de leur logiciel ? Pour : c'est la leçon d'Anderson, la responsabilité oriente l'investissement. Contre : une responsabilité mal calibrée pénalise l'open source et les petits éditeurs, et pousse à la conformité documentaire plutôt qu'à la sécurité réelle. Le CRA tranche en partie en distinguant les fabricants des mainteneurs open source, dont les obligations sont allégées.
+</Callout>
+
+## Une veille qui tient dans la semaine
+
+Les incitations expliquent pourquoi les failles persistent ; la veille dit lesquelles arrivent. Elle ne tient que si elle est **filtrée par ce que l'équipe fait tourner** et si elle **produit quelque chose**.
+
+<Steps items={[
+  { title: "Chaque jour, automatique (0 min)", text: "Alertes sur nos dépendances : avis GitHub et Dependabot, nouvelles entrées du catalogue KEV de la CISA qui touchent notre inventaire. Rien à lire si rien ne nous concerne." },
+  { title: "Chaque semaine, 45 min", text: "Une lettre de synthèse (tl;dr sec), puis les sources de notre pile : PortSwigger Research, GitHub Security Lab, Datadog Security Labs, Socket et StepSecurity pour npm, Simon Willison pour l'IA." },
+  { title: "Chaque semaine, 15 min", text: "Une note de trois lignes par sujet retenu : ce qui se passe, est-ce que ça nous touche, quelle action. Sans note, la lecture n'a servi qu'à son lecteur." },
+  { title: "Chaque mois", text: "Un rapport d'intrusion réel (The DFIR Report, breaches.cloud) lu en équipe, avec la question de la leçon 5 : où serait-il chez nous ?" },
+  { title: "Chaque année", text: "Les grands rapports, en fiche de lecture (leçon 3), et une conférence (OWASP Global AppSec, fwd:cloudsec) pour les talks qui deviendront des règles." },
+]} />
+
+<Callout kind="novafact">
+La note hebdomadaire de l'AppSec de Novafact tient sur un écran et finit toujours par la même rubrique : « décisions demandées ». C'est elle que la direction lit. En six mois, elle a fait passer deux sujets du statut de lecture à celui de chantier : l'interdiction de `$queryRawUnsafe` et la publication du SDK par OIDC.
+</Callout>
+
+<Recap items={[
+  "Anderson (2001) : l'insécurité vient autant des incitations perverses que des limites techniques.",
+  "Quand celui qui peut protéger ne paie pas l'échec, la protection se dégrade : la fraude aux distributeurs suivait la responsabilité.",
+  "Effets de réseau, asymétrie d'information et externalités rendent rationnel le « on corrigera en version 3 » ; la dette de sécurité en est le produit.",
+  "L'AppSec change les incitations internes : chemin sûr plus rapide, coûts rendus visibles, risque signé par son propriétaire.",
+  "Secure by Design (CISA) : prendre en charge les résultats des clients, transparence radicale, direction impliquée ; le CRA ajoute l'obligation en Europe.",
+  "Une veille tient si elle est filtrée par l'inventaire et produit une note d'impact chaque semaine.",
+]} />
+
+<Sources items={[
+  { title: "Ross Anderson, Why Information Security is Hard – An Economic Perspective (ACSAC, 2001)", url: "https://www.cl.cam.ac.uk/~rja14/Papers/econ.pdf" },
+  { title: "CISA, Secure by Design", url: "https://www.cisa.gov/securebydesign" },
+  { title: "CISA et partenaires, mise à jour de Shifting the Balance of Cybersecurity Risk (octobre 2023)", url: "https://www.cisa.gov/news-events/alerts/2023/10/16/cisa-nsa-fbi-and-international-partners-release-updated-secure-design-guidance" },
+  { title: "CISA et FBI, Product Security Bad Practices (v2, 17 janvier 2025)", url: "https://www.cisa.gov/resources-tools/resources/product-security-bad-practices" },
+  { title: "Commission européenne, Cyber Resilience Act", url: "https://digital-strategy.ec.europa.eu/en/policies/cyber-resilience-act" },
+  { title: "CISA, Known Exploited Vulnerabilities Catalog", url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog" },
+]} />

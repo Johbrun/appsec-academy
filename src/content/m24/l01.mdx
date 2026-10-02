@@ -1,0 +1,133 @@
+export const questions = [
+  {
+    q: "Une évaluation SAMM donne 2 à Novafact sur Secure Deployment. Le même mois, une recherche dans les journaux Certificate Transparency révèle une console d'administration exposée sur un sous-domaine que personne ne connaît. Comment lire ces deux résultats ?",
+    options: [
+      "L'évaluation SAMM était trop généreuse : il faut la refaire et baisser la note de Secure Deployment",
+      "Les deux sont justes : le processus est solide sur ce qu'il connaît, et l'écart désigne un trou d'inventaire",
+      "La console n'est pas dans l'inventaire, donc hors périmètre de l'évaluation : on la note pour mémoire",
+      "Un seul service exposé ne pèse pas face à un niveau 2 mesuré sur l'ensemble des équipes",
+    ],
+    answer: 1,
+    explain: "Le score SAMM décrit la façon dont les déploiements connus sont faits ; il ne prétend pas que tout ce qui tourne passe par ce chemin. Baisser la note ne corrige rien et masque la vraie information : un service est sorti du processus. Le classer hors périmètre, c'est exactement le raisonnement qui laisse vivre les services oubliés. Et un seul point d'entrée suffit à un attaquant : la posture ne se moyenne pas.",
+  },
+  {
+    q: "Novafact n'a jamais eu de vulnérabilité critique dans ses rapports de pentest. Que permet d'en conclure ce constat, pris seul ?",
+    options: [
+      "Que la posture applicative est bonne, puisque des testeurs externes n'ont rien trouvé de grave",
+      "Que les pratiques de développement sont matures, car elles ne produisent pas de failles critiques",
+      "Rien de solide tant qu'on ignore le périmètre, la profondeur et la date de ces tests",
+      "Que le budget de pentest peut être réduit au profit d'autres pratiques moins couvertes",
+    ],
+    answer: 2,
+    explain: "Une absence de résultat dépend de ce qui a été regardé : trois applications sur douze, cinq jours en boîte noire, il y a dix mois. Elle ne dit rien des processus (aucun lien établi entre ce qui n'a pas été trouvé et la façon dont le code est produit), et elle ne mesure la posture que sur le périmètre testé, à la date du test. Réduire le budget sur cette base revient à prendre le silence pour une preuve.",
+  },
+  {
+    q: "Selon le rapport GAO-18-559, quel élément de la fuite d'Equifax montre qu'un processus existant ne garantit pas la posture ?",
+    options: [
+      "L'absence de toute procédure de diffusion des alertes de sécurité aux administrateurs",
+      "Le délai de publication du correctif Apache Struts, sorti après l'intrusion initiale",
+      "L'absence d'outil d'inspection du trafic chiffré sur le réseau qui hébergeait le portail",
+      "Une alerte diffusée à une liste de destinataires périmée, et un scan qui n'a pas vu le portail",
+    ],
+    answer: 3,
+    explain: "Le processus existait : l'alerte de l'US-CERT a circulé, un scan a été lancé une semaine plus tard. Mais la liste de diffusion n'était plus à jour, et le scan n'a pas détecté la version vulnérable sur le portail de contestation. De même, l'outil d'inspection du trafic était installé, mais un certificat expiré depuis environ dix mois l'empêchait d'inspecter le trafic chiffré. Le correctif, lui, était disponible.",
+  },
+  {
+    q: "Lequel de ces indicateurs mesure la posture plutôt que la maturité ?",
+    options: [
+      "Le nombre de services joignables depuis Internet sans propriétaire identifié, relevé cette semaine",
+      "L'existence d'une procédure de revue de code validée par la direction technique",
+      "La part des équipes formées au threat modeling au cours des douze derniers mois",
+      "Le score SAMM de la pratique Defect Management, comparé à l'évaluation précédente",
+    ],
+    answer: 0,
+    explain: "La posture décrit une exposition à un instant : ce qui est joignable, vulnérable ou mal configuré aujourd'hui. Une procédure, un taux de formation ou un score SAMM décrivent la capacité de l'organisation à bien faire les choses ; ils prédisent la posture future sans la mesurer. C'est utile, mais ce n'est pas la même question.",
+  },
+];
+
+<YouKnow>
+Un rapport de pentest est une photographie : ce qui était exploitable, sur un périmètre, à une date. Un audit organisationnel produit autre chose, une appréciation des processus. Les deux circulent souvent dans les mêmes comités, et on les confond facilement.
+</YouKnow>
+
+## Deux questions différentes
+
+Quand une direction demande « où en est-on en sécurité ? », elle pose en réalité deux questions.
+
+La **maturité** répond à : *l'organisation sait-elle faire ?* Elle mesure la capacité des processus : existe-t-il une façon définie de modéliser les menaces, de configurer un pipeline, de gérer une vulnérabilité, et cette façon est-elle appliquée, répétée, mesurée ? C'est ce que décrivent SAMM (leçon 2), BSIMM (leçon 3) et les autres modèles (leçon 4). Une note de maturité change lentement, d'un trimestre à l'autre.
+
+La **posture** répond à : *qu'est-ce qui est exposé aujourd'hui ?* Elle mesure un état : les services joignables, les vulnérabilités ouvertes, les secrets qui traînent dans un dépôt, les dépendances non maintenues, les comptes sans MFA. Elle change tous les jours, à chaque déploiement. Le NIST CSF 2.0 emploie ce mot dans ce sens : un profil organisationnel y décrit la posture actuelle ou visée « en termes de résultats », c'est-à-dire un état constaté, pas une intention.
+
+| | Maturité | Posture |
+| --- | --- | --- |
+| Question | L'organisation sait-elle bien faire ? | Qu'est-ce qui est exposé maintenant ? |
+| Objet | Processus, rôles, outillage, preuves d'application | Actifs, configurations, vulnérabilités, accès |
+| Instrument | Modèle de maturité, entretiens, artefacts | Inventaire, scans, pentest, revue de configuration |
+| Rythme | Évaluation tous les 6 à 18 mois | Mesure continue, ou au moins hebdomadaire |
+| Ce qu'elle ne voit pas | Ce qui échappe aux processus | Pourquoi l'exposition existe, et si elle reviendra |
+
+La dernière ligne est la plus importante : chacune des deux mesures a un angle mort que seule l'autre éclaire.
+
+## Pourquoi chacune ment quand on la regarde seule
+
+**Une organisation mature peut être exposée.** Un modèle de maturité évalue la façon dont les choses sont faites *quand elles passent par le processus*. Un service monté pour une démonstration commerciale, un tenant de test hérité, une application rachetée avec une entreprise : rien de cela ne passe par le pipeline évalué, donc rien de cela n'abaisse le score. Pire, un processus solide peut s'appuyer sur une donnée périmée, une liste de diffusion ou un inventaire, et échouer sans bruit.
+
+**Une organisation exposée peut sembler sûre.** Sans test, sans scan, sans inventaire, il n'y a pas de résultat négatif à présenter. Le tableau de bord est vide, et un tableau vide ressemble beaucoup à un tableau propre. C'est le cas classique de la jeune entreprise qui n'a « jamais eu d'incident » : elle n'a jamais eu les moyens de le savoir. Le même biais touche un pentest unique : son périmètre et sa date bornent tout ce qu'il peut affirmer.
+
+<Callout kind="case">
+Equifax, 2017, d'après le rapport du GAO (GAO-18-559, août 2018). Le 8 mars 2017, l'US-CERT signale une vulnérabilité d'Apache Struts ; le 10 mars, des inconnus scannent les systèmes d'Equifax et trouvent le portail de contestation en ligne vulnérable. Les processus existaient : l'alerte a été diffusée aux administrateurs, un scan a été lancé une semaine plus tard, un outil inspectait le trafic réseau. Mais la liste de destinataires n'était plus à jour, et l'alerte n'a pas atteint les personnes chargées du correctif ; le scan n'a pas détecté la vulnérabilité sur le portail ; et un certificat expiré depuis environ dix mois empêchait l'outil d'inspecter le trafic chiffré, si bien que l'exfiltration, à partir de mai 2017, est passée inaperçue. Sur le papier, la gestion des correctifs et la détection existaient. En posture, le portail était exposé, et personne ne le voyait.
+</Callout>
+
+## Comment les deux se répondent
+
+Il est utile de penser la maturité comme une **hypothèse** sur la posture future : « avec ces processus, les expositions seront rares, détectées vite et corrigées dans les délais ». La posture est le **test** de cette hypothèse. Quand les deux divergent, l'écart est une information, pas une incohérence à lisser.
+
+| | Posture bonne | Posture mauvaise |
+| --- | --- | --- |
+| **Maturité élevée** | Situation visée ; on vérifie que la mesure de posture couvre bien tout le périmètre | Les processus ne couvrent pas tout, ou s'appuient sur une donnée fausse : chercher ce qui échappe |
+| **Maturité faible** | Chance, ou mesure de posture trop étroite : la situation ne tiendra pas | Point de départ honnête : commencer par réduire l'exposition, puis construire les processus |
+
+La case en haut à droite est la plus instructive, et la plus souvent niée. Une direction qui vient de financer un programme accepte mal qu'un scan externe trouve une console exposée. Pourtant, c'est précisément ce qui révèle le processus défaillant, et donc ce qu'il faut corriger pour que la maturité serve à quelque chose. La case en bas à gauche est la plus dangereuse : rien n'alerte, et rien n'empêchera la dégradation.
+
+## Chez Novafact : deux lectures du même trimestre
+
+<Callout kind="novafact">
+Deux rapports arrivent la même semaine (chiffres fictifs). L'évaluation SAMM place Secure Build à 1 et Secure Deployment à 1,5 : un pipeline GitHub Actions unique, un déploiement automatisé vers ECS, des revues de PR obligatoires. La mesure de posture, elle, relève :
+
+| Constat | Source |
+| --- | --- |
+| 31 dépôts dans l'organisation GitHub, dont 9 sans protection de la branche principale | API GitHub, relevé du lundi |
+| 2 fonctions Lambda déployées à la main en 2024, hors du pipeline, toujours actives | Inventaire AWS comparé au dépôt d'infrastructure |
+| `demo.novafact.example` : une copie de l'API de recette, avec des données de démonstration | Journaux Certificate Transparency |
+| 14 vulnérabilités de dépendances de criticité haute ouvertes depuis plus de 60 jours | Outil d'analyse de composition |
+
+Lus séparément, les deux rapports se contredisent. Lus ensemble, ils disent la même chose : le pipeline est correct pour ce qui le traverse, et une partie de ce qui tourne ne le traverse pas.
+</Callout>
+
+La conclusion pratique ne consiste ni à revoir la note SAMM à la baisse, ni à traiter les quatre constats comme des tickets isolés. Elle consiste à demander pourquoi le sous-domaine de démonstration et les deux fonctions Lambda ont pu exister hors du processus, et à fermer ce chemin : un inventaire tenu à jour (leçon 5), une règle qui interdit le déploiement manuel en production, une revue des comptes AWS. Les constats se corrigent une fois ; la cause se corrige pour tous ceux qui suivront.
+
+## Les erreurs de lecture courantes
+
+<Callout kind="warn">
+**Prendre un score de maturité comme un objectif.** Dès qu'une note devient une cible, elle cesse de mesurer : on remplit les critères les plus faciles à prouver. Le score sert à repérer les écarts, pas à classer les équipes.
+
+**Confondre activité et résultat.** « Un pentest par an » est une activité ; « aucune faille d'autorisation retrouvée d'une campagne à l'autre » est un résultat. Le premier relève de la maturité, le second éclaire la posture.
+
+**Oublier l'âge d'une mesure.** Une posture relevée il y a six mois n'est plus une posture, c'est une archive. Toute mesure de posture se présente avec sa date et son périmètre.
+</Callout>
+
+Le même vocabulaire structure la suite du module. Les leçons 2 à 4 traitent de la maturité : SAMM pour décider où aller, BSIMM pour se comparer, et les modèles spécialisés (pipeline, gouvernance, SOC) quand la question est plus étroite. La leçon 5 traite de la posture applicative : inventaire, surface exposée, état des dépôts, notations externes. La leçon 6 assemble les deux dans un état des lieux, qui sert de point de départ au programme décrit en M31.
+
+<Recap items={[
+  "La maturité mesure la capacité des processus ; la posture mesure l'exposition à un instant.",
+  "Une organisation mature peut être exposée par ce qui échappe à ses processus ; une organisation exposée peut sembler sûre faute de mesure.",
+  "Chez Equifax (GAO-18-559), les processus d'alerte, de scan et d'inspection existaient ; une liste périmée, un scan aveugle et un certificat expiré les ont rendus inopérants.",
+  "La maturité est une hypothèse sur la posture future ; la posture en est le test. Leur écart est une information.",
+  "Un score de maturité n'est pas un objectif, une activité n'est pas un résultat, et une mesure de posture se date.",
+]} />
+
+<Sources items={[
+  { title: "GAO-18-559, Data Protection: Actions Taken by Equifax and Federal Agencies in Response to the 2017 Breach (août 2018)", url: "https://www.gao.gov/products/gao-18-559" },
+  { title: "NIST CSWP 29, The NIST Cybersecurity Framework (CSF) 2.0 (26 février 2024)", url: "https://doi.org/10.6028/NIST.CSWP.29", note: "Section 3.1 : profils organisationnels et posture actuelle ou visée" },
+  { title: "OWASP SAMM : le modèle", url: "https://owaspsamm.org/model/" },
+  { title: "BSIMM16 Report (Black Duck, janvier 2026)", url: "https://www.blackduck.com/resources/analyst-reports/bsimm.html" },
+]} />

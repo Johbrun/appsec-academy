@@ -1,0 +1,158 @@
+export const questions = [
+  {
+    q: "Un ingénieur salarié de Novafact reçoit du CTO la demande de tester en production l'iframe du prestataire de paiement. Que lui manque-t-il ?",
+    options: [
+      "Rien : son contrat de travail et la demande du CTO suffisent à l'autoriser",
+      "Une autorisation écrite du prestataire, qui est le seul maître de son système",
+      "Une qualification PASSI, obligatoire pour tout test d'intrusion en France",
+      "Un signalement préalable à l'ANSSI au titre de l'article L2321-4",
+    ],
+    answer: 1,
+    explain: "Ce qui rend un accès non frauduleux, c'est l'accord de celui qui a autorité sur le système : le CTO peut autoriser des tests sur ce que Novafact possède, pas sur l'infrastructure du prestataire. Le contrat de travail ne change rien à cette limite. La qualification PASSI atteste de la compétence d'un prestataire ; aucune loi ne l'impose pour tester ses propres systèmes. Et l'article L2321-4 concerne le signalement d'une faille à l'ANSSI, pas l'autorisation d'un test.",
+  },
+  {
+    q: "Que garantit réellement l'article L2321-4 du Code de la défense à une personne qui signale de bonne foi une vulnérabilité à l'ANSSI ?",
+    options: [
+      "Une immunité pénale pour l'accès au système qui a permis la découverte",
+      "Le droit de publier la faille si l'éditeur ne la corrige pas dans les 90 jours",
+      "La confidentialité de son identité, et l'absence de dénonciation par l'ANSSI au parquet",
+      "Une protection au titre du statut de lanceur d'alerte, avec indemnisation des frais",
+    ],
+    answer: 2,
+    explain: "L'article dispense l'ANSSI de l'obligation de dénoncer prévue à l'article 40 du Code de procédure pénale et l'oblige à préserver l'identité de l'auteur du signalement. Ce n'est pas une immunité : des amendements qui proposaient d'exclure les poursuites au titre de l'article 323-1 ont été écartés en 2021 et 2022. Le délai de 90 jours est une pratique de divulgation, pas une règle de ce texte, et l'article ne crée aucune indemnisation.",
+  },
+  {
+    q: "Dans l'affaire Bluetouff, pourquoi la condamnation a-t-elle été prononcée alors que les documents n'étaient protégés par aucun mot de passe ?",
+    options: [
+      "Parce que l'absence de protection ne change rien : tout accès non sollicité est un délit",
+      "Parce que l'accès passait par un moteur de recherche, ce que la loi interdit expressément",
+      "Parce que la publication des documents constituait à elle seule le délit d'accès frauduleux",
+      "Parce qu'il s'est maintenu dans le système en sachant qu'il n'aurait pas dû y être",
+    ],
+    answer: 3,
+    explain: "Les juges l'ont relaxé de l'accès frauduleux, rendu possible par une défaillance technique, mais condamné pour maintien frauduleux et vol de données : il avait constaté que la zone n'aurait pas dû lui être accessible et a continué. L'absence de protection a donc compté, puisqu'elle a écarté l'accès. Passer par un moteur de recherche n'est pas interdit en soi, et la publication n'est pas l'élément de l'article 323-1.",
+  },
+  {
+    q: "La directive (UE) 2024/2853 sur les produits défectueux inclut le logiciel. Qu'est-ce qui limite sa portée pour un SaaS B2B comme Novafact ?",
+    options: [
+      "Elle ne couvre que les dommages subis par des personnes physiques, et pas les données à usage professionnel",
+      "Elle ne vise que le logiciel embarqué dans un objet physique, pas le logiciel autonome",
+      "Elle exclut tout logiciel distribué sous licence open source, même dans un produit commercial",
+      "Elle ne s'applique qu'aux produits soumis au marquage CE au titre du CRA",
+    ],
+    answer: 0,
+    explain: "La directive indemnise des personnes physiques pour la mort, les lésions, les dommages aux biens et la destruction de données qui ne servent pas à un usage professionnel : les pertes d'un client entreprise relèvent du contrat, pas d'elle. Elle couvre bien le logiciel autonome, c'est l'une de ses nouveautés. Seul le logiciel libre développé ou fourni hors activité commerciale est exclu, et elle ne dépend pas du marquage CE.",
+  },
+];
+
+<YouKnow>
+Un pentester ne lance pas un test sans convention signée, périmètre écrit et contact d'urgence. Il sait aussi qu'un accès sorti du périmètre, même par curiosité, peut coûter cher.
+</YouKnow>
+
+<Callout kind="info">
+Cette leçon décrit le droit français et européen tel qu'il s'applique au 1er octobre 2026, pour qu'un ingénieur AppSec sache quand s'arrêter et à qui poser la question. Ce n'est pas un avis juridique : pour un cas réel, vérifiez les textes à jour sur Légifrance et EUR-Lex, et faites valider par un juriste.
+</Callout>
+
+## Le texte qui s'applique à chaque test
+
+L'article 323-1 du Code pénal punit le fait d'**accéder ou de se maintenir frauduleusement** dans tout ou partie d'un système de traitement automatisé de données (STAD). Depuis la loi du 24 janvier 2023, la peine est de trois ans d'emprisonnement et 100 000 euros d'amende ; elle monte à cinq ans et 150 000 euros quand des données sont supprimées ou modifiées ou que le fonctionnement est altéré, et à sept ans et 300 000 euros pour un système de l'État qui traite des données personnelles. Les articles suivants visent l'entrave au fonctionnement (323-2) et l'introduction, l'extraction ou la modification de données (323-3).
+
+L'article 323-3-1 concerne aussi le testeur : il punit le fait de détenir ou de diffuser un outil conçu pour commettre ces infractions **« sans motif légitime, notamment de recherche ou de sécurité informatique »**. L'outillage offensif est donc légitime par son usage, pas par nature : un exploit partagé hors de tout cadre professionnel perd cette justification.
+
+Ce qui rend un accès non frauduleux, c'est l'**accord de celui qui a autorité sur le système**. Tout le cadre du test d'intrusion en découle : la convention, le périmètre, les dates, les comptes fournis prouvent cet accord et ses limites.
+
+<Callout kind="case">
+L'affaire Bluetouff fixe la portée du « maintien ». Un blogueur accède, via un moteur de recherche, à des documents de l'ANSES stockés sur un extranet mal protégé, constate en remontant l'arborescence que cette zone ne devrait pas lui être accessible, puis télécharge et publie les documents. Relaxé en première instance, il est condamné par la cour d'appel de Paris le 5 février 2014, non pour l'accès (rendu possible par une défaillance technique), mais pour **maintien frauduleux** et vol de données, à 3 000 euros d'amende. La Cour de cassation confirme le 20 mai 2015 (pourvoi n° 14-81.336). La leçon pour un testeur : l'absence de protection n'autorise pas à rester, une fois qu'on sait qu'on n'a rien à faire là.
+</Callout>
+
+## Être salarié ne suffit pas
+
+Passer en interne ne supprime pas la question, il la déplace. Chez Novafact, l'ingénieur AppSec est autorisé à tester ce que Novafact possède, **si la personne qui en a l'autorité le dit par écrit**. Trois situations demandent un accord qui ne vient pas de l'employeur :
+
+- **les fournisseurs** : l'iframe du prestataire de paiement, le widget de chat, le tag manager tournent sur leurs systèmes. Leur certification n'autorise à rien (M30, leçon 6) ;
+- **le cloud** : AWS publie une politique qui liste les services testables sans accord préalable et ce qui reste interdit, comme le déni de service ;
+- **les données des clients** : un test sur la production d'un SaaS multi-tenant touche les données de clients qui n'ont rien signé. Le RGPD s'applique à ce que le testeur consulte ou exporte, même pour une bonne raison.
+
+L'artefact qui règle la question est une **autorisation interne** écrite, aussi sérieuse qu'une convention de prestataire :
+
+<Code file="docs/securite/autorisations/2026-10-test-export.yml" hl="4,5,9,10,13">
+
+```yaml
+id: AUT-2026-031
+objet: Test de l'export comptable asynchrone (contrôle d'accès inter-tenants)
+demandeur: appsec
+autorise_par: cto            # autorité sur les systèmes de Novafact, pas l'AppSec elle-même
+suppleant: rssi
+perimetre:
+  inclus: [api.staging.novafact.example, worker-exports (staging)]
+  exclus: [prestataire-paiement, widget-chat, production]
+donnees: tenants de test uniquement ; aucune donnée client réelle extraite
+fenetre: 2026-10-12T09:00Z / 2026-10-16T18:00Z
+contact_urgence: astreinte-sre
+arret: tout accès à une donnée réelle inattendue -> arrêt, signalement au DPO
+fin: rapport dans le gestionnaire de vulnérabilités, comptes de test supprimés
+```
+
+</Code>
+
+La ligne `arret` est celle que l'affaire Bluetouff rend indispensable : elle dit quoi faire quand le test sort du cadre, avant d'avoir à improviser.
+
+## Divulguer une faille chez un tiers
+
+Tôt ou tard, une faille se trouve chez un tiers : une bibliothèque npm, un fournisseur, le site d'un partenaire. Côté éditeur, M26 (leçon 6) décrit la politique de divulgation et l'engagement de ne pas poursuivre les chercheurs de bonne foi. Côté chercheur, en France, un texte compte.
+
+L'**article L2321-4 du Code de la défense**, créé par la loi pour une République numérique de 2016, permet de signaler une vulnérabilité à l'ANSSI. Il dispense l'agence de l'obligation de dénoncer au procureur prévue par l'article 40 du Code de procédure pénale, quand le signalement vient d'une personne de bonne foi et a été porté à sa seule connaissance, et l'oblige à préserver la confidentialité de son identité. C'est utile quand l'éditeur ne répond pas ou que sa réaction est à craindre.
+
+Ce que l'article ne fait pas : il **n'accorde pas d'immunité** au titre de l'article 323-1. Des amendements qui proposaient d'exclure les poursuites pour ces signalements ont été présentés en 2021, sans être soutenus, puis rejetés en 2022. Si la découverte suppose un accès que personne n'a autorisé, le signalement ne l'efface pas.
+
+## Ce que la loi exige de l'éditeur
+
+Côté Novafact éditeur, deux textes créent des obligations directes :
+
+| Texte | Ce qu'il impose | Où en savoir plus |
+| --- | --- | --- |
+| Code de la défense, art. L2321-4-1 (loi de programmation militaire de 2023, décret du 10 mai 2024) | Notifier à l'ANSSI une vulnérabilité significative d'un produit ou un incident qui le compromet ; l'ANSSI peut fixer un délai pour informer les utilisateurs, l'enjoindre, puis rendre l'affaire publique | Seuils et délais fixés par décret : à vérifier sur Légifrance |
+| Cyber Resilience Act, règlement (UE) 2024/2847 | Signalement des vulnérabilités activement exploitées depuis le 11 septembre 2026 ; exigences essentielles au 11 décembre 2027 | M31, leçon 5 |
+
+Le PSIRT de la leçon 2 n'est donc pas un luxe : ce sont deux circuits de notification qui supposent quelqu'un pour qualifier et décider vite (leçon 5).
+
+## La responsabilité du produit défectueux
+
+La **directive (UE) 2024/2853**, publiée au Journal officiel le 18 novembre 2024, remplace la directive de 1985 sur la responsabilité du fait des produits défectueux. Les États membres doivent la transposer au plus tard le 9 décembre 2026, et elle vaut pour les produits mis sur le marché après cette date. Ce qu'elle change pour l'AppSec :
+
+- le **logiciel est un produit**, y compris autonome, et un défaut peut tenir au non-respect d'exigences de cybersécurité ;
+- le fabricant reste tenu des **mises à jour** qui restent sous son contrôle : ne pas corriger peut devenir un défaut ;
+- le **logiciel libre** développé ou fourni hors de toute activité commerciale est exclu ;
+- la victime est une **personne physique** : sont indemnisés la mort, les lésions, les dommages aux biens et la destruction de données **qui ne servent pas à un usage professionnel**.
+
+Pour un SaaS B2B, le dernier point limite l'exposition directe : les pertes d'un client entreprise restent contractuelles. Mais un composant que Novafact fournit et qu'un client intègre dans une application grand public peut entrer dans la chaîne. L'état de la transposition française au 1er octobre 2026 n'a pas pu être vérifié pour cette leçon : il faut la vérifier avant de s'y référer.
+
+## Avant d'agir : la vérification
+
+<Steps items={[
+  { title: "Qui a autorité ?", text: "Pour chaque système touché, le nom de la personne qui autorise, et sa trace écrite. Un tiers dans la chaîne, c'est un accord de plus." },
+  { title: "Quelles données ?", text: "Ce que le test peut lire ou extraire, et ce qu'on fait d'une donnée réelle inattendue : arrêt, signalement au DPO." },
+  { title: "Quel outillage ?", text: "Des outils détenus pour un motif légitime, dans un cadre professionnel, et rien qui sorte de ce cadre." },
+  { title: "Qui notifier ?", text: "Pour une faille chez un tiers : son canal de divulgation, puis l'ANSSI si besoin. Pour une faille chez Novafact : le PSIRT et la page des décisions." },
+]} />
+
+<Recap items={[
+  "L'article 323-1 punit l'accès et le maintien frauduleux ; l'accord de celui qui a autorité sur le système est ce qui rend un test licite.",
+  "L'affaire Bluetouff : l'absence de protection n'autorise pas à rester quand on sait qu'on n'a rien à faire là.",
+  "En interne, l'autorisation reste écrite ; fournisseurs, cloud et données des clients demandent un accord qui ne vient pas de l'employeur.",
+  "L'article L2321-4 protège l'identité de qui signale à l'ANSSI, mais n'est pas une immunité pénale.",
+  "L'éditeur doit notifier l'ANSSI (L2321-4-1) et, depuis le 11/09/2026, signaler au titre du CRA.",
+  "La directive 2024/2853 fait du logiciel un produit, à transposer au 9/12/2026 ; elle vise les dommages des personnes physiques.",
+]} />
+
+<Sources items={[
+  { title: "Légifrance, Code pénal, articles 323-1 et suivants", url: "https://www.legifrance.gouv.fr/codes/id/LEGISCTA000006149839/" },
+  { title: "Assemblée nationale, amendement n° 1 (Rect) au texte n° 4700 (2021), exposé sommaire", url: "https://www.assemblee-nationale.fr/dyn/15/amendements/4700/AN/1.pdf" },
+  { title: "Assemblée nationale, amendement n° 452 au projet de loi LOPMI (rejeté, 2022)", url: "https://www.assemblee-nationale.fr/dyn/16/amendements/0436/AN/452.pdf" },
+  { title: "ANSSI, déclarer une vulnérabilité", url: "https://cyber.gouv.fr/reglementation/cybersecurite-systemes-dinformation/declaration-de-vulnerabilités/" },
+  { title: "Solutions Numériques, LPM : les obligations des éditeurs de logiciels", url: "https://www.solutions-numeriques.com/?p=109656" },
+  { title: "Le Petit Juriste, l'affaire Bluetouff", url: "https://www.lepetitjuriste.fr/laffaire-bluetouff-condamne-pour-vol-de-donnees-librement-accessibles/" },
+  { title: "EUR-Lex, directive (UE) 2024/2853 sur la responsabilité du fait des produits défectueux", url: "https://eur-lex.europa.eu/eli/dir/2024/2853/oj" },
+  { title: "Hogan Lovells, la nouvelle directive sur les produits défectueux", url: "https://www.hlc.com/en/publications/eu-introduces-comprehensive-digitalera-product-liability-directive" },
+  { title: "AWS, politique de test d'intrusion", url: "https://aws.amazon.com/security/penetration-testing/" },
+]} />

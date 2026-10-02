@@ -1,0 +1,139 @@
+export const questions = [
+  {
+    q: "Un client demande comment Novafact traite les vulnérabilités signalées après livraison. Dans quel groupe de pratiques du NIST SSDF se range la réponse ?",
+    options: [
+      "PO, Prepare the Organization",
+      "PW, Produce Well-Secured Software",
+      "PS, Protect the Software",
+      "RV, Respond to Vulnerabilities",
+    ],
+    answer: 3,
+    explain: "RV couvre l'identification continue des vulnérabilités, leur évaluation et leur correction, puis l'analyse de leur cause racine. PS protège le code et les livraisons contre l'altération, ce qui est voisin mais ne traite pas un signalement. PW produit un logiciel sûr avant la livraison. PO prépare l'organisation (rôles, outils, critères) : il rend la réponse possible sans être la réponse.",
+  },
+  {
+    q: "Pourquoi dit-on que SDL, SSDF et SAMM « décrivent le même cycle avec des mots différents » ?",
+    options: [
+      "Parce que les trois imposent le même enchaînement de phases, dans le même ordre",
+      "Parce que les trois couvrent exigences, conception, code, vérification, déploiement et exploitation",
+      "Parce que le SSDF est une traduction américaine du SDL de Microsoft, et SAMM sa version libre",
+      "Parce que les trois servent à mesurer la maturité d'une organisation sur la même échelle",
+    ],
+    answer: 1,
+    explain: "Chacun découpe les mêmes activités, des exigences à l'exploitation, mais avec un but différent : le SDL décrit les pratiques d'un éditeur, le SSDF liste ce qu'on peut attester, SAMM mesure une maturité. Aucun n'impose une séquence en cascade : SAMM se dit indépendant de la méthode de développement. Le SSDF s'appuie sur plusieurs sources, dont le SDL, sans en être la traduction, et seul SAMM a une échelle de maturité.",
+  },
+  {
+    q: "Dans le parcours, pourquoi l'analyse de risques (M10) précède-t-elle le threat modeling (M11) ?",
+    options: [
+      "Parce que le risque dit ce qui compte pour le métier, et oriente où modéliser les menaces",
+      "Parce que le threat modeling demande une certification que l'analyse de risques prépare",
+      "Parce que le SSDF impose de terminer l'analyse de risques avant toute conception",
+      "Parce que le threat modeling se fait après le code, alors que le risque se traite avant",
+    ],
+    answer: 0,
+    explain: "L'analyse de risques part des valeurs métier et des événements redoutés : elle dit quelles fonctionnalités méritent un modèle de menaces approfondi. Le threat modeling se fait bien en conception, pas après le code. Le SSDF ne fixe pas d'ordre entre ses tâches, et aucune certification n'est requise pour modéliser des menaces : l'ordre du parcours suit une logique, pas une obligation.",
+  },
+  {
+    q: "Le bloc G (sécurité de l'IA) n'a pas de place dans la séquence C → F. Pourquoi ?",
+    options: [
+      "Parce que l'IA n'est pas couverte par les modèles SDL, SSDF et SAMM",
+      "Parce qu'il se suit après le capstone, une fois les bases acquises",
+      "Parce qu'il traverse toutes les phases du cycle pour un type de composant",
+      "Parce qu'il ne concerne que l'exploitation des modèles en production",
+    ],
+    answer: 2,
+    explain: "Une application LLM ou un serveur MCP se conçoit, se code, se vérifie, se déploie et s'exploite comme le reste : le bloc G reprend tout le cycle pour un composant aux menaces propres, d'où sa place en parallèle dès le bloc C. Le parcours le conseille dès la conception, pas après le capstone. Et l'exploitation n'en est qu'une partie : l'injection de prompt se traite d'abord en conception.",
+  },
+];
+
+<YouKnow>
+Un pentester intervient d'habitude à un seul moment du cycle : quand l'application tourne et qu'on lui demande de la casser. Il sait pourtant que la plupart de ses findings auraient pu être évités plus tôt, dans une exigence, une conception ou une revue.
+</YouKnow>
+
+## Un cycle, pas un audit
+
+Le **SSDLC** (*secure software development life cycle*) est l'idée qu'on traite la sécurité à chaque phase du développement, et pas seulement à la fin. Les phases sont toujours les mêmes, quel que soit le modèle : on **exige** (ce que le logiciel doit garantir), on **conçoit** (comment il le garantit), on **implémente**, on **vérifie**, on **déploie**, on **exploite** et on **répond** quand quelque chose arrive.
+
+En DevOps, ces phases ne se suivent pas en cascade sur un an : elles tournent à chaque fonctionnalité, parfois plusieurs fois par jour. Le cycle reste utile parce qu'il pose une question simple pour chaque contrôle : **à quel moment intervient-il, et que rate-t-il si on le place ailleurs ?** Une règle SAST ne voit pas une erreur de conception ; un pentest ne voit pas une exigence absente.
+
+Trois modèles décrivent ce cycle. Un poste AppSec les croise tous, souvent dans la même semaine.
+
+## Le Microsoft SDL
+
+<Callout kind="case">
+Le 15 janvier 2002, Bill Gates envoie aux employés de Microsoft le mémo *Trustworthy Computing*, qui place la sécurité avant les nouvelles fonctionnalités. Les premiers efforts portent sur Windows Server 2003 : formation des ingénieurs, modélisation des menaces, revues et outils d'analyse. Ces pratiques deviennent le **Security Development Lifecycle**, lancé en juillet 2004 et rendu obligatoire pour les équipes produit. Microsoft publie ensuite le processus, qui sert de point de départ à la plupart des modèles suivants.
+</Callout>
+
+Le SDL a évolué avec le cloud et le DevOps. Microsoft le présente aujourd'hui comme dix pratiques : établir des standards, des métriques et une gouvernance ; imposer des fonctions de sécurité, des langages et des frameworks éprouvés ; mener des revues de conception et des threat models ; définir et appliquer des standards de cryptographie ; sécuriser la supply chain logicielle ; sécuriser l'environnement d'ingénierie ; tester la sécurité ; assurer la sécurité de la plateforme d'exploitation ; surveiller et répondre ; former. La deuxième pratique mérite l'attention : c'est le *safe coding* de la leçon 1, éliminer les classes de bugs par les frameworks plutôt que par la vigilance.
+
+## Le NIST SSDF
+
+Le **Secure Software Development Framework** (NIST SP 800-218, version 1.1, février 2022) ne décrit pas un processus mais un ensemble de **pratiques vérifiables**, chacune avec un identifiant, des tâches et des exemples. C'est ce qui en fait la langue des questionnaires clients et des attestations. Il les range en quatre groupes :
+
+| Groupe | Ce qu'il couvre | Exemples de pratiques |
+| --- | --- | --- |
+| **PO** · Prepare the Organization | Exigences, rôles, outillage, critères de contrôle, environnements de développement | PO.1 exigences de sécurité ; PO.5 environnements sûrs |
+| **PS** · Protect the Software | Protéger le code et les livraisons contre l'altération | PS.1 accès au code ; PS.2 intégrité des livraisons |
+| **PW** · Produce Well-Secured Software | Concevoir, coder, relire, tester, configurer par défaut | PW.1 conception ; PW.7 revue de code ; PW.8 tests ; PW.9 défauts sûrs |
+| **RV** · Respond to Vulnerabilities | Identifier, corriger, analyser la cause racine | RV.1 identifier ; RV.3 cause racine |
+
+Le NIST a publié le 17 décembre 2025 un projet de révision (SP 800-218 Rev. 1, SSDF 1.2), dont la consultation s'est close le 30 janvier 2026. À la date de cette leçon, la version 1.1 reste la version finale : il faut vérifier l'état de la révision avant de citer un numéro de pratique dans un contrat.
+
+## OWASP SAMM
+
+**SAMM v2** répond à une autre question : où en est mon organisation, et quelle est la prochaine étape ? Il découpe le cycle en cinq **fonctions**, **Governance**, **Design**, **Implementation**, **Verification** et **Operations**, chacune divisée en trois pratiques notées de 0 à 3. Le module 5 (leçon 2) détaille l'évaluation ; l'essentiel ici est que SAMM se veut indépendant de la méthode de développement, et qu'il ajoute ce que les deux autres laissent en arrière-plan : la gouvernance, la formation et la mesure.
+
+## Trois vocabulaires, une correspondance
+
+| Phase | SDL (pratiques) | SSDF | SAMM |
+| --- | --- | --- | --- |
+| Gouverner, former | Standards et gouvernance ; formation | PO | Governance |
+| Exiger | Standards, revue de conception | PO.1 | Design · Security Requirements |
+| Concevoir | Threat modeling, crypto, frameworks éprouvés | PW.1, PW.2 | Design · Threat Assessment, Secure Architecture |
+| Implémenter | Frameworks éprouvés, supply chain, environnement d'ingénierie | PW.4 à PW.6, PS | Implementation · Secure Build |
+| Vérifier | Tests de sécurité | PW.7, PW.8 | Verification |
+| Déployer | Sécurité de la plateforme | PW.9, PS.2 | Implementation · Secure Deployment |
+| Exploiter, répondre | Surveillance et réponse | RV | Operations ; Implementation · Defect Management |
+
+La correspondance n'est pas parfaite, et c'est instructif. SAMM range la gestion des défauts dans Implementation et la réponse à incident dans Operations, là où le SSDF regroupe tout ce qui suit la livraison dans RV. Et le SSDF n'a pas de groupe dédié à l'exploitation au sens du SOC : la détection en production relève d'autres cadres, comme le NIST CSF (M1, leçon 1).
+
+## Comment le parcours suit le cycle
+
+Le parcours est construit sur ce cycle, après deux blocs de socle. **A (le métier)** et **B (le web et ses vulnérabilités)** posent le décor et le vocabulaire. Les quatre blocs suivants sont les phases, dans l'ordre où elles se posent :
+
+| Bloc | Phase du cycle | Modules | SSDF | SAMM |
+| --- | --- | --- | --- | --- |
+| **C · Concevoir** | Exiger, concevoir | M10 risques, M11 threat modeling, M12 exigences, M13 spécification, M14 identité, M15 anti-abus | PO.1, PW.1, PW.2 | Design |
+| **D · Construire & vérifier** | Implémenter, vérifier | M16 revue de code, M17 tests, M18 pipeline et supply chain | PW.4 à PW.8, PS, PO.5 | Implementation, Verification |
+| **E · Déployer** | Déployer | M19 IAM AWS, M20 IaC, M21 déploiement et résilience | PW.9, en partie | Implementation · Secure Deployment, Operations · Environment Management |
+| **F · Security Operations** | Exploiter, répondre | M22 SOC, M23 journalisation, M24 détection, M25 réponse, M26 vulnérabilités | RV | Operations, Defect Management |
+
+Deux blocs sortent de la séquence. **G (sécurité de l'IA)** traverse toutes les phases pour un type de composant : un assistant LLM se conçoit, se code, se teste et s'exploite comme le reste, avec des menaces propres. Il se suit en parallèle, dès le bloc C. **H (piloter)** couvre ce que SAMM appelle Governance et le SSDF, PO : faire adopter les contrôles (M30), puis bâtir le programme (M31). Il vient en dernier, parce qu'on ne pilote bien que des pratiques qu'on connaît.
+
+Deux choix d'ordre méritent d'être expliqués. Dans C, l'analyse de risques (M10) précède le threat modeling (M11) : le risque dit ce qui compte pour le métier, donc où modéliser en profondeur. Et la gestion des vulnérabilités (M26) clôt F, parce qu'elle reçoit les findings de toutes les phases précédentes.
+
+<Callout kind="novafact">
+Une fonctionnalité, tout le cycle : l'**export comptable** de Novafact. L'analyse de risques classe la fuite inter-tenants comme événement redouté majeur (M10). Le threat model repère le worker asynchrone qui reçoit un identifiant de tenant (M11). L'exigence est écrite en ASVS (M12), le design doc impose le passage par la couche d'accès multi-tenant (M13). La revue de PR et un test d'autorisation la vérifient (M16, M17). Le rôle IAM du worker ne lit qu'un préfixe S3 (M19). Une détection Elastic surveille les exports anormaux (M24). Le jour où un chercheur signale une faille, elle entre dans le cycle de vie des vulnérabilités (M26).
+</Callout>
+
+<Callout kind="warn">
+Le cycle n'est pas une checklist à cocher avant chaque livraison. Un contrôle par phase ne suffit pas s'il ne couvre pas la classe de bug qui compte : dix revues de conception n'arrêteront pas une dépendance compromise. La bonne lecture est inverse : pour chaque classe de risque qui préoccupe l'équipe, où dans le cycle l'arrête-t-on le plus tôt, et où la voit-on si elle passe ?
+</Callout>
+
+<Recap items={[
+  "Le SSDLC traite la sécurité à chaque phase : exiger, concevoir, implémenter, vérifier, déployer, exploiter et répondre.",
+  "Le SDL de Microsoft, né du mémo Trustworthy Computing (2002) et obligatoire depuis 2004, compte aujourd'hui dix pratiques.",
+  "Le NIST SSDF (SP 800-218 v1.1) liste des pratiques vérifiables en quatre groupes : PO, PS, PW, RV ; une révision 1.2 est en projet.",
+  "SAMM v2 mesure la maturité en cinq fonctions : Governance, Design, Implementation, Verification, Operations.",
+  "Les blocs C à F du parcours suivent les phases ; G les traverse pour l'IA ; H correspond à la gouvernance.",
+  "Pour chaque classe de risque, on se demande où le cycle l'arrête le plus tôt et où il la voit si elle passe.",
+]} />
+
+<Sources items={[
+  { title: "Microsoft, Security Development Lifecycle : pratiques", url: "https://www.microsoft.com/en-us/securityengineering/sdl/practices" },
+  { title: "Microsoft, A Decade of SDL (MSDN Magazine)", url: "https://learn.microsoft.com/en-us/archive/blogs/msdnmagazine/a-decade-of-sdl" },
+  { title: "Lipner & Howard, The Trustworthy Computing Security Development Lifecycle (ACSAC 2004)", url: "https://www.acsac.org/2004/papers/Lipner.pdf" },
+  { title: "Infosecurity Magazine, entretien avec Steve Lipner", url: "https://www.infosecurity-magazine.com/interviews/interview-microsofts-steve-lipner" },
+  { title: "NIST SP 800-218, SSDF version 1.1 (février 2022)", url: "https://csrc.nist.gov/pubs/sp/800/218/final" },
+  { title: "NIST SP 800-218 Rev. 1, projet de SSDF 1.2 (décembre 2025)", url: "https://csrc.nist.gov/pubs/sp/800/218/r1/ipd" },
+  { title: "OWASP SAMM v2, le modèle", url: "https://owaspsamm.org/model/" },
+]} />
